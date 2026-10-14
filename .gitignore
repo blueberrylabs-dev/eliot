@@ -16,3 +16,7 @@ gen/schemas/
 .DS_Store
 *.log
 *.tsbuildinfo
+
+# Secrets (clés d'API) : hors git, jamais dans un commit (00_moi/COMPTES.md)
+.env
+.env.*
