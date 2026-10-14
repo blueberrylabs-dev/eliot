@@ -5,6 +5,29 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 1 : l'éditeur, vérifié dans le conteneur de Claude, livré sur le poste
+
+- Fait par Claude : `01_application/` (mode d'emploi et plan du code dans son `LISEZMOI.md`).
+  Noyau Rust `noyau/` sans dépendance à Tauri : import des images (empreinte SHA-256,
+  orientation de l'appareil photo, aperçu 2560 px, miniature 256 px, import parallèle) et
+  écriture des exports (nom daté, jamais d'écrasement, écriture atomique, contrôle de la
+  signature du fichier).
+- Vérifié dans le conteneur de Claude (2 cœurs, sans carte graphique) :
+  - noyau : 13 tests sur 13, dont l'orientation sur une photo d'essai tournée de 90° ;
+  - interface dans Chromium, pilotée par un script : 21 vérifications sur 21, aucune erreur
+    dans la console (ajout, glisser enregistré en une seule étape d'annulation, objets remis
+    à leur place dans la pile après le geste, aimantation au centre, redimensionnement par un
+    coin, rotation, écriture d'un texte, annuler et rétablir, rectangle de sélection, menu du
+    clic droit, suppression puis annulation, couleur de palette, export PNG 1080 × 1080) ;
+  - fenêtre Tauri sur un écran virtuel : import de la photo 24 Mpx du banc par le noyau en
+    889 ms, aperçu et miniature relus par l'interface, titre ajouté, export PNG 1080 × 1080
+    écrit par le noyau en 309 ms. Capture de la fenêtre conforme.
+- Même réglage qu'au banc : `opt-level = 3` sur le noyau en mode développement, sinon l'import
+  d'une grande photo prend plusieurs secondes.
+- Pas encore là, prévu à l'étape 2 : enregistrement du projet (fermer la fenêtre efface la
+  page), zoom de la page, glisser-déposer de fichiers, coller une image.
+- Reste : essai par Alexandre sur le poste, carte graphique libre.
+
 ## 2026-10-14, BRIEF validé, démarrage sur Tauri
 
 - Décisions d'Alexandre : « on démarre sur Tauri » ; BRIEF validé, « tout par défaut »

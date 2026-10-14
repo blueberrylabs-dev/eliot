@@ -1,0 +1,38 @@
+[package]
+name = "eliot"
+version = "0.1.0"
+description = "Eliot, éditeur graphique de bureau"
+authors = ["Alexandre Do"]
+edition = "2024"
+
+[lib]
+# Le suffixe _lib évite un conflit de nom avec le binaire (problème connu sous Windows).
+name = "eliot_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+noyau = { path = "../noyau" }
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+percent-encoding = "2"
+
+# Les bibliothèques et le noyau sont compilés optimisés même en développement : le code
+# générique de réduction et d'encodage d'image est 60 fois plus lent sans (JOURNAL du
+# 2026-10-14).
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.dev.package.noyau]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

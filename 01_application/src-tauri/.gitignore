@@ -1,0 +1,5 @@
+# Produit par Cargo : fichiers compilés et exécutables
+/target/
+
+# Produit par Tauri : schémas des droits pour l'autocomplétion
+/gen/schemas
