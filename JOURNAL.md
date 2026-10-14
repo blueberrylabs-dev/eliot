@@ -5,6 +5,16 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, révision 6 : Pixabay avant Pexels
+
+- Constat d'Alexandre, capture de la page de demande de clé Pexels : « Une nouvelle émission
+  de clé API est actuellement en pause ». Aucune date de reprise trouvée.
+- Proposition de Claude après lecture des règles de l'API Pixabay (§ 4 du BRIEF) : Pixabay en
+  premier, gratuit, photos et vidéos, et ses règles demandent justement de copier l'image
+  chez soi plutôt que de la lier à leur site ; Pexels reste prévu en plus, branché dès
+  qu'une clé existe. Une seule interface de recherche dans Eliot pour les deux.
+- Décision d'Alexandre : « Oui, je suis d'accord ». Il crée un compte Pixabay.
+
 ## 2026-10-14, révision 5 validée, étape 2 ouverte
 
 - Réponse d'Alexandre aux quatre questions : « Pour tous tes points, c'est bon ». Révision 5

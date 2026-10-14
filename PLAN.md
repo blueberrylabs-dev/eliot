@@ -1,8 +1,9 @@
 # PLAN.md — Eliot
 
 Plan vivant, source de vérité de l'avancement. Version du 2026-10-14, alignée sur le
-`BRIEF.md` (révision 5, validée le 2026-10-14 : elle ajoute la bibliothèque, le labo photo,
-le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6).
+`BRIEF.md` (révision 6, validée le 2026-10-14 ; la révision 5 ajoute la bibliothèque, le
+labo photo, le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6 ;
+la révision 6 met Pixabay avant Pexels).
 
 ## Étape 0. Banc d'essai (ouverte le 2026-10-14, poste principal fait le 2026-10-14)
 
@@ -97,8 +98,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
 
 ## Étape 3. La bibliothèque et la mise en forme publicitaire
 
-Icônes, emojis, personnages, polices, recherche Pexels (Alexandre crée son compte et sa clé
-avant), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
+Icônes, emojis, personnages, polices, recherche Pixabay puis Pexels (Alexandre crée son
+compte Pixabay et relève sa clé avant), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
 dessin, graphiques, tableaux, QR code ; pour finir, une quarantaine de modèles de départ.
 
 ## Étape 4. Le labo photo et le Rust qui rend

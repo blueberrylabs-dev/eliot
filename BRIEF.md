@@ -1,11 +1,12 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-14, révision 5, **validée par Alexandre le
-2026-10-14** (« Pour tous tes points, c'est bon »). Elle ajoute à la révision 4, validée plus
-tôt le même jour, ce qu'il a demandé en comparant Eliot à Canva (« Oui, tu rajoutes tout » :
-bibliothèque d'éléments, modèles de départ, photos et vidéos en ligne, nouvelles fonctions),
-le labo photo façon Lightroom, le mode vidéo façon CapCut, le pont vers une IA et un nouvel
-ordre de construction. Toute modification passe par une entrée du JOURNAL et par son accord
+Cadrage, écrit une fois. Version du 2026-10-14, révision 6, **validée par Alexandre le
+2026-10-14**. La révision 6 remplace Pexels, qui a suspendu ses nouvelles clés, par Pixabay
+en premier (« Oui, je suis d'accord »). La révision 5 (« Pour tous tes points, c'est bon »)
+ajoute à la révision 4, validée plus tôt le même jour, ce qu'il a demandé en comparant Eliot
+à Canva (« Oui, tu rajoutes tout » : bibliothèque d'éléments, modèles de départ, photos et
+vidéos en ligne, nouvelles fonctions), le labo photo façon Lightroom, le mode vidéo façon
+CapCut, le pont vers une IA et un nouvel ordre de construction. Toute modification passe par une entrée du JOURNAL et par son accord
 (`00_moi/AUTONOMIE.md`, point 7).
 
 ## 1. Objet
@@ -24,9 +25,9 @@ monter une vidéo sur une frise à pistes, en bas de l'écran.
 
 C'est une application locale : aucun hébergement, aucun compte Eliot. Tout fonctionne sans
 internet, sauf deux fonctions facultatives : chercher des photos et des vidéos libres chez
-Pexels, avec une clé gratuite au nom d'Alexandre, et laisser Claude piloter Eliot (§ 6,
-règle 12). Elle tourne sur deux postes, le
-poste principal (Ubuntu 24.04) et un mini PC aux performances plus modestes. Le travail lourd
+Pixabay (et chez Pexels si Alexandre obtient une clé), avec une clé gratuite à son nom, et
+laisser Claude piloter Eliot (§ 6, règle 12). Elle tourne sur deux postes, le poste
+principal (Ubuntu 24.04) et un mini PC aux performances plus modestes. Le travail lourd
 est fait en Rust.
 
 Le nom « Eliot » est « toile » lu à l'envers, choisi par Alexandre le 2026-10-14.
@@ -64,7 +65,7 @@ Source du poste principal : `00_moi/STACK.md` (version du 2026-09-14, « à rev�
 mini PC est la machine qui fixe la barre : si Eliot est fluide dessus, il l'est partout.
 
 Rien n'est publié ni livré à un tiers. Deux exceptions seulement, chacune à l'initiative
-d'Alexandre (règle 12) : les mots d'une recherche Pexels, et, s'il branche Claude sur Eliot
+d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche Claude sur Eliot
 (§ 6), le document et les captures que Claude lit pendant l'échange.
 
 ## 4. Contexte vérifié le 2026-10-14
@@ -99,6 +100,8 @@ d'Alexandre (règle 12) : les mots d'une recherche Pexels, et, s'il branche Clau
 | unDraw (écarté) | la licence exclut de distribuer les illustrations « in packs or otherwise » et de les compiler en collection | https://undraw.co/license |
 | QR code et polices | `qrcode` 1.5.4, MIT ; paquets `@fontsource/*` des polices Google en OFL-1.1 (relevé sur `anton` et `archivo-black` 5.3.0, à vérifier police par police) | `npm view` |
 | API Pexels | gratuite, clé obligatoire (compte Pexels) ; 200 requêtes par heure et 20 000 par mois par défaut ; photos et vidéos (`/v1/videos/search`) ; « show a prominent link to Pexels », crédit du photographe « where possible » ; interdit : « copy or replicate core functionality of Pexels » ; rien sur la copie locale des fichiers | https://www.pexels.com/api/documentation/ |
+| API Pexels, état | « Une nouvelle émission de clé API est actuellement en pause » (page de demande de clé, capture d'Alexandre du 2026-10-14) ; aucune date de reprise trouvée | https://www.pexels.com/fr-fr/api/key/ |
+| API Pixabay | clé gratuite liée au compte ; 100 requêtes par 60 secondes ; photos et vidéos (`/api/videos/`) ; « permanent hotlinking of images (using Pixabay URLs in your app) is not allowed », « please download them to your server first » ; réponses à garder en cache 24 h ; « show your users where the images and videos are from, whenever search results are displayed » ; « Systematic mass downloads are not allowed » | https://pixabay.com/api/docs/ |
 | API Unsplash (écartée) | « All API uses must use the hotlinked image URLs returned by the API » : incompatible avec une photo copiée dans le projet et un travail hors ligne | https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines |
 | Kits MCP | `rmcp` 3.5.1, Apache-2.0, kit Rust officiel, transports par entrée et sortie standard (`transport-io`) et HTTP ; `@modelcontextprotocol/sdk` 1.32.1, MIT | `cargo info rmcp`, `npm view` |
 | Whisper (sous-titres automatiques) | « Whisper's code and model weights are released under the MIT License » ; modèles de 39 millions (tiny) à 1,55 milliard de paramètres (large) | https://github.com/openai/whisper |
@@ -135,10 +138,10 @@ d'Alexandre (règle 12) : les mots d'une recherche Pexels, et, s'il branche Clau
     2026-10-14 : 45 images/s sans cette règle dans Tauri, 62 avec. Une vidéo qui joue suit la
     même logique : elle vit sur son propre calque.
 12. **Hors ligne par défaut.** Tout fonctionne sans internet. Seules sortent sur le réseau la
-    recherche Pexels, quand Alexandre la lance, et les échanges avec Claude, quand il branche
-    Claude sur Eliot (§ 6). C'est le Rust qui appelle Pexels ; la clé est
-    rangée dans le dossier de configuration du poste, jamais dans le dépôt ni dans
-    l'interface. Une photo ou une vidéo choisie est copiée dans les ressources avec le nom et
+    recherche de photos et de vidéos libres (Pixabay, Pexels), quand Alexandre la lance, et
+    les échanges avec Claude, quand il branche Claude sur Eliot (§ 6). C'est le Rust qui
+    appelle ces services ; les clés sont rangées dans le dossier de configuration du poste,
+    jamais dans le dépôt ni dans l'interface. Une photo ou une vidéo choisie est copiée dans les ressources avec le nom et
     le lien de son auteur : le projet n'a plus besoin du réseau ensuite.
 13. **Une retouche ne touche jamais l'original.** Réglages de photo, recadrage, détourage,
     coupes et vitesse d'une vidéo sont des valeurs du document. Le Rust les applique à
@@ -160,7 +163,7 @@ ce que les outils imposent (`package.json`, `src-tauri/`, `Cargo.toml`, `main.rs
 | Écriture des exports | noyau Rust natif | idem |
 | Rendu d'export depuis le document, avec les images originales (PDF vectoriel, haute définition) | noyau Rust natif, étape 4 | qualité maximale, indépendante de l'écran |
 | Réglages de photo (labo façon Lightroom), histogramme | noyau Rust natif ; aperçu en direct par le Rust ou par un shader WebGL, choisi par mesure (étape 4) | calcul pixel par pixel sur des millions de pixels |
-| Recherche et téléchargement Pexels | noyau Rust natif | la clé reste hors de l'interface (règle 12) |
+| Recherche et téléchargement de photos et vidéos libres (Pixabay, Pexels) | noyau Rust natif | la clé reste hors de l'interface (règle 12) |
 | Frise vidéo, lecture, textes animés à l'écran | React et Konva | c'est de l'interface et du dessin interactif |
 | Vignettes et formes d'onde, copies d'aperçu des vidéos, export MP4, sous-titres automatiques | noyau Rust, avec le programme `ffmpeg` du système et Whisper sur le processeur (étape 5) | décodage, composition et encodage image par image |
 
@@ -190,7 +193,7 @@ polices de Canva.
   Formes, Images, Calques. Révision 5, sur le modèle de la capture de Canva du 2026-10-14 :
   Modèles, Éléments (formes, lignes, icônes, emojis, personnages, cadres et grilles photo,
   maquettes d'appareils, graphiques, tableaux, QR code), Texte (styles et associations de
-  polices), Photos (Pexels), Importer, Marque, Dessin, Projets, Calques. Un clic pose l'objet
+  polices), Photos (Pixabay, Pexels), Importer, Marque, Dessin, Projets, Calques. Un clic pose l'objet
   au centre de la page ; on peut aussi le glisser à l'endroit voulu (étape 2). Chaque panneau a
   sa recherche par mot.
 - **La barre du haut** : accueil, menu Fichier, nom du design (modifiable), état de
@@ -309,7 +312,7 @@ une action du store (règle 2). Il suffit d'offrir ces actions à une IA sous fo
   si Alexandre l'a activé dans les réglages d'Eliot.
 - **Les outils de l'IA**, calqués sur les actions du store : lire le document ; ajouter,
   modifier, déplacer, supprimer des éléments ; changer la page et son format ; chercher dans
-  la bibliothèque (icônes, emojis, polices, modèles) et dans Pexels ; importer une image du
+  la bibliothèque (icônes, emojis, polices, modèles) et dans les banques de photos ; importer une image du
   poste ; appliquer des réglages du labo photo ; poser des clips et des animations sur la
   frise ; exporter. Et un outil pour **voir** : une capture de la page en PNG, pour que l'IA
   juge son propre travail.
@@ -341,7 +344,7 @@ pourquoi cette mise en page fonctionne ».
 | Formats prêts à l'emploi (réseaux sociaux, bannières, A4) et décliner un visuel dans un autre format | interface | 2 |
 | Modèles maison : enregistrer un design comme point de départ | noyau Rust (projets) | 2 |
 | Bibliothèque d'éléments : icônes, emojis, personnages, polices | fichiers libres embarqués (licences au § 4) | 3 |
-| Photos et vidéos libres pour illustrer une pub | recherche Pexels par le noyau Rust (règle 12) | 3 |
+| Photos et vidéos libres pour illustrer une pub | recherche Pixabay, puis Pexels, par le noyau Rust (règle 12) | 3 |
 | Kit de marque : couleurs, polices et logos réutilisables d'un design à l'autre | interface + fichiers du noyau | 3 |
 | Effets de texte : ombre, contour, surlignage | Konva | 3 |
 | Image dans un cadre ou une forme (photo dans un cercle), grilles de photos | Konva (découpe) | 3 |
@@ -371,7 +374,7 @@ quand un texte est sélectionné, ceux d'une vidéo quand c'est une vidéo.
 - **Éléments** : textes (titre, sous-titre, paragraphe, listes), formes (rectangle, arrondi,
   cercle, triangle, étoile, polygone, ligne, flèche), icônes (Tabler et Phosphor), emojis et
   autocollants (Fluent Emoji, OpenMoji), personnages (Open Peeps, Humaaans), images, photos et
-  vidéos Pexels, vidéos, cadres (une image dans une forme) et grilles de photos, maquettes
+  vidéos Pixabay et Pexels, vidéos, cadres (une image dans une forme) et grilles de photos, maquettes
   d'appareils (téléphone, ordinateur, tablette, montre), graphiques (barres, courbes,
   secteurs, anneaux) à partir d'un petit tableau de valeurs, tableaux, QR code, dessin à main
   levée (crayon, marqueur, surligneur, gomme). Tous les éléments embarqués se cherchent par
@@ -590,7 +593,7 @@ passe par le navigateur : on peut travailler l'interface sans recompiler le Rust
 | Commandes Rust | `async` | synchrones : elles tournent sur le fil principal, l'interface gèle |
 | Plugins Tauri | `dialog`, `opener` | `fs` : ouvrirait au front un accès disque large, inutile puisque le Rust lit et écrit |
 | Version Tauri | 2.12 | 3.0 : alpha |
-| Photos et vidéos en ligne | Pexels (photos et vidéos, copie dans le projet possible) | Unsplash : liens directs obligatoires vers ses serveurs, contraire à la règle 12 |
+| Photos et vidéos en ligne | Pixabay d'abord (ses règles demandent de copier l'image chez soi), Pexels en plus si une clé est obtenue ; une même interface de recherche pour les deux | Unsplash : liens directs obligatoires vers ses serveurs, contraire à la règle 12 |
 | Personnages illustrés | Open Peeps et Humaaans (CC0) | unDraw : sa licence interdit de redistribuer ses illustrations en lot |
 | Fichiers de police | TTF ou OTF, une seule copie par police, servie à la fenêtre et lue par le Rust pour l'export (étape 3) | woff2 seuls (paquets `@fontsource` de l'étape 1) : le Rust devrait les décompresser avant de s'en servir |
 | Aperçu en direct du labo photo | Rust en direct ou shader WebGL, départagés par mesure au début de l'étape 4 | filtres de Konva : JavaScript pixel par pixel, trop lents |
@@ -634,8 +637,8 @@ copier le style, dégradés. Puis, si Alexandre le valide, le pont vers une IA a
 existantes ; chaque étape suivante y ajoute ses outils.
 
 Étape 3, la bibliothèque et la mise en forme publicitaire : icônes, emojis, personnages, 60
-à 100 polices et polices du poste, associations de polices, recherche Pexels (photos et
-vidéos), effets de texte, cadres et grilles photo, maquettes d'appareils, ombres portées, kit
+à 100 polices et polices du poste, associations de polices, recherche Pixabay et Pexels (photos
+et vidéos), effets de texte, cadres et grilles photo, maquettes d'appareils, ombres portées, kit
 de marque, lignes et flèches, dessin à main levée, graphiques, tableaux, QR code. Pour finir,
 la quarantaine de modèles de départ, qui ont besoin de tout le reste.
 
@@ -653,7 +656,7 @@ sombre, texte courbé, styles enregistrés).
 ## 8. Hors périmètre
 
 Hébergement, comptes Eliot, mises à jour automatiques par internet. Services en ligne, sauf
-la recherche Pexels et Claude branché par Alexandre (règle 12). Autres banques d'images,
+la recherche de photos (Pixabay, Pexels) et Claude branché par Alexandre (règle 12). Autres banques d'images,
 modèles fournis par un tiers (ceux d'Eliot sont dessinés pour lui), génération d'images par
 IA, collaboration (commentaires, partage), mode présentation (présenter, notes, minuteur),
 applications tierces intégrées, mobile. Windows et macOS : le code reste portable, mais rien
@@ -699,7 +702,9 @@ Tranchées le 2026-10-14, seconde série, par Alexandre (« Oui, tu rajoutes tou
   celles du poste, panneaux Éléments et Texte enrichis.
 - Une quarantaine de modèles de départ dessinés par Claude.
 - Photos et vidéos en ligne : Pexels. Unsplash, que Claude avait cité dans sa proposition, est
-  écarté par lui après lecture de ses règles (liens directs obligatoires, § 4).
+  écarté par lui après lecture de ses règles (liens directs obligatoires, § 4). Révision 6 :
+  Pexels a suspendu ses nouvelles clés (constaté par Alexandre le 2026-10-14) ; Pixabay passe
+  en premier, Pexels reste prévu en plus (« Oui, je suis d'accord »).
 - Dessin à main levée, grilles photo, maquettes d'appareils, graphiques, tableaux.
 
 Validées avec la révision 5 (demandes d'Alexandre du même jour, mises en forme par Claude ;
@@ -711,9 +716,9 @@ Validées avec la révision 5 (demandes d'Alexandre du même jour, mises en form
 - Le nouvel ordre de construction en six étapes (§ 7).
 - Les règles 12 et 13 (§ 5).
 
-Action d'Alexandre avant l'étape 3 : créer un compte Pexels et demander sa clé d'API
-gratuite (annoncé le 2026-10-14) ; il la saisit lui-même dans les réglages d'Eliot, jamais
-dans un fichier du dépôt ni dans la conversation avec Claude.
+Action d'Alexandre avant l'étape 3 : créer un compte Pixabay et relever sa clé d'API
+gratuite (et une clé Pexels si la pause se lève) ; il la saisit lui-même dans les réglages
+d'Eliot, jamais dans un fichier du dépôt ni dans la conversation avec Claude.
 
 Ouvertes, avec la proposition de Claude :
 
