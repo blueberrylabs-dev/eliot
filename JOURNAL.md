@@ -22,6 +22,18 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
   22 outils ; manifeste accepté par l'outil officiel `@anthropic-ai/mcpb` 2.1.2.
 - Rien n'a été modifié dans la configuration de l'application Claude par Claude : le dossier
   `~/.config/Claude` lui est fermé, les changements restent ceux d'Alexandre.
+- Extension installée par Alexandre : l'application Claude la charge, les 22 outils
+  apparaissent, mais `etat` répond « Eliot n'est pas joignable » alors qu'Eliot est ouvert et
+  le pont activé. Cause : l'application lance ses serveurs MCP avec un environnement réduit
+  (HOME, LOGNAME, PATH, SHELL, TERM, USER), sans `XDG_RUNTIME_DIR`. Le pont cherchait alors
+  le fichier de communication dans `~/.cache/eliot/`, pendant qu'Eliot, lancé depuis un
+  terminal, écoutait dans `/run/user/<uid>/eliot/`.
+- Correction dans `eliot-mcp` seul (Eliot n'a pas à être recompilé) : le pont essaie
+  `$XDG_RUNTIME_DIR`, puis `/run/user/<uid>` (numéro lu sur `/proc/self`), puis `~/.cache`,
+  et nomme les chemins essayés dans son message d'erreur. Reproduit puis vérifié dans le
+  conteneur : Eliot ouvert avec `/run/user/0`, pont lancé avec le même environnement réduit ;
+  l'ancien pont répond « pas joignable », le nouveau répond ; essai complet du pont 19 sur 19,
+  tests Rust du pont 4 sur 4 (dont « le second chemin sert si le premier est vide »).
 
 ## 2026-10-14, pont vers une IA (MCP), dernier morceau de l'étape 2
 

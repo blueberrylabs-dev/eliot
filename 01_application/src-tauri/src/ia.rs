@@ -26,7 +26,8 @@ use tauri::{AppHandle, Emitter, Manager};
 /// quelques secondes au plus).
 const DELAI_REPONSE: Duration = Duration::from_secs(120);
 
-/// Même chemin que dans `eliot-mcp/src/main.rs`.
+/// `eliot-mcp/src/main.rs` essaie ce chemin, et aussi `/run/user/<uid>` quand le client MCP
+/// le lance sans `XDG_RUNTIME_DIR` (cas de l'application Claude).
 pub fn chemin_socket() -> PathBuf {
     let base = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)

@@ -240,6 +240,12 @@ Claude, Réglages, Extensions, en choisissant le fichier produit.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && python3 emballer_mcpb.py
 ```
 
+Après une livraison qui change le pont, les deux d'un coup (compiler puis emballer) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && cargo build --release -j 4 && python3 emballer_mcpb.py
+```
+
 Vérifier : la commande affiche « Extension prête » suivi du chemin
 `01_application/eliot-mcp/target/eliot.mcpb`. À refaire après chaque nouvelle compilation du
 pont, puis réinstaller l'extension. Si l'extension et l'entrée du fichier sont actives toutes

@@ -100,7 +100,9 @@ Choix par défaut de Claude, modifiables sur simple demande :
       réglage pour l'activer ; vérifié de bout en bout dans le conteneur (2026-10-14)
 - [x] Alexandre compile `eliot-mcp` et le déclare dans le fichier de l'application Claude
       (2026-10-14) ; le paquet non officiel ne le charge pas
-- [x] Extension `.mcpb` en secours (`eliot-mcp/emballer_mcpb.py`, commande 15 bis)
+- [x] Extension `.mcpb` en secours (`eliot-mcp/emballer_mcpb.py`, commande 15 bis) ;
+      installée, elle se charge, mais ne trouvait pas Eliot (environnement réduit) : pont
+      corrigé le 2026-10-14, à recompiler et réemballer
 - [ ] Pont IA : l'application Claude charge `eliot` (fichier ou extension), puis premier essai
       de Claude dans Eliot
 

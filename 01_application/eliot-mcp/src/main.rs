@@ -32,13 +32,38 @@ Coordonnées en pixels de la page, origine en haut à gauche ; un élément tour
 Commence par `etat` ; après une série de modifications, regarde le résultat avec `capture` avant de dire que c'est fini. \
 Couleurs en #rrggbb ; polices : celles que donne `etat`. Tu ne peux ni supprimer un design ni écrire hors des dossiers d'Eliot.";
 
-/// Même chemin que dans `src-tauri/src/ia.rs`.
-fn chemin_socket() -> PathBuf {
-    let base = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .filter(|d| d.is_dir())
-        .unwrap_or_else(|| std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join(".cache"));
-    base.join("eliot").join("eliot.sock")
+/// Les endroits où Eliot peut avoir ouvert son fichier de communication, dans l'ordre d'essai.
+///
+/// Eliot le pose dans `$XDG_RUNTIME_DIR` (en pratique `/run/user/<uid>`), sinon dans
+/// `~/.cache` (`src-tauri/src/ia.rs`). Mais l'application Claude lance ses serveurs MCP avec
+/// un environnement réduit, sans `XDG_RUNTIME_DIR` : le pont essaie donc aussi
+/// `/run/user/<uid>` directement, avant `~/.cache`.
+fn chemins_socket() -> Vec<PathBuf> {
+    let mut bases: Vec<PathBuf> = Vec::new();
+    if let Some(d) = std::env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).filter(|d| d.is_dir()) {
+        bases.push(d);
+    }
+    if let Some(uid) = uid() {
+        let d = PathBuf::from(format!("/run/user/{uid}"));
+        if d.is_dir() {
+            bases.push(d);
+        }
+    }
+    bases.push(std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join(".cache"));
+    let mut chemins: Vec<PathBuf> = Vec::new();
+    for base in bases {
+        let chemin = base.join("eliot").join("eliot.sock");
+        if !chemins.contains(&chemin) {
+            chemins.push(chemin);
+        }
+    }
+    chemins
+}
+
+/// Numéro de l'utilisateur, lu sur `/proc/self` (il appartient au processus lui-même).
+fn uid() -> Option<u32> {
+    use std::os::unix::fs::MetadataExt;
+    std::fs::metadata("/proc/self").ok().map(|m| m.uid())
 }
 
 fn outils() -> Vec<Tool> {
@@ -56,11 +81,26 @@ fn outils() -> Vec<Tool> {
 
 /// Envoie un appel à Eliot et attend sa réponse.
 async fn appeler(outil: &str, arguments: Value) -> Result<Value, String> {
-    let chemin = chemin_socket();
-    let flux = UnixStream::connect(&chemin).await.map_err(|_| {
-        "Eliot n'est pas joignable : il n'est pas ouvert, ou le pont IA est désactivé (Fichier, Réglages). \
-Demande à Alexandre de l'ouvrir ; ce pont ne lance jamais Eliot."
-            .to_string()
+    appeler_sur(&chemins_socket(), outil, arguments).await
+}
+
+async fn connecter(chemins: &[PathBuf]) -> Option<UnixStream> {
+    for chemin in chemins {
+        if let Ok(flux) = UnixStream::connect(chemin).await {
+            return Some(flux);
+        }
+    }
+    None
+}
+
+async fn appeler_sur(chemins: &[PathBuf], outil: &str, arguments: Value) -> Result<Value, String> {
+    let flux = connecter(chemins).await.ok_or_else(|| {
+        let essais: Vec<String> = chemins.iter().map(|c| c.display().to_string()).collect();
+        format!(
+            "Eliot n'est pas joignable : il n'est pas ouvert, ou le pont IA est désactivé (Fichier, Réglages). \
+Demande à Alexandre de l'ouvrir ; ce pont ne lance jamais Eliot. Fichiers de communication essayés : {}.",
+            essais.join(", ")
+        )
     })?;
     let (lecture, mut ecriture) = flux.into_split();
     let mut ligne = json!({ "id": 1, "outil": outil, "arguments": arguments }).to_string();
@@ -141,9 +181,42 @@ mod tests {
         // Un dossier vide pour le fichier de communication : personne n'écoute.
         let dossier = std::env::temp_dir().join(format!("eliot-mcp-test-{}", std::process::id()));
         std::fs::create_dir_all(&dossier).unwrap();
-        unsafe { std::env::set_var("XDG_RUNTIME_DIR", &dossier) };
-        let erreur = appeler("etat", json!({})).await.unwrap_err();
+        let chemin = dossier.join("eliot.sock");
+        let erreur = appeler_sur(&[chemin.clone()], "etat", json!({})).await.unwrap_err();
         assert!(erreur.contains("pas joignable"), "{erreur}");
+        assert!(erreur.contains(&chemin.display().to_string()), "{erreur}");
         std::fs::remove_dir_all(&dossier).unwrap();
+    }
+
+    #[tokio::test]
+    async fn le_second_chemin_sert_si_le_premier_est_vide() {
+        // Cas de l'application Claude : le premier endroit n'a personne, Eliot écoute au second.
+        let dossier = std::env::temp_dir().join(format!("eliot-mcp-test2-{}", std::process::id()));
+        std::fs::create_dir_all(&dossier).unwrap();
+        let vide = dossier.join("absent.sock");
+        let bon = dossier.join("eliot.sock");
+        let ecoute = tokio::net::UnixListener::bind(&bon).unwrap();
+        tokio::spawn(async move {
+            let (flux, _) = ecoute.accept().await.unwrap();
+            let (lecture, mut ecriture) = flux.into_split();
+            let mut ligne = String::new();
+            BufReader::new(lecture).read_line(&mut ligne).await.unwrap();
+            let appel: Value = serde_json::from_str(&ligne).unwrap();
+            let reponse = json!({ "id": appel["id"], "ok": true, "resultat": { "donnees": { "outil": appel["outil"] } } });
+            ecriture.write_all(format!("{reponse}\n").as_bytes()).await.unwrap();
+        });
+        let valeur = appeler_sur(&[vide, bon], "etat", json!({})).await.unwrap();
+        assert_eq!(valeur["donnees"]["outil"], "etat");
+        std::fs::remove_dir_all(&dossier).unwrap();
+    }
+
+    #[test]
+    fn la_session_est_essayee_meme_sans_xdg_runtime_dir() {
+        let chemins = chemins_socket();
+        assert!(chemins.last().unwrap().ends_with(".cache/eliot/eliot.sock"));
+        let session = PathBuf::from(format!("/run/user/{}", uid().unwrap()));
+        if session.is_dir() {
+            assert!(chemins.contains(&session.join("eliot").join("eliot.sock")), "{chemins:?}");
+        }
     }
 }
