@@ -62,6 +62,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   en cache. La photo choisie est copiée dans le design avec le nom de son auteur, visible dans
   la barre du haut quand elle est choisie. Il faut la clé Pixabay dans le `.env` du dossier
   Eliot (`PIXABAY_API_KEY=…`) ; Eliot la lit côté Rust et ne l'affiche jamais.
+- Modèles de départ : 42 pages prêtes à modifier (soldes, nouveau produit, citation, événement,
+  témoignage, menu, carrousel, comparatif, stories, miniatures YouTube, bannières, affiches A4
+  et A5), avec des cadres photo vides à remplir. À l'accueil, « Partir d'un modèle » crée un
+  design au bon format ; dans l'éditeur, l'onglet Modèles pose le modèle sur la page (ou sur
+  une nouvelle page si elle est déjà remplie), mis à l'échelle si le format diffère.
 - Panneau Dessin : stylo, marqueur, surligneur et gomme ; chaque trait devient un objet qu'on
   déplace, agrandit ou recolore ensuite. Échap pour revenir à la sélection.
 - Graphiques (panneau Éléments) : colonnes, barres, courbe, aires, camembert, anneau, jauge de
@@ -77,7 +82,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, se servir du kit de marque, dessiner à main
-  levée, poser des graphiques et des tableaux, regarder une capture de la page et exporter. On la voit travailler dans la fenêtre,
+  levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
+  capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Raccourcis
@@ -126,6 +132,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes
 │   ├── accueil/      l'accueil : formats, designs, modèles
 │   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie
+│   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages

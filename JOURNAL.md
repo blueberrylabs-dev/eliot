@@ -5,6 +5,33 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 5 : modèles de départ
+
+- 42 modèles dessinés par Claude pour Eliot (`src/modeles/depart.ts`), dans tous les formats :
+  12 carrés (soldes, nouveau produit, citation, événement, avant et après, témoignage, chiffres
+  clés, trois astuces, concours, merci aux abonnés, menu du jour, on recrute), 7 portraits 4:5,
+  9 stories, 5 miniatures YouTube, 3 bannières, 2 diapositives 16:9, 3 affiches A4, 1 flyer A5.
+  Polices et icônes de la bibliothèque, cadres photo vides à remplir, graphiques et tableaux là
+  où ils servent. Aucune marque réelle, aucun logo de réseau social, aucune citation de
+  personne réelle : les textes sont des exemples à remplacer.
+- Un modèle est décrit sans identifiants ni hauteurs de texte ; à l'usage, Eliot charge les
+  polices, mesure les textes et les tableaux, relie les groupes. Dans un autre format, il est
+  mis à l'échelle et centré, comme par Redimensionner, qui adapte maintenant aussi les
+  bordures, les ombres, les graphiques et les tableaux.
+- Où ils se trouvent : à l'accueil, « Partir d'un modèle » (filtre par format) crée un design
+  au format du modèle ; dans l'éditeur, le nouvel onglet Modèles, en tête du rail, montre ceux
+  du format ouvert, les autres sur demande, avec une recherche. Un clic remplit la page si elle
+  est vide, sinon pose le modèle sur une nouvelle page juste après ; une seule étape
+  d'annulation. Les vignettes se dessinent quand elles apparaissent à l'écran.
+- Pont IA : `lister_modeles_depart` (avec une planche des vignettes numérotées) et
+  `utiliser_modele_depart` (41 outils en tout).
+- Relus à l'œil sur une planche de rendus avant livraison : cinq modèles retouchés (titres
+  coupés, case vide, bas de page vide) ; les dégradés « verticaux » allaient presque de droite
+  à gauche (angle mal choisi), corrigés.
+- Vérifié dans le conteneur : Chromium 17 sur 17 ; Tauri par le pont 8 sur 8 (planche, design
+  neuf, nouvelle page, rendu WebKitGTK) ; vitest 48 sur 48 ; non-régression Chromium 33, 23,
+  18, 29 et 27 sur 27 ; `npm run build` passe.
+
 ## 2026-10-14, étape 3, lot 4 : dessin à main levée, graphiques, tableaux
 
 - Dessin (onglet Dessin) : stylo, marqueur, surligneur (translucide, il teinte ce qu'il

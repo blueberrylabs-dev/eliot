@@ -14,6 +14,9 @@ import { creerCadre, creerEmoji, creerForme, creerGraphique, creerGrille, creerI
 import type { SensAlignement } from "../modele/geometrie";
 import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementTableau, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin } from "../modele/types";
 import { logoDansDesign, useMarque } from "../etat/marque";
+import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
+import { MODELES_DEPART } from "../modeles/depart";
+import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
 import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
@@ -223,11 +226,12 @@ function placer<T extends ElementPage>(el: T, args: Arguments): T {
   return sortie;
 }
 
-/** Une planche numérotée des aperçus, pour que l'IA voie les photos avant d'en choisir une. */
-async function plancheDePhotos(photos: PhotoPixabay[]): Promise<Blob> {
+/** Une planche d'images numérotées, quatre par rangée, pour que l'IA voie avant de choisir.
+ *  `couvrir` : l'image remplit sa case (coupée au centre) ; sinon elle y tient entière. */
+async function planche(adresses: (() => Promise<string>)[], l: number, h: number, couvrir: boolean): Promise<Blob> {
   const colonnes = 4;
-  const [l, h, marge] = [240, 180, 6];
-  const lignes = Math.ceil(photos.length / colonnes);
+  const marge = 6;
+  const lignes = Math.ceil(adresses.length / colonnes);
   const toile = document.createElement("canvas");
   toile.width = colonnes * l + (colonnes + 1) * marge;
   toile.height = lignes * h + (lignes + 1) * marge;
@@ -235,19 +239,25 @@ async function plancheDePhotos(photos: PhotoPixabay[]): Promise<Blob> {
   c.fillStyle = "#ffffff";
   c.fillRect(0, 0, toile.width, toile.height);
   await Promise.all(
-    photos.map(async (p, i) => {
+    adresses.map(async (adresse, i) => {
       const x = marge + (i % colonnes) * (l + marge);
       const y = marge + Math.floor(i / colonnes) * (h + marge);
+      c.fillStyle = "#e5e5e5";
+      c.fillRect(x, y, l, h);
       try {
-        const image = await createImageBitmap(await (await fetch(await urlApercuPixabay(p.id))).blob());
-        // L'aperçu remplit sa case (coupé au centre si ses proportions diffèrent).
-        const echelle = Math.max(l / image.width, h / image.height);
-        const [lw, lh] = [l / echelle, h / echelle];
-        c.drawImage(image, (image.width - lw) / 2, (image.height - lh) / 2, lw, lh, x, y, l, h);
+        const image = await createImageBitmap(await (await fetch(await adresse())).blob());
+        if (couvrir) {
+          const echelle = Math.max(l / image.width, h / image.height);
+          const [lw, lh] = [l / echelle, h / echelle];
+          c.drawImage(image, (image.width - lw) / 2, (image.height - lh) / 2, lw, lh, x, y, l, h);
+        } else {
+          const echelle = Math.min(l / image.width, h / image.height);
+          const [lw, lh] = [image.width * echelle, image.height * echelle];
+          c.drawImage(image, x + (l - lw) / 2, y + (h - lh) / 2, lw, lh);
+        }
         image.close();
       } catch {
-        c.fillStyle = "#e5e5e5";
-        c.fillRect(x, y, l, h);
+        // Case laissée grise : l'image n'a pas pu venir.
       }
       c.fillStyle = "rgba(0,0,0,0.75)";
       c.fillRect(x, y, 34, 26);
@@ -259,6 +269,8 @@ async function plancheDePhotos(photos: PhotoPixabay[]): Promise<Blob> {
   );
   return new Promise((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error("planche impossible"))), "image/jpeg", 0.82));
 }
+
+const plancheDePhotos = (photos: PhotoPixabay[]) => planche(photos.map((p) => () => urlApercuPixabay(p.id)), 240, 180, true);
 
 /** Ce que l'IA voit du kit de marque. */
 function resumerMarque(kit: KitMarque) {
@@ -581,6 +593,30 @@ const OUTILS: Record<string, Outil> = {
     if (nombre(args.y) === undefined) el.y = Math.round((etat().document.format.hauteur - el.hauteur) / 2);
     etat().ajouterElements([el]);
     return { donnees: el };
+  },
+
+  async lister_modeles_depart(args) {
+    const format = texte(args.format);
+    if (format) exiger(FORMATS_PAGE.some((f) => f.id === format), `format : ${FORMATS_PAGE.map((f) => f.id).join(", ")}`);
+    const q = normaliser(texte(args.requete) ?? "");
+    const liste = MODELES_DEPART.filter((m) => (!format || m.format === format) && (!q || q.split(" ").every((mot) => normaliser(`${m.nom} ${m.mots}`).includes(mot))));
+    const donnees = {
+      modeles: liste.map((m, i) => ({ numero: i + 1, id: m.id, nom: m.nom, format: m.format, mots: m.mots })),
+      conseil: "utiliser_modele_depart avec l'id choisi ; la planche montre les modèles numérotés (12 au plus)",
+    };
+    if (liste.length === 0) return { donnees };
+    return { donnees, image: await base64(await planche(liste.slice(0, 12).map((m) => () => vignetteModele(m)), 240, 240, false)) };
+  },
+
+  async utiliser_modele_depart(args) {
+    const m = modeleParId(String(args.id));
+    exiger(m, `modèle inconnu : ${String(args.id)} (voir lister_modeles_depart)`);
+    if (args.nouveau_design === true || !(etat().projet && etat().vue === "editeur")) {
+      exiger(await nouveauDesignDepuisModele(m!), "création impossible");
+      return { donnees: { cree: "nouveau design", ...resumer() } };
+    }
+    const ou = await appliquerModele(m!);
+    return { donnees: { pose: ou === "page" ? "sur la page affichée, qui était vide" : "sur une nouvelle page, après la page affichée", ...resumer() } };
   },
 
   async chercher_photos(args) {

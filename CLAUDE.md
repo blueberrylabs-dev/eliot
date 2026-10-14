@@ -32,7 +32,8 @@ lourd. Détail : `BRIEF.md`.
   sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
 - Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lots 1 (icônes, emojis, QR, formes, polices,
   effets de texte), 2 (cadres photo, grilles, maquettes d'appareils), 3 (photos Pixabay, kit
-  de marque) et 4 (dessin à main levée, graphiques, tableaux) livrés, la suite au `PLAN.md`.
+  de marque), 4 (dessin à main levée, graphiques, tableaux) et 5 (42 modèles de départ) livrés ;
+  restent les personnages, puis l'essai d'Alexandre (`PLAN.md`).
 
 Suite : `PLAN.md`.
 
@@ -203,7 +204,7 @@ Vérifier : `test result: ok. 35 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  44 passed`.
+Vérifier : `Tests  48 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

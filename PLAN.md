@@ -154,12 +154,12 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [x] Photos Pixabay (noyau Rust), kit de marque (lot 3, 2026-10-14 ; la vraie recherche reste
       à essayer sur le poste)
 - [x] Dessin à main levée, graphiques, tableaux (lot 4, 2026-10-14)
-- [ ] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
+- [x] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
       ajouter_emoji, ajouter_qr, lister_polices, effets par modifier ; lot 2 : ajouter_cadre,
       ajouter_grille, ajouter_maquette, remplir_photo ; lot 3 : chercher_photos,
       ajouter_photo_pixabay, marque, modifier_marque, ajouter_logo ; lot 4 : dessiner,
-      ajouter_graphique, ajouter_tableau)
-- [ ] Une quarantaine de modèles de départ
+      ajouter_graphique, ajouter_tableau ; lot 5 : lister_modeles_depart, utiliser_modele_depart)
+- [x] Une quarantaine de modèles de départ (lot 5, 2026-10-14 : 42, tous les formats)
 - [ ] Personnages (Open Peeps, Humaaans)
 - [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
 - [ ] Livraison sur le poste, puis essai par Alexandre

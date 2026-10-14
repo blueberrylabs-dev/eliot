@@ -98,6 +98,7 @@ export function redimensionnerElements(elements: ElementPage[], ancien: Format, 
   const s = Math.min(nouveau.largeur / ancien.largeur, nouveau.hauteur / ancien.hauteur);
   const ox = (nouveau.largeur - ancien.largeur * s) / 2;
   const oy = (nouveau.hauteur - ancien.hauteur * s) / 2;
+  const bord = (b: { couleur: string; epaisseur: number } | undefined) => (b ? { ...b, epaisseur: arrondi(b.epaisseur * s) } : b);
   return elements.map((el) => {
     const base = {
       ...el,
@@ -105,9 +106,30 @@ export function redimensionnerElements(elements: ElementPage[], ancien: Format, 
       y: arrondi(oy + el.y * s),
       largeur: Math.max(1, arrondi(el.largeur * s)),
       hauteur: Math.max(1, arrondi(el.hauteur * s)),
+      ...(el.ombre ? { ombre: { ...el.ombre, flou: arrondi(el.ombre.flou * s), x: arrondi(el.ombre.x * s), y: arrondi(el.ombre.y * s) } } : {}),
     };
-    if (el.type === "texte") return { ...base, type: "texte", taillePolice: arrondi(el.taillePolice * s), espacement: arrondi(el.espacement * s) } as ElementPage;
-    if (el.type === "forme") return { ...base, type: "forme", epaisseurContour: arrondi(el.epaisseurContour * s), arrondi: arrondi(el.arrondi * s) } as ElementPage;
-    return base as ElementPage;
+    switch (el.type) {
+      case "texte":
+        return {
+          ...base,
+          type: "texte",
+          taillePolice: arrondi(el.taillePolice * s),
+          espacement: arrondi(el.espacement * s),
+          ...(el.contour ? { contour: bord(el.contour) } : {}),
+          ...(el.surlignage ? { surlignage: { ...el.surlignage, marge: arrondi(el.surlignage.marge * s), arrondi: arrondi(el.surlignage.arrondi * s) } } : {}),
+        } as ElementPage;
+      case "forme":
+        return { ...base, type: "forme", epaisseurContour: arrondi(el.epaisseurContour * s), arrondi: arrondi(el.arrondi * s) } as ElementPage;
+      case "image":
+        return { ...base, type: "image", ...(el.arrondi ? { arrondi: arrondi(el.arrondi * s) } : {}), ...(el.bordure ? { bordure: bord(el.bordure) } : {}) } as ElementPage;
+      case "cadre":
+        return { ...base, type: "cadre", ...(el.bordure ? { bordure: bord(el.bordure) } : {}) } as ElementPage;
+      case "graphique":
+        return { ...base, type: "graphique", taillePolice: arrondi(el.taillePolice * s) } as ElementPage;
+      case "tableau":
+        return { ...base, type: "tableau", taillePolice: arrondi(el.taillePolice * s), marge: arrondi(el.marge * s), bordure: bord(el.bordure)! } as ElementPage;
+      default:
+        return base as ElementPage;
+    }
   });
 }

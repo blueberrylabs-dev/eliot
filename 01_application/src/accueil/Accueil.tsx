@@ -5,6 +5,9 @@ import { Copy, FileArchive, FolderInput, FolderOpen, LayoutTemplate, MoreHorizon
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useEditeur } from "../etat/editeur";
 import { copierDepuisAccueil, exporterDesign, importerDesign, nouveauDesign, ouvrirDesign, renommerDepuisAccueil, supprimerDesign, utiliserModele } from "../etat/projets";
+import { nouveauDesignDepuisModele } from "../etat/modeles";
+import { VignetteModele } from "../editeur/VignetteModele";
+import { MODELES_DEPART } from "../modeles/depart";
 import { FORMATS_PAGE, type Format, type InfoProjet, type RefProjet } from "../modele/types";
 import { afficherDansDossier, dansTauri, dossierDesigns, listerProjets, urlMiniatureProjet } from "../pont/tauri";
 
@@ -166,6 +169,48 @@ function FormatLibre() {
   );
 }
 
+/** Partir d'un modèle de départ d'Eliot : un design neuf, au format du modèle. */
+function ModelesDeDepart({ recherche }: { recherche: string }) {
+  const [format, setFormat] = useState<string>("tous");
+  const [occupe, setOccupe] = useState<string | null>(null);
+  const r = recherche.trim().toLocaleLowerCase("fr");
+  const liste = MODELES_DEPART.filter((m) => (format === "tous" || m.format === format) && (!r || `${m.nom} ${m.mots}`.toLocaleLowerCase("fr").includes(r)));
+  const formats = FORMATS_PAGE.filter((f) => MODELES_DEPART.some((m) => m.format === f.id));
+  const puce = (actif: boolean) => `rounded-full px-3 py-1 text-xs ${actif ? "bg-accent-600 text-white" : "bg-white text-neutral-700 border border-neutral-200 hover:border-accent-500"}`;
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-neutral-900">
+        <LayoutTemplate size={18} className="text-accent-600" /> Partir d'un modèle
+      </h2>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <button className={puce(format === "tous")} onClick={() => setFormat("tous")}>
+          Tous
+        </button>
+        {formats.map((f) => (
+          <button key={f.id} className={puce(format === f.id)} onClick={() => setFormat(f.id)}>
+            {f.libelle}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-3 overflow-x-auto pb-2 defilement-fin">
+        {liste.map((m) => (
+          <div key={m.id} className="w-36 shrink-0">
+            <VignetteModele
+              modele={m}
+              occupe={occupe === m.id}
+              surClic={() => {
+                setOccupe(m.id);
+                void nouveauDesignDepuisModele(m).finally(() => setOccupe(null));
+              }}
+            />
+          </div>
+        ))}
+        {liste.length === 0 && <p className="text-sm text-neutral-500">Aucun modèle ne correspond.</p>}
+      </div>
+    </section>
+  );
+}
+
 export function Accueil() {
   const [designs, setDesigns] = useState<InfoProjet[] | null>(null);
   const [modeles, setModeles] = useState<InfoProjet[]>([]);
@@ -246,6 +291,8 @@ export function Accueil() {
             <FormatLibre />
           </div>
         </section>
+
+        <ModelesDeDepart recherche={recherche} />
 
         {modeles.length > 0 && (
           <section className="mb-8">

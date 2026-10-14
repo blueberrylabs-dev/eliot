@@ -89,6 +89,50 @@
     }
   },
   {
+    "name": "lister_modeles_depart",
+    "description": "Les modèles de départ d'Eliot (une quarantaine : soldes, nouveau produit, citation, événement, témoignage, menu, story, miniature YouTube, bannière, affiche A4…), avec une planche de leurs vignettes numérotées. Filtre par format ou par mots.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "carre",
+            "portrait",
+            "story",
+            "paysage",
+            "miniature",
+            "banniere",
+            "a4",
+            "a5"
+          ]
+        },
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots : soldes, menu, avis, carrousel…"
+        }
+      }
+    }
+  },
+  {
+    "name": "utiliser_modele_depart",
+    "description": "Pose un modèle de départ : sur la page affichée si elle est vide, sinon sur une nouvelle page juste après (mis à l'échelle si le format diffère). Avec nouveau_design à vrai, ou sans design ouvert, crée un design au format du modèle. Ensuite : remplacer les textes avec modifier, remplir les cadres avec ajouter_photo_pixabay ou remplir_photo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "nouveau_design": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "renommer_design",
     "description": "Change le nom du design ouvert.",
     "inputSchema": {

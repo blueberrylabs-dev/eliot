@@ -2,7 +2,7 @@
 // créer, ouvrir, renommer, copier, supprimer, transporter dans un fichier .eliot.
 
 import { documentVide, NOM_PAR_DEFAUT } from "../modele/fabriques";
-import type { Format, InfoProjet, RefProjet } from "../modele/types";
+import type { Format, InfoProjet, PageEliot, RefProjet } from "../modele/types";
 import * as pont from "../pont/tauri";
 import { assurerPolicesDocument, chargerPolicesDesign, fichiersDuPoste } from "../polices";
 import { enregistrerMaintenant, miniatureMaintenant } from "./enregistrement";
@@ -31,10 +31,12 @@ export async function ouvrirDesign(ref: RefProjet): Promise<boolean> {
   }
 }
 
-export async function nouveauDesign(format: Format, nom = NOM_PAR_DEFAUT): Promise<boolean> {
+/** Crée un design et l'ouvre ; `page` donne le contenu de sa première page (modèle de départ). */
+export async function nouveauDesign(format: Format, nom = NOM_PAR_DEFAUT, page?: Pick<PageEliot, "fond" | "elements">): Promise<boolean> {
   try {
     await enregistrerMaintenant();
-    const document = documentVide(format, nom);
+    const vide = documentVide(format, nom);
+    const document = page ? { ...vide, pages: [{ ...vide.pages[0], ...page }] } : vide;
     const info = await pont.creerProjet(document);
     const ref: RefProjet = { rayon: "designs", id: info.id };
     useEditeur.getState().chargerProjet(ref, document, []);

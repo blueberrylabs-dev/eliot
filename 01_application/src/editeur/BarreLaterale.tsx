@@ -1,19 +1,21 @@
 // Le rail d'onglets à gauche et son panneau, comme dans Canva. Un clic sur l'onglet actif
 // replie le panneau.
 
-import { Brush, CloudUpload, Image as IconeImage, Layers, Palette, Shapes, Type } from "lucide-react";
+import { Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Palette, Shapes, Type } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { PanneauCalques } from "./panneaux/PanneauCalques";
 import { PanneauDessin } from "./panneaux/PanneauDessin";
 import { PanneauElements } from "./panneaux/PanneauElements";
 import { PanneauImages } from "./panneaux/PanneauImages";
 import { PanneauMarque } from "./panneaux/PanneauMarque";
+import { PanneauModeles } from "./panneaux/PanneauModeles";
 import { PanneauPhotos } from "./panneaux/PanneauPhotos";
 import { PanneauTextes } from "./panneaux/PanneauTextes";
 
-type Onglet = "elements" | "textes" | "photos" | "images" | "marque" | "dessin" | "calques";
+type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "marque" | "dessin" | "calques";
 
 const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
+  { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} /> },
   { id: "elements", libelle: "Éléments", icone: <Shapes size={22} /> },
   { id: "textes", libelle: "Texte", icone: <Type size={22} /> },
   { id: "photos", libelle: "Photos", icone: <IconeImage size={22} /> },
@@ -42,6 +44,7 @@ export function BarreLaterale() {
       </nav>
       {onglet && (
         <div className="w-[320px] overflow-y-auto border-r border-neutral-200 bg-white p-4 defilement-fin">
+          {onglet === "modeles" && <PanneauModeles />}
           {onglet === "elements" && <PanneauElements />}
           {onglet === "textes" && <PanneauTextes />}
           {onglet === "photos" && <PanneauPhotos />}
