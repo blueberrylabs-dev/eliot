@@ -75,7 +75,9 @@ function resumer() {
     elements: page.elements,
     selection: s.selection,
     images: s.ordreRessources.map((id) => s.ressources[id]).filter(Boolean),
-    polices: polices().map((p) => p.famille),
+    // Les polices de la bibliothèque ; celles du poste (souvent des dizaines) par lister_polices.
+    polices: polices().filter((p) => p.genre !== "poste").map((p) => p.famille),
+    policesDuPoste: `${polices().filter((p) => p.genre === "poste").length} (voir lister_polices, genre poste)`,
     annulable: s.passe.length,
   };
 }

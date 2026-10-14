@@ -135,13 +135,26 @@ async function declarerPoliceExterne(famille: string): Promise<void> {
   );
 }
 
+/** Polices du système qui n'ont rien à faire dans une publicité : écritures d'autres langues
+ *  (les dizaines de « Noto Sans <écriture> »), symboles, mathématiques, polices de secours. */
+const POLICES_SYSTEME_ECARTEES = [
+  /^Noto (Sans|Serif) (?!Display$|Mono$)\S/,
+  /^Noto (Color Emoji|Music|Kufi|Naskh|Nastaliq|Rashi|Looped|Traditional)/,
+  /^MathJax/,
+  /^Unifont/,
+  /^(Droid Sans Fallback|OpenSymbol|Standard Symbols PS|D050000L|FontAwesome|DejaVu Math TeX Gyre)$/,
+  /^IPA/,
+];
+
+export const policeSystemeUtile = (famille: string) => !POLICES_SYSTEME_ECARTEES.some((r) => r.test(famille));
+
 /** Ajoute au catalogue les polices installées sur le poste (genre « Sur ce poste »). */
 export async function chargerPolicesPoste(lister: () => Promise<{ famille: string; fichiers: { chemin: string; style: "normal" | "italic"; poids: number }[] }[]>, lire: (chemin: string) => Promise<ArrayBuffer>): Promise<void> {
   const liste = await lister().catch(() => []);
   const connues = new Set(catalogue.map((p) => p.famille));
   const nouvelles: Police[] = [];
   for (const p of liste) {
-    if (connues.has(p.famille)) continue;
+    if (connues.has(p.famille) || !policeSystemeUtile(p.famille)) continue;
     cheminsPoste.set(p.famille, p.fichiers.map((f) => f.chemin));
     sourcesExternes.set(p.famille, p.fichiers.map((f) => ({ lire: () => lire(f.chemin), style: f.style, poids: f.poids })));
     nouvelles.push({
