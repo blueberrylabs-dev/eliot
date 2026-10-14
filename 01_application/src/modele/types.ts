@@ -2,7 +2,7 @@
 // Version 2 (étape 2) : un nom, un format commun à toutes les pages, plusieurs pages. Le noyau
 // convertit un document de version 1 à l'ouverture (noyau/src/projet.rs).
 // Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte,
-// cadres photo, maquettes d'appareils, dessin à main levée, graphiques, tableaux.
+// cadres photo, maquettes d'appareils, dessin à main levée, graphiques, tableaux, personnages.
 // Les nouveaux champs sont facultatifs : un document de version 2 reste valable tel quel.
 
 export const VERSION_DOCUMENT = 3 as const;
@@ -114,6 +114,27 @@ export interface ElementEmoji extends ElementBase {
   type: "emoji";
   collection: string;
   nom: string;
+}
+
+/**
+ * Un personnage de la bibliothèque (Open Peeps, Humaaans), dessiné en vecteurs. Tout fait
+ * (`dessin`), ou assemblé dans le composeur : une posture et une pièce par emplacement
+ * (`pieces` : tête, visage, tenue…).
+ */
+export interface ElementPersonnage extends ElementBase {
+  type: "personnage";
+  /** `open-peeps` ou `humaaans`. */
+  collection: string;
+  /** Personnage tout fait : son nom dans la collection (`buste-12`, `debout-3`). */
+  dessin?: string;
+  /** Personnage composé : `buste`, `debout` ou `assis`. */
+  posture?: string;
+  /** Personnage composé : emplacement → pièce (`{ tete: "afro", visage: "smile" }`). */
+  pieces?: Record<string, string>;
+  /** Couleurs changées : par partie (`trait`, `tete`, `corps`…, Open Peeps) ou par couleur
+   *  d'origine (`#B28B67`) ; la valeur est la nouvelle couleur `#rrggbb`. */
+  couleurs?: Record<string, string>;
+  retourneH?: boolean;
 }
 
 /** Un QR code : le contenu (adresse, texte) et ses couleurs ; les carrés sont recalculés. */
@@ -244,7 +265,7 @@ export interface ElementTableau extends ElementBase {
   marge: number;
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
 
 /** Les éléments qui reçoivent une photo glissée dessus. */
 export type ElementAPhoto = ElementCadre | ElementMaquette;

@@ -118,64 +118,80 @@ export function tailleDeRendu(cote: number): number {
 
 const images = new Map<string, HTMLImageElement>();
 const enCours = new Map<string, Promise<HTMLImageElement | undefined>>();
-const cleImage = (d: DemandeVecteur, taille: number) => `${d.collection}/${d.nom}/${d.couleur ?? ""}/${d.trait ?? ""}/${taille}`;
 
-export function imageVecteur(d: DemandeVecteur, taille: number): Promise<HTMLImageElement | undefined> {
-  const cle = cleImage(d, taille);
-  const deja = images.get(cle);
+/**
+ * Une image faite d'un SVG, gardée en mémoire sous `cle` et sa taille. `fabriquer` donne le
+ * SVG complet à cette taille (icône, emoji, personnage) ; `undefined` s'il est introuvable.
+ */
+export function imageDeSvg(cle: string, taille: number, fabriquer: (taille: number) => Promise<string | undefined>): Promise<HTMLImageElement | undefined> {
+  const complete = `${cle}/${taille}`;
+  const deja = images.get(complete);
   if (deja) return Promise.resolve(deja);
-  let p = enCours.get(cle);
+  let p = enCours.get(complete);
   if (!p) {
-    p = urlVecteur(d, taille).then(
-      (url) =>
-        url
+    p = fabriquer(taille).then(
+      (svg) =>
+        svg
           ? new Promise<HTMLImageElement | undefined>((ok) => {
               const image = new Image();
               image.onload = () => {
-                images.set(cle, image);
+                images.set(complete, image);
                 ok(image);
               };
               image.onerror = () => ok(undefined);
-              image.src = url;
+              image.src = urlSvg(svg);
             })
           : undefined,
       () => undefined,
     );
-    void p.finally(() => enCours.delete(cle));
-    enCours.set(cle, p);
+    void p.finally(() => enCours.delete(complete));
+    enCours.set(complete, p);
   }
   return p;
 }
 
 /** L'image prête à la bonne taille, sinon une plus grande, sinon la plus grande des plus
  *  petites : pendant qu'une version plus nette se prépare, l'ancienne reste affichée. */
-function imageConnue(d: DemandeVecteur, taille: number): HTMLImageElement | undefined {
+function imageConnue(cle: string, taille: number): HTMLImageElement | undefined {
   for (let t = taille; t <= 4096; t *= 2) {
-    const i = images.get(cleImage(d, t));
+    const i = images.get(`${cle}/${t}`);
     if (i) return i;
   }
   for (let t = taille / 2; t >= 128; t /= 2) {
-    const i = images.get(cleImage(d, t));
+    const i = images.get(`${cle}/${t}`);
     if (i) return i;
   }
   return undefined;
 }
 
-export function useImageVecteur(d: DemandeVecteur, cote: number): HTMLImageElement | undefined {
+/** L'image d'un SVG pour un objet affiché à `cote` pixels ; `cle` dit quand elle change. */
+export function useImageDeSvg(cle: string, cote: number, fabriquer: (taille: number) => Promise<string | undefined>): HTMLImageElement | undefined {
   const taille = tailleDeRendu(cote);
-  const [image, setImage] = useState(() => imageConnue(d, taille));
+  const [image, setImage] = useState(() => imageConnue(cle, taille));
   useEffect(() => {
     let actif = true;
-    const connue = imageConnue(d, taille);
+    const connue = imageConnue(cle, taille);
     if (connue) setImage(connue);
-    void imageVecteur(d, taille).then((i) => actif && i && setImage(i));
+    void imageDeSvg(cle, taille, fabriquer).then((i) => actif && i && setImage(i));
     return () => {
       actif = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d.collection, d.nom, d.couleur, d.trait, taille]);
+  }, [cle, taille]);
   return image;
 }
+
+const cleVecteur = (d: DemandeVecteur) => `${d.collection}/${d.nom}/${d.couleur ?? ""}/${d.trait ?? ""}`;
+
+async function svgDemande(d: DemandeVecteur, taille: number): Promise<string | undefined> {
+  const [c, t] = await Promise.all([collection(d.collection), traces(d.collection)]);
+  const corps = t[d.nom];
+  return c && corps !== undefined ? svgVecteur(c, corps, d, taille) : undefined;
+}
+
+export const imageVecteur = (d: DemandeVecteur, taille: number) => imageDeSvg(cleVecteur(d), taille, (t) => svgDemande(d, t));
+
+export const useImageVecteur = (d: DemandeVecteur, cote: number) => useImageDeSvg(cleVecteur(d), cote, (t) => svgDemande(d, t));
 
 /** Hook pour les aperçus des panneaux. */
 export function useUrlVecteur(d: DemandeVecteur, taille = 96): string | undefined {

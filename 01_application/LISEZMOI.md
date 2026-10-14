@@ -1,9 +1,9 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 et 2 du `BRIEF.md` et début de l'étape 3 : un accueil qui range tes
-designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
-d'emojis et de polices, des photos libres de Pixabay, un kit de marque, un enregistrement
-automatique et l'export en PNG ou en JPEG.
+L'éditeur, étapes 1, 2 et 3 du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
+compose à la souris comme dans Canva, une bibliothèque d'icônes, d'emojis, de personnages et
+de polices, des photos libres de Pixabay, un kit de marque, des modèles de départ, un
+enregistrement automatique et l'export en PNG ou en JPEG.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -49,6 +49,14 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Panneau Éléments : formes (dont polygone, cœur, badge), lignes et flèches, 7 750 icônes
   (Tabler, Phosphor), 4 047 emojis (Fluent Emoji, OpenMoji), QR code ; une recherche par mot,
   en français (« panier », « cœur », « fusée ») ou en anglais.
+- Personnages (panneau Éléments) : 189 Open Peeps au trait (bustes, debout, assis, masques et
+  soignants) et 32 Humaaans en aplats de couleur, plus 4 décors, de Pablo Stanley (CC0).
+  Leurs couleurs se changent dans la barre du haut : par partie pour les Open Peeps (trait,
+  tête, tenue, barbe, lunettes), couleur par couleur pour les Humaaans (la peau partout d'un
+  coup). « Créer le tien » tire un personnage au hasard ; le bouton Personnage de la barre du
+  haut change ensuite sa posture, sa tenue, sa coiffure, son visage, sa barbe et ses lunettes
+  sur des vignettes. Il faut les deux archives .zip dans `Eliot/telechargements/` (commande
+  8 bis du `CLAUDE.md`).
 - Panneau Texte : 95 polices rangées par genre, avec leur usage (« luxe », « promo qui
   claque »…), 22 associations titre et texte, et les polices installées sur le poste (copiées
   dans le design qui s'en sert).
@@ -126,12 +134,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 ├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports, polices, Pixabay, kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
-├── public/bibliotheque/  icônes, emojis, polices : fabriqués par npm run bibliotheque, hors git
+├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
 ├── src/
 │   ├── App.tsx       l'accueil ou l'éditeur
-│   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes
+│   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
@@ -139,7 +147,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── export/       rendu d'une page hors écran, export
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
-└── outils/           fabrication de la bibliothèque, dessin de l'icône, prototype du texte animé
+└── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé
 ```
 
 Le document est un objet JSON, seule source de vérité ; Konva ne fait que le dessiner. Pendant

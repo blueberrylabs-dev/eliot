@@ -347,7 +347,7 @@
   },
   {
     "name": "chercher_bibliotheque",
-    "description": "Cherche dans la bibliothèque d'Eliot des icônes (Tabler, Phosphor) et des emojis (Fluent Emoji, OpenMoji) par mot, en français ou en anglais : cœur, panier, flèche, fête, café… Renvoie collection et nom, à donner à ajouter_icone ou ajouter_emoji. Pour Phosphor, la collection renvoyée est « phosphor » : choisir l'épaisseur en ajoutant -regular, -thin, -light, -bold, -fill ou -duotone.",
+    "description": "Cherche dans la bibliothèque d'Eliot des icônes (Tabler, Phosphor) et des emojis (Fluent Emoji, OpenMoji) par mot, en français ou en anglais : cœur, panier, flèche, fête, café… Renvoie collection et nom, à donner à ajouter_icone ou ajouter_emoji. Pour Phosphor, la collection renvoyée est « phosphor » : choisir l'épaisseur en ajoutant -regular, -thin, -light, -bold, -fill ou -duotone. Pour des personnages (gens, mascottes), voir lister_personnages.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -457,6 +457,106 @@
       "required": [
         "collection",
         "nom"
+      ]
+    }
+  },
+  {
+    "name": "lister_personnages",
+    "description": "Les personnages de la bibliothèque d'Eliot, de Pablo Stanley, licence CC0 : Open Peeps (dessin au trait, à colorier : bustes, debout, assis, masques et soignants) et Humaaans (aplats de couleur : debout, assis, décors). Sans argument : les collections, leurs catégories de personnages tout faits, et le composeur de chacune (postures, emplacements, parties coloriables). Avec collection et categorie : les personnages tout faits et une planche de leurs vignettes numérotées (24 à partir de debut). Avec collection et emplacement (et posture) : les pièces de cet emplacement et leur planche, posées sur le personnage par défaut. Avec collection et pieces à vrai : toutes les pièces, par posture et par emplacement.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "enum": [
+            "open-peeps",
+            "humaaans"
+          ]
+        },
+        "categorie": {
+          "type": "string",
+          "description": "open-peeps : buste, debout, assis, sante ; humaaans : debout, assis, decor."
+        },
+        "emplacement": {
+          "type": "string",
+          "description": "open-peeps : corps, tete, visage, barbe, accessoire ; humaaans : tete, haut, bas, siege."
+        },
+        "posture": {
+          "type": "string",
+          "description": "open-peeps : buste, debout, assis ; humaaans : debout, assis."
+        },
+        "debut": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Rang du premier montré, 0 par défaut."
+        },
+        "pieces": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  {
+    "name": "ajouter_personnage",
+    "description": "Pose un personnage sur la page affichée. Tout fait : collection et dessin (nom donné par lister_personnages). Composé : collection, posture et pieces ({ emplacement: pièce }, \"\" pour laisser vide un emplacement facultatif ; un emplacement oublié prend la pièce par défaut, ou une pièce au hasard avec hasard à vrai). couleurs : { partie ou couleur d'origine: \"#rrggbb\" } ; Open Peeps : trait, tete, corps (la tenue), barbe, accessoire ; Humaaans : la couleur d'origine du dessin (#B28B67 pour la peau claire, par exemple, voir etat après la pose). Sans position, il est centré ; sans taille, il tient dans la page ; une seule dimension donnée, l'autre suit les proportions.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "enum": [
+            "open-peeps",
+            "humaaans"
+          ]
+        },
+        "dessin": {
+          "type": "string"
+        },
+        "posture": {
+          "type": "string"
+        },
+        "pieces": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "hasard": {
+          "type": "boolean"
+        },
+        "couleurs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "retourneH": {
+          "type": "boolean",
+          "description": "Retourné horizontalement (regarde de l'autre côté)."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "collection"
       ]
     }
   },
@@ -1193,7 +1293,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge.",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place).",
     "inputSchema": {
       "type": "object",
       "properties": {

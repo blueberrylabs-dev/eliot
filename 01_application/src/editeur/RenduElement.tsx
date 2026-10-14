@@ -7,9 +7,10 @@ import { memo, useMemo } from "react";
 import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } from "react-konva";
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
+import { useImagePersonnage } from "../bibliotheque/personnages";
 import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
 import { ecranAppareil, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementQr, type ElementTexte, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
@@ -308,6 +309,14 @@ function Vecteur({ el }: { el: ElementIcone | ElementEmoji }) {
   return <ImageKonva image={image} width={el.largeur} height={el.hauteur} perfectDrawEnabled={false} {...ombreKonva(el.ombre)} />;
 }
 
+/** Un personnage de la bibliothèque : une image faite depuis son SVG (couleurs comprises),
+ *  retournée au besoin comme une photo. */
+function Personnage({ el }: { el: ElementPersonnage }) {
+  const image = useImagePersonnage(el, Math.max(el.largeur, el.hauteur));
+  if (!image) return <Rect width={el.largeur} height={el.hauteur} fill="rgba(0,0,0,0)" />;
+  return <ImageKonva image={image} x={el.retourneH ? el.largeur : 0} scaleX={el.retourneH ? -1 : 1} width={el.largeur} height={el.hauteur} perfectDrawEnabled={false} {...ombreKonva(el.ombre)} />;
+}
+
 /** Les carrés d'un QR code, recalculés seulement quand le contenu change. */
 function useModulesQr(contenu: string, correction: ElementQr["correction"]) {
   return useMemo(() => {
@@ -427,6 +436,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       {el.type === "forme" && <Forme el={el} />}
       {el.type === "image" && <Photo el={el} />}
       {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
+      {el.type === "personnage" && <Personnage el={el} />}
       {el.type === "qr" && <CodeQr el={el} />}
       {el.type === "cadre" && <Cadre el={el} statique={statique} ajustement={enAjustement} />}
       {el.type === "maquette" && <Maquette el={el} statique={statique} ajustement={enAjustement} />}

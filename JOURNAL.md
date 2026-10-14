@@ -5,6 +5,44 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 6 : personnages, et vérification de l'étape
+
+- Source : les deux archives téléchargées par Alexandre sur openpeeps.com et humaaans.com,
+  rangées dans `Eliot/telechargements/` (ajouté au `.gitignore`, 48 Mo). Licence vérifiée sur
+  les deux sites le 2026-10-14 : CC0 (« Free for commercial and personal use under CC0
+  License », « CC0 Public Domain »), recopiée dans `LICENCES-TIERS.md`.
+- `npm run bibliotheque` lit les archives sans les décompresser sur le disque ni ajouter de
+  dépendance (`outils/personnages.mjs`) : SVG nettoyés (titres, identifiants, nombres
+  arrondis), mesurés pour couper le vide autour, rangés dans
+  `public/bibliotheque/personnages/` (6,6 Mo). L'archive Open Peeps contient une seconde
+  archive identique à la première : ignorée. Sans les archives, la commande le dit et la
+  bibliothèque se fabrique sans personnages.
+- Tout faits, dans le panneau Éléments (aperçu, Tout voir par collection et par catégorie,
+  recherche en français) : 189 Open Peeps (105 bustes, 30 debout, 18 assis, 36 masques et
+  soignants) et 32 Humaaans (24 debout, 8 assis), plus 4 décors Humaaans.
+- Composeur (« Créer le tien ») : un personnage tiré au hasard, puis, dans la barre du haut,
+  bouton Personnage : posture (buste, debout, assis ; Humaaans debout, assis), puis tenue,
+  coiffure, visage, barbe, lunettes (Humaaans : coiffure, haut, bas, siège), choisis sur des
+  vignettes, « Aucune » pour les pièces facultatives, et « Au hasard ». Les places des pièces
+  sont relevées dans les modèles des archives. Quand une pièce change, la boîte suit le
+  dessin et le reste ne bouge pas ; quand la posture change, la hauteur et le bas restent.
+- Couleurs : Open Peeps par partie (trait, tête, tenue, barbe, lunettes), grâce aux marques
+  « 🎨 » et « 🖍 » que leurs fichiers portent ; Humaaans couleur par couleur (changer la peau
+  la change partout). Retourner, couleurs d'origine, ombre, transparence comme les autres
+  objets. Une couleur de la marque donne sa couleur à la tenue d'un Open Peep.
+- Document : nouveau type `personnage` (version 3 inchangée, le noyau ne lit pas les types).
+  Pont IA : `lister_personnages` (catégories, pièces, planches numérotées) et
+  `ajouter_personnage` ; `modifier` change pièces, posture et couleurs (43 outils en tout).
+- Défauts trouvés et corrigés en route : les planches de l'IA restaient grises pour un SVG
+  (`createImageBitmap` ne lit pas le SVG, passage par une balise image) ; un panneau ouvert
+  après un autre gardait son défilement (chaque onglet s'ouvre maintenant en haut).
+- Vérifié dans le conteneur : vitest 61 sur 61, noyau 35 sur 35, pont 5 sur 5 ; Chromium 29
+  sur 29 (personnages) et 15 sur 15 (outils IA) ; Tauri par le pont 13 sur 13 (planches,
+  couleurs et miroir dessinés par WebKitGTK, export). Vérification de toute l'étape 3 :
+  Chromium 33, 23, 18, 29, 27 et 17 sur autant ; Tauri par le pont 22, 14, 27, 17 et 8 sur
+  autant, après remise à jour des essais (nombre d'outils, place des onglets depuis l'ajout de
+  Modèles) ; `npm run build` passe.
+
 ## 2026-10-14, étape 3, lot 5 : modèles de départ
 
 - 42 modèles dessinés par Claude pour Eliot (`src/modeles/depart.ts`), dans tous les formats :

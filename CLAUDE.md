@@ -32,8 +32,11 @@ lourd. Détail : `BRIEF.md`.
   sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
 - Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lots 1 (icônes, emojis, QR, formes, polices,
   effets de texte), 2 (cadres photo, grilles, maquettes d'appareils), 3 (photos Pixabay, kit
-  de marque), 4 (dessin à main levée, graphiques, tableaux) et 5 (42 modèles de départ) livrés ;
-  restent les personnages, puis l'essai d'Alexandre (`PLAN.md`).
+  de marque), 4 (dessin à main levée, graphiques, tableaux), 5 (42 modèles de départ) et 6
+  (personnages Open Peeps et Humaaans, composeur) livrés et vérifiés ; reste l'essai
+  d'Alexandre (`PLAN.md`).
+- Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
+  Humaaans, lues par `npm run bibliotheque`).
 
 Suite : `PLAN.md`.
 
@@ -161,15 +164,19 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm install
 Vérifier : aucune ligne ne commence par `npm error`. À refaire après chaque livraison qui
 change `package.json` (l'étape 2 ajoute `vitest`, l'outil de test de l'interface).
 
-**8 bis. Fabriquer la bibliothèque** (icônes, emojis, polices ; une fois, puis après chaque
-livraison qui la change ; processeur seulement, réseau pour les polices la première fois) :
+**8 bis. Fabriquer la bibliothèque** (icônes, emojis, polices, personnages ; une fois, puis
+après chaque livraison qui la change ; processeur seulement, réseau pour les polices la
+première fois). Les personnages viennent des deux archives .zip d'Open Peeps et de Humaaans,
+rangées dans `/home/nushoko/Bureau/Logiciels/Eliot/telechargements/` :
 
 ```
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run bibliotheque
 ```
 
-Vérifier : la dernière ligne annonce `7750 icônes, 4047 emojis, 95 polices`. Sans elle, Eliot
-s'ouvre, mais sans icônes, emojis ni polices de la bibliothèque.
+Vérifier : la commande annonce `7750 icônes, 4047 emojis, 95 polices`, puis
+`221 personnages et 207 pièces à assembler (Open Peeps, Humaaans)`. Sans elle, Eliot s'ouvre,
+mais sans icônes, emojis, polices ni personnages de la bibliothèque. Si une archive manque,
+la commande le dit et fabrique le reste.
 
 **9. Compiler l'application sans l'ouvrir.** Processeur seulement, limité à 4 cœurs ; la
 première fois, plusieurs minutes et quelques Go dans `01_application/src-tauri/target/`.
@@ -204,7 +211,7 @@ Vérifier : `test result: ok. 35 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  48 passed`.
+Vérifier : `Tests  61 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 
@@ -274,5 +281,6 @@ les deux, retirer l'entrée `eliot` du fichier pour éviter un doublon.
 Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
-└── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
+├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
+└── telechargements/    archives téléchargées à la main (personnages), hors git
 ```

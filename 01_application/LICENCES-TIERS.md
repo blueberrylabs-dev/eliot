@@ -15,6 +15,15 @@ dans le dépôt.
 - OpenMoji 17.0.0, licence CC BY-SA 4.0, https://openmoji.org : crédit obligatoire, et un emoji modifié se partage sous la même licence
 - Noms et mots-clés français des emojis : Unicode CLDR 48.2.0, licence Unicode-3.0, https://cldr.unicode.org
 
+## Personnages
+
+Tirés des archives téléchargées sur les sites des auteurs et rangées dans
+`telechargements/` (hors git). Dessins de Pablo Stanley, versés dans le domaine public :
+utilisables, modifiables et publiables librement, sans crédit obligatoire.
+
+- Open Peeps, licence CC0 1.0, https://www.openpeeps.com
+- Humaaans, licence CC0 1.0, https://www.humaaans.com
+
 ## Polices
 
 Source : Google Fonts, https://raw.githubusercontent.com/google/fonts/main/. Licence de chaque famille recopiée à côté de ses

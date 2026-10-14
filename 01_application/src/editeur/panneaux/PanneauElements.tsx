@@ -1,5 +1,5 @@
-// Le panneau Éléments, comme dans Canva : formes, lignes et flèches, icônes, emojis, QR code,
-// avec une recherche par mot (en français). Un clic pose l'élément au centre de la page, un
+// Le panneau Éléments, comme dans Canva : formes, lignes et flèches, personnages, icônes,
+// emojis, QR code, avec une recherche par mot (en français). Un clic pose l'élément au centre de la page, un
 // glisser le pose sous le pointeur.
 
 import { ChevronLeft, QrCode, Search, X } from "lucide-react";
@@ -13,6 +13,7 @@ import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE } from "../../modele/graphiques";
 import type { Appareil, ElementPage, FormeCadre, Format, GenreGraphique } from "../../modele/types";
 import { glisserDepuisPanneau } from "../glisser";
 import { FORMES, GrilleFormes, TRAITS } from "./PanneauFormes";
+import { ApercuPersonnages, PersonnagesTrouves, usePersonnagesTrouves, VuePersonnages } from "./SectionPersonnages";
 
 /** Quelques emojis et icônes très utilisés en publicité, montrés avant toute recherche. */
 const EMOJIS_COURANTS = ["fire", "sparkles", "red-heart", "star", "party-popper", "thumbs-up", "check-mark-button", "hundred-points", "rocket", "money-bag", "wrapped-gift", "shopping-bags", "megaphone", "light-bulb", "trophy", "clapping-hands", "face-with-tears-of-joy", "smiling-face-with-heart-eyes", "star-struck", "exploding-head", "eyes", "backhand-index-pointing-down", "high-voltage", "alarm-clock"];
@@ -188,7 +189,7 @@ function GrilleTableaux({ liste }: { liste: typeof MODELES_TABLEAUX }) {
 
 const PAR_PAGE = 96;
 
-type Vue = { genre: "icone" | "emoji"; collection?: string } | null;
+type Vue = { genre: "icone" | "emoji"; collection?: string } | { genre: "personnage"; collection?: string; categorie?: string } | null;
 
 export function PanneauElements() {
   const [presente, setPresente] = useState<boolean | null>(null);
@@ -216,7 +217,7 @@ export function PanneauElements() {
   }, [requete]);
 
   // « Tout voir » : la liste complète d'une collection, page par page.
-  const idVue = vue ? (vue.collection === "phosphor" ? `phosphor-${epaisseur}` : vue.collection) : undefined;
+  const idVue = vue && vue.genre !== "personnage" ? (vue.collection === "phosphor" ? `phosphor-${epaisseur}` : vue.collection) : undefined;
   useEffect(() => {
     setNombre(PAR_PAGE);
     if (!idVue) return;
@@ -249,6 +250,7 @@ export function PanneauElements() {
     const q = normaliser(requete);
     return q ? GENRES_GRAPHIQUE.filter((g) => q.split(" ").every((m) => g.mots.includes(m) || `${g.mots} diagramme statistiques chiffres donnees`.includes(m))) : [];
   }, [requete]);
+  const personnagesTrouves = usePersonnagesTrouves(requete);
   const tableauxTrouves = useMemo(() => {
     const q = normaliser(requete);
     return q ? MODELES_TABLEAUX.filter((t) => q.split(" ").every((m) => t.mots.includes(m))) : [];
@@ -302,6 +304,8 @@ export function PanneauElements() {
           </button>
         )}
       </div>
+
+      {vue?.genre === "personnage" && !requete && <VuePersonnages retour={() => setVue(null)} collection={vue.collection} categorie={vue.categorie} />}
 
       {vue && !requete && idVue && (
         <>
@@ -364,6 +368,18 @@ export function PanneauElements() {
               <GrilleTableaux liste={tableauxTrouves} />
             </>
           )}
+          {(personnagesTrouves.categories.length > 0 || personnagesTrouves.composer) && (
+            <>
+              <Titre>Personnages</Titre>
+              <PersonnagesTrouves
+                trouves={personnagesTrouves}
+                voirTout={(collection, categorie) => {
+                  setRequete("");
+                  setVue({ genre: "personnage", collection, categorie });
+                }}
+              />
+            </>
+          )}
           {icones.length > 0 && (
             <>
               <Titre>
@@ -394,7 +410,7 @@ export function PanneauElements() {
               Afficher plus
             </button>
           )}
-          {formesTrouvees.length + cadresTrouves.length + maquettesTrouvees.length + graphiquesTrouves.length + tableauxTrouves.length + icones.length + emojis.length === 0 && !grillesTrouvees && <p className="mt-6 text-center text-xs text-neutral-500">Rien trouvé. Essaie un autre mot, en français ou en anglais.</p>}
+          {formesTrouvees.length + cadresTrouves.length + maquettesTrouvees.length + graphiquesTrouves.length + tableauxTrouves.length + personnagesTrouves.categories.length + icones.length + emojis.length === 0 && !grillesTrouvees && !personnagesTrouves.composer && <p className="mt-6 text-center text-xs text-neutral-500">Rien trouvé. Essaie un autre mot, en français ou en anglais.</p>}
         </>
       )}
 
@@ -404,6 +420,8 @@ export function PanneauElements() {
           <GrilleFormes liste={FORMES} />
           <Titre>Lignes et flèches</Titre>
           <GrilleFormes liste={TRAITS} />
+          <Titre voirTout={() => setVue({ genre: "personnage" })}>Personnages</Titre>
+          <ApercuPersonnages />
           <Titre>Cadres photo</Titre>
           <GrilleCadres liste={CADRES} />
           <p className="mt-1.5 text-[11px] text-neutral-500">Glisse ensuite une photo dessus (panneau Importer) ; double-clic pour la recadrer.</p>
@@ -450,7 +468,7 @@ export function PanneauElements() {
       )}
 
       <p className="mt-5 text-[11px] leading-snug text-neutral-400">
-        Icônes Tabler et Phosphor, emojis Fluent (Microsoft) : licence MIT. Emojis OpenMoji, https://openmoji.org : licence CC BY-SA 4.0.
+        Icônes Tabler et Phosphor, emojis Fluent (Microsoft) : licence MIT. Emojis OpenMoji, https://openmoji.org : licence CC BY-SA 4.0. Personnages Open Peeps et Humaaans (Pablo Stanley) : licence CC0.
       </p>
     </div>
   );

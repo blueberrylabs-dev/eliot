@@ -8,11 +8,13 @@ import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
 import { exporter } from "../export/exporter";
 import { rendrePage } from "../export/rendu";
-import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces } from "../bibliotheque/bibliotheque";
+import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, urlSvg } from "../bibliotheque/bibliotheque";
+import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
+import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
+import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementTableau, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin } from "../modele/types";
+import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin } from "../modele/types";
 import { logoDansDesign, useMarque } from "../etat/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
@@ -104,6 +106,7 @@ const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   image: ["retourneH", "retourneV", "arrondi", "bordure"],
   icone: ["couleur", "trait"],
   emoji: [],
+  personnage: ["posture", "pieces", "couleurs", "retourneH"],
   qr: ["contenu", "couleur", "fond", "correction"],
   cadre: ["forme", "ressource", "recadrage", "bordure", "fond"],
   maquette: ["appareil", "couleur", "ressource", "recadrage"],
@@ -126,6 +129,57 @@ function ombre(v: unknown) {
   };
 }
 
+/** Une collection de personnages connue, catalogue chargé (`await cataloguePersonnages()`). */
+function collectionPersonnages(id: unknown): CollectionPersonnages {
+  const catalogue = catalogueConnu();
+  exiger(catalogue?.collections.length, "personnages absents : la bibliothèque n'a pas les archives Open Peeps et Humaaans (npm run bibliotheque)");
+  const c = catalogue!.collections.find((x) => x.id === id);
+  exiger(c, `collection : ${catalogue!.collections.map((x) => x.id).join(" ou ")}`);
+  return c!;
+}
+
+/** Les pièces demandées par l'IA, vérifiées une à une pour la posture (`""` : rien, pour un
+ *  emplacement facultatif), ajoutées à `base`. */
+function piecesDemandees(c: CollectionPersonnages, idPosture: string, demandees: unknown, base: Record<string, string> = {}): Record<string, string> {
+  const p = postureDe(c.composition, idPosture);
+  exiger(p.id === idPosture, `posture : ${c.composition.postures.map((x) => x.id).join(", ")}`);
+  if (demandees === undefined) return { ...base };
+  exiger(demandees && typeof demandees === "object" && !Array.isArray(demandees), "pieces : objet { emplacement: pièce }");
+  const sortie = { ...base };
+  for (const [emplacement, valeur] of Object.entries(demandees as Record<string, unknown>)) {
+    const place = p.emplacements.find((x) => x.id === emplacement);
+    exiger(place, `emplacement inconnu en posture ${p.id} : ${emplacement} (${p.emplacements.map((x) => x.id).join(", ")})`);
+    const options = c.composition.groupes[place!.groupe] ?? [];
+    if (valeur === "" || valeur === null) {
+      exiger(place!.facultatif, `${emplacement} : une pièce est obligatoire`);
+      sortie[emplacement] = "";
+      continue;
+    }
+    exiger(options.some((o) => o.id === valeur), `pièce inconnue pour ${emplacement} en posture ${p.id} : ${String(valeur)} (voir lister_personnages avec emplacement)`);
+    sortie[emplacement] = valeur as string;
+  }
+  return sortie;
+}
+
+/** Les couleurs demandées : partie ou couleur d'origine → `#rrggbb`, `null` pour revenir à
+ *  l'origine ; ajoutées à `base`. `null` à la place de l'objet : toutes d'origine. */
+function couleursDemandees(valeur: unknown, base: Record<string, string> = {}): Record<string, string> | undefined {
+  if (valeur === null) return undefined;
+  exiger(valeur && typeof valeur === "object" && !Array.isArray(valeur), "couleurs : objet { partie ou #couleur d'origine: \"#rrggbb\" }");
+  const sortie = { ...base };
+  for (const [cle, v] of Object.entries(valeur as Record<string, unknown>)) {
+    const k = cle.startsWith("#") ? cle.toUpperCase() : cle;
+    exiger(!cle.startsWith("#") || HEX.test(cle), `couleurs : clé ${cle} : une partie (trait, tete, corps, barbe, accessoire) ou une couleur #rrggbb du dessin`);
+    if (v === null) {
+      delete sortie[k];
+      continue;
+    }
+    exiger(typeof v === "string" && HEX.test(v), `couleurs.${cle} : couleur #rrggbb attendue`);
+    sortie[k] = (v as string).toLowerCase();
+  }
+  return Object.keys(sortie).length ? sortie : undefined;
+}
+
 function nettoyerModification(el: ElementPage, brut: Arguments): Partial<ElementPage> {
   const permises = new Set([...COMMUNES, ...PAR_TYPE[el.type]]);
   const propre: Record<string, unknown> = {};
@@ -142,6 +196,16 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
       // Un tableau garde toujours sa bordure : « aucune », c'est une épaisseur nulle.
       if (b === null) propre[cle] = el.type === "tableau" ? { ...el.bordure, epaisseur: 0 } : undefined;
       else propre[cle] = { couleur: couleur(b.couleur ?? (el.type === "tableau" ? el.bordure.couleur : "#ffffff"), "bordure.couleur") as string, epaisseur: Math.max(0, nombre(b.epaisseur, el.type === "tableau" ? el.bordure.epaisseur : 8)!) };
+    } else if (el.type === "personnage" && (cle === "posture" || cle === "pieces")) {
+      exiger(!el.dessin, "personnage tout fait : posture et pieces ne se changent que sur un personnage composé");
+      const c = collectionPersonnages(el.collection);
+      const idPosture = brut.posture !== undefined ? String(brut.posture) : piecesValides(c.composition, el.posture, el.pieces).posture;
+      propre.posture = idPosture;
+      propre.pieces = piecesDemandees(c, idPosture, brut.pieces, el.pieces);
+    } else if (el.type === "personnage" && cle === "couleurs") propre[cle] = couleursDemandees(valeur, valeur === null ? {} : el.couleurs);
+    else if (cle === "retourneH" || cle === "retourneV") {
+      exiger(typeof valeur === "boolean", `${cle} : vrai ou faux`);
+      propre[cle] = valeur;
     } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
       exiger(valeur === null || etat().ressources[String(valeur)], `image inconnue dans ce design : ${String(valeur)}`);
       propre[cle] = valeur === null ? undefined : valeur;
@@ -226,6 +290,21 @@ function placer<T extends ElementPage>(el: T, args: Arguments): T {
   return sortie;
 }
 
+/** Une image prête à dessiner : un SVG (personnage, icône) passe par une balise image, le
+ *  reste (photos, vignettes) par `createImageBitmap`, qui ne lit pas le SVG. */
+async function decoderImage(blob: Blob): Promise<ImageBitmap | HTMLImageElement> {
+  if (!blob.type.includes("svg")) return createImageBitmap(blob);
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 /** Une planche d'images numérotées, quatre par rangée, pour que l'IA voie avant de choisir.
  *  `couvrir` : l'image remplit sa case (coupée au centre) ; sinon elle y tient entière. */
 async function planche(adresses: (() => Promise<string>)[], l: number, h: number, couvrir: boolean): Promise<Blob> {
@@ -245,7 +324,7 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
       c.fillStyle = "#e5e5e5";
       c.fillRect(x, y, l, h);
       try {
-        const image = await createImageBitmap(await (await fetch(await adresse())).blob());
+        const image = await decoderImage(await (await fetch(await adresse())).blob());
         if (couvrir) {
           const echelle = Math.max(l / image.width, h / image.height);
           const [lw, lh] = [l / echelle, h / echelle];
@@ -255,7 +334,7 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
           const [lw, lh] = [image.width * echelle, image.height * echelle];
           c.drawImage(image, x + (l - lw) / 2, y + (h - lh) / 2, lw, lh);
         }
-        image.close();
+        if ("close" in image) image.close();
       } catch {
         // Case laissée grise : l'image n'a pas pu venir.
       }
@@ -430,6 +509,85 @@ const OUTILS: Record<string, Outil> = {
     exiger(c && c.genre === "emoji", `collection d'emojis inconnue : ${String(args.collection)} (fluent ou openmoji)`);
     exiger(nom && (await traces(id!))[nom] !== undefined, `emoji inconnu dans ${id} : ${String(args.nom)} (voir chercher_bibliotheque)`);
     const el = placer(creerEmoji(etat().document.format, id!, nom!), { ...args, hauteur: args.hauteur ?? args.largeur, largeur: args.largeur ?? args.hauteur });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  async lister_personnages(args) {
+    const catalogue = await cataloguePersonnages();
+    exiger(catalogue, "personnages absents : la bibliothèque n'a pas les archives Open Peeps et Humaaans (npm run bibliotheque)");
+    if (args.collection === undefined) {
+      return {
+        donnees: {
+          collections: catalogue!.collections.map((c) => ({
+            id: c.id,
+            libelle: c.libelle,
+            style: c.style,
+            licence: "CC0 (domaine public), crédit facultatif",
+            toutFaits: c.categories.map((k) => ({ categorie: k.id, libelle: k.libelle, nombre: k.elements.length })),
+            composeur: {
+              postures: c.composition.postures.map((p) => ({ id: p.id, emplacements: p.emplacements.map((e) => (e.facultatif ? `${e.id} (facultatif)` : e.id)) })),
+              emplacements: c.composition.emplacements,
+              couleursParPartie: c.composition.couleurs.map((x) => x.id),
+              defaut: c.composition.defaut,
+            },
+          })),
+          conseil: "personnages tout faits : collection + categorie pour la liste et une planche ; composeur : collection + emplacement (et posture) pour les pièces et leur planche, ou pieces à vrai pour tout lister ; puis ajouter_personnage",
+        },
+      };
+    }
+    const c = collectionPersonnages(args.collection);
+    const debut = Math.max(0, Math.round(nombre(args.debut, 0)!));
+    if (args.pieces === true) {
+      return { donnees: { collection: c.id, postures: c.composition.postures.map((p) => ({ id: p.id, emplacements: p.emplacements.map((e) => ({ id: e.id, facultatif: !!e.facultatif, pieces: (c.composition.groupes[e.groupe] ?? []).map((o) => ({ id: o.id, libelle: o.libelle })) })) })) } };
+    }
+    if (args.emplacement !== undefined) {
+      const p = postureDe(c.composition, texte(args.posture) ?? c.composition.defaut.posture);
+      const place = p.emplacements.find((e) => e.id === args.emplacement);
+      exiger(place, `emplacement en posture ${p.id} : ${p.emplacements.map((e) => e.id).join(", ")}`);
+      const base = piecesValides(c.composition, p.id, c.composition.defaut.pieces);
+      const options = (c.composition.groupes[place!.groupe] ?? []).slice(debut, debut + 24);
+      const tete = c.id === "open-peeps" && ["tete", "visage", "barbe", "accessoire"].includes(place!.id) ? ["tete", "visage", "barbe", "accessoire"] : place!.id === "tete" ? ["tete"] : undefined;
+      const donnees = { posture: p.id, emplacement: place!.id, facultatif: !!place!.facultatif, total: c.composition.groupes[place!.groupe]?.length ?? 0, pieces: options.map((o, i) => ({ numero: i + 1, id: o.id, libelle: o.libelle })), conseil: "la planche montre les pièces numérotées, sur le personnage par défaut ; debut pour la suite" };
+      if (!options.length) return { donnees };
+      return { donnees, image: await base64(await planche(options.map((o) => async () => urlSvg((await svgDeSource({ collection: c.id, posture: p.id, pieces: { ...base.pieces, [place!.id]: o.id } }, 240, tete))!)), 200, 200, false)) };
+    }
+    const categorie = c.categories.find((k) => k.id === args.categorie);
+    exiger(categorie, `categorie : ${c.categories.map((k) => k.id).join(", ")}`);
+    const liste = categorie!.elements.slice(debut, debut + 24);
+    const donnees = { categorie: categorie!.id, total: categorie!.elements.length, personnages: liste.map((e, i) => ({ numero: i + 1, dessin: e.nom })), conseil: "la planche montre les personnages numérotés ; debut pour la suite ; ajouter_personnage avec collection et dessin" };
+    if (!liste.length) return { donnees };
+    return { donnees, image: await base64(await planche(liste.map((e) => async () => urlSvg((await svgDeSource({ collection: c.id, dessin: e.nom }, 240))!)), 160, 220, false)) };
+  },
+
+  async ajouter_personnage(args) {
+    designOuvert();
+    await cataloguePersonnages();
+    const c = collectionPersonnages(args.collection);
+    const format = etat().document.format;
+    let source: Pick<ElementPersonnage, "collection" | "dessin" | "posture" | "pieces" | "couleurs">;
+    let vue;
+    if (args.dessin !== undefined) {
+      const trouve = trouverDessin(c, String(args.dessin));
+      exiger(trouve, `dessin inconnu dans ${c.id} : ${String(args.dessin)} (voir lister_personnages avec categorie)`);
+      source = { collection: c.id, dessin: String(args.dessin) };
+      vue = trouve!.vue;
+    } else {
+      const idPosture = texte(args.posture) ?? c.composition.defaut.posture;
+      const demandees = piecesDemandees(c, idPosture, args.pieces);
+      // Au hasard : ce que l'IA n'a pas choisi est tiré, le reste est gardé.
+      const depart = args.hasard === true ? { ...piecesAuHasard(c.composition, idPosture).pieces, ...demandees } : demandees;
+      const v = piecesValides(c.composition, idPosture, depart);
+      source = { collection: c.id, posture: v.posture, pieces: v.pieces };
+      vue = vueComposee(c.composition, v.posture, v.pieces);
+    }
+    if (args.couleurs !== undefined) source.couleurs = couleursDemandees(args.couleurs);
+    const base = creerPersonnage(format, source, vue);
+    // Une seule dimension donnée : l'autre suit les proportions du dessin.
+    const ratio = vue[2] / vue[3];
+    const largeur = nombre(args.largeur) ?? (nombre(args.hauteur) !== undefined ? Math.round(nombre(args.hauteur)! * ratio) : undefined);
+    const hauteur = nombre(args.hauteur) ?? (largeur !== undefined ? Math.round(largeur / ratio) : undefined);
+    const el = placer({ ...base, ...(booleen(args.retourneH) ? { retourneH: true } : {}) }, { ...args, largeur, hauteur });
     etat().ajouterElements([el]);
     return { donnees: el };
   },
@@ -705,6 +863,8 @@ const OUTILS: Record<string, Outil> = {
     exiger(Array.isArray(args.modifications) && args.modifications.length, "modifications : liste d'objets { id, … }");
     const parId = new Map(elementsCourants(etat()).map((e) => [e.id, e]));
     const modifs: Record<string, Partial<ElementPage>> = {};
+    // Les pièces d'un personnage se vérifient dans le catalogue.
+    if ([...parId.values()].some((e) => e.type === "personnage")) await cataloguePersonnages();
     for (const m of args.modifications as Arguments[]) {
       const el = parId.get(String(m.id));
       exiger(el, `élément introuvable sur la page affichée : ${String(m.id)}`);

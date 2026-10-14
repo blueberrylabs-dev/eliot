@@ -67,7 +67,8 @@ export function kitValide(brut: unknown): KitMarque {
 
 /** Ce qu'une couleur de la marque change sur un objet : son texte, son remplissage (le trait
  *  d'une ligne ou d'une flèche), le fond d'un cadre, le boîtier d'une maquette, la première
- *  série d'un graphique, l'en-tête d'un tableau. `null` si l'objet n'a pas de couleur. */
+ *  série d'un graphique, l'en-tête d'un tableau, la tenue d'un Open Peep. `null` si l'objet
+ *  n'a pas de couleur. */
 export function modifCouleur(el: ElementPage, couleur: string): Partial<ElementPage> | null {
   switch (el.type) {
     case "texte":
@@ -87,6 +88,9 @@ export function modifCouleur(el: ElementPage, couleur: string): Partial<ElementP
       return { series: el.series.map((s, i) => (i === 0 ? { ...s, couleur } : s)) };
     case "tableau":
       return { fondEntete: couleur };
+    case "personnage":
+      // Open Peeps : la tenue prend la couleur (les Humaaans se colorient couleur par couleur).
+      return el.collection === "open-peeps" ? { couleurs: { ...el.couleurs, corps: couleur } } : null;
     default:
       return null;
   }

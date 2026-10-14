@@ -6,6 +6,7 @@ import { APPAREILS, casesDeGrille, DISPOSITIONS, RECADRAGE_PAR_DEFAUT } from "./
 import { donneesDeDepart, GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE } from "./graphiques";
 import { mesurePolice } from "./mesure";
 import { disposerTableau } from "./tableaux";
+import { boiteDeDepart, type Boite } from "./personnages";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
@@ -22,6 +23,7 @@ import {
   type ElementIcone,
   type ElementImage,
   type ElementQr,
+  type ElementPersonnage,
   type ElementPage,
   type ElementTexte,
   type Format,
@@ -164,6 +166,14 @@ export function creerIcone(page: Format, collection: string, nom: string, couleu
 export function creerEmoji(page: Format, collection: string, nom: string): ElementEmoji {
   const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.25);
   return { ...elementCentre(page, cote, cote), type: "emoji", collection, nom };
+}
+
+/** Un personnage tout fait (`dessin`) ou composé (`posture`, `pieces`), à la taille de son
+ *  cadrage (`vue`, donné par le catalogue), au centre de la page. */
+export function creerPersonnage(page: Format, source: Pick<ElementPersonnage, "collection" | "dessin" | "posture" | "pieces" | "couleurs">, vue: Boite): ElementPersonnage {
+  const b = boiteDeDepart(page, vue);
+  const propre = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== undefined)) as typeof source;
+  return { ...elementCentre(page, b.largeur, b.hauteur), ...propre, type: "personnage" };
 }
 
 /** Un cadre vide, carré, au tiers de la page. */
@@ -337,6 +347,8 @@ export function nomElement(el: ElementPage): string {
       return `Icône ${el.nom.replace(/-/g, " ")}`;
     case "emoji":
       return "Emoji";
+    case "personnage":
+      return el.dessin?.startsWith("decor-") ? "Décor" : "Personnage";
     case "qr":
       return "QR code";
     case "forme":

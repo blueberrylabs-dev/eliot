@@ -1,6 +1,7 @@
 // Fabrique la bibliothèque d'Eliot (étape 3) dans `public/bibliotheque/`, hors git :
 // icônes (Tabler, Phosphor), emojis (Fluent Emoji en version plate, OpenMoji), leurs mots de
-// recherche en français, et les polices de Google Fonts.
+// recherche en français, les polices de Google Fonts, et les personnages (Open Peeps,
+// Humaaans) tirés des archives rangées dans `Eliot/telechargements/` (`outils/personnages.mjs`).
 //
 // Les icônes et les emojis viennent des paquets npm à version fixe du `package.json`
 // (`npm install` d'abord). Les polices viennent de Google Fonts ; chaque fichier est contrôlé
@@ -18,11 +19,14 @@ import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { preparerPersonnages } from "./personnages.mjs";
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODULES = path.join(RACINE, "node_modules");
 const SORTIE = path.join(RACINE, "public", "bibliotheque");
-const VERSION_BIBLIOTHEQUE = 1;
+// Les archives des personnages, téléchargées à la main (hors git).
+const TELECHARGEMENTS = path.join(RACINE, "..", "telechargements");
+const VERSION_BIBLIOTHEQUE = 2;
 
 const args = new Set(process.argv.slice(2));
 
@@ -231,7 +235,7 @@ async function polices(catalogue) {
 // Licences
 // ----------------------------------------------------------------------------------------
 
-async function licences(versions, verrou) {
+async function licences(versions, verrou, personnages) {
   const lignes = [
     "# Licences des éléments embarqués dans Eliot",
     "",
@@ -249,6 +253,15 @@ async function licences(versions, verrou) {
     `- Fluent Emoji de Microsoft, version plate, par le paquet \`@iconify-json/fluent-emoji-flat\` ${versions["@iconify-json/fluent-emoji-flat"]}, licence MIT, https://github.com/microsoft/fluentui-emoji`,
     `- OpenMoji ${versions.openmoji}, licence CC BY-SA 4.0, https://openmoji.org : crédit obligatoire, et un emoji modifié se partage sous la même licence`,
     `- Noms et mots-clés français des emojis : Unicode CLDR ${versions["cldr-annotations-full"]}, licence Unicode-3.0, https://cldr.unicode.org`,
+    "",
+    "## Personnages",
+    "",
+    "Tirés des archives téléchargées sur les sites des auteurs et rangées dans",
+    "`telechargements/` (hors git). Dessins de Pablo Stanley, versés dans le domaine public :",
+    "utilisables, modifiables et publiables librement, sans crédit obligatoire.",
+    "",
+    `- Open Peeps, licence CC0 1.0, https://www.openpeeps.com${personnages.collections.includes("Open Peeps") ? "" : " (archive absente)"}`,
+    `- Humaaans, licence CC0 1.0, https://www.humaaans.com${personnages.collections.includes("Humaaans") ? "" : " (archive absente)"}`,
     "",
     "## Polices",
     "",
@@ -290,10 +303,11 @@ async function principal() {
   await ecrireJson(path.join(SORTIE, "collections.json"), collections);
   await ecrireJson(path.join(SORTIE, "index.json"), index);
   await ecrireJson(path.join(SORTIE, "noms-emojis.json"), noms);
+  const personnages = await preparerPersonnages(SORTIE, TELECHARGEMENTS);
 
   const catalogue = await lireJson(path.join(RACINE, "src/bibliotheque/polices.json"));
   const { sortie, erreurs, telecharges, verrou } = await polices(catalogue);
-  await licences(versions, verrou);
+  await licences(versions, verrou, personnages);
 
   const complete = erreurs.length === 0;
   await ecrireJson(fichierVersion, { version: VERSION_BIBLIOTHEQUE, complete, fabriquee: new Date().toISOString(), paquets: versions });
@@ -301,6 +315,11 @@ async function principal() {
   const nombre = (genre) => collections.filter((c) => c.genre === genre && !/^phosphor-(?!regular)/.test(c.id)).reduce((n, c) => n + c.nombre, 0);
   console.log(`Bibliothèque prête dans ${path.relative(process.cwd(), SORTIE) || SORTIE} en ${((Date.now() - debut) / 1000).toFixed(1)} s :`);
   console.log(`  ${nombre("icone")} icônes, ${nombre("emoji")} emojis, ${sortie.length} polices (${telecharges} fichiers téléchargés)`);
+  if (personnages.collections.length) console.log(`  ${personnages.personnages} personnages et ${personnages.pieces} pièces à assembler (${personnages.collections.join(", ")})`);
+  if (personnages.absentes.length) {
+    console.log(`  Personnages absents : ${personnages.absentes.join(", ")}. Ranger leur archive .zip dans`);
+    console.log(`  ${TELECHARGEMENTS} puis relancer npm run bibliotheque.`);
+  }
   for (const e of erreurs) console.error(`  ${e}`);
   if (!complete) process.exit(2);
 }

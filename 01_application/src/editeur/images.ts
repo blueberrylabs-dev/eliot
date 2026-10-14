@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useEditeur } from "../etat/editeur";
 import type { PageEliot, RefProjet } from "../modele/types";
 import { prechargerVecteurs } from "../bibliotheque/bibliotheque";
+import { prechargerPersonnages } from "../bibliotheque/personnages";
 import { assurerPolicesElements } from "../polices";
 import { urlRessource, type GenreImage } from "../pont/tauri";
 
@@ -70,13 +71,14 @@ export function useImageRessource(id: string | undefined, genre: GenreImage = "a
 }
 
 /** Charge tout ce qu'une page dessine avant un rendu hors écran (export, miniature) : images
- *  du design, icônes et emojis de la bibliothèque, polices des textes. */
+ *  du design, icônes, emojis et personnages de la bibliothèque, polices des textes. */
 export async function prechargerPage(page: PageEliot): Promise<void> {
   const projet = useEditeur.getState().projet;
   const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
   await Promise.all([
     ...ids.map((id) => imageDeRessource(projet, id, "apercu").catch(() => undefined)),
     prechargerVecteurs(page.elements),
+    prechargerPersonnages(page.elements),
     assurerPolicesElements(page.elements),
   ]);
 }

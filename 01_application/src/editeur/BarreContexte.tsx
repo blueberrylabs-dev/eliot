@@ -45,7 +45,7 @@ import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
 import { APPAREILS, COULEURS_APPAREIL } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementQr, type ElementTableau, type FormeCadre, type Ombre } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPersonnage, type ElementQr, type ElementTableau, type FormeCadre, type Ombre } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
@@ -54,6 +54,7 @@ import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
+import { ReglagesPersonnage } from "./ReglagesPersonnage";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -512,6 +513,7 @@ export function BarreContexte() {
   const traits = choisis.filter((e): e is ElementDessin => e.type === "dessin");
   const graphiques = choisis.filter((e): e is ElementGraphique => e.type === "graphique");
   const tableaux = choisis.filter((e): e is ElementTableau => e.type === "tableau");
+  const personnages = choisis.filter((e): e is ElementPersonnage => e.type === "personnage");
   const verrouille = choisis.some((e) => e.verrouille);
   const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
   const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
@@ -551,6 +553,7 @@ export function BarreContexte() {
       {choisis.length > 0 && traits.length === choisis.length && <ReglagesDessin traits={traits} modifier={modifier} />}
       {choisis.length === 1 && graphiques.length === 1 && <ReglagesGraphique g={graphiques[0]} modifier={modifier} />}
       {choisis.length === 1 && tableaux.length === 1 && <ReglagesTableau t={tableaux[0]} modifier={modifier} />}
+      {choisis.length === 1 && personnages.length === 1 && <ReglagesPersonnage el={personnages[0]} />}
       {choisis.length > 0 && (
         <>
           {separateur}

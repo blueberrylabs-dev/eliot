@@ -8,6 +8,8 @@ import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement
 import type { ReglagesDessin } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
+import { recalerPersonnage } from "../modele/personnages";
+import { catalogueConnu } from "../bibliotheque/personnages";
 import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
 
 const LIMITE_HISTORIQUE = 100;
@@ -38,6 +40,7 @@ const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   image: ["arrondi", "bordure", "opacite", "ombre"],
   icone: ["couleur", "trait", "opacite", "ombre"],
   emoji: ["opacite", "ombre"],
+  personnage: ["couleurs", "opacite", "ombre"],
   qr: ["couleur", "fond", "opacite"],
   cadre: ["forme", "bordure", "opacite", "ombre"],
   maquette: ["couleur", "opacite", "ombre"],
@@ -354,6 +357,10 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
           const naturelle = (t: ElementTableau) => disposerTableau(t, mesurePolice(t.police)).hauteurNaturelle;
           const apres = naturelle(suivant);
           suivant.hauteur = "hauteur" in modif ? Math.max(suivant.hauteur, apres) : Math.round(apres + Math.max(0, e.hauteur - naturelle(e)));
+        }
+        // Un personnage composé dont une pièce change : sa boîte suit le dessin.
+        if (suivant.type === "personnage" && e.type === "personnage" && ("pieces" in modif || "posture" in modif) && !("largeur" in modif)) {
+          return recalerPersonnage(e, suivant, catalogueConnu()?.collections.find((c) => c.id === suivant.collection));
         }
         // Une ligne ou une flèche plus épaisse grandit autour de son axe.
         if (suivant.type === "forme" && estTrait(suivant.forme) && ("epaisseurContour" in modif || "forme" in modif) && !("hauteur" in modif)) {

@@ -132,7 +132,7 @@ Choix par défaut de Claude, modifiables sur simple demande :
   ligne « à quoi elle sert » ; une vingtaine d'associations titre et texte ; les polices du
   poste listées par le Rust et copiées dans le design qui s'en sert.
 - Document version 3 : nouveaux types `icone`, `emoji`, `cadre`, `maquette`, `dessin`,
-  `graphique`, `tableau`, `qr` ; lignes, flèches et polygones rejoignent les formes ; ombre
+  `graphique`, `tableau`, `qr`, `personnage` ; lignes, flèches et polygones rejoignent les formes ; ombre
   sur tous les éléments ; contour, surlignage, majuscules et barré pour les textes. Le noyau
   convertit un document de version 2 sans rien changer d'autre que le numéro.
 - Icônes et emojis restent vectoriels dans le document (collection et nom) ; l'écran et
@@ -143,8 +143,10 @@ Choix par défaut de Claude, modifiables sur simple demande :
   Eliot saura poser une vidéo. Pexels : même panneau, dès qu'une clé existera.
 - Kit de marque : un seul kit, dans `~/Documents/Eliot/Marque/` (couleurs, polices du titre et
   du texte, logos), proposé partout où l'on choisit une couleur ou une police.
-- Personnages : Open Peeps et Humaaans ne se téléchargent que depuis leurs sites, à la main ;
-  ils viendront en dernier, avec une commande qui range le fichier téléchargé par Alexandre.
+- Personnages : Open Peeps et Humaaans ne se téléchargent que depuis leurs sites, à la main.
+  Alexandre range les deux archives .zip dans `Eliot/telechargements/` (hors git) ;
+  `npm run bibliotheque` les lit telles quelles et en tire les personnages tout faits et les
+  pièces détachées d'un composeur (posture, tenue, coiffure, visage, barbe, lunettes).
 
 - [x] Fabrication de la bibliothèque, licences, document version 3 (lot 1, 2026-10-14)
 - [x] Panneau Éléments : formes, lignes et flèches, icônes, emojis, QR code, recherche (lot 1)
@@ -158,10 +160,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       ajouter_emoji, ajouter_qr, lister_polices, effets par modifier ; lot 2 : ajouter_cadre,
       ajouter_grille, ajouter_maquette, remplir_photo ; lot 3 : chercher_photos,
       ajouter_photo_pixabay, marque, modifier_marque, ajouter_logo ; lot 4 : dessiner,
-      ajouter_graphique, ajouter_tableau ; lot 5 : lister_modeles_depart, utiliser_modele_depart)
+      ajouter_graphique, ajouter_tableau ; lot 5 : lister_modeles_depart, utiliser_modele_depart ;
+      lot 6 : lister_personnages, ajouter_personnage)
 - [x] Une quarantaine de modèles de départ (lot 5, 2026-10-14 : 42, tous les formats)
-- [ ] Personnages (Open Peeps, Humaaans)
-- [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
+- [x] Personnages (lot 6, 2026-10-14 : 189 Open Peeps et 32 Humaaans tout faits, 4 décors,
+      composeur à 207 pièces, couleurs par partie ou couleur par couleur)
+- [x] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel (fin du
+      lot 6, 2026-10-14 : tout repassé, détail au JOURNAL)
 - [ ] Livraison sur le poste, puis essai par Alexandre
 
 ## Étape 4. La vidéo façon CapCut

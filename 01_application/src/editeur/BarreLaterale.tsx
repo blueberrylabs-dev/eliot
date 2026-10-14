@@ -43,7 +43,8 @@ export function BarreLaterale() {
         ))}
       </nav>
       {onglet && (
-        <div className="w-[320px] overflow-y-auto border-r border-neutral-200 bg-white p-4 defilement-fin">
+        // Une clé par onglet : chaque panneau s'ouvre en haut, pas au défilement du précédent.
+        <div key={onglet} className="w-[320px] overflow-y-auto border-r border-neutral-200 bg-white p-4 defilement-fin">
           {onglet === "modeles" && <PanneauModeles />}
           {onglet === "elements" && <PanneauElements />}
           {onglet === "textes" && <PanneauTextes />}
