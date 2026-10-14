@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Banc d'essai Eliot</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <header id="entete">
+      <strong>Banc d'essai Eliot</strong>
+      <span id="moteur" class="pastille">moteur ?</span>
+      <span id="ecran" class="discret"></span>
+      <span class="espace"></span>
+      <button id="bouton-lancer" type="button">Lancer tous les tests</button>
+      <button id="bouton-libre" type="button" class="secondaire">Mode libre</button>
+    </header>
+    <main id="principal">
+      <div id="scene"></div>
+      <aside id="panneau">
+        <p id="etat">Prêt. Les tests durent environ une minute : ne touche pas à la fenêtre pendant ce temps.</p>
+        <table id="tableau">
+          <thead>
+            <tr><th>Test</th><th>Images/s</th><th>p95 (ms)</th><th>À-coups</th><th>Verdict</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p id="enregistrement" class="discret"></p>
+        <button id="bouton-copier" type="button" class="secondaire" hidden>Copier les résultats</button>
+        <div id="machine" class="discret"></div>
+      </aside>
+    </main>
+    <div id="compteur" hidden></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

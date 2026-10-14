@@ -1,0 +1,135 @@
+# JOURNAL.md — Eliot
+
+Journal antichronologique des décisions. La plus récente en haut. Une entrée = une date, un
+titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (fichier, commit, run).
+
+---
+
+## 2026-10-14, BRIEF validé, démarrage sur Tauri
+
+- Décisions d'Alexandre : « on démarre sur Tauri » ; BRIEF validé, « tout par défaut »
+  (révision 4 ; valeurs retenues au § 10). Electron reste le repli, tranché au banc du mini PC
+  avant l'étape 4.
+- Identité des commits : `Alexandre Do <adresse retirée avant la publication>`, relevée dans le dépôt
+  `00_moi` ; messages d'une ligne en français, sans autre nom (`00_moi/CONVENTIONS.md`).
+- Question d'Alexandre : son premier test avait-il tourné dans Firefox ? Non : la ligne
+  d'identification commence par « Mozilla/5.0 » pour tous les navigateurs ; le test Rust et
+  la lecture de la machine n'existent que dans la fenêtre Tauri. Aucun fichier Firefox dans
+  `resultats/`.
+- Étape 1 ouverte.
+
+## 2026-10-14, série complète : fenêtre Tauri et navigateur de la famille Chrome
+
+- Séries : `00_banc_essai/resultats/2026-10-14_152859_tauri-webkitgtk.json` (lancée par
+  Alexandre) et `2026-10-14_153221_navigateur-claude.json` (lancée par Claude dans le
+  navigateur intégré de l'application Claude, Chrome 152, juste après, même poste, zone de
+  dessin réglée à la même taille : 1044 × 748, rapport 1,25). Écran à 60 Hz : 60 images/s est
+  le plafond.
+- Mesuré (images/s, Tauri puis Chrome) : redessiner 200 objets 62,2 et 60 ; glisser un objet
+  avec poignées 45,0 et 60 ; glisser 50 objets 42,2 et 60 ; tourner et redimensionner 42,8 et
+  60 ; photo 24 Mpx glissée 38,3 et 60 ; aperçu 2560 px glissé 41,2 et 60 ; **objet glissé sur
+  un calque à part 62,3 et 60 ; 50 objets sur un calque à part 62,2 et 60** ; vidéo H.264
+  35,1 et 60 ; vidéo VP9 34,8 et 60. Aucun à-coup notable nulle part.
+- Coût du dessin côté JavaScript pour une page de 200 objets : 8,7 ms dans Tauri, 1,0 ms dans
+  Chrome. Avec le calque à part : 0,3 ms et 0,07 ms.
+- Vidéo H.264 dans Tauri : lue au ralenti (3 s de vidéo en 5,4 s, 88 images affichées) ;
+  VP9 lue à vitesse normale (5,5 s, 163 images). Dans Chrome, les deux à vitesse normale.
+  Cause non identifiée.
+- Export PNG 2160 × 2160 : 179 ms dans Tauri, 400 ms dans Chrome. Réduction d'une photo
+  24 Mpx à 2560 px : Rust 230 ms (décodage 92, réduction 55, encodage 80), moteur web d'Ubuntu
+  301 ms, Chrome 234 ms. Le Rust n'est pas plus rapide que Chrome sur une photo isolée ; son
+  encodage JPEG est le plus lent des trois.
+- Lecture de Claude : la cause du ralentissement des gestes dans Tauri est le redessin des
+  200 objets à chaque image, pas le nombre de calques (sans poignées : 47,2 ; poignées dans le
+  calque de la page : 45,3). Mettre ce qui bouge sur un calque à part le temps du geste suffit
+  à tenir 60 images/s : règle 11 ajoutée au BRIEF. Chrome garde une marge d'environ 8 fois sur
+  le coût de dessin, ce qui comptera sur le mini PC.
+- Proposition de Claude, **à trancher par Alexandre** : démarrer l'étape 1 sur Tauri, avec
+  une enveloppe isolée dans `pont/` pour pouvoir passer à Electron sans toucher au reste ;
+  décision définitive après le banc du mini PC, avant l'étape 4 (vidéo). Correction : avec
+  Electron, le noyau Rust resterait natif (module Node écrit en Rust, napi-rs), pas en
+  WebAssembly comme écrit plus tôt dans le BRIEF.
+
+## 2026-10-14, première série sur le poste principal (fenêtre Tauri)
+
+- Lancée par Alexandre, fichier `00_banc_essai/resultats/2026-10-14_152100_tauri-webkitgtk.json`.
+  Poste : Ryzen 9 7950X3D (32 fils), 62 Go, NVIDIA (pilote `nvidia`), session X11, écran
+  1920 × 1080 à 60 Hz, mise à l'échelle 1,25. Aucune variable NVIDIA nécessaire : la fenêtre
+  s'est affichée normalement.
+- Mesuré : redessiner les 200 objets, 62,2 images/s (fluide) ; glisser un objet avec ses
+  poignées, 44,8 images/s ; glisser 50 objets, 41,7 ; tourner et redimensionner, 41,3 ;
+  aperçu 2560 px glissé, 41,4 (tous « correct », aucun à-coup) ; export PNG 2160 × 2160 en
+  182 ms.
+- Non mesuré : photo pleine résolution, vidéos, réductions, car les fichiers de test n'avaient
+  pas été générés (commande 4 bis). Le banc les signale désormais au démarrage.
+- Lecture de Claude, à vérifier : redessiner la page seule tient 60 images/s, mais tout geste
+  qui redessine deux calques (page et poignées) tombe à 42-45. Quatre variantes ajoutées au
+  banc pour isoler la cause (sans poignées, poignées dans le calque de la page, objet glissé
+  sur un calque à part, 50 objets sur un calque à part).
+- Constaté au dépôt : les images et vidéos copiées par le dossier de sortie de Claude
+  reçoivent une étiquette de provenance (segment C2PA) qui change leurs octets.
+  `photo_apercu_2560.jpg` sur le poste ne correspond donc pas à `EMPREINTES.txt` tant que la
+  commande 4 bis n'a pas tout régénéré.
+
+## 2026-10-14, banc d'essai prêt, à lancer à la main
+
+- Fait par Claude : `00_banc_essai/` (fenêtre Tauri + même page ouverte dans un navigateur
+  de la famille Chrome), 11 tests, résultats écrits dans `00_banc_essai/resultats/`. Preuve :
+  `00_banc_essai/LISEZMOI.md`.
+- Vérification faite dans le conteneur de Claude, une machine distante sans écran ni carte
+  graphique (2 cœurs) : la série tourne de bout en bout dans un Chromium sans fenêtre et dans
+  la fenêtre Tauri sur un écran virtuel ; la partie Rust compile et son test passe. Les
+  chiffres obtenus là-bas (rendu logiciel) ne disent rien du poste : ils n'ont pas été
+  conservés. Rien n'a été lancé sur le poste d'Alexandre, ni dans son Chrome.
+- Mesuré au passage : sans `opt-level = 3` sur le paquet lui-même en mode développement, la
+  réduction Rust d'une photo 24 Mpx prend 6,5 s au lieu de 0,1 s, parce que le code générique
+  des bibliothèques est compilé dans le paquet qui l'appelle. Réglage posé dans
+  `00_banc_essai/src-tauri/Cargo.toml` ; à reprendre dans l'application.
+- Dépôt sur le poste : les fichiers de test lourds (photo de 5 Mo, vidéos de 10 et 11 Mo)
+  n'ont pas pu être copiés depuis le conteneur (délai dépassé à chaque essai). Ils se
+  régénèrent sur le poste avec `outils/generer_donnees.py` (commande 4 bis du `CLAUDE.md`) ;
+  essai fait dans le conteneur : photo et vidéo H.264 identiques octet pour octet à la première
+  génération.
+- Question d'Alexandre : faire la partie Chrome dans le navigateur intégré de l'application
+  Claude, qui tourne sur son PC. Retenu : possible une fois `npm run tauri dev` lancé par
+  Alexandre (le navigateur intégré ouvre alors `http://localhost:1420` sur son poste), carte
+  graphique libre.
+
+## 2026-10-14, nom : Eliot
+
+- Décision d'Alexandre : le projet s'appelle Eliot, « toile » à l'envers. Dossier renommé de
+  `Logiciels/Toile/` en `Logiciels/Eliot/` le même jour. Écarté : « Toile » (nom provisoire
+  proposé par Claude). Preuve : conversation du 2026-10-14.
+- Question d'Alexandre : le projet peut-il devenir open source sur GitHub ? Réponse de
+  Claude : oui, les dépendances prévues sont sous licences MIT, Apache-2.0 ou ISC (vérifié le
+  2026-10-14, `BRIEF.md` § 4). Règle 10 ajoutée au BRIEF : le dépôt reste publiable à tout
+  moment. Licence et compte GitHub non tranchés (Q2) ; toute publication attend le feu vert
+  d'Alexandre (`00_moi/AUTONOMIE.md`).
+
+## 2026-10-14, carte graphique : ne rien lancer dessus
+
+- Décision d'Alexandre : sa carte graphique porte un travail lourd qu'il ne faut pas
+  déranger. Règle 9 du BRIEF : le banc d'essai et l'application ne se lancent qu'à la main,
+  par Alexandre, carte libre. Preuve : conversation du 2026-10-14.
+
+## 2026-10-14, périmètre : photos et vidéos, un maximum de fonctions
+
+- Décisions d'Alexandre : Eliot sert à apprendre la création publicitaire, en photos et en
+  vidéos ; un maximum de fonctions dès la version 1, « ne cherche pas à faire d'économie ».
+  Le catalogue complet est au § 6 du BRIEF, les étapes du § 7 ne fixent que l'ordre.
+- Feu vert d'Alexandre pour le banc d'essai, sur le poste principal d'abord. Le mini PC
+  passera plus tard, ses caractéristiques viendront quand il sera disponible.
+
+## 2026-10-14, application locale, deux postes, interface Canva
+
+- Décisions d'Alexandre : application locale, sans Cloudflare ni hébergement ; elle doit
+  tourner aussi sur un mini PC aux performances plus modestes ; interface qui ressemble à
+  Canva, facile et intuitive ; le code lourd en Rust.
+- Écarté : l'application web installée dans Chrome (demandait un hébergement ou un serveur
+  local). Retenu sous réserve du banc d'essai : Tauri ; repli : Electron.
+
+## 2026-10-14, première entrée : conception avant code
+
+- Demande d'Alexandre : « Surtout avant de coder, tu me montres ce que tu vas faire et les
+  meilleures solutions ». Claude a arrêté l'écriture du code et rédigé `BRIEF.md` (brouillon,
+  non validé).

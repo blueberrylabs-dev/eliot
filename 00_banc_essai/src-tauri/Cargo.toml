@@ -1,0 +1,37 @@
+[package]
+name = "eliot-banc-essai"
+version = "0.1.0"
+description = "Banc d'essai de fluidité de Eliot (jetable)"
+authors = ["Alexandre Do"]
+edition = "2024"
+
+[lib]
+# Le suffixe _lib évite un conflit de nom avec le binaire (problème connu sous Windows).
+name = "eliot_banc_essai_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+fast_image_resize = { version = "6", features = ["image"] }
+
+# Tout est compilé optimisé, même en mode développement : sinon `tauri dev` mesurerait un
+# Rust bien plus lent qu'en vrai. Les bibliothèques ne suffisent pas : leur code générique
+# (réduction, encodage) est compilé dans ce paquet-ci, avec ses propres réglages.
+# Mesuré le 2026-10-14 dans le conteneur de Claude : réduction 6,5 s sans ce réglage.
+[profile.dev]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

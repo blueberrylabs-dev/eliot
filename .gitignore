@@ -1,0 +1,18 @@
+# Dépendances et sorties de compilation : se régénèrent, ne vont jamais dans git
+node_modules/
+dist/
+target/
+gen/schemas/
+
+# Fichiers de test du banc d'essai : régénérables par 00_banc_essai/outils/generer_donnees.py
+00_banc_essai/public/donnees/*.jpg
+00_banc_essai/public/donnees/*.mp4
+00_banc_essai/public/donnees/*.webm
+
+# Éditeurs et système
+.idea/
+.vscode/
+*.swp
+.DS_Store
+*.log
+*.tsbuildinfo
