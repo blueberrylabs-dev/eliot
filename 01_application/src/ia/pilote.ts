@@ -20,7 +20,8 @@ export async function brancherPiloteIa(): Promise<void> {
     useEditeur.getState().signalerIa(payload.outil);
     try {
       const r = await executerOutil(payload.outil, payload.arguments);
-      await invoke("ia_repondre", { id: payload.id, ok: true, resultat: { donnees: r.donnees ?? null, imagePng: r.imagePng ?? null }, erreur: null });
+      // Le champ garde son nom d'origine (`imagePng`) ; le pont reconnaît le JPEG à ses octets.
+      await invoke("ia_repondre", { id: payload.id, ok: true, resultat: { donnees: r.donnees ?? null, imagePng: r.image ?? null }, erreur: null });
     } catch (e) {
       await invoke("ia_repondre", { id: payload.id, ok: false, resultat: null, erreur: e instanceof Error ? e.message : String(e) });
     }

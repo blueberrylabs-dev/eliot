@@ -4,7 +4,7 @@
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { DocumentEliot, InfoProjet, RefProjet, Ressource } from "../modele/types";
+import type { Credit, DocumentEliot, InfoProjet, RefProjet, RefRessources, Ressource } from "../modele/types";
 
 export const dansTauri = isTauri();
 
@@ -17,6 +17,7 @@ interface RessourceNoyau {
   largeur: number;
   hauteur: number;
   transparence: boolean;
+  credit?: Credit | null;
 }
 interface ResultatImport {
   chemin: string;
@@ -29,7 +30,14 @@ export interface BilanImport {
   erreurs: string[];
 }
 
-const versRessource = (r: RessourceNoyau): Ressource => ({ id: r.id, nom: r.nom, largeur: r.largeur, hauteur: r.hauteur, transparence: r.transparence });
+const versRessource = (r: RessourceNoyau): Ressource => ({
+  id: r.id,
+  nom: r.nom,
+  largeur: r.largeur,
+  hauteur: r.hauteur,
+  transparence: r.transparence,
+  ...(r.credit ? { credit: { source: r.credit.source, auteur: r.credit.auteur, lien: r.credit.lien } } : {}),
+});
 
 /** Type d'image d'après les premiers octets (les aperçus sont en PNG ou en JPEG). */
 function typeImage(octets: ArrayBuffer): string {
@@ -219,11 +227,11 @@ export async function dossierDesigns(): Promise<string> {
 export type GenreImage = "apercu" | "miniature";
 
 const urls = new Map<string, Promise<string>>();
-const cleUrl = (ref: RefProjet, id: string, genre: GenreImage) => `${ref.rayon}/${ref.id}/${id}/${genre}`;
+const cleUrl = (ref: RefRessources, id: string, genre: GenreImage) => `${ref.rayon}/${ref.id}/${id}/${genre}`;
 
 /** Adresse de l'aperçu ou de la miniature d'une image, gardée en mémoire après la première
  *  demande. Dans Tauri, le noyau lit le fichier et l'interface en fait une adresse locale. */
-export function urlRessource(ref: RefProjet, id: string, genre: GenreImage): Promise<string> {
+export function urlRessource(ref: RefRessources, id: string, genre: GenreImage): Promise<string> {
   const navigateur = ressourcesNavigateur.get(id);
   if (navigateur) return Promise.resolve(navigateur.urls[genre]);
   const cle = cleUrl(ref, id, genre);
@@ -239,7 +247,7 @@ export function urlRessource(ref: RefProjet, id: string, genre: GenreImage): Pro
 }
 
 /** Libère les adresses d'images d'un design qu'on quitte. */
-export function oublierImages(ref: RefProjet | null): void {
+export function oublierImages(ref: RefRessources | null): void {
   if (!ref) return;
   const prefixe = `${ref.rayon}/${ref.id}/`;
   for (const [cle, promesse] of urls) {
@@ -249,7 +257,7 @@ export function oublierImages(ref: RefProjet | null): void {
   }
 }
 
-export async function listerRessources(ref: RefProjet): Promise<Ressource[]> {
+export async function listerRessources(ref: RefRessources): Promise<Ressource[]> {
   if (!dansTauri) return [];
   const liste = await invoke<RessourceNoyau[]>("ressources_lister", { rayonNom: ref.rayon, projetId: ref.id });
   return liste.map(versRessource);
@@ -257,7 +265,7 @@ export async function listerRessources(ref: RefProjet): Promise<Ressource[]> {
 
 /** Importe des fichiers déjà choisis ou déposés (chemins sur le disque) : le noyau lit et
  *  prépare tout, dans le dossier du design. */
-export async function importerChemins(ref: RefProjet, chemins: string[]): Promise<BilanImport> {
+export async function importerChemins(ref: RefRessources, chemins: string[]): Promise<BilanImport> {
   const resultats = await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins });
   const ressources: Ressource[] = [];
   const erreurs: string[] = [];
@@ -269,7 +277,7 @@ export async function importerChemins(ref: RefProjet, chemins: string[]): Promis
 }
 
 /** Ouvre le sélecteur de fichiers et importe les images choisies. `null` si on annule. */
-export async function choisirEtImporterImages(ref: RefProjet): Promise<BilanImport | null> {
+export async function choisirEtImporterImages(ref: RefRessources): Promise<BilanImport | null> {
   if (dansTauri) {
     const { open } = await import("@tauri-apps/plugin-dialog");
     const choix = await open({ multiple: true, directory: false, title: "Importer des images", filters: [{ name: "Images", extensions: EXTENSIONS_IMAGES }] });
@@ -283,7 +291,7 @@ export async function choisirEtImporterImages(ref: RefProjet): Promise<BilanImpo
 
 /** Importe une image reçue en octets : collage depuis le presse-papiers, fichier déposé dans
  *  le navigateur. */
-export async function importerFichiers(ref: RefProjet, fichiers: File[]): Promise<BilanImport> {
+export async function importerFichiers(ref: RefRessources, fichiers: File[]): Promise<BilanImport> {
   if (!dansTauri) return importerFichiersNavigateur(fichiers);
   const ressources: Ressource[] = [];
   const erreurs: string[] = [];
@@ -302,7 +310,7 @@ export async function importerFichiers(ref: RefProjet, fichiers: File[]): Promis
 }
 
 /** Copie des images d'un design vers un autre (coller entre deux designs). */
-export async function copierRessources(source: RefProjet, cible: RefProjet, ids: string[]): Promise<Ressource[]> {
+export async function copierRessources(source: RefRessources, cible: RefRessources, ids: string[]): Promise<Ressource[]> {
   if (!dansTauri || ids.length === 0) return ids.flatMap((id) => (ressourcesNavigateur.has(id) ? [ressourcesNavigateur.get(id)!.ressource] : []));
   const liste = await invoke<RessourceNoyau[]>("ressources_copier", { sourceRayon: source.rayon, sourceId: source.id, cibleRayon: cible.rayon, cibleId: cible.id, ids });
   return liste.map(versRessource);
@@ -535,4 +543,148 @@ export async function policesDesign(ref: RefProjet): Promise<PoliceInstallee[]> 
 
 export async function lirePoliceDesign(ref: RefProjet, fichier: string): Promise<ArrayBuffer> {
   return invoke<ArrayBuffer>("police_design_lire", { rayonNom: ref.rayon, projetId: ref.id, fichier });
+}
+
+// ========================================================================================
+// Photos de Pixabay (étape 3) : tout passe par le Rust, qui seul connaît la clé
+// ========================================================================================
+
+export interface PhotoPixabay {
+  id: number;
+  largeur: number;
+  hauteur: number;
+  auteur: string;
+  /** Page de la photo sur Pixabay. */
+  lien: string;
+  mots: string;
+}
+
+export interface PagePixabay {
+  total: number;
+  photos: PhotoPixabay[];
+}
+
+export interface FiltresPixabay {
+  orientation?: "horizontal" | "vertical";
+  couleur?: string;
+}
+
+export interface EtatPixabay {
+  /** Une clé a été trouvée par le Rust (sa valeur ne vient jamais jusqu'ici). */
+  cle: boolean;
+  /** Le fichier où l'ajouter. */
+  fichier: string;
+}
+
+/** Hors de Tauri, la recherche n'existe pas (la clé ne doit pas venir dans la page). Les essais
+ *  de l'interface dans un navigateur, en développement seulement, peuvent poser un faux
+ *  Pixabay dans `window.__pixabayEssai`. */
+interface PixabayEssai {
+  etat(): Promise<EtatPixabay>;
+  chercher(requete: string, page: number, filtres: FiltresPixabay): Promise<PagePixabay>;
+  apercu(id: number): Promise<Blob>;
+  importer(id: number): Promise<{ fichier: File; credit: Credit }>;
+}
+const pixabayEssai = (): PixabayEssai | undefined =>
+  !dansTauri && import.meta.env.DEV ? (window as unknown as { __pixabayEssai?: PixabayEssai }).__pixabayEssai : undefined;
+
+export async function etatPixabay(): Promise<EtatPixabay | null> {
+  if (dansTauri) return invoke<EtatPixabay>("pixabay_etat");
+  return (await pixabayEssai()?.etat()) ?? null;
+}
+
+export async function chercherPixabay(requete: string, page: number, filtres: FiltresPixabay = {}): Promise<PagePixabay> {
+  if (dansTauri) return invoke<PagePixabay>("pixabay_chercher", { requete, page, filtres });
+  const essai = pixabayEssai();
+  if (!essai) throw new Error("les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+  return essai.chercher(requete, page, filtres);
+}
+
+// Les aperçus arrivent six par six : une page de 40 vignettes ne lance pas 40 téléchargements
+// d'un coup.
+const APERCUS_EN_PARALLELE = 6;
+let apercusEnCours = 0;
+const fileApercus: (() => void)[] = [];
+const urlsApercus = new Map<number, Promise<string>>();
+
+async function aTonTour<T>(travail: () => Promise<T>): Promise<T> {
+  if (apercusEnCours >= APERCUS_EN_PARALLELE) await new Promise<void>((ok) => fileApercus.push(ok));
+  apercusEnCours++;
+  try {
+    return await travail();
+  } finally {
+    apercusEnCours--;
+    fileApercus.shift()?.();
+  }
+}
+
+/** Adresse locale de l'aperçu d'une photo (340 px de haut), gardée le temps de la session. */
+export function urlApercuPixabay(id: number): Promise<string> {
+  let promesse = urlsApercus.get(id);
+  if (!promesse) {
+    promesse = aTonTour(async () => {
+      if (dansTauri) {
+        const octets = await invoke<ArrayBuffer>("pixabay_apercu", { id });
+        return URL.createObjectURL(new Blob([octets], { type: "image/jpeg" }));
+      }
+      const essai = pixabayEssai();
+      if (!essai) throw new Error("indisponible");
+      return URL.createObjectURL(await essai.apercu(id));
+    });
+    promesse.catch(() => urlsApercus.delete(id));
+    urlsApercus.set(id, promesse);
+  }
+  return promesse;
+}
+
+/** Télécharge la photo choisie (1 280 px) et la range dans le design, avec son crédit. */
+export async function importerPixabay(ref: RefRessources, id: number): Promise<Ressource> {
+  if (dansTauri) return versRessource(await invoke<RessourceNoyau>("pixabay_importer", { rayonNom: ref.rayon, projetId: ref.id, id }));
+  const essai = pixabayEssai();
+  if (!essai) throw new Error("les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+  const { fichier, credit } = await essai.importer(id);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource = bilan.ressources[0];
+  ressource.credit = credit;
+  return ressource;
+}
+
+// ========================================================================================
+// Kit de marque (étape 3) : `~/Documents/Eliot/Marque/kit/`
+// ========================================================================================
+
+const CLE_MARQUE = "eliot-marque";
+
+export async function lireMarque(): Promise<unknown> {
+  if (dansTauri) return invoke<unknown>("marque_lire");
+  try {
+    const brut = localStorage.getItem(CLE_MARQUE);
+    return brut ? JSON.parse(brut) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function enregistrerMarque(kit: unknown): Promise<void> {
+  if (dansTauri) {
+    await invoke("marque_enregistrer", { kit });
+    return;
+  }
+  try {
+    localStorage.setItem(CLE_MARQUE, JSON.stringify(kit));
+  } catch {
+    // Stockage indisponible : le kit reste en mémoire le temps de l'onglet.
+  }
+}
+
+/** Ouvre une page web (le crédit d'une photo) dans le navigateur du poste. */
+export async function ouvrirLien(adresse: string): Promise<void> {
+  if (!/^https:\/\//.test(adresse)) return;
+  if (dansTauri) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(adresse);
+    return;
+  }
+  window.open(adresse, "_blank", "noopener");
 }

@@ -18,7 +18,8 @@ lourd. Détail : `BRIEF.md`.
   puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
   façon CapCut (étape 4), labo photo façon Lightroom (étape 5), pont vers une IA.
 - Secrets : `.env` à la racine du dépôt, hors git (`PIXABAY_API_KEY`). Ne jamais le lire ni le
-  committer ; le Rust le lit lui-même.
+  committer ; le Rust le lit lui-même (une version installée lira
+  `~/.config/fr.alexandredo.eliot/cles.env`).
 - Étape 0, banc d'essai : passé sur le poste principal le 2026-10-14, dans la fenêtre Tauri
   et dans le navigateur intégré de Claude (résultats dans `00_banc_essai/resultats/`, lecture
   au JOURNAL). Tauri tient 60 images/s à condition d'appliquer la règle 11 du BRIEF. Reste :
@@ -28,8 +29,8 @@ lourd. Détail : `BRIEF.md`.
 - Étape 2, les projets et l'édition complète, avec le pont vers une IA (`eliot-mcp`) : livrée
   sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
 - Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lots 1 (icônes, emojis, QR, formes, polices,
-  effets de texte) et 2 (cadres photo, grilles, maquettes d'appareils) livrés, la suite au
-  `PLAN.md`.
+  effets de texte), 2 (cadres photo, grilles, maquettes d'appareils) et 3 (photos Pixabay, kit
+  de marque) livrés, la suite au `PLAN.md`.
 
 Suite : `PLAN.md`.
 
@@ -192,7 +193,7 @@ scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri 
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 28 passed`.
+Vérifier : `test result: ok. 35 passed`.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -200,7 +201,7 @@ Vérifier : `test result: ok. 28 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  28 passed`.
+Vérifier : `Tests  31 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

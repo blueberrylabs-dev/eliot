@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Droits de la fenêtre d'Eliot : dialogues d'ouverture et d'enregistrement, afficher un fichier dans son dossier, plein écran, fermeture après le dernier enregistrement",
-  "windows": ["main"],
+  "description": "Droits de la fenêtre d'Eliot : dialogues d'ouverture et d'enregistrement, afficher un fichier dans son dossier, ouvrir la page d'une photo de Pixabay dans le navigateur, plein écran, fermeture après le dernier enregistrement",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-set-fullscreen",
@@ -11,6 +13,14 @@
     "dialog:allow-open",
     "dialog:allow-save",
     "dialog:allow-ask",
-    "opener:allow-reveal-item-in-dir"
+    "opener:allow-reveal-item-in-dir",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        {
+          "url": "https://pixabay.com/*"
+        }
+      ]
+    }
   ]
 }

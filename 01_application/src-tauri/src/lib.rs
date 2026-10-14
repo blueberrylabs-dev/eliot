@@ -11,6 +11,7 @@ pub fn lancer() {
         .plugin(tauri_plugin_opener::init())
         .manage(commandes::VerrouProjets::default())
         .manage(commandes::PolicesPoste::default())
+        .manage(commandes::Pixabay::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
             ia::au_demarrage(app.handle());
@@ -39,6 +40,12 @@ pub fn lancer() {
             commandes::police_vers_design,
             commandes::polices_design,
             commandes::police_design_lire,
+            commandes::pixabay_etat,
+            commandes::pixabay_chercher,
+            commandes::pixabay_apercu,
+            commandes::pixabay_importer,
+            commandes::marque_lire,
+            commandes::marque_enregistrer,
             commandes::exporter_rendu,
             commandes::dossier_export,
             commandes::autotest_demande,

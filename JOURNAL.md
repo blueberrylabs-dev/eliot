@@ -5,6 +5,55 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 3 : photos Pixabay et kit de marque
+
+- Photos de Pixabay (onglet Photos du rail) : recherche, aperçus et téléchargement passent
+  par le noyau Rust (`noyau/src/pixabay.rs`, client HTTPS `ureq` 3 avec rustls, sans moteur
+  asynchrone). La clé n'est lue que par le Rust : en développement dans le `.env` du dépôt,
+  toujours dans `cles.env` du dossier de configuration d'Eliot
+  (`~/.config/fr.alexandredo.eliot/`). L'interface sait seulement si une clé est là et où
+  l'ajouter ; un message d'erreur ne contient jamais la clé (test Rust).
+- Règles de Pixabay appliquées : rien ne part sur le réseau avant une recherche lancée par
+  Alexandre (ouvrir le panneau ne fait rien, des suggestions attendent un clic) ; recherches,
+  adresses et aperçus gardés 24 h dans `~/.cache/fr.alexandredo.eliot/pixabay/`, puis retirés
+  par Eliot ; au-delà de 24 h, une photo trouvée ne se télécharge plus sans nouvelle
+  recherche ; seule la photo choisie est téléchargée (1 280 px), et seulement depuis
+  `pixabay.com` ou `cdn.pixabay.com` ; « Photos libres de Pixabay » est écrit au-dessus des
+  résultats ; recherche en français, contenu filtré (`safesearch`).
+- Licence de Pixabay relevée le 2026-10-14 (https://pixabay.com/service/license-summary/) :
+  gratuit, auteur à citer si l'on veut ; interdit d'en faire une marque, un logo ou un nom
+  commercial, de revendre la photo telle quelle, de l'utiliser de façon trompeuse. Rappelé
+  dans le panneau et dans la description de l'outil pour l'IA.
+- La photo choisie est copiée dans le design avec son crédit (source, auteur, lien) : la barre
+  contextuelle affiche « Photo : auteur, Pixabay », un clic ouvre la page de la photo dans le
+  navigateur (seules les adresses `https://pixabay.com/` sont permises à la fenêtre). Filtres
+  par orientation et par couleur ; « Plus de photos » charge la page suivante ; une photo
+  glissée sur un cadre ou une maquette va dedans, avec un seul téléchargement par geste.
+- Kit de marque (onglet Marque) : un seul kit, dans `~/Documents/Eliot/Marque/kit/`
+  (`marque.json`, et les logos dans `ressources/`, rangés comme les images d'un design) : un
+  nom, jusqu'à 24 couleurs, les polices du titre, du sous-titre et du texte, des logos. Un clic
+  sur une couleur la donne aux objets choisis (texte, remplissage, trait d'une flèche, fond
+  d'un cadre, boîtier d'une maquette), ou au fond de la page si rien n'est choisi. Couleurs de
+  la marque en tête du sélecteur de couleur, polices de la marque en tête du sélecteur de
+  police. Un logo posé est d'abord copié dans le design ; le retirer du kit ne supprime pas
+  son fichier.
+- Pont IA : 5 outils de plus (36 en tout) : `chercher_photos` (avec une planche d'aperçus
+  numérotés, pour que Claude regarde avant de choisir), `ajouter_photo_pixabay`, `marque`,
+  `modifier_marque`, `ajouter_logo`. Le pont reconnaît désormais une image JPEG en plus du PNG.
+- Écartés : appeler Pixabay depuis l'interface (la clé serait dans la page, contraire à la
+  règle 12) ; montrer des photos populaires dès l'ouverture du panneau (une sortie sur le
+  réseau sans geste d'Alexandre).
+- Défaut trouvé par l'essai dans Tauri et corrigé avant livraison : le dossier des logos du
+  kit était cherché comme celui d'un design (« ce design n'existe pas »).
+- Essais seulement, en développement : la variable `ELIOT_PIXABAY_ADRESSE` remplace Pixabay
+  par un faux serveur local ; sans effet dans la version compilée pour de bon.
+- Vérifié dans le conteneur, sans la vraie clé ni le vrai Pixabay (faux serveur local, fausse
+  clé) : Chromium 29 sur 29 ; Tauri sur écran virtuel 27 sur 27, dont des clics à la souris
+  dans le panneau Photos (WebKitGTK) ; tests Rust du noyau 35 sur 35, du pont 5 sur 5 ;
+  vitest 31 sur 31 ; non-régression Chromium 33, 23 et 18 sur 18, Tauri 14 sur 14 et 21 sur
+  22 (le seul écart : l'essai du lot 1 attendait 27 outils, il y en a 36). La vraie recherche
+  sur Pixabay reste à essayer sur le poste.
+
 ## 2026-10-14, étape 3, lot 2 : cadres photo, grilles, maquettes d'appareils
 
 - Cadres (type `cadre`) : huit formes (rectangle, arrondi, rond, arche, organique, hexagone,

@@ -51,6 +51,7 @@ import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
 import { variantesPossibles } from "../polices";
 import { copierPoliceDansDesign } from "../etat/projets";
+import { ouvrirLien } from "../pont/tauri";
 
 const bouton = "flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-1.5 whitespace-nowrap text-neutral-700 hover:bg-neutral-100";
 const actif = "bg-accent-100 text-accent-700 hover:bg-accent-100";
@@ -423,10 +424,25 @@ const FORMES_CADRE: { forme: FormeCadre; nom: string }[] = [
   { forme: "coeur", nom: "Cœur" },
 ];
 
+/** Le crédit d'une photo venue de Pixabay : auteur, et un clic ouvre sa page. */
+function CreditPhoto({ ressource }: { ressource: string | undefined }) {
+  const credit = useEditeur((s) => (ressource ? s.ressources[ressource]?.credit : undefined));
+  if (!credit) return null;
+  return (
+    <button
+      title={`Ouvrir la page de la photo sur ${credit.source}`}
+      onClick={() => void ouvrirLien(credit.lien)}
+      className="h-8 shrink-0 rounded-md px-2 text-xs whitespace-nowrap text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+    >
+      Photo : {credit.auteur}, {credit.source}
+    </button>
+  );
+}
+
 /** Réglages communs à une photo dans un cadre ou un écran : ajuster, zoom, retirer. */
 function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
   const etat = useEditeur.getState();
-  if (!el.ressource) return <span className="text-xs text-neutral-500">Glisse une photo dessus depuis le panneau Importer.</span>;
+  if (!el.ressource) return <span className="text-xs whitespace-nowrap text-neutral-500">Glisse une photo dessus depuis Photos ou Importer.</span>;
   return (
     <>
       <Bouton titre="Ajuster la photo (double-clic)" surClic={() => etat.commencerAjustement(el.id)}>
@@ -442,6 +458,7 @@ function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
       <Bouton titre="Retirer la photo" surClic={() => etat.retirerPhoto(el.id)}>
         <ImageOff size={16} />
       </Bouton>
+      <CreditPhoto ressource={el.ressource} />
     </>
   );
 }
@@ -546,6 +563,7 @@ export function BarreContexte() {
             />
           </Bulle>
           <ReglesBordure bordure={(choisis[0] as ElementImage).bordure} surChange={(b, e) => modifier({ bordure: b } as Partial<ElementImage>, e)} />
+          {choisis.length === 1 && <CreditPhoto ressource={(choisis[0] as ElementImage).ressource} />}
         </>
       )}
       {choisis.length > 0 && icones.length === choisis.length && <ReglagesIcone icones={icones} modifier={modifier} />}

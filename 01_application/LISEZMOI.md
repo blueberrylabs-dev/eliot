@@ -2,7 +2,8 @@
 
 L'éditeur, étapes 1 et 2 du `BRIEF.md` et début de l'étape 3 : un accueil qui range tes
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
-d'emojis et de polices, un enregistrement automatique et l'export en PNG ou en JPEG.
+d'emojis et de polices, des photos libres de Pixabay, un kit de marque, un enregistrement
+automatique et l'export en PNG ou en JPEG.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -56,11 +57,21 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Cadres photo (rond, arche, cœur…), grilles qui remplissent la page, maquettes de téléphone,
   tablette, ordinateur et montre : on y glisse une photo depuis le panneau Importer ; double-clic
   pour la faire glisser dans son cadre, molette pour l'agrandir. Photos à coins arrondis, bordure.
+- Panneau Photos : photos libres de Pixabay, cherchées en français, filtrées par orientation
+  et par couleur. Rien ne part sur internet avant une recherche ; les résultats restent 24 h
+  en cache. La photo choisie est copiée dans le design avec le nom de son auteur, visible dans
+  la barre du haut quand elle est choisie. Il faut la clé Pixabay dans le `.env` du dossier
+  Eliot (`PIXABAY_API_KEY=…`) ; Eliot la lit côté Rust et ne l'affiche jamais.
+- Panneau Marque : un kit de marque commun à tous les designs (`~/Documents/Eliot/Marque/`) :
+  couleurs (un clic les donne aux objets choisis, ou au fond de la page), polices du titre, du
+  sous-titre et du texte, logos. Les couleurs et les polices de la marque viennent en tête des
+  sélecteurs.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
-  poste, regarder une capture de la page et exporter. On la voit travailler dans la fenêtre,
+  poste, chercher et poser des photos de Pixabay, se servir du kit de marque, regarder une
+  capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Raccourcis
@@ -100,7 +111,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports (cargo test)
+├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports, polices, Pixabay, kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices : fabriqués par npm run bibliotheque, hors git

@@ -676,6 +676,219 @@
     }
   },
   {
+    "name": "chercher_photos",
+    "description": "Cherche des photos libres sur Pixabay (gratuites, sans obligation de citer l'auteur ; jamais dans un logo ni un nom de marque ; prudence avec les visages et les marques reconnaissables). Renvoie les photos trouvées et une planche d'aperçus numérotés pour les regarder avant de choisir. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la photo choisie.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots, en français ou en anglais : « café latte », « femme qui court plage »."
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "couleur": {
+          "type": "string",
+          "enum": [
+            "red",
+            "orange",
+            "yellow",
+            "green",
+            "turquoise",
+            "blue",
+            "lilac",
+            "pink",
+            "white",
+            "gray",
+            "black",
+            "brown",
+            "grayscale"
+          ],
+          "description": "Couleur dominante."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Page de résultats (40 photos par page chez Pixabay)."
+        },
+        "nombre": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Photos montrées sur la planche, 12 par défaut."
+        }
+      },
+      "required": [
+        "requete"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_photo_pixabay",
+    "description": "Télécharge une photo trouvée par chercher_photos (1 280 px), la range dans le design avec le nom et le lien de son auteur, puis la pose sur la page (centrée par défaut) ou, avec dans, la met dans un cadre ou l'écran d'une maquette.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Identifiant de la photo donné par chercher_photos."
+        },
+        "dans": {
+          "type": "string",
+          "description": "Identifiant d'un cadre ou d'une maquette de la page affichée."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "marque",
+    "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo). À lire avant de composer un design pour sa marque.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
+  },
+  {
+    "name": "modifier_marque",
+    "description": "Change le kit de marque (gardé d'un design à l'autre, hors de l'historique du design). Les couleurs données remplacent la liste entière ; les polices ne changent que pour les rôles donnés. Ne le fais que si Alexandre le demande.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "nom": {
+          "type": "string"
+        },
+        "couleurs": {
+          "type": "array",
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "properties": {
+              "valeur": {
+                "type": "string",
+                "description": "#rrggbb"
+              },
+              "nom": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "valeur"
+            ]
+          }
+        },
+        "polices": {
+          "type": "object",
+          "properties": {
+            "titre": {
+              "type": "object",
+              "properties": {
+                "famille": {
+                  "type": "string"
+                },
+                "gras": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "famille"
+              ]
+            },
+            "sousTitre": {
+              "type": "object",
+              "properties": {
+                "famille": {
+                  "type": "string"
+                },
+                "gras": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "famille"
+              ]
+            },
+            "texte": {
+              "type": "object",
+              "properties": {
+                "famille": {
+                  "type": "string"
+                },
+                "gras": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "famille"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "ajouter_logo",
+    "description": "Pose un logo du kit de marque sur la page : il est d'abord copié dans le design. La hauteur suit la largeur.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant d'un logo, donné par l'outil marque."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "modifier",
     "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H).",
     "inputSchema": {

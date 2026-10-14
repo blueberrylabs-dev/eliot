@@ -13,17 +13,20 @@ import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
 import { creerCadre, creerEmoji, creerForme, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
 import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementPage, type FormeCadre, type GenreForme } from "../modele/types";
-import { importerChemins, listerProjets } from "../pont/tauri";
+import { logoDansDesign, useMarque } from "../etat/marque";
+import { telechargerPhotoPixabay } from "../etat/photos";
+import { ROLES_POLICE, type KitMarque } from "../modele/marque";
+import { chercherPixabay, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, type PhotoPixabay } from "../pont/tauri";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
 
 export type Arguments = Record<string, unknown>;
 
-/** Ce qu'un outil renvoie : des données (montrées en JSON à l'IA) et, pour une capture, une
- *  image PNG en base64. */
+/** Ce qu'un outil renvoie : des données (montrées en JSON à l'IA) et, pour une capture ou une
+ *  planche de photos, une image PNG ou JPEG en base64. */
 export interface Resultat {
   donnees: unknown;
-  imagePng?: string;
+  image?: string;
 }
 
 export class ErreurOutil extends Error {}
@@ -61,6 +64,8 @@ function couleur(v: unknown, nom: string): Couleur | undefined {
 }
 
 /** Le résumé de l'état, ce que l'IA lit avant d'agir. */
+const famillesConnues = () => polices().map((p) => p.famille);
+
 function resumer() {
   const s = etat();
   if (!s.projet || s.vue !== "editeur") return { designOuvert: false, conseil: "aucun design ouvert : lister_designs, puis ouvrir_design ou nouveau_design" };
@@ -79,6 +84,8 @@ function resumer() {
     polices: polices().filter((p) => p.genre !== "poste").map((p) => p.famille),
     policesDuPoste: `${polices().filter((p) => p.genre === "poste").length} (voir lister_polices, genre poste)`,
     annulable: s.passe.length,
+    // Le kit de marque en bref ; tout le détail (logos compris) par l'outil marque.
+    marque: { nom: useMarque.getState().kit.nom, couleurs: useMarque.getState().kit.couleurs.map((c) => c.valeur), polices: useMarque.getState().kit.polices },
   };
 }
 
@@ -162,6 +169,54 @@ function placer<T extends ElementPage>(el: T, args: Arguments): T {
   return sortie;
 }
 
+/** Une planche numérotée des aperçus, pour que l'IA voie les photos avant d'en choisir une. */
+async function plancheDePhotos(photos: PhotoPixabay[]): Promise<Blob> {
+  const colonnes = 4;
+  const [l, h, marge] = [240, 180, 6];
+  const lignes = Math.ceil(photos.length / colonnes);
+  const toile = document.createElement("canvas");
+  toile.width = colonnes * l + (colonnes + 1) * marge;
+  toile.height = lignes * h + (lignes + 1) * marge;
+  const c = toile.getContext("2d")!;
+  c.fillStyle = "#ffffff";
+  c.fillRect(0, 0, toile.width, toile.height);
+  await Promise.all(
+    photos.map(async (p, i) => {
+      const x = marge + (i % colonnes) * (l + marge);
+      const y = marge + Math.floor(i / colonnes) * (h + marge);
+      try {
+        const image = await createImageBitmap(await (await fetch(await urlApercuPixabay(p.id))).blob());
+        // L'aperçu remplit sa case (coupé au centre si ses proportions diffèrent).
+        const echelle = Math.max(l / image.width, h / image.height);
+        const [lw, lh] = [l / echelle, h / echelle];
+        c.drawImage(image, (image.width - lw) / 2, (image.height - lh) / 2, lw, lh, x, y, l, h);
+        image.close();
+      } catch {
+        c.fillStyle = "#e5e5e5";
+        c.fillRect(x, y, l, h);
+      }
+      c.fillStyle = "rgba(0,0,0,0.75)";
+      c.fillRect(x, y, 34, 26);
+      c.fillStyle = "#ffffff";
+      c.font = "bold 17px sans-serif";
+      c.textBaseline = "middle";
+      c.fillText(String(i + 1), x + 6, y + 14);
+    }),
+  );
+  return new Promise((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error("planche impossible"))), "image/jpeg", 0.82));
+}
+
+/** Ce que l'IA voit du kit de marque. */
+function resumerMarque(kit: KitMarque) {
+  const images = useMarque.getState().images;
+  return {
+    nom: kit.nom,
+    couleurs: kit.couleurs,
+    polices: kit.polices,
+    logos: kit.logos.map((id) => images[id]).filter(Boolean).map((r) => ({ id: r.id, nom: r.nom, largeur: r.largeur, hauteur: r.hauteur, transparence: r.transparence })),
+  };
+}
+
 async function base64(blob: Blob): Promise<string> {
   const octets = new Uint8Array(await blob.arrayBuffer());
   let binaire = "";
@@ -182,7 +237,7 @@ const OUTILS: Record<string, Outil> = {
     exiger(page, `page ${numero} introuvable (le design en a ${s.document.pages.length})`);
     const largeur = Math.max(100, Math.min(1600, nombre(args.largeur, 800)!));
     const blob = await rendrePage(page, s.document.format, { pixelRatio: largeur / s.document.format.largeur, type: "image/png" });
-    return { donnees: { page: numero, largeur, format: s.document.format }, imagePng: await base64(blob) };
+    return { donnees: { page: numero, largeur, format: s.document.format }, image: await base64(blob) };
   },
 
   async lister_designs() {
@@ -405,6 +460,87 @@ const OUTILS: Record<string, Outil> = {
     const ratio = r.largeur / r.hauteur;
     const dimensions =
       largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
+    const el = placer(base, { ...args, ...dimensions });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  async chercher_photos(args) {
+    const requete = texte(args.requete)?.trim();
+    exiger(requete, "requete : quelques mots, en français ou en anglais");
+    const etatCle = await etatPixabay();
+    exiger(etatCle, "les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+    exiger(etatCle.cle, `pas de clé Pixabay : Alexandre doit ajouter PIXABAY_API_KEY dans ${etatCle.fichier}`);
+    const orientation = texte(args.orientation);
+    if (orientation) exiger(orientation === "horizontal" || orientation === "vertical", "orientation : horizontal ou vertical");
+    const page = Math.max(1, Math.min(12, Math.round(nombre(args.page, 1)!)));
+    const resultat = await chercherPixabay(requete!, page, { orientation: orientation as "horizontal" | "vertical" | undefined, couleur: texte(args.couleur) });
+    const nombrePhotos = Math.max(1, Math.min(20, Math.round(nombre(args.nombre, 12)!)));
+    const photos = resultat.photos.slice(0, nombrePhotos);
+    const donnees = {
+      total: resultat.total,
+      page,
+      photos: photos.map((p, i) => ({ numero: i + 1, id: p.id, largeur: p.largeur, hauteur: p.hauteur, auteur: p.auteur, mots: p.mots })),
+      conseil: "la planche montre les photos numérotées ; ajouter_photo_pixabay avec l'id choisi",
+    };
+    if (photos.length === 0) return { donnees };
+    return { donnees, image: await base64(await plancheDePhotos(photos)) };
+  },
+
+  async ajouter_photo_pixabay(args) {
+    designOuvert();
+    const id = nombre(args.id);
+    exiger(id !== undefined && Number.isInteger(id) && id > 0, "id : l'identifiant d'une photo trouvée par chercher_photos");
+    const dans = texte(args.dans);
+    const cible = dans ? elementsCourants(etat()).find((e) => e.id === dans) : undefined;
+    if (dans) exiger(cible && recoitPhoto(cible), `cadre ou maquette introuvable sur la page affichée : ${dans}`);
+    const ressource = await telechargerPhotoPixabay(id!);
+    if (cible) {
+      etat().remplirPhoto(cible.id, ressource.id);
+      return { donnees: { element: elementsCourants(etat()).find((e) => e.id === cible.id), ressource } };
+    }
+    const base = creerImage(etat().document.format, ressource);
+    const largeur = nombre(args.largeur);
+    const hauteur = nombre(args.hauteur);
+    const ratio = ressource.largeur / ressource.hauteur;
+    const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
+    const el = placer(base, { ...args, ...dimensions });
+    etat().ajouterElements([el]);
+    return { donnees: { element: el, ressource } };
+  },
+
+  marque() {
+    return { donnees: resumerMarque(useMarque.getState().kit) };
+  },
+
+  async modifier_marque(args) {
+    const nom = texte(args.nom);
+    const couleurs = args.couleurs === undefined ? undefined : Array.isArray(args.couleurs) ? args.couleurs : null;
+    exiger(couleurs !== null, "couleurs : liste de { valeur: \"#rrggbb\", nom? }");
+    couleurs?.forEach((c, i) => exiger(typeof (c as { valeur?: unknown })?.valeur === "string" && HEX.test((c as { valeur: string }).valeur), `couleurs[${i}] : { valeur: "#rrggbb", nom? }`));
+    const polices = args.polices as Record<string, { famille?: unknown; gras?: unknown }> | undefined;
+    for (const [role, p] of Object.entries(polices ?? {})) {
+      exiger(ROLES_POLICE.some((r) => r.id === role), `polices : rôles titre, sousTitre, texte (pas ${role})`);
+      exiger(p && typeof p.famille === "string", `polices.${role} : { famille, gras? } (voir lister_polices)`);
+      exiger(famillesConnues().includes(p.famille as string), `police inconnue : ${String(p.famille)} (voir lister_polices)`);
+    }
+    useMarque.getState().modifier((k) => ({
+      ...k,
+      ...(nom?.trim() ? { nom: nom.trim() } : {}),
+      ...(couleurs ? { couleurs: couleurs as KitMarque["couleurs"] } : {}),
+      ...(polices ? { polices: { ...k.polices, ...(polices as KitMarque["polices"]) } } : {}),
+    }));
+    return { donnees: resumerMarque(useMarque.getState().kit) };
+  },
+
+  async ajouter_logo(args) {
+    designOuvert();
+    const id = texte(args.id);
+    exiger(id && useMarque.getState().kit.logos.includes(id), `logo inconnu du kit : ${String(args.id)} (voir marque)`);
+    const ressource = await logoDansDesign(id!);
+    const base = creerImage(etat().document.format, ressource);
+    const largeur = nombre(args.largeur);
+    const dimensions = largeur ? { largeur, hauteur: (largeur * ressource.hauteur) / ressource.largeur } : {};
     const el = placer(base, { ...args, ...dimensions });
     etat().ajouterElements([el]);
     return { donnees: el };

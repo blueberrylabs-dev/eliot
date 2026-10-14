@@ -151,11 +151,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [x] Texte : polices et associations, effets (ombre, contour, surlignage), polices du poste (lot 1)
 - [x] Ombre portée (lot 1), cadres (une photo dans une forme), grilles photo, maquettes
       d'appareils (lot 2, 2026-10-14)
-- [ ] Photos Pixabay (noyau Rust), kit de marque
+- [x] Photos Pixabay (noyau Rust), kit de marque (lot 3, 2026-10-14 ; la vraie recherche reste
+      à essayer sur le poste)
 - [ ] Dessin à main levée, graphiques, tableaux
 - [ ] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
       ajouter_emoji, ajouter_qr, lister_polices, effets par modifier ; lot 2 : ajouter_cadre,
-      ajouter_grille, ajouter_maquette, remplir_photo)
+      ajouter_grille, ajouter_maquette, remplir_photo ; lot 3 : chercher_photos,
+      ajouter_photo_pixabay, marque, modifier_marque, ajouter_logo)
 - [ ] Une quarantaine de modèles de départ
 - [ ] Personnages (Open Peeps, Humaaans)
 - [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel

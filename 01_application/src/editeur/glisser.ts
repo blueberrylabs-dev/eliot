@@ -21,12 +21,14 @@ export function centrerSur(elements: ElementPage[], point: { x: number; y: numbe
 
 /**
  * À brancher sur `onPointerDown` d'un bouton de panneau. `fabriquer` crée les éléments au
- * centre de la page ; `vignette` est le nœud montré sous le pointeur pendant le glisser.
+ * centre de la page ; le bouton lui-même est recopié sous le pointeur pendant le glisser.
+ * `options.photo` : l'image que le bouton représente (son identifiant, ou de quoi l'obtenir),
+ * pour la mettre dans un cadre ou une maquette lâchés dessous.
  */
 export function glisserDepuisPanneau(
   evenement: PointeurReact<HTMLElement>,
   fabriquer: (format: Format) => ElementPage[] | Promise<ElementPage[]>,
-  options: { photo?: string } = {},
+  options: { photo?: string | (() => Promise<string | null>) } = {},
 ): void {
   if (evenement.button !== 0) return;
   evenement.preventDefault();
@@ -73,7 +75,9 @@ export function glisserDepuisPanneau(
       const elements = elementsCourants(etat);
       const cible = point ? elementAPhotoSous(elements, point) : elements.find((x) => etat.selection.length === 1 && x.id === etat.selection[0] && recoitPhoto(x));
       if (cible) {
-        etat.remplirPhoto(cible.id, options.photo);
+        // Une photo encore à télécharger (Pixabay) arrive d'abord dans le design.
+        const photo = typeof options.photo === "string" ? options.photo : await options.photo();
+        if (photo) useEditeur.getState().remplirPhoto(cible.id, photo);
         return;
       }
     }

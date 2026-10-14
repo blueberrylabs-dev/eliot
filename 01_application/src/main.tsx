@@ -5,6 +5,7 @@ import { App } from "./App";
 import { scene } from "./editeur/scene";
 import { pageCourante, useEditeur } from "./etat/editeur";
 import { demarrerEnregistrementAuto, enregistrerMaintenant, miniatureMaintenant } from "./etat/enregistrement";
+import { enregistrerMarqueMaintenant, useMarque } from "./etat/marque";
 import { nouveauDesign, ouvrirDesign, renommerDesign } from "./etat/projets";
 import { exporter } from "./export/exporter";
 import { creerImage, creerTitre } from "./modele/fabriques";
@@ -69,7 +70,9 @@ async function demarrer() {
   void chargerPolicesPoste(policesPoste, lirePolicePoste);
   demarrerEnregistrementAuto();
   void brancherPiloteIa();
+  void useMarque.getState().charger();
   void surFermeture(async () => {
+    await enregistrerMarqueMaintenant();
     await enregistrerMaintenant();
     await miniatureMaintenant();
   });
@@ -80,7 +83,7 @@ async function demarrer() {
   );
   if (import.meta.env.DEV) {
     // Accès au store pour les essais automatisés dans un navigateur.
-    Object.assign(window, { __eliot: useEditeur, __scene: scene, __enregistrer: enregistrerMaintenant });
+    Object.assign(window, { __eliot: useEditeur, __marque: useMarque, __scene: scene, __enregistrer: enregistrerMaintenant });
     const chemin = await cheminAutotest().catch(() => null);
     if (chemin) setTimeout(() => void autotest(chemin), 1500);
   }

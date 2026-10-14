@@ -1,9 +1,11 @@
-// Choix d'une police : recherche par nom ou par usage, filtre par genre, chaque nom écrit dans
-// sa propre police. Une police ne se charge que lorsque son nom devient visible dans la liste.
+// Choix d'une police : polices de la marque en tête, recherche par nom ou par usage, filtre
+// par genre, chaque nom écrit dans sa propre police. Une police ne se charge que lorsque son nom devient visible dans la liste.
 
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { normaliser } from "../bibliotheque/recherche";
+import { useMarque } from "../etat/marque";
+import { ROLES_POLICE } from "../modele/marque";
 import { assurerPolice, GENRES_POLICE, pilePolice, usePolices, type GenrePolice, type Police } from "../polices";
 import { useApparu } from "./apparu";
 import { Bulle } from "./Bulle";
@@ -35,6 +37,16 @@ export function SelecteurPolice({ valeur, surChoix }: { valeur: string; surChoix
   }, [liste, requete, genre]);
 
   const genresPresents = GENRES_POLICE.filter((g) => liste.some((p) => p.genre === g.id));
+  const policesMarque = useMarque((s) => s.kit.polices);
+  const deLaMarque = ROLES_POLICE.flatMap((r) => {
+    const famille = policesMarque[r.id]?.famille;
+    const police = famille ? filtrees.find((p) => p.famille === famille) : undefined;
+    return police ? [{ role: r.libelle, police }] : [];
+  });
+  const choisir = (p: Police) => {
+    // La police est chargée avant d'être posée : le texte se mesure avec elle.
+    void assurerPolice(p.famille, p.gras, p.italique).then(() => surChoix(p.famille));
+  };
 
   return (
     <Bulle
@@ -62,16 +74,16 @@ export function SelecteurPolice({ valeur, surChoix }: { valeur: string; surChoix
         ))}
       </div>
       <div className="max-h-80 overflow-y-auto defilement-fin">
+        {deLaMarque.length > 0 && (
+          <div className="mb-1 border-b border-neutral-100 pb-1">
+            <p className="px-2 pt-1 text-[11px] font-medium text-neutral-500">Polices de la marque</p>
+            {deLaMarque.map(({ role, police }) => (
+              <NomPolice key={`marque-${role}`} police={{ ...police, usage: role }} choisie={police.famille === valeur} surChoix={() => choisir(police)} />
+            ))}
+          </div>
+        )}
         {filtrees.map((p) => (
-          <NomPolice
-            key={p.famille}
-            police={p}
-            choisie={p.famille === valeur}
-            surChoix={() => {
-              // La police est chargée avant d'être posée : le texte se mesure avec elle.
-              void assurerPolice(p.famille, p.gras, p.italique).then(() => surChoix(p.famille));
-            }}
-          />
+          <NomPolice key={p.famille} police={p} choisie={p.famille === valeur} surChoix={() => choisir(p)} />
         ))}
         {filtrees.length === 0 && <p className="py-4 text-center text-xs text-neutral-500">Aucune police ne correspond.</p>}
       </div>

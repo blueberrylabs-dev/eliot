@@ -3,9 +3,9 @@
 //! sur le disque part sur un fil à part (`spawn_blocking`).
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
-use noyau::{export, images, polices, projet};
+use noyau::{export, images, marque, pixabay, polices, projet};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -21,6 +21,11 @@ pub struct VerrouProjets(Mutex<()>);
 /// qu'elle ne contient pas).
 #[derive(Default)]
 pub struct PolicesPoste(Mutex<Option<Vec<polices::PoliceInstallee>>>);
+
+/// Le client Pixabay, créé à la première demande qui trouve une clé. La clé est lue ici, par
+/// le Rust, et ne quitte jamais ce fichier (BRIEF, règle 12).
+#[derive(Default)]
+pub struct Pixabay(Mutex<Option<Arc<pixabay::ClientPixabay>>>);
 
 /// `~/Documents/Eliot` (le dossier Documents de l'utilisateur, sinon le dossier personnel).
 fn racine(app: &AppHandle) -> Result<PathBuf, String> {
@@ -202,7 +207,15 @@ pub fn dossier_designs(app: AppHandle) -> Result<String, String> {
 // Images d'un design
 // ----------------------------------------------------------------------------------------
 
+/// Le dossier des images d'un design, ou celui des logos du kit de marque (rayon `marque`,
+/// identifiant `kit` : `~/Documents/Eliot/Marque/kit/ressources/`).
 fn ressources_du_projet(app: &AppHandle, rayon_nom: &str, projet_id: &str) -> Result<PathBuf, String> {
+    if rayon_nom == "marque" {
+        if projet_id != marque::ID_KIT {
+            return Err("kit de marque inconnu".into());
+        }
+        return marque::dossier_ressources(&dossier_kit(app)?).map_err(|e| e.to_string());
+    }
     projet::dossier_ressources(&rayon(app, rayon_nom)?, projet_id).map_err(|e| e.to_string())
 }
 
@@ -339,6 +352,115 @@ pub async fn police_design_lire(app: AppHandle, rayon_nom: String, projet_id: St
         .map_err(|e| format!("lecture interrompue : {e}"))?
         .map_err(|e| format!("police illisible : {e}"))?;
     Ok(Response::new(octets))
+}
+
+// ----------------------------------------------------------------------------------------
+// Photos de Pixabay (étape 3)
+// ----------------------------------------------------------------------------------------
+
+/// Les fichiers où chercher la clé : en développement, le `.env` du dépôt (en remontant depuis
+/// `src-tauri/`) ; toujours, `cles.env` dans le dossier de configuration d'Eliot.
+fn fichiers_cle_pixabay(app: &AppHandle) -> Vec<PathBuf> {
+    let configuration = app.path().app_config_dir().ok();
+    if cfg!(debug_assertions) {
+        pixabay::fichiers_de_cle(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), configuration.as_deref())
+    } else {
+        configuration.map(|c| vec![c.join("cles.env")]).unwrap_or_default()
+    }
+}
+
+/// Le fichier où ajouter la clé, à montrer dans le panneau (un chemin, jamais la clé).
+fn fichier_cle_conseille(app: &AppHandle) -> String {
+    let depot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|d| d.join(".env"));
+    let fichier = match depot {
+        Some(d) if cfg!(debug_assertions) => Some(d),
+        _ => app.path().app_config_dir().ok().map(|c| c.join("cles.env")),
+    };
+    fichier.map(|f| f.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+fn client_pixabay(app: &AppHandle) -> Result<Arc<pixabay::ClientPixabay>, String> {
+    let etat = app.state::<Pixabay>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(client) = garde.as_ref() {
+        return Ok(client.clone());
+    }
+    let cle = pixabay::lire_cle(&fichiers_cle_pixabay(app)).ok_or_else(|| pixabay::ErreurPixabay::CleAbsente.to_string())?;
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("pixabay");
+    // Essais de développement : un faux Pixabay local peut remplacer le vrai.
+    let adresse_essai = if cfg!(debug_assertions) { std::env::var("ELIOT_PIXABAY_ADRESSE").ok() } else { None };
+    let client = match adresse_essai {
+        Some(adresse) => {
+            let origine: String = adresse.split('/').take(3).collect::<Vec<_>>().join("/") + "/";
+            pixabay::ClientPixabay::avec_adresse(cle, cache, adresse, vec![origine])
+        }
+        None => pixabay::ClientPixabay::new(cle, cache),
+    };
+    client.nettoyer();
+    let client = Arc::new(client);
+    *garde = Some(client.clone());
+    Ok(client)
+}
+
+/// Ce que le panneau Photos doit savoir : une clé est-elle là, et sinon où l'ajouter.
+#[derive(Serialize)]
+pub struct EtatPixabay {
+    cle: bool,
+    fichier: String,
+}
+
+#[tauri::command]
+pub async fn pixabay_etat(app: AppHandle) -> Result<EtatPixabay, String> {
+    tauri::async_runtime::spawn_blocking(move || EtatPixabay { cle: client_pixabay(&app).is_ok(), fichier: fichier_cle_conseille(&app) })
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+#[tauri::command]
+pub async fn pixabay_chercher(app: AppHandle, requete: String, page: u32, filtres: pixabay::Filtres) -> Result<pixabay::PageResultats, String> {
+    tauri::async_runtime::spawn_blocking(move || client_pixabay(&app)?.chercher(&requete, page, &filtres).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn pixabay_apercu(app: AppHandle, id: u64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_pixabay(&app)?.apercu(id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge la photo choisie et la range dans le design, avec son crédit.
+#[tauri::command]
+pub async fn pixabay_importer(app: AppHandle, rayon_nom: String, projet_id: String, id: u64) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (octets, credit, nom) = client_pixabay(&app)?.telecharger(id).map_err(|e| e.to_string())?;
+        images::importer_avec_credit(&octets, &nom, &dossier, credit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Kit de marque (étape 3)
+// ----------------------------------------------------------------------------------------
+
+fn dossier_kit(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(racine(app)?.join("Marque").join(marque::ID_KIT))
+}
+
+#[tauri::command]
+pub async fn marque_lire(app: AppHandle) -> Result<Value, String> {
+    let dossier = dossier_kit(&app)?;
+    sur_le_disque(&app, move || marque::lire(&dossier).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+pub async fn marque_enregistrer(app: AppHandle, kit: Value) -> Result<(), String> {
+    let dossier = dossier_kit(&app)?;
+    sur_le_disque(&app, move || marque::enregistrer(&dossier, &kit).map_err(|e| e.to_string())).await
 }
 
 // ----------------------------------------------------------------------------------------

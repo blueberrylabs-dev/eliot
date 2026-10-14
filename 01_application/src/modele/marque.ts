@@ -1,0 +1,84 @@
+// Le kit de marque : un nom, des couleurs, trois polices (titre, sous-titre, texte) et des
+// logos. Rangé par le Rust dans `~/Documents/Eliot/Marque/kit/marque.json` ; les logos sont
+// des images du dossier du kit, copiées dans chaque design qui s'en sert.
+
+import type { ElementPage } from "./types";
+
+export interface CouleurMarque {
+  valeur: string;
+  nom?: string;
+}
+
+export interface PoliceMarque {
+  famille: string;
+  gras?: boolean;
+}
+
+export type RolePolice = "titre" | "sousTitre" | "texte";
+
+export interface KitMarque {
+  version: 1;
+  nom: string;
+  couleurs: CouleurMarque[];
+  polices: Partial<Record<RolePolice, PoliceMarque>>;
+  /** Identifiants des logos (images du dossier du kit), dans l'ordre du panneau. */
+  logos: string[];
+}
+
+export const ROLES_POLICE: { id: RolePolice; libelle: string; taille: number; gras: boolean }[] = [
+  { id: "titre", libelle: "Titre", taille: 96, gras: true },
+  { id: "sousTitre", libelle: "Sous-titre", taille: 56, gras: true },
+  { id: "texte", libelle: "Texte", taille: 32, gras: false },
+];
+
+export const COULEURS_MAX = 24;
+export const LOGOS_MAX = 24;
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+export const kitVide = (): KitMarque => ({ version: 1, nom: "Ma marque", couleurs: [], polices: {}, logos: [] });
+
+/** Remet d'aplomb un kit lu sur le disque : ce qui n'a pas la bonne forme est écarté. */
+export function kitValide(brut: unknown): KitMarque {
+  const kit = kitVide();
+  if (!brut || typeof brut !== "object") return kit;
+  const b = brut as Record<string, unknown>;
+  if (typeof b.nom === "string" && b.nom.trim()) kit.nom = b.nom.trim().slice(0, 80);
+  if (Array.isArray(b.couleurs)) {
+    for (const c of b.couleurs) {
+      const valeur = typeof c === "string" ? c : (c as CouleurMarque)?.valeur;
+      if (typeof valeur !== "string" || !HEX.test(valeur)) continue;
+      const v = valeur.toLowerCase();
+      if (kit.couleurs.some((x) => x.valeur === v)) continue;
+      const nom = typeof (c as CouleurMarque)?.nom === "string" ? (c as CouleurMarque).nom!.slice(0, 40) : undefined;
+      kit.couleurs.push(nom ? { valeur: v, nom } : { valeur: v });
+    }
+    kit.couleurs = kit.couleurs.slice(0, COULEURS_MAX);
+  }
+  if (b.polices && typeof b.polices === "object") {
+    for (const { id } of ROLES_POLICE) {
+      const p = (b.polices as Record<string, unknown>)[id] as PoliceMarque | undefined;
+      if (p && typeof p.famille === "string" && p.famille.trim()) kit.polices[id] = { famille: p.famille.trim(), ...(typeof p.gras === "boolean" ? { gras: p.gras } : {}) };
+    }
+  }
+  if (Array.isArray(b.logos)) kit.logos = [...new Set(b.logos.filter((l): l is string => typeof l === "string" && /^[0-9a-f]{64}$/.test(l)))].slice(0, LOGOS_MAX);
+  return kit;
+}
+
+/** Ce qu'une couleur de la marque change sur un objet : son texte, son remplissage, son trait,
+ *  le fond d'un cadre ou le boîtier d'une maquette. `null` si l'objet n'a pas de couleur. */
+export function modifCouleur(el: ElementPage, couleur: string): Partial<ElementPage> | null {
+  switch (el.type) {
+    case "texte":
+    case "icone":
+    case "qr":
+    case "maquette":
+      return { couleur };
+    case "forme":
+      return el.forme === "ligne" || el.forme === "fleche" ? { contour: couleur } : { remplissage: couleur };
+    case "cadre":
+      return { fond: couleur };
+    default:
+      return null;
+  }
+}

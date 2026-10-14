@@ -1,8 +1,10 @@
-// Choix d'une couleur : couleurs du document, palette de départ, sélecteur du système ; et,
+// Choix d'une couleur : couleurs de la marque, du document, palette de départ, sélecteur du
+// système ; et,
 // là où c'est permis (fond, forme, texte), un dégradé linéaire ou radial.
 
 import { useState } from "react";
 import { useEditeur } from "../etat/editeur";
+import { useMarque } from "../etat/marque";
 import { couleurPrincipale, type Couleur, type Degrade } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { cssDeCouleur, memeCouleur } from "./couleurs";
@@ -98,6 +100,7 @@ function EditeurDegrade({ valeur, surChoix }: { valeur: Degrade; surChoix: (d: D
 
 export function SelecteurCouleur({ valeur, surChoix, titre, lettre, degrade = false }: Proprietes) {
   const [onglet, setOnglet] = useState<"uni" | "degrade">(typeof valeur === "string" ? "uni" : "degrade");
+  const couleursMarque = useMarque((s) => s.kit.couleurs);
   const pastille = (c: string) => (
     <button
       key={c}
@@ -132,6 +135,12 @@ export function SelecteurCouleur({ valeur, surChoix, titre, lettre, degrade = fa
       )}
       {onglet === "uni" || !degrade ? (
         <>
+          {couleursMarque.length > 0 && (
+            <>
+              <p className="mb-1.5 text-xs font-medium text-neutral-500">Couleurs de la marque</p>
+              <div className="mb-3 grid grid-cols-6 gap-1.5">{couleursMarque.map((c) => pastille(c.valeur))}</div>
+            </>
+          )}
           <p className="mb-1.5 text-xs font-medium text-neutral-500">Couleurs du document</p>
           <div className="mb-3 grid grid-cols-6 gap-1.5">{couleursDuDocument().map(pastille)}</div>
           <p className="mb-1.5 text-xs font-medium text-neutral-500">Palette</p>

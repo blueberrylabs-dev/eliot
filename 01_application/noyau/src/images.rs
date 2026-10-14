@@ -50,6 +50,19 @@ pub struct Ressource {
     pub transparence: bool,
     /// Extension de l'aperçu et de la miniature : `jpg` ou `png` (si transparence).
     pub format_apercu: String,
+    /// D'où vient l'image quand elle n'est pas d'Alexandre (photo Pixabay : auteur et lien).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credit: Option<Credit>,
+}
+
+/// Le crédit d'une image venue d'une banque d'images (BRIEF, règle 12).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Credit {
+    /// `Pixabay`, plus tard `Pexels`.
+    pub source: String,
+    pub auteur: String,
+    /// La page de la photo sur le site d'origine.
+    pub lien: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -183,9 +196,19 @@ pub fn importer(octets: &[u8], nom: &str, dossier: &Path) -> Result<Ressource, E
         hauteur: image.height(),
         transparence,
         format_apercu: format_apercu.to_string(),
+        credit: None,
     };
     let infos = serde_json::to_vec_pretty(&ressource).map_err(|e| ErreurImage::Decodage(e.to_string()))?;
     ecrire_atomiquement(&chemin_infos(dossier, &id), &infos)?;
+    Ok(ressource)
+}
+
+/// Importe une image venue d'une banque d'images et garde son crédit avec elle.
+pub fn importer_avec_credit(octets: &[u8], nom: &str, dossier: &Path, credit: Credit) -> Result<Ressource, ErreurImage> {
+    let mut ressource = importer(octets, nom, dossier)?;
+    ressource.credit = Some(credit);
+    let infos = serde_json::to_vec_pretty(&ressource).map_err(|e| ErreurImage::Decodage(e.to_string()))?;
+    ecrire_atomiquement(&chemin_infos(dossier, &ressource.id), &infos)?;
     Ok(ressource)
 }
 
@@ -265,6 +288,20 @@ mod tests {
     fn jpeg(l: u32, h: u32) -> Vec<u8> {
         let image = DynamicImage::ImageRgb8(image::RgbImage::from_fn(l, h, |x, y| image::Rgb([(x % 256) as u8, (y % 256) as u8, 90])));
         encoder(&image, false).unwrap()
+    }
+
+    #[test]
+    fn une_photo_de_banque_garde_son_credit() {
+        let dossier = dossier_de_test("credit");
+        let credit = Credit { source: "Pixabay".into(), auteur: "Anne".into(), lien: "https://pixabay.com/photos/chat-11/".into() };
+        let r = importer_avec_credit(&jpeg(64, 48), "pixabay-chat-11.jpg", &dossier, credit.clone()).unwrap();
+        assert_eq!(r.credit.as_ref(), Some(&credit));
+        assert_eq!(lister(&dossier)[0].credit.as_ref(), Some(&credit), "le crédit est rangé avec l'image");
+        // Une image sans crédit n'écrit pas de champ vide.
+        let simple = importer(&jpeg(32, 32), "a.jpg", &dossier).unwrap();
+        let infos = fs::read_to_string(chemin_infos(&dossier, &simple.id)).unwrap();
+        assert!(!infos.contains("credit"), "{infos}");
+        fs::remove_dir_all(&dossier).unwrap();
     }
 
     #[test]

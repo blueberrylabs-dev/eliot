@@ -11,7 +11,7 @@ function CarteImage({ ressource }: { ressource: Ressource }) {
   const url = useUrlRessource(ressource.id, "miniature");
   return (
     <button
-      title={`${ressource.nom} (${ressource.largeur} × ${ressource.hauteur})`}
+      title={`${ressource.nom} (${ressource.largeur} × ${ressource.hauteur})${ressource.credit ? `, photo de ${ressource.credit.auteur} sur ${ressource.credit.source}` : ""}`}
       onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerImage(format, ressource)], { photo: ressource.id })}
       className="cursor-grab overflow-hidden rounded-lg border border-neutral-200 bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:16px_16px] hover:border-accent-500"
     >

@@ -210,6 +210,16 @@ export interface Ressource {
   largeur: number;
   hauteur: number;
   transparence: boolean;
+  /** D'où vient l'image quand elle n'est pas d'Alexandre (photo Pixabay). */
+  credit?: Credit;
+}
+
+/** Le crédit d'une photo venue d'une banque d'images : rangé avec l'image dans le design. */
+export interface Credit {
+  source: string;
+  auteur: string;
+  /** La page de la photo sur le site d'origine. */
+  lien: string;
 }
 
 /** Où vit un design : son rayon (`designs` ou `modeles`) et son dossier. */
@@ -217,6 +227,10 @@ export interface RefProjet {
   rayon: "designs" | "modeles";
   id: string;
 }
+
+/** Un dossier d'images : celui d'un design, ou celui des logos du kit de marque. */
+export type RefRessources = RefProjet | { rayon: "marque"; id: "kit" };
+export const REF_MARQUE: RefRessources = { rayon: "marque", id: "kit" };
 
 /** Ce que l'accueil affiche d'un design. */
 export interface InfoProjet {

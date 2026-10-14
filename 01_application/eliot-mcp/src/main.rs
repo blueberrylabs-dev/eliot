@@ -145,14 +145,21 @@ impl ServerHandler for PontEliot {
             Err(message) => CallToolResult::error(vec![ContentBlock::text(message)]),
             Ok(valeur) => {
                 let mut contenu = vec![ContentBlock::text(serde_json::to_string_pretty(&valeur["donnees"]).unwrap_or_default())];
-                if let Some(png) = valeur["imagePng"].as_str() {
-                    contenu.push(ContentBlock::image(png.to_string(), "image/png"));
+                // Le champ s'appelle `imagePng` depuis l'étape 2 ; il porte aussi du JPEG (planche
+                // de photos), reconnu à ses premiers octets.
+                if let Some(image) = valeur["imagePng"].as_str() {
+                    contenu.push(ContentBlock::image(image.to_string(), type_image(image)));
                 }
                 CallToolResult::success(contenu)
             }
         };
         Ok(resultat.into())
     }
+}
+
+/// Type d'une image en base64 : les octets FF D8 FF d'un JPEG s'écrivent « /9j/ ».
+fn type_image(base64: &str) -> &'static str {
+    if base64.starts_with("/9j/") { "image/jpeg" } else { "image/png" }
 }
 
 #[tokio::main]
@@ -165,6 +172,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn une_image_jpeg_est_annoncee_comme_telle() {
+        assert_eq!(type_image("/9j/4AAQSkZJRg"), "image/jpeg");
+        assert_eq!(type_image("iVBORw0KGgo"), "image/png");
+    }
 
     #[test]
     fn la_liste_des_outils_se_lit() {

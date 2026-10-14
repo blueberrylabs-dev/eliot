@@ -8,5 +8,7 @@
 pub mod export;
 pub mod fichiers;
 pub mod images;
+pub mod marque;
+pub mod pixabay;
 pub mod polices;
 pub mod projet;
