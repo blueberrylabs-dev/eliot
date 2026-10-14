@@ -14,7 +14,9 @@ lourd. Détail : `BRIEF.md`.
 
 ## État au 2026-10-14
 
-- `BRIEF.md` : révision 4, **validé par Alexandre le 2026-10-14**.
+- `BRIEF.md` : révision 4 **validée par Alexandre le 2026-10-14** ; révision 5 du même jour
+  (bibliothèque, Pexels, modèles de départ, labo photo façon Lightroom, vidéo façon CapCut,
+  pont vers une IA, étapes renumérotées 2 à 6) **à valider**. Ne pas ouvrir l'étape 2 avant.
 - Étape 0, banc d'essai : passé sur le poste principal le 2026-10-14, dans la fenêtre Tauri
   et dans le navigateur intégré de Claude (résultats dans `00_banc_essai/resultats/`, lecture
   au JOURNAL). Tauri tient 60 images/s à condition d'appliquer la règle 11 du BRIEF. Reste :

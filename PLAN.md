@@ -1,7 +1,9 @@
 # PLAN.md — Eliot
 
 Plan vivant, source de vérité de l'avancement. Version du 2026-10-14, alignée sur le
-`BRIEF.md` (révision 4, validée le 2026-10-14).
+`BRIEF.md` (révision 4 validée le 2026-10-14 ; révision 5 du même jour, à valider : elle
+ajoute la bibliothèque, le labo photo, le mode vidéo façon CapCut, le pont vers une IA, et
+renumérote les étapes 2 à 6).
 
 ## Étape 0. Banc d'essai (ouverte le 2026-10-14, poste principal fait le 2026-10-14)
 
@@ -19,8 +21,8 @@ principal, lus par Claude, et la décision Tauri ou Electron inscrite au JOURNAL
 - [x] Claude lit les résultats (JOURNAL du 2026-10-14) ; règle 11 ajoutée au BRIEF
 - [x] Alexandre tranche : démarrer sur Tauri, Electron en repli (2026-10-14)
 - [x] Alexandre valide le BRIEF (2026-10-14)
-- [ ] Mini PC : même série, quand il sera disponible ; décision définitive Tauri ou Electron avant l'étape 4
-- [ ] Comprendre la lecture au ralenti de la vidéo H.264 dans Tauri (avant l'étape 4)
+- [ ] Mini PC : même série, quand il sera disponible ; décision définitive Tauri ou Electron avant l'étape 5 (vidéo)
+- [ ] Comprendre la lecture au ralenti de la vidéo H.264 dans Tauri (avant l'étape 5)
 
 ## Étape 1. L'éditeur (ouverte le 2026-10-14, livrée sur le poste le 2026-10-14)
 
@@ -48,10 +50,28 @@ l'exporte en PNG ou JPEG dans `~/Images/Eliot/`. Détail : `BRIEF.md` § 6 et §
 - [ ] Essai par Alexandre sur le poste, carte graphique libre (commandes 8 à 10 du
       `CLAUDE.md`)
 
-## Étape 2. Projets et publicité
+- [ ] Alexandre valide la révision 5 du `BRIEF.md`
 
-## Étape 3. Le Rust qui rend (PDF vectoriel, haute définition, perspective, détourage)
+## Étape 2. Les projets et l'édition complète
 
-## Étape 4. La vidéo
+Accueil, nom du design, enregistrement automatique, ouverture, menu Fichier, modèles maison,
+Redimensionner, plusieurs pages, barre du bas, coller et déposer, grouper, aligner, copier le
+style, dégradés ; puis le pont vers une IA (MCP), s'il est validé. Détail : `BRIEF.md` § 7.
 
-## Étape 5. Le reste du catalogue
+## Étape 3. La bibliothèque et la mise en forme publicitaire
+
+Icônes, emojis, personnages, polices, recherche Pexels (Alexandre crée son compte et sa clé
+avant), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
+dessin, graphiques, tableaux, QR code ; pour finir, une quarantaine de modèles de départ.
+
+## Étape 4. Le labo photo et le Rust qui rend
+
+Banc de l'aperçu en direct, labo façon Lightroom et préréglages, recadrage, export depuis le
+document (PDF vectoriel, haute définition, WebP, SVG), perspective, détourage.
+
+## Étape 5. La vidéo façon CapCut
+
+Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son,
+sous-titres, export MP4 et GIF.
+
+## Étape 6. Le reste du catalogue

@@ -5,6 +5,30 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, révision 5 du BRIEF : ce qui manque face à Canva, Lightroom, CapCut, une IA
+
+- Alexandre a compilé Eliot sur le poste, puis envoyé une capture de l'éditeur de Canva :
+  « regardes ce qu'il pourrait manquer et je pense que c'est un probleme de librairies ».
+- Lecture de Claude : les bibliothèques de code (Konva, React) ne sont pas en cause, Polotno
+  repose sur les mêmes. Ce qui manque, c'est le contenu (modèles, éléments, photos,
+  polices), que le § 8 excluait en partie sur proposition de Claude, et des fonctions déjà
+  prévues aux étapes suivantes. Licences relevées le jour même (§ 4 du BRIEF).
+- Décision d'Alexandre : « Oui, tu rajoutes tout » : bibliothèque embarquée, modèles de
+  départ, photos et vidéos Pexels, dessin, grilles photo, maquettes d'appareils, graphiques,
+  tableaux. Écarté par Claude après lecture des règles : Unsplash (liens directs
+  obligatoires, contraire au travail hors ligne) et unDraw (redistribution en lot interdite).
+- Demandes d'Alexandre du même échange, mises en forme dans la révision 5 et **à valider** :
+  labo photo façon Lightroom, mode vidéo façon CapCut (frise à pistes, texte animé sur une
+  vidéo), pont vers une IA (« le brancher à une IA pour qu'il puisse faire les choses de
+  lui-même ») par MCP, Claude en premier. Ajouts de Claude, à valider aussi : sous-titres
+  automatiques par Whisper, règles 12 (hors ligne par défaut) et 13 (retouche non
+  destructive), modèle de document avec pages, temps et pistes.
+- Ordre de construction revu : 2 projets et édition complète (puis le pont IA), 3
+  bibliothèque et mise en forme publicitaire, 4 labo photo et rendu Rust, 5 vidéo, 6 le
+  reste. Les entrées plus anciennes de ce journal parlent de « l'étape 4 » pour la vidéo :
+  c'est l'étape 5 depuis la révision 5.
+- Action d'Alexandre avant l'étape 3 : créer un compte Pexels et sa clé d'API.
+
 ## 2026-10-14, étape 1 : l'éditeur, vérifié dans le conteneur de Claude, livré sur le poste
 
 - Fait par Claude : `01_application/` (mode d'emploi et plan du code dans son `LISEZMOI.md`).
