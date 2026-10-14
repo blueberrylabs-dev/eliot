@@ -5,6 +5,18 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, révision 5 validée, étape 2 ouverte
+
+- Réponse d'Alexandre aux quatre questions : « Pour tous tes points, c'est bon ». Révision 5
+  validée (labo photo, vidéo façon CapCut, pont IA avec Claude en premier, sous-titres
+  Whisper, nouvel ordre). Lu par Claude comme un essai d'Eliot réussi sur le poste (question
+  4) ; à corriger s'il voulait dire autre chose.
+- Alexandre crée son compte Pexels et récupère sa clé ; il la saisira lui-même dans Eliot à
+  l'étape 3, sans la transmettre à Claude.
+- Étape 2 ouverte. Choix par défaut de Claude pour les projets (dossier
+  `~/Documents/Eliot/`, format de dossier, enregistrement, fichier `.eliot`, corbeille,
+  groupes) inscrits au `PLAN.md`, modifiables sur simple demande.
+
 ## 2026-10-14, révision 5 du BRIEF : ce qui manque face à Canva, Lightroom, CapCut, une IA
 
 - Alexandre a compilé Eliot sur le poste, puis envoyé une capture de l'éditeur de Canva :

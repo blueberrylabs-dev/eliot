@@ -14,17 +14,16 @@ lourd. Détail : `BRIEF.md`.
 
 ## État au 2026-10-14
 
-- `BRIEF.md` : révision 4 **validée par Alexandre le 2026-10-14** ; révision 5 du même jour
-  (bibliothèque, Pexels, modèles de départ, labo photo façon Lightroom, vidéo façon CapCut,
-  pont vers une IA, étapes renumérotées 2 à 6) **à valider**. Ne pas ouvrir l'étape 2 avant.
+- `BRIEF.md` : révision 5, **validée par Alexandre le 2026-10-14** (bibliothèque, Pexels,
+  modèles de départ, labo photo façon Lightroom, vidéo façon CapCut, pont vers une IA, étapes
+  renumérotées 2 à 6).
 - Étape 0, banc d'essai : passé sur le poste principal le 2026-10-14, dans la fenêtre Tauri
   et dans le navigateur intégré de Claude (résultats dans `00_banc_essai/resultats/`, lecture
   au JOURNAL). Tauri tient 60 images/s à condition d'appliquer la règle 11 du BRIEF. Reste :
   le mini PC.
 - Enveloppe : Tauri (décision du 2026-10-14), Electron en repli.
-- Étape 1, l'éditeur : `01_application/`, vérifiée dans le conteneur de Claude et livrée sur
-  le poste le 2026-10-14. Reste l'essai d'Alexandre (commandes 8 à 10). Pas encore
-  d'enregistrement du projet : il arrive à l'étape 2.
+- Étape 1, l'éditeur : `01_application/`, livrée et essayée sur le poste le 2026-10-14.
+- Étape 2, les projets et l'édition complète : ouverte le 2026-10-14 (`PLAN.md`).
 
 Suite : `PLAN.md`.
 

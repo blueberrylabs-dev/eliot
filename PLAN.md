@@ -1,9 +1,8 @@
 # PLAN.md — Eliot
 
 Plan vivant, source de vérité de l'avancement. Version du 2026-10-14, alignée sur le
-`BRIEF.md` (révision 4 validée le 2026-10-14 ; révision 5 du même jour, à valider : elle
-ajoute la bibliothèque, le labo photo, le mode vidéo façon CapCut, le pont vers une IA, et
-renumérote les étapes 2 à 6).
+`BRIEF.md` (révision 5, validée le 2026-10-14 : elle ajoute la bibliothèque, le labo photo,
+le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6).
 
 ## Étape 0. Banc d'essai (ouverte le 2026-10-14, poste principal fait le 2026-10-14)
 
@@ -47,16 +46,54 @@ l'exporte en PNG ou JPEG dans `~/Images/Eliot/`. Détail : `BRIEF.md` § 6 et §
       « Enregistrer sous », écrit par le noyau Rust ; « Afficher dans le dossier »
 - [x] Vérification : tests Rust, compilation, essai complet dans le conteneur de Claude
       (2026-10-14, chiffres au JOURNAL)
-- [ ] Essai par Alexandre sur le poste, carte graphique libre (commandes 8 à 10 du
-      `CLAUDE.md`)
+- [x] Essai par Alexandre sur le poste (« Pour tous tes points, c'est bon », 2026-10-14)
+- [x] Alexandre valide la révision 5 du `BRIEF.md` (2026-10-14)
 
-- [ ] Alexandre valide la révision 5 du `BRIEF.md`
+## Étape 2. Les projets et l'édition complète (ouverte le 2026-10-14)
 
-## Étape 2. Les projets et l'édition complète
+Résultat visible attendu : Eliot s'ouvre sur un accueil qui liste les designs ; un design
+s'enregistre tout seul, se rouvre, se renomme, se duplique, part à la corbeille, voyage dans
+un fichier `.eliot` ; il a plusieurs pages ; on zoome, on colle une capture, on dépose une
+photo, on groupe, on aligne, on pose un dégradé ; puis Claude pilote Eliot par MCP.
+Détail : `BRIEF.md` § 6 et § 7.
 
-Accueil, nom du design, enregistrement automatique, ouverture, menu Fichier, modèles maison,
-Redimensionner, plusieurs pages, barre du bas, coller et déposer, grouper, aligner, copier le
-style, dégradés ; puis le pont vers une IA (MCP), s'il est validé. Détail : `BRIEF.md` § 7.
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Designs dans `~/Documents/Eliot/Designs/`, un dossier par design au nom du design (suffixe
+  `_2` en cas de doublon, renommé avec lui) ; modèles maison dans `~/Documents/Eliot/Modèles/`.
+- Dans ce dossier : `document.json`, `document.precedent.json` (la version d'avant, en
+  secours), `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et
+  miniatures des images du design). Il se copie tel quel d'une machine à l'autre.
+- Enregistrement automatique une seconde après la dernière modification, et à la fermeture
+  de la fenêtre ; son état s'affiche à côté du nom.
+- Fichier `.eliot` : le dossier du design en archive zip, pour le transporter ; à l'import,
+  le noyau vérifie chaque chemin de l'archive.
+- Un design supprimé part dans la corbeille du système, d'où on peut le récupérer.
+- Document version 2 : nom, format, pages. Le noyau convertit un document de version 1.
+- Grouper : les objets d'un groupe portent la même étiquette ; un clic sur l'un sélectionne
+  tout le groupe, Alt + clic un seul objet.
+- Tests : vitest pour la logique de l'interface (store, conversions, géométrie), en plus des
+  tests Rust et du script Playwright.
+
+- [ ] Noyau `projet.rs` : créer, lister, ouvrir (avec conversion), enregistrer, renommer,
+      dupliquer, corbeille, miniature, archive `.eliot`, modèles maison ; tests
+- [ ] Commandes Tauri et pont ; images rangées dans le dossier du design
+- [ ] Document version 2 dans l'interface, store par page
+- [ ] Accueil : créer un design (formats, taille libre), designs récents, modèles maison,
+      ouvrir un `.eliot`
+- [ ] Barre du haut : accueil, menu Fichier, nom modifiable, état de l'enregistrement
+- [ ] Enregistrement automatique, et à la fermeture
+- [ ] Plusieurs pages : barre du bas avec vignettes, ajouter, dupliquer, supprimer,
+      réordonner, vue en grille
+- [ ] Zoom (curseur, Ctrl + molette, Ajuster), défilement, aperçu plein écran
+- [ ] Redimensionner (ce design ou une copie)
+- [ ] Coller une image, déposer un fichier, glisser depuis le panneau
+- [ ] Grouper et dégrouper, aligner et répartir, copier le style
+- [ ] Dégradés : formes, textes, fond de page
+- [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
+- [ ] Livraison, essai par Alexandre
+- [ ] Pont IA : programme `eliot-mcp`, outils calqués sur le store, capture de la page,
+      réglage pour l'activer, essai avec Claude
 
 ## Étape 3. La bibliothèque et la mise en forme publicitaire
 

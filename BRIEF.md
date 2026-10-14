@@ -1,11 +1,11 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-14, révision 5. La révision 4 a été **validée par
-Alexandre le 2026-10-14**. La révision 5 y ajoute, le même jour, ce qu'il a demandé en
-comparant Eliot à Canva (« Oui, tu rajoutes tout » : bibliothèque d'éléments, modèles de
-départ, photos et vidéos en ligne, nouvelles fonctions), le labo photo façon Lightroom, le
-mode vidéo façon CapCut, le pont vers une IA et un nouvel ordre de construction : **révision
-5 à valider par Alexandre**. Toute modification passe par une entrée du JOURNAL et par son accord
+Cadrage, écrit une fois. Version du 2026-10-14, révision 5, **validée par Alexandre le
+2026-10-14** (« Pour tous tes points, c'est bon »). Elle ajoute à la révision 4, validée plus
+tôt le même jour, ce qu'il a demandé en comparant Eliot à Canva (« Oui, tu rajoutes tout » :
+bibliothèque d'éléments, modèles de départ, photos et vidéos en ligne, nouvelles fonctions),
+le labo photo façon Lightroom, le mode vidéo façon CapCut, le pont vers une IA et un nouvel
+ordre de construction. Toute modification passe par une entrée du JOURNAL et par son accord
 (`00_moi/AUTONOMIE.md`, point 7).
 
 ## 1. Objet
@@ -295,7 +295,7 @@ rendus comme à l'étape 4), mixe le son, et `ffmpeg` encode le fichier.
 ### Brancher une IA : Eliot piloté par Claude
 
 Question d'Alexandre du 2026-10-14 : « est-ce que cet outil, on pourrait le brancher à une IA
-pour qu'il puisse faire les choses de lui-même ». Proposition de Claude, à valider.
+pour qu'il puisse faire les choses de lui-même ». Proposition de Claude, validée le même jour.
 
 Le socle s'y prête déjà : le document est un JSON (règle 1) et toute modification passe par
 une action du store (règle 2). Il suffit d'offrir ces actions à une IA sous forme d'outils.
@@ -702,7 +702,8 @@ Tranchées le 2026-10-14, seconde série, par Alexandre (« Oui, tu rajoutes tou
   écarté par lui après lecture de ses règles (liens directs obligatoires, § 4).
 - Dessin à main levée, grilles photo, maquettes d'appareils, graphiques, tableaux.
 
-À valider avec la révision 5 (demandes d'Alexandre du même jour, mises en forme par Claude) :
+Validées avec la révision 5 (demandes d'Alexandre du même jour, mises en forme par Claude ;
+« Pour tous tes points, c'est bon ») :
 
 - Le labo photo façon Lightroom et le mode vidéo façon CapCut (§ 6).
 - Le pont vers une IA par MCP, Claude en premier (§ 6) ; seconde exception à la règle 12.
@@ -711,7 +712,8 @@ Tranchées le 2026-10-14, seconde série, par Alexandre (« Oui, tu rajoutes tou
 - Les règles 12 et 13 (§ 5).
 
 Action d'Alexandre avant l'étape 3 : créer un compte Pexels et demander sa clé d'API
-gratuite ; il la saisit dans les réglages d'Eliot, jamais dans un fichier du dépôt.
+gratuite (annoncé le 2026-10-14) ; il la saisit lui-même dans les réglages d'Eliot, jamais
+dans un fichier du dépôt ni dans la conversation avec Claude.
 
 Ouvertes, avec la proposition de Claude :
 
