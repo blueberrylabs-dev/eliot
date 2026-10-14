@@ -5,7 +5,10 @@
 import { create } from "zustand";
 import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
-import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
+import type { ReglagesDessin } from "../modele/dessin";
+import { mesurePolice } from "../modele/mesure";
+import { ajouterRangee, disposerTableau } from "../modele/tableaux";
+import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
 
 const LIMITE_HISTORIQUE = 100;
 /** Deux modifications de même nature à moins de 700 ms forment une seule étape à annuler
@@ -38,6 +41,9 @@ const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   qr: ["couleur", "fond", "opacite"],
   cadre: ["forme", "bordure", "opacite", "ombre"],
   maquette: ["couleur", "opacite", "ombre"],
+  dessin: ["couleur", "epaisseur", "opacite", "ombre"],
+  graphique: ["police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "opacite", "ombre"],
+  tableau: ["police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "opacite", "ombre"],
 };
 
 export interface StyleCopie {
@@ -73,6 +79,10 @@ interface EtatEditeur {
   /** Dernier outil appelé par une IA (pont MCP), pour le signal « l'IA travaille ». */
   iaDernierAppel: { outil: string; quand: number } | null;
   reglagesOuverts: boolean;
+  /** Mode dessin (onglet Dessin) : l'outil et ses réglages ; `null` : on sélectionne. */
+  dessin: ReglagesDessin | null;
+  /** Cellule de tableau en cours d'écriture. */
+  celluleEnEdition: { id: string; ligne: number; colonne: number } | null;
 
   chargerProjet: (projet: RefProjet | null, document: DocumentEliot, ressources: Ressource[]) => void;
   allerALAccueil: () => void;
@@ -120,6 +130,11 @@ interface EtatEditeur {
   commencerEdition: (id: string) => void;
   terminerEdition: (texte: string | null) => void;
   commencerAjustement: (id: string) => void;
+  definirDessin: (reglages: ReglagesDessin | null) => void;
+  commencerCellule: (id: string, ligne: number, colonne: number) => void;
+  /** Valide la cellule (`null` : abandon) ; `aller` passe à la cellule voisine (Tab ajoute une
+   *  rangée après la dernière cellule). */
+  terminerCellule: (texte: string | null, aller?: "suivante" | "precedente") => void;
   terminerAjustement: () => void;
   /** Met une photo du design dans un cadre ou un écran de maquette (cadrage remis au centre). */
   remplirPhoto: (id: string, ressource: string) => void;
@@ -206,6 +221,8 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   apercu: false,
   iaDernierAppel: null,
   reglagesOuverts: false,
+  dessin: null,
+  celluleEnEdition: null,
 
   chargerProjet(projet, document, ressources) {
     set({
@@ -218,6 +235,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       selection: [],
       enEdition: null,
       enAjustement: null,
+      celluleEnEdition: null,
       passe: [],
       futur: [],
       derniereEtiquette: null,
@@ -230,7 +248,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   allerALAccueil() {
-    set({ vue: "accueil", selection: [], enEdition: null, enAjustement: null, apercu: false, vueGrille: false, styleCopie: null });
+    set({ vue: "accueil", selection: [], enEdition: null, enAjustement: null, celluleEnEdition: null, dessin: null, apercu: false, vueGrille: false, styleCopie: null });
   },
 
   definirProjet(projet) {
@@ -329,6 +347,13 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
         // Un texte dont la police, la taille ou la largeur change doit remesurer sa hauteur.
         if (suivant.type === "texte" && ("texte" in modif || "police" in modif || "taillePolice" in modif || "largeur" in modif || "gras" in modif || "italique" in modif || "interligne" in modif || "espacement" in modif || "majuscules" in modif) && !("hauteur" in modif)) {
           (suivant as ElementTexte).hauteur = mesurerHauteurTexte(suivant);
+        }
+        // Un tableau garde la hauteur qu'il faut à son contenu, plus ce qu'on lui avait ajouté
+        // en l'étirant.
+        if (suivant.type === "tableau" && e.type === "tableau") {
+          const naturelle = (t: ElementTableau) => disposerTableau(t, mesurePolice(t.police)).hauteurNaturelle;
+          const apres = naturelle(suivant);
+          suivant.hauteur = "hauteur" in modif ? Math.max(suivant.hauteur, apres) : Math.round(apres + Math.max(0, e.hauteur - naturelle(e)));
         }
         // Une ligne ou une flèche plus épaisse grandit autour de son axe.
         if (suivant.type === "forme" && estTrait(suivant.forme) && ("epaisseurContour" in modif || "forme" in modif) && !("hauteur" in modif)) {
@@ -513,7 +538,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   allerALaPage(id) {
     if (get().pageActive === id || !get().document.pages.some((p) => p.id === id)) return;
     if (typeof window !== "undefined" && window.document.activeElement instanceof HTMLTextAreaElement) window.document.activeElement.blur();
-    set({ pageActive: id, selection: [], enEdition: null, enAjustement: null });
+    set({ pageActive: id, selection: [], enEdition: null, enAjustement: null, celluleEnEdition: null });
   },
 
   // ---- Sélection ----
@@ -547,6 +572,41 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   commencerEdition(id) {
     const e = parId(elementsCourants(get())).get(id);
     if (e?.type === "texte" && !e.verrouille) set({ enEdition: id, selection: [id] });
+    // Entrée sur un tableau : on écrit dans sa première cellule.
+    if (e?.type === "tableau") get().commencerCellule(id, 0, 0);
+  },
+
+  definirDessin(reglages) {
+    set(reglages ? { dessin: reglages, selection: [], enAjustement: null, celluleEnEdition: null } : { dessin: null });
+  },
+
+  commencerCellule(id, ligne, colonne) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (e?.type !== "tableau" || e.verrouille || !e.cellules[ligne] || colonne >= e.colonnes.length) return;
+    set({ celluleEnEdition: { id, ligne, colonne }, selection: [id], enEdition: null });
+  },
+
+  terminerCellule(texte, aller) {
+    const c = get().celluleEnEdition;
+    if (!c) return;
+    set({ celluleEnEdition: null });
+    let e = parId(elementsCourants(get())).get(c.id);
+    if (e?.type !== "tableau") return;
+    if (texte !== null && e.cellules[c.ligne]?.[c.colonne] !== texte) {
+      const cellules = e.cellules.map((r) => [...r]);
+      cellules[c.ligne][c.colonne] = texte;
+      get().modifierElements({ [e.id]: { cellules } }, `cellule:${e.id}`);
+      e = parId(elementsCourants(get())).get(c.id) as ElementTableau;
+    }
+    if (!aller) return;
+    const nbCol = e.colonnes.length;
+    let rang = c.ligne * nbCol + c.colonne + (aller === "suivante" ? 1 : -1);
+    if (rang < 0) rang = 0;
+    if (rang >= e.cellules.length * nbCol) {
+      // Tab après la dernière cellule : une rangée de plus, comme dans un tableur.
+      get().modifierElements({ [e.id]: ajouterRangee(e) }, `cellule:${e.id}`);
+    }
+    get().commencerCellule(e.id, Math.floor(rang / nbCol), rang % nbCol);
   },
 
   commencerAjustement(id) {
@@ -616,7 +676,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   basculerApercu(actif) {
-    set({ apercu: actif ?? !get().apercu, selection: [], enEdition: null });
+    set({ apercu: actif ?? !get().apercu, selection: [], enEdition: null, celluleEnEdition: null });
   },
 
   signalerIa(outil) {

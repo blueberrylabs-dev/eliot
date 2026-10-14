@@ -62,6 +62,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   en cache. La photo choisie est copiée dans le design avec le nom de son auteur, visible dans
   la barre du haut quand elle est choisie. Il faut la clé Pixabay dans le `.env` du dossier
   Eliot (`PIXABAY_API_KEY=…`) ; Eliot la lit côté Rust et ne l'affiche jamais.
+- Panneau Dessin : stylo, marqueur, surligneur et gomme ; chaque trait devient un objet qu'on
+  déplace, agrandit ou recolore ensuite. Échap pour revenir à la sélection.
+- Graphiques (panneau Éléments) : colonnes, barres, courbe, aires, camembert, anneau, jauge de
+  progression ; les chiffres se changent par le bouton Données, ou se collent depuis un
+  tableur. Tableaux : double-clic sur une case pour écrire, Tab pour passer à la suivante (et
+  ajouter une rangée après la dernière), rangées, colonnes, en-tête, rayures, couleurs.
 - Panneau Marque : un kit de marque commun à tous les designs (`~/Documents/Eliot/Marque/`) :
   couleurs (un clic les donne aux objets choisis, ou au fond de la page), polices du titre, du
   sous-titre et du texte, logos. Les couleurs et les polices de la marque viennent en tête des
@@ -70,8 +76,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
-  poste, chercher et poser des photos de Pixabay, se servir du kit de marque, regarder une
-  capture de la page et exporter. On la voit travailler dans la fenêtre,
+  poste, chercher et poser des photos de Pixabay, se servir du kit de marque, dessiner à main
+  levée, poser des graphiques et des tableaux, regarder une capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Raccourcis

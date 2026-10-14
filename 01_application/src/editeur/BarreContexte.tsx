@@ -45,40 +45,15 @@ import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
 import { APPAREILS, COULEURS_APPAREIL } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementIcone, type ElementImage, type ElementMaquette, type ElementQr, type FormeCadre, type Ombre } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementQr, type ElementTableau, type FormeCadre, type Ombre } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
 import { variantesPossibles } from "../polices";
 import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
-
-const bouton = "flex h-8 min-w-8 shrink-0 items-center justify-center rounded-md px-1.5 whitespace-nowrap text-neutral-700 hover:bg-neutral-100";
-const actif = "bg-accent-100 text-accent-700 hover:bg-accent-100";
-const separateur = <span className="mx-1.5 h-6 w-px bg-neutral-200" />;
-
-function Bouton({ titre, surClic, enfoncé, inactif, children }: { titre: string; surClic: () => void; enfoncé?: boolean; inactif?: boolean; children: ReactNode }) {
-  return (
-    <button title={titre} onClick={surClic} disabled={inactif} className={`${bouton} ${enfoncé ? actif : ""} disabled:cursor-not-allowed disabled:opacity-35`}>
-      {children}
-    </button>
-  );
-}
-
-function Curseur({ libelle, valeur, min, max, pas = 1, unite = "", surChange }: { libelle: string; valeur: number; min: number; max: number; pas?: number; unite?: string; surChange: (v: number) => void }) {
-  return (
-    <label className="mb-2 block text-xs text-neutral-600">
-      <span className="mb-1 flex justify-between">
-        {libelle}
-        <span className="tabular-nums">
-          {Number.isInteger(pas) ? Math.round(valeur) : valeur.toFixed(2)}
-          {unite}
-        </span>
-      </span>
-      <input type="range" min={min} max={max} step={pas} value={valeur} onChange={(e) => surChange(Number(e.target.value))} className="w-full accent-accent-600" />
-    </label>
-  );
-}
+import { Bouton, Curseur, separateur } from "./ElementsBarre";
+import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -534,6 +509,9 @@ export function BarreContexte() {
   const qrs = choisis.filter((e): e is ElementQr => e.type === "qr");
   const cadres = choisis.filter((e): e is ElementCadre => e.type === "cadre");
   const maquettes = choisis.filter((e): e is ElementMaquette => e.type === "maquette");
+  const traits = choisis.filter((e): e is ElementDessin => e.type === "dessin");
+  const graphiques = choisis.filter((e): e is ElementGraphique => e.type === "graphique");
+  const tableaux = choisis.filter((e): e is ElementTableau => e.type === "tableau");
   const verrouille = choisis.some((e) => e.verrouille);
   const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
   const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
@@ -570,6 +548,9 @@ export function BarreContexte() {
       {choisis.length === 1 && qrs.length === 1 && <ReglagesQr q={qrs[0]} modifier={modifier} />}
       {choisis.length === 1 && cadres.length === 1 && <ReglagesCadre c={cadres[0]} modifier={modifier} />}
       {choisis.length === 1 && maquettes.length === 1 && <ReglagesMaquette m={maquettes[0]} modifier={modifier} />}
+      {choisis.length > 0 && traits.length === choisis.length && <ReglagesDessin traits={traits} modifier={modifier} />}
+      {choisis.length === 1 && graphiques.length === 1 && <ReglagesGraphique g={graphiques[0]} modifier={modifier} />}
+      {choisis.length === 1 && tableaux.length === 1 && <ReglagesTableau t={tableaux[0]} modifier={modifier} />}
       {choisis.length > 0 && (
         <>
           {separateur}

@@ -2,7 +2,7 @@
 // Version 2 (étape 2) : un nom, un format commun à toutes les pages, plusieurs pages. Le noyau
 // convertit un document de version 1 à l'ouverture (noyau/src/projet.rs).
 // Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte,
-// cadres photo, maquettes d'appareils.
+// cadres photo, maquettes d'appareils, dessin à main levée, graphiques, tableaux.
 // Les nouveaux champs sont facultatifs : un document de version 2 reste valable tel quel.
 
 export const VERSION_DOCUMENT = 3 as const;
@@ -176,7 +176,75 @@ export interface ElementMaquette extends ElementBase {
   recadrage: Recadrage;
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr | ElementCadre | ElementMaquette;
+export type OutilDessin = "stylo" | "marqueur" | "surligneur";
+
+/** Un trait de dessin à main levée. Les points (x, y à la suite) se rapportent à la boîte
+ *  qu'avait le trait quand il a été tracé (`vue`) : agrandir l'élément agrandit le trait. */
+export interface ElementDessin extends ElementBase {
+  type: "dessin";
+  outil: OutilDessin;
+  couleur: string;
+  /** Épaisseur du trait à la taille d'origine, en pixels de la page. */
+  epaisseur: number;
+  points: number[];
+  vue: { largeur: number; hauteur: number };
+}
+
+export type GenreGraphique = "colonnes" | "barres" | "lignes" | "aires" | "secteurs" | "anneau" | "progression";
+
+export interface SerieGraphique {
+  nom: string;
+  couleur: string;
+  /** Une valeur par étiquette ; `null` : pas de valeur. */
+  valeurs: (number | null)[];
+}
+
+/** Un graphique : ses données et sa présentation. Le dessin est recalculé à chaque rendu. */
+export interface ElementGraphique extends ElementBase {
+  type: "graphique";
+  genre: GenreGraphique;
+  /** Les catégories (axe horizontal, ou parts d'un secteur). */
+  etiquettes: string[];
+  series: SerieGraphique[];
+  /** Secteurs et anneau : une couleur par part (sinon la palette). */
+  couleursParts?: string[];
+  police: string;
+  taillePolice: number;
+  couleurTexte: string;
+  legende: boolean;
+  /** Écrire les valeurs sur le graphique. */
+  valeurs: boolean;
+  /** Lignes de repère horizontales. */
+  grille: boolean;
+  /** Ajouté après chaque valeur : « % », « € »… */
+  unite?: string;
+  /** Progression : la valeur pleine (100 par défaut). */
+  maximum?: number;
+}
+
+/** Un tableau de texte : des lignes de cellules, la première pouvant servir d'en-tête. */
+export interface ElementTableau extends ElementBase {
+  type: "tableau";
+  /** Lignes de cellules, toutes de même longueur. */
+  cellules: string[][];
+  /** Largeur relative de chaque colonne. */
+  colonnes: number[];
+  entete: boolean;
+  police: string;
+  taillePolice: number;
+  couleurTexte: string;
+  fond: string;
+  fondEntete: string;
+  texteEntete: string;
+  /** Fond d'une ligne sur deux, ou rien. */
+  rayures?: string;
+  bordure: { couleur: string; epaisseur: number };
+  alignement: Alignement;
+  /** Marge intérieure des cellules, en pixels de la page. */
+  marge: number;
+}
+
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
 
 /** Les éléments qui reçoivent une photo glissée dessus. */
 export type ElementAPhoto = ElementCadre | ElementMaquette;

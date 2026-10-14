@@ -45,7 +45,7 @@ function couleursDuDesign(): string[] {
     ajouter(page.fond);
     for (const e of page.elements) {
       if (e.type === "texte" || e.type === "icone" || e.type === "qr") ajouter(e.couleur);
-      if (e.type === "forme") ajouter(e.forme === "ligne" || e.forme === "fleche" ? e.contour : e.remplissage);
+      if (e.type === "forme") ajouter(e.remplissage);
     }
   }
   return [...vues];

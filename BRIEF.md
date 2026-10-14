@@ -334,9 +334,9 @@ frise, il entre donc dans l'étape 4. Tout se calcule sur le processeur (règle 
   sur la piste audio qui convient ; un glisser le pose où l'on veut dans la frise.
 - **La voix** : enregistrer au micro dans Eliot (le Rust capte le son), prise par prise, avec
   un compte à rebours et le niveau affiché ; chaque prise devient un clip de la piste voix.
-  Une voix de synthèse locale en français sert aux brouillons et aux maquettes (Piper, sur le
-  processeur) ; ses auteurs la destinent à un usage personnel et à la recherche (§ 4) : pas
-  dans une pub publiée tant que la licence de la voix choisie ne le permet pas.
+  Une voix de synthèse locale en français (Piper, sur le processeur) ; ses auteurs la
+  destinent à un usage personnel et à la recherche (§ 4), ce qui convient à Eliot tant qu'il
+  reste un outil d'apprentissage (Q4 tranchée le 2026-10-14).
 - **Le nettoyage d'une voix**, en valeurs du document (règle 13, l'original n'est jamais
   touché) : réduction du bruit de fond, coupe des silences et des hésitations repérées par la
   transcription Whisper, filtre des graves sous 80 Hz, égaliseur simple (chaleur, présence),
@@ -822,6 +822,14 @@ l'étape 4 (voix, nettoyage, niveau, mixage, jingles de marque) ; Freesound est 
 sons intégrée ; Pixabay Musique, YouTube Audio Library et Free Music Archive passent par un
 téléchargement à la main ; la création de musique par IA attend la carte graphique.
 
+Tranchées le 2026-10-14 par Alexandre, questions Q3 et Q4 de la révision 8 (« pour le moment,
+il n'est question que à usage personnel. Je suis là pour apprendre à développer des vidéos, des
+photos, des montages ») : l'API de Freesound, gratuite pour un usage non commercial, et Piper,
+destiné à l'usage personnel, conviennent tous deux à Eliot tel qu'il est, un outil
+d'apprentissage (§ 9). À revoir le jour où Eliot ou les vidéos qu'il produit deviendraient
+commerciaux : écrire alors à Freesound, et choisir une voix de synthèse dont la licence permet
+cet usage.
+
 Action d'Alexandre avant l'étape 4 : créer un compte Freesound, demander une clé d'API et
 l'ajouter au `.env` (`FREESOUND_API_KEY`).
 
@@ -838,10 +846,4 @@ Ouvertes, avec la proposition de Claude :
   même dans un produit fermé) ou copyleft (GPL-3.0, toute version modifiée et distribuée doit
   rester ouverte) ? Sur quel compte GitHub ? Proposition : trancher avant la première
   publication ; d'ici là, tous droits réservés.
-- Q3. Freesound réserve son API gratuite aux usages « non-commercial ». Eliot n'est pas vendu,
-  mais il sert à des pubs. Proposition : Alexandre écrit à Freesound (formulaire de contact,
-  message préparé par Claude) avant l'étape 4 pour confirmer ; sans réponse favorable,
-  Freesound passe au téléchargement à la main, comme Pixabay Musique.
-- Q4. Voix de synthèse pour une pub publiée : Piper est destiné à l'usage personnel selon ses
-  auteurs. Proposition : Piper pour les brouillons ; pour une pub, la vraie voix enregistrée,
-  ou une voix dont la licence permet l'usage commercial, choisie à l'étape 4.
+

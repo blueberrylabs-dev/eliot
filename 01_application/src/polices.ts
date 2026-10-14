@@ -203,9 +203,11 @@ export async function assurerPolice(famille: string, gras = false, italique = fa
 export async function assurerPolicesElements(elements: readonly { type: string; police?: string; gras?: boolean; italique?: boolean }[]): Promise<void> {
   const demandes = new Map<string, { gras: boolean; italique: boolean }>();
   for (const e of elements) {
-    if (e.type !== "texte" || !e.police) continue;
+    if (!e.police || (e.type !== "texte" && e.type !== "graphique" && e.type !== "tableau")) continue;
+    // Les graphiques et les tableaux écrivent aussi en gras (valeurs, en-tête).
+    const gras = e.type === "texte" ? !!e.gras : true;
     const d = demandes.get(e.police) ?? { gras: false, italique: false };
-    demandes.set(e.police, { gras: d.gras || !!e.gras, italique: d.italique || !!e.italique });
+    demandes.set(e.police, { gras: d.gras || gras, italique: d.italique || !!e.italique });
   }
   await Promise.all([...demandes].map(([f, d]) => assurerPolice(f, d.gras, d.italique)));
 }

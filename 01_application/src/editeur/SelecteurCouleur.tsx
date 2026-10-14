@@ -49,7 +49,9 @@ function couleursDuDocument(): string[] {
         ajouter(e.remplissage);
         if (e.epaisseurContour > 0) ajouter(e.contour);
       }
-      if (e.type === "icone" || e.type === "qr") ajouter(e.couleur);
+      if (e.type === "icone" || e.type === "qr" || e.type === "dessin") ajouter(e.couleur);
+      if (e.type === "graphique") e.series.forEach((s) => ajouter(s.couleur));
+      if (e.type === "tableau") ajouter(e.fondEntete);
     }
   }
   return [...vues].slice(0, 18);

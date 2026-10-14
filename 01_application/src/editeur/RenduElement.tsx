@@ -13,6 +13,7 @@ import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementFo
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
+import { Dessin, Graphique, Tableau } from "./RenduDonnees";
 
 /** Propriétés d'ombre Konva ; sans ombre, rien (Konva ne calcule alors aucune ombre). */
 export function ombreKonva(ombre: Ombre | undefined): Record<string, unknown> {
@@ -402,9 +403,13 @@ interface Proprietes {
   enAjustement?: boolean;
   /** Rendu figé (vignette, export) : ni glisser ni souris. */
   statique?: boolean;
+  /** Mode dessin : la souris trace, les objets ne se déplacent pas. */
+  fige?: boolean;
+  /** Tableau : la cellule en cours d'écriture (son texte est dans la zone de saisie). */
+  celluleMasquee?: { ligne: number; colonne: number } | null;
 }
 
-export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false }: Proprietes) {
+export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null }: Proprietes) {
   return (
     <Group
       id={statique ? undefined : el.id}
@@ -414,7 +419,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       rotation={el.rotation}
       opacity={el.opacite}
       visible={el.visible}
-      draggable={!statique && !el.verrouille && !enEdition && !enAjustement}
+      draggable={!statique && !fige && !el.verrouille && !enEdition && !enAjustement}
       listening={!statique}
       onDragEnd={statique ? undefined : rien}
     >
@@ -425,6 +430,9 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       {el.type === "qr" && <CodeQr el={el} />}
       {el.type === "cadre" && <Cadre el={el} statique={statique} ajustement={enAjustement} />}
       {el.type === "maquette" && <Maquette el={el} statique={statique} ajustement={enAjustement} />}
+      {el.type === "dessin" && <Dessin el={el} />}
+      {el.type === "graphique" && <Graphique el={el} />}
+      {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
     </Group>
   );
 });

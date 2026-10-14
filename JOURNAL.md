@@ -5,6 +5,38 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 4 : dessin à main levée, graphiques, tableaux
+
+- Dessin (onglet Dessin) : stylo, marqueur, surligneur (translucide, il teinte ce qu'il
+  recouvre), gomme. Ouvrir l'onglet prend le crayon, le fermer ou Échap le repose. Pendant le
+  trait, seule la ligne provisoire est redessinée (règle 11). Chaque trait devient un élément
+  `dessin`, allégé (moins de points, même allure) et calé sur sa boîte : on le déplace,
+  l'agrandit, le recolore comme une forme. La gomme retire les traits qu'elle touche, en une
+  seule étape d'annulation par geste.
+- Graphiques (panneau Éléments) : colonnes, barres, courbe, aires, camembert, anneau, jauge de
+  progression. Les données vivent dans le document ; le dessin est recalculé à chaque rendu
+  par une fonction testée sans écran (`modele/graphiques.ts`). Bouton Données : un petit
+  tableau, valeurs tapées à la française, collage depuis un tableur. Graduations rondes,
+  valeurs écrites à la française avec une unité (%, €, k€). Les couleurs de la marque passent
+  en premier.
+- Tableaux : quatre modèles (simple, comparatif, tarifs, planning). Double-clic sur une case
+  pour écrire, Tab et Maj+Tab pour circuler, Tab après la dernière case ajoute une rangée ;
+  rangées et colonnes, en-tête, rayures, couleurs, bordures, marge. Les lignes de texte sont
+  coupées par Eliot lui-même, avec la même mesure pour l'écran, l'export et la case en cours
+  d'écriture ; la hauteur suit le contenu.
+- Document : toujours en version 3 (les types `dessin`, `graphique` et `tableau` y étaient
+  annoncés). Pont IA : 3 outils de plus (39 en tout) : `dessiner`, `ajouter_graphique`,
+  `ajouter_tableau` ; `modifier` sait changer leurs données.
+- Défauts trouvés et corrigés en route : la couleur de marque donnée à une ligne ou une flèche
+  ne changeait rien (elle visait le contour, la ligne se dessine avec son remplissage) ; le
+  cadre de sélection d'un graphique débordait sur toute la largeur (boîtes de texte trop
+  larges) ; un tableau collé dans les données d'un graphique était aussi collé sur la page.
+- Vérifié dans le conteneur : Chromium 27 sur 27 (traits à la souris, gomme, Ctrl+Z, données
+  et collage, cases et Tab, export au pixel) ; Tauri sur écran virtuel 17 sur 17 (WebKitGTK
+  dessine traits, graphiques, jauge et tableau ; un trait tracé à la souris) ; vitest 44 sur
+  44 ; non-régression Chromium 33, 23, 18 et 29 sur 29 une fois l'onglet Dessin attendu dans
+  le rail, Tauri 14 sur 14 ; `npm run build` passe.
+
 ## 2026-10-14, BRIEF révision 8 : le son
 
 - Demande d'Alexandre : intégrer « voix, parole, musique de fond, jingle, puis le traitement
@@ -21,9 +53,11 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
   Audio Library (pas d'API, titres surtout réservés à YouTube), Free Music Archive (pas d'API,
   licence titre par titre). Création de musique par IA : plus tard, elle demande la carte
   graphique.
-- Deux points ouverts (Q3 et Q4) : l'API de Freesound n'est gratuite que pour un usage « non
-  commercial », à faire confirmer avant l'étape 4 ; Piper, la voix de synthèse locale, est
-  destiné par ses auteurs à l'usage personnel, donc aux brouillons.
+- Deux points soulevés par Claude (Q3 et Q4) : l'API de Freesound n'est gratuite que pour un
+  usage « non commercial » ; Piper, la voix de synthèse locale, est destiné par ses auteurs à
+  l'usage personnel. Tranchés le même jour par Alexandre : « pour le moment, il n'est question
+  que à usage personnel », Eliot sert à apprendre ; les deux conviennent, à revoir si un jour
+  Eliot ou ses vidéos deviennent commerciaux.
 - Au passage, un en-tête de tableau en double retiré du § 6.
 
 ## 2026-10-14, étape 3, lot 3 : photos Pixabay et kit de marque

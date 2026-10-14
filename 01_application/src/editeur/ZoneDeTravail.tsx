@@ -10,12 +10,16 @@
 
 import Konva from "konva";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
+import { Circle, Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
-import { estTrait } from "../modele/fabriques";
+import { estTrait, nouvelId } from "../modele/fabriques";
 import { deplacerRecadrage, ecranAppareil } from "../modele/cadres";
+import { creerTrait, distanceAuTrait, OUTILS_DESSIN } from "../modele/dessin";
+import { mesurePolice } from "../modele/mesure";
+import { celluleSous, disposerTableau } from "../modele/tableaux";
 import { recoitPhoto, type ElementPage, type Format, type Recadrage } from "../modele/types";
 import { remplissageKonva } from "./couleurs";
+import { EditeurCellule } from "./EditeurCellule";
 import { EditeurTexte } from "./EditeurTexte";
 import { MenuContextuel } from "./MenuContextuel";
 import { MiniBarre } from "./MiniBarre";
@@ -94,6 +98,8 @@ export function ZoneDeTravail() {
   const enAjustement = useEditeur((s) => s.enAjustement);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
+  const dessin = useEditeur((s) => s.dessin);
+  const celluleEnEdition = useEditeur((s) => s.celluleEnEdition);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [voulue, setVoulue] = useState<{ x: number; y: number } | null>(null);
   const [depotFichiers, setDepotFichiers] = useState(false);
@@ -115,6 +121,11 @@ export function ZoneDeTravail() {
   /** Photo glissée dans son cadre (mode ajustement) : point de départ et cadrage de départ. */
   const panoramique = useRef<{ id: string; x0: number; y0: number; recadrage: Recadrage } | null>(null);
   const rectangleSelection = useRef<{ x0: number; y0: number; ajout: boolean } | null>(null);
+  /** Trait en cours (mode dessin) : ses points en pixels de la page et sa ligne provisoire. */
+  const trait = useRef<{ points: number[]; ligne: Konva.Line } | null>(null);
+  /** Gomme en cours : une seule étape d'annulation pour tout le geste. */
+  const gomme = useRef<string | null>(null);
+  const curseurGommeRef = useRef<Konva.Circle>(null);
 
   // Taille de la zone : la page se recale à chaque redimensionnement de la fenêtre.
   useEffect(() => {
@@ -240,6 +251,17 @@ export function ZoneDeTravail() {
   }, [zoom]);
   const voulueParPointeur = useRef(false);
 
+  // Le curseur dit l'outil : une croix pour tracer, le rond de la gomme pour effacer.
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    stage.container().style.cursor = dessin ? (dessin.outil === "gomme" ? "none" : "crosshair") : "default";
+    if (dessin?.outil !== "gomme" && curseurGommeRef.current?.visible()) {
+      curseurGommeRef.current.visible(false);
+      curseurGommeRef.current.getLayer()?.batchDraw();
+    }
+  }, [dessin]);
+
   // Les poignées suivent la sélection.
   const selectionnes = elements.filter((e) => selection.includes(e.id));
   const seul: ElementPage | null = selectionnes.length === 1 ? selectionnes[0] : null;
@@ -254,7 +276,7 @@ export function ZoneDeTravail() {
         ? estTrait(seul.forme)
           ? COTES_LATERAUX
           : TOUS
-        : seul?.type === "cadre"
+        : seul?.type === "cadre" || seul?.type === "graphique" || seul?.type === "tableau"
           ? TOUS
           : COINS;
 
@@ -443,7 +465,7 @@ export function ZoneDeTravail() {
       const g = groupeElement(e.target);
       const survol = survolRef.current;
       const etat = useEditeur.getState();
-      if (espace.current) return;
+      if (espace.current || etat.dessin) return;
       stage.container().style.cursor = etat.styleCopie ? "copy" : g && g.draggable() ? "move" : "default";
       if (!survol || !g || geste.current || etat.selection.includes(g.id())) return;
       const r = g.getClientRect({ skipTransform: true, skipShadow: true });
@@ -454,7 +476,7 @@ export function ZoneDeTravail() {
     stage.on("mouseout.eliot", () => {
       survolRef.current?.visible(false);
       survolRef.current?.getLayer()?.batchDraw();
-      if (!espace.current) stage.container().style.cursor = useEditeur.getState().styleCopie ? "copy" : "default";
+      if (!espace.current && !useEditeur.getState().dessin) stage.container().style.cursor = useEditeur.getState().styleCopie ? "copy" : "default";
     });
 
     return () => {
@@ -466,6 +488,23 @@ export function ZoneDeTravail() {
   // ---- Souris : sélection, rectangle de sélection, double-clic, clic droit ----
 
   const finirRectangle = useCallback(() => {
+    if (trait.current) {
+      const { points, ligne } = trait.current;
+      trait.current = null;
+      ligne.destroy();
+      calqueGesteRef.current?.batchDraw();
+      const etat = useEditeur.getState();
+      const r = etat.dessin;
+      if (r && r.outil !== "gomme" && points.length >= 2) {
+        const el = creerTrait(points, r.outil, r.couleur, r.epaisseur, nouvelId());
+        etat.appliquerPage((p) => ({ ...p, elements: [...p.elements, el] }));
+      }
+      return;
+    }
+    if (gomme.current) {
+      gomme.current = null;
+      return;
+    }
     if (panoramique.current) {
       panoramique.current = null;
       if (stageRef.current) stageRef.current.container().style.cursor = "default";
@@ -497,6 +536,21 @@ export function ZoneDeTravail() {
     return () => window.removeEventListener("mouseup", finirRectangle);
   }, [finirRectangle]);
 
+  /** Le pointeur en pixels de la page. */
+  const pointPage = () => {
+    const p = stageRef.current?.getPointerPosition();
+    return p ? groupePageRef.current!.getAbsoluteTransform().copy().invert().point(p) : null;
+  };
+
+  /** La gomme retire les traits de dessin qu'elle touche. */
+  const gommer = (x: number, y: number) => {
+    const etat = useEditeur.getState();
+    const rayon = (etat.dessin?.epaisseur ?? 20) / 2;
+    const touches = new Set(elementsCourants(etat).filter((el) => el.type === "dessin" && !el.verrouille && el.visible && distanceAuTrait(el, x, y) <= rayon).map((el) => el.id));
+    if (touches.size === 0) return;
+    etat.appliquerPage((p) => ({ ...p, elements: p.elements.filter((el) => !touches.has(el.id)) }), gomme.current ?? undefined);
+  };
+
   const surPointeurBas = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.evt.button === 2) return;
     setMenu(null);
@@ -512,6 +566,31 @@ export function ZoneDeTravail() {
     const cible = e.target;
     if (cible.getParent() instanceof Konva.Transformer) return;
     const etat = useEditeur.getState();
+    // Mode dessin : la souris trace (ou gomme), elle ne sélectionne rien.
+    if (etat.dessin) {
+      const p = pointPage();
+      if (!p) return;
+      if (etat.dessin.outil === "gomme") {
+        gomme.current = `gomme:${Date.now()}`;
+        gommer(p.x, p.y);
+        return;
+      }
+      const reglage = OUTILS_DESSIN[etat.dessin.outil];
+      const ligne = new Konva.Line({
+        points: [p.x, p.y, p.x + 0.01, p.y],
+        stroke: etat.dessin.couleur,
+        strokeWidth: etat.dessin.epaisseur,
+        lineCap: reglage.bout,
+        lineJoin: "round",
+        tension: 0.45,
+        opacity: reglage.opacite,
+        listening: false,
+      });
+      groupeGesteRef.current?.add(ligne);
+      calqueGesteRef.current?.batchDraw();
+      trait.current = { points: [p.x, p.y], ligne };
+      return;
+    }
     if (etat.enEdition && document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const g = groupeElement(cible);
     // Ajustement : un appui sur la photo commence à la faire glisser dans son cadre.
@@ -543,6 +622,30 @@ export function ZoneDeTravail() {
   };
 
   const surPointeurDeplace = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const etatDessin = useEditeur.getState().dessin;
+    if (etatDessin?.outil === "gomme") {
+      const p = pointPage();
+      const curseur = curseurGommeRef.current;
+      if (p && curseur) {
+        const abs = groupePageRef.current!.getAbsoluteTransform().point(p);
+        curseur.setAttrs({ visible: true, x: abs.x, y: abs.y, radius: (etatDessin.epaisseur / 2) * cadrage.current.echelle });
+        curseur.getLayer()?.batchDraw();
+      }
+      if (p && gomme.current) gommer(p.x, p.y);
+      return;
+    }
+    const t = trait.current;
+    if (t) {
+      const p = pointPage();
+      if (!p) return;
+      const n = t.points.length;
+      // Un point de plus seulement si le pointeur a vraiment bougé (un demi-pixel d'écran).
+      if (Math.hypot(p.x - t.points[n - 2], p.y - t.points[n - 1]) * cadrage.current.echelle < 0.5) return;
+      t.points.push(p.x, p.y);
+      t.ligne.points(t.points.length === 2 ? [...t.points, t.points[0] + 0.01, t.points[1]] : t.points);
+      calqueGesteRef.current?.batchDraw();
+      return;
+    }
     const pano = panoramique.current;
     if (pano) {
       const etat = useEditeur.getState();
@@ -579,7 +682,17 @@ export function ZoneDeTravail() {
     const g = groupeElement(e.target);
     if (!g) return;
     const etat = useEditeur.getState();
+    if (etat.dessin) return;
     const el = elementsCourants(etat).find((x) => x.id === g.id());
+    // Double-clic sur un tableau : on écrit dans la cellule visée.
+    if (el?.type === "tableau") {
+      const p = stageRef.current!.getPointerPosition();
+      if (!p) return;
+      const local = g.getAbsoluteTransform().copy().invert().point(p);
+      const c = celluleSous(disposerTableau(el, mesurePolice(el.police)), local.x, local.y);
+      if (c) etat.commencerCellule(el.id, c.ligne, c.colonne);
+      return;
+    }
     // Double-clic sur un cadre rempli : on ajuste la photo ; sur un texte : on l'écrit.
     if (el && recoitPhoto(el) && el.ressource) etat.commencerAjustement(el.id);
     else etat.commencerEdition(g.id());
@@ -632,7 +745,7 @@ export function ZoneDeTravail() {
           <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur}>
             <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(fond, format.largeur, format.hauteur)} />
             {elements.map((el) => (
-              <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} enAjustement={el.id === enAjustement} />
+              <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} enAjustement={el.id === enAjustement} fige={!!dessin} celluleMasquee={celluleEnEdition?.id === el.id ? celluleEnEdition : null} />
             ))}
           </Group>
         </Layer>
@@ -646,7 +759,7 @@ export function ZoneDeTravail() {
             ref={transformerRef}
             enabledAnchors={poignees}
             rotateEnabled={!verrou}
-            keepRatio={seul?.type !== "forme" && seul?.type !== "cadre"}
+            keepRatio={seul?.type !== "forme" && seul?.type !== "cadre" && seul?.type !== "graphique" && seul?.type !== "tableau"}
             rotationSnaps={PAS_ROTATION}
             rotationSnapTolerance={4}
             rotateAnchorAngle={180}
@@ -664,15 +777,22 @@ export function ZoneDeTravail() {
             boundBoxFunc={(ancienne, nouvelle) => (Math.abs(nouvelle.width) < 8 || Math.abs(nouvelle.height) < 8 ? ancienne : nouvelle)}
           />
           <Rect ref={rectangleRef} visible={false} fill="rgba(79,70,229,0.08)" stroke={ACCENT} strokeWidth={1} listening={false} />
+          <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
         </Layer>
       </Stage>
       <EditeurTexte />
+      <EditeurCellule />
       <MiniBarre taille={taille} ouvrirMenu={(x, y) => setMenu({ x, y })} />
       {menu && <MenuContextuel x={menu.x} y={menu.y} fermer={() => setMenu(null)} />}
       <div ref={etiquetteRef} className="pointer-events-none absolute hidden rounded-md bg-neutral-900/90 px-2 py-0.5 text-xs font-medium text-white tabular-nums" />
       {enAjustement && (
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Glisse la photo dans son cadre, molette pour l'agrandir. Échap ou un clic ailleurs pour finir.
+        </div>
+      )}
+      {dessin && (
+        <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          {dessin.outil === "gomme" ? "Passe la gomme sur un trait pour l'effacer." : "Dessine à la souris ou au stylet."} Échap pour sélectionner.
         </div>
       )}
       {styleCopie && (

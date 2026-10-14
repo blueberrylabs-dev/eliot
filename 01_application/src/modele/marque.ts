@@ -65,8 +65,9 @@ export function kitValide(brut: unknown): KitMarque {
   return kit;
 }
 
-/** Ce qu'une couleur de la marque change sur un objet : son texte, son remplissage, son trait,
- *  le fond d'un cadre ou le boîtier d'une maquette. `null` si l'objet n'a pas de couleur. */
+/** Ce qu'une couleur de la marque change sur un objet : son texte, son remplissage (le trait
+ *  d'une ligne ou d'une flèche), le fond d'un cadre, le boîtier d'une maquette, la première
+ *  série d'un graphique, l'en-tête d'un tableau. `null` si l'objet n'a pas de couleur. */
 export function modifCouleur(el: ElementPage, couleur: string): Partial<ElementPage> | null {
   switch (el.type) {
     case "texte":
@@ -75,9 +76,17 @@ export function modifCouleur(el: ElementPage, couleur: string): Partial<ElementP
     case "maquette":
       return { couleur };
     case "forme":
-      return el.forme === "ligne" || el.forme === "fleche" ? { contour: couleur } : { remplissage: couleur };
+      // Pour une ligne ou une flèche, le remplissage est la couleur du trait.
+      return { remplissage: couleur };
     case "cadre":
       return { fond: couleur };
+    case "dessin":
+      return { couleur };
+    case "graphique":
+      // La première série (ou la jauge) prend la couleur.
+      return { series: el.series.map((s, i) => (i === 0 ? { ...s, couleur } : s)) };
+    case "tableau":
+      return { fondEntete: couleur };
     default:
       return null;
   }

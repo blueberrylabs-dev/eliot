@@ -10,12 +10,16 @@ import { exporter } from "../export/exporter";
 import { rendrePage } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces } from "../bibliotheque/bibliotheque";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerForme, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
+import { creerCadre, creerEmoji, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementPage, type FormeCadre, type GenreForme } from "../modele/types";
+import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementTableau, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin } from "../modele/types";
 import { logoDansDesign, useMarque } from "../etat/marque";
 import { telechargerPhotoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
+import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
+import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
+import { mesurePolice } from "../modele/mesure";
+import { cellulesValides, disposerTableau } from "../modele/tableaux";
 import { chercherPixabay, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, type PhotoPixabay } from "../pont/tauri";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
@@ -100,6 +104,9 @@ const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   qr: ["contenu", "couleur", "fond", "correction"],
   cadre: ["forme", "ressource", "recadrage", "bordure", "fond"],
   maquette: ["appareil", "couleur", "ressource", "recadrage"],
+  dessin: ["couleur", "epaisseur", "outil"],
+  graphique: ["genre", "etiquettes", "series", "couleursParts", "police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "unite", "maximum"],
+  tableau: ["cellules", "colonnes", "entete", "police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge"],
 };
 
 /** Une ombre envoyée par l'IA : couleur, flou, décalage, opacité ; `null` l'enlève. */
@@ -129,7 +136,9 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
     else if (cle === "ombre") propre[cle] = ombre(valeur);
     else if (cle === "bordure") {
       const b = valeur as { couleur?: unknown; epaisseur?: unknown } | null;
-      propre[cle] = b === null ? undefined : { couleur: couleur(b.couleur ?? "#ffffff", "bordure.couleur") as string, epaisseur: Math.max(0, nombre(b.epaisseur, 8)!) };
+      // Un tableau garde toujours sa bordure : « aucune », c'est une épaisseur nulle.
+      if (b === null) propre[cle] = el.type === "tableau" ? { ...el.bordure, epaisseur: 0 } : undefined;
+      else propre[cle] = { couleur: couleur(b.couleur ?? (el.type === "tableau" ? el.bordure.couleur : "#ffffff"), "bordure.couleur") as string, epaisseur: Math.max(0, nombre(b.epaisseur, el.type === "tableau" ? el.bordure.epaisseur : 8)!) };
     } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
       exiger(valeur === null || etat().ressources[String(valeur)], `image inconnue dans ce design : ${String(valeur)}`);
       propre[cle] = valeur === null ? undefined : valeur;
@@ -144,7 +153,47 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
     else if (cle === "police") {
       exiger(polices().some((p) => p.famille === valeur), `police inconnue : ${String(valeur)} (voir etat)`);
       propre[cle] = valeur;
-    } else if (["x", "y", "largeur", "hauteur", "rotation", "opacite", "taillePolice", "interligne", "espacement", "epaisseurContour", "arrondi", "cotes", "trait"].includes(cle)) {
+    } else if (cle === "fond" && el.type === "tableau") {
+      exiger(valeur !== null, "fond : couleur #rrggbb attendue");
+      propre[cle] = couleur(valeur, cle) as string;
+    } else if (["couleurTexte", "fondEntete", "texteEntete"].includes(cle)) {
+      propre[cle] = couleur(valeur, cle);
+      exiger(typeof propre[cle] === "string", `${cle} : couleur unie #rrggbb attendue`);
+    } else if (cle === "rayures") propre[cle] = valeur === null ? undefined : (couleur(valeur, cle) as string);
+    else if (cle === "etiquettes") {
+      exiger(Array.isArray(valeur) && valeur.length > 0, "etiquettes : liste de textes");
+      const etiquettes = (valeur as unknown[]).slice(0, 60).map((v) => String(v ?? "").slice(0, 60));
+      propre[cle] = etiquettes;
+      // Les séries suivent le nombre d'étiquettes quand elles ne sont pas données avec.
+      if (el.type === "graphique" && !("series" in brut)) propre.series = el.series.map((x) => ({ ...x, valeurs: etiquettes.map((_, i) => x.valeurs[i] ?? null) }));
+    } else if (cle === "series") {
+      const etiquettes = (propre.etiquettes as string[] | undefined) ?? (el as ElementGraphique).etiquettes;
+      exiger(Array.isArray(valeur) && valeur.length > 0, "series : liste de { nom, valeurs, couleur? }");
+      propre[cle] = seriesValides(etiquettes, valeur);
+    } else if (cle === "couleursParts") {
+      exiger(Array.isArray(valeur) && valeur.every((c) => typeof c === "string" && HEX.test(c)), "couleursParts : liste de couleurs #rrggbb");
+      propre[cle] = (valeur as string[]).map((c) => c.toLowerCase());
+    } else if (cle === "genre") {
+      exiger(GENRES_GRAPHIQUE.some((g) => g.id === valeur), `genre : ${GENRES_GRAPHIQUE.map((g) => g.id).join(", ")}`);
+      propre[cle] = valeur;
+    } else if (cle === "outil") {
+      exiger(typeof valeur === "string" && valeur in OUTILS_DESSIN, "outil : stylo, marqueur ou surligneur");
+      propre[cle] = valeur;
+    } else if (cle === "cellules") {
+      const cellules = cellulesValides(valeur);
+      propre[cle] = cellules;
+      // Une largeur de tableau qui change : les colonnes suivent.
+      if (el.type === "tableau" && cellules[0].length !== el.colonnes.length && !("colonnes" in brut)) propre.colonnes = cellules[0].map((_, i) => el.colonnes[i] ?? 1);
+    } else if (cle === "colonnes") {
+      exiger(Array.isArray(valeur) && valeur.every((v) => typeof v === "number" && v > 0), "colonnes : largeurs relatives, nombres positifs");
+      propre[cle] = valeur;
+    } else if (["legende", "valeurs", "grille", "entete"].includes(cle)) {
+      exiger(typeof valeur === "boolean", `${cle} : vrai ou faux`);
+      propre[cle] = valeur;
+    } else if (cle === "alignement") {
+      exiger(["left", "center", "right"].includes(String(valeur)), "alignement : left, center ou right");
+      propre[cle] = valeur;
+    } else if (["x", "y", "largeur", "hauteur", "rotation", "opacite", "taillePolice", "interligne", "espacement", "epaisseurContour", "arrondi", "cotes", "trait", "epaisseur", "marge", "maximum"].includes(cle)) {
       exiger(typeof valeur === "number" && Number.isFinite(valeur), `${cle} : nombre attendu`);
       propre[cle] = valeur;
     } else propre[cle] = valeur;
@@ -152,6 +201,11 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
   if (typeof propre.largeur === "number") propre.largeur = Math.max(1, propre.largeur);
   if (typeof propre.hauteur === "number") propre.hauteur = Math.max(1, propre.hauteur);
   if (typeof propre.opacite === "number") propre.opacite = Math.max(0, Math.min(1, propre.opacite));
+  if (el.type === "tableau") {
+    const nbCol = ((propre.cellules as string[][] | undefined) ?? el.cellules)[0].length;
+    const colonnes = (propre.colonnes as number[] | undefined) ?? el.colonnes;
+    exiger(colonnes.length === nbCol, `colonnes : ${nbCol} largeurs attendues, une par colonne`);
+  }
   return propre as Partial<ElementPage>;
 }
 
@@ -461,6 +515,70 @@ const OUTILS: Record<string, Outil> = {
     const dimensions =
       largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
     const el = placer(base, { ...args, ...dimensions });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  dessiner(args) {
+    designOuvert();
+    exiger(Array.isArray(args.traits) && args.traits.length > 0, "traits : liste de { points: [x1, y1, x2, y2…], couleur?, epaisseur?, outil? }");
+    const elements = (args.traits as Arguments[]).slice(0, 200).map((t, i) => {
+      const points = Array.isArray(t.points) ? (t.points as unknown[]).filter((v): v is number => typeof v === "number" && Number.isFinite(v)) : [];
+      exiger(points.length >= 2 && points.length % 2 === 0, `traits[${i}].points : des nombres par paires x, y (pixels de la page)`);
+      const outil = (texte(t.outil) ?? "stylo") as OutilDessin;
+      exiger(outil in OUTILS_DESSIN, `traits[${i}].outil : stylo, marqueur ou surligneur`);
+      const c = (couleur(t.couleur ?? "#1f1f1d", `traits[${i}].couleur`) as string) ?? "#1f1f1d";
+      exiger(typeof c === "string", `traits[${i}].couleur : couleur unie #rrggbb`);
+      const epaisseur = Math.max(1, Math.min(200, nombre(t.epaisseur, OUTILS_DESSIN[outil].epaisseur)!));
+      return creerTrait(points, outil, c, epaisseur, nouvelId());
+    });
+    // Plusieurs traits forment un dessin : ils restent groupés.
+    const groupe = elements.length > 1 ? nouvelId("g") : undefined;
+    const poses = elements.map((e) => (groupe ? { ...e, groupe } : e));
+    etat().ajouterElements(poses);
+    return { donnees: poses.map((e) => ({ id: e.id, x: e.x, y: e.y, largeur: e.largeur, hauteur: e.hauteur })) };
+  },
+
+  async ajouter_graphique(args) {
+    designOuvert();
+    const genre = texte(args.genre) as GenreGraphique;
+    exiger(GENRES_GRAPHIQUE.some((g) => g.id === genre), `genre : ${GENRES_GRAPHIQUE.map((g) => g.id).join(", ")}`);
+    const couleursMarque = useMarque.getState().kit.couleurs.map((c) => c.valeur).filter((c) => c !== "#ffffff");
+    const base = creerGraphique(etat().document.format, genre, [...couleursMarque, ...PALETTE_GRAPHIQUE]);
+    const brut: Arguments = {};
+    for (const cle of ["etiquettes", "series", "couleursParts", "police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "unite", "maximum"]) if (args[cle] !== undefined) brut[cle] = args[cle];
+    // Des séries sans étiquettes : des étiquettes numérotées, une par valeur.
+    if (brut.series && !brut.etiquettes) {
+      const n = Math.max(...(brut.series as { valeurs?: unknown[] }[]).map((s) => (Array.isArray(s?.valeurs) ? s.valeurs.length : 0)), 1);
+      brut.etiquettes = Array.from({ length: n }, (_, i) => String(i + 1));
+    }
+    if (brut.etiquettes && !brut.series) brut.series = base.series;
+    const propre = nettoyerModification(base, brut) as Partial<ElementGraphique>;
+    if (propre.police) {
+      await assurerPolice(propre.police, true, false);
+      await copierPoliceDansDesign(propre.police);
+    }
+    const el = placer({ ...base, ...propre }, args);
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  async ajouter_tableau(args) {
+    designOuvert();
+    exiger(Array.isArray(args.cellules) && args.cellules.length > 0, "cellules : liste de rangées, chacune une liste de textes");
+    const cellules = cellulesValides(args.cellules);
+    const options: Arguments = {};
+    for (const cle of ["entete", "police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "colonnes"]) if (args[cle] !== undefined) options[cle] = args[cle];
+    const base = creerTableau(etat().document.format, cellules);
+    const propre = nettoyerModification(base, options) as Partial<ElementTableau>;
+    if (propre.police) {
+      await assurerPolice(propre.police, true, false);
+      await copierPoliceDansDesign(propre.police);
+    }
+    const place = placer({ ...base, ...propre }, { ...args, hauteur: undefined });
+    // La hauteur suit le contenu, à la largeur choisie.
+    const el = { ...place, hauteur: Math.round(disposerTableau({ ...place, hauteur: 0 }, mesurePolice(place.police)).hauteurNaturelle) };
+    if (nombre(args.y) === undefined) el.y = Math.round((etat().document.format.hauteur - el.hauteur) / 2);
     etat().ajouterElements([el]);
     return { donnees: el };
   },

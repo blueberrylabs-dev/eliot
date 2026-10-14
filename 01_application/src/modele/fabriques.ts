@@ -3,6 +3,9 @@
 import Konva from "konva";
 import { POLICE_PAR_DEFAUT, pilePolice, variantesPossibles } from "../polices";
 import { APPAREILS, casesDeGrille, DISPOSITIONS, RECADRAGE_PAR_DEFAUT } from "./cadres";
+import { donneesDeDepart, GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE } from "./graphiques";
+import { mesurePolice } from "./mesure";
+import { disposerTableau } from "./tableaux";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
@@ -11,7 +14,10 @@ import {
   type ElementCadre,
   type ElementEmoji,
   type ElementForme,
+  type ElementGraphique,
   type ElementMaquette,
+  type ElementTableau,
+  type GenreGraphique,
   type FormeCadre,
   type ElementIcone,
   type ElementImage,
@@ -200,6 +206,51 @@ export function creerQr(page: Format, contenu = "https://", couleur = "#1f1f1d")
   return { ...elementCentre(page, cote, cote), type: "qr", contenu, couleur, fond: "#ffffff", correction: "M" };
 }
 
+/** Un graphique avec des données de départ, à la taille qui convient à son genre. */
+export function creerGraphique(page: Format, genre: GenreGraphique, couleurs: string[] = PALETTE_GRAPHIQUE): ElementGraphique {
+  const cote = Math.min(page.largeur, page.hauteur);
+  const echelle = Math.max(page.largeur, page.hauteur) / 1080;
+  const [l, h] =
+    genre === "progression" ? [cote * 0.42, cote * 0.42] : genre === "secteurs" || genre === "anneau" ? [cote * 0.56, cote * 0.66] : [Math.min(page.largeur * 0.78, cote * 0.9), cote * 0.56];
+  return {
+    ...elementCentre(page, Math.round(l), Math.round(h)),
+    type: "graphique",
+    genre,
+    police: POLICE_PAR_DEFAUT,
+    taillePolice: Math.round(24 * echelle),
+    couleurTexte: "#1f1f1d",
+    grille: true,
+    ...donneesDeDepart(genre, couleurs),
+  };
+}
+
+/** Un tableau : `cellules` donne ses rangées ; la hauteur suit le contenu. */
+export function creerTableau(page: Format, cellules: string[][], options: Partial<ElementTableau> = {}): ElementTableau {
+  const echelle = Math.max(page.largeur, page.hauteur) / 1080;
+  const nbCol = Math.max(1, ...cellules.map((r) => r.length));
+  const largeur = Math.round(Math.min(page.largeur * 0.8, 260 * echelle * nbCol));
+  const base: ElementTableau = {
+    ...elementCentre(page, largeur, 100),
+    type: "tableau",
+    cellules: cellules.map((r) => [...r, ...Array(nbCol - r.length).fill("")]),
+    colonnes: Array(nbCol).fill(1),
+    entete: true,
+    police: POLICE_PAR_DEFAUT,
+    taillePolice: Math.round(26 * echelle),
+    couleurTexte: "#1f1f1d",
+    fond: "#ffffff",
+    fondEntete: "#1f1f1d",
+    texteEntete: "#ffffff",
+    rayures: "#f4f3ef",
+    bordure: { couleur: "#d6d3cc", epaisseur: Math.max(1, Math.round(2 * echelle)) },
+    alignement: "left",
+    marge: Math.round(14 * echelle),
+    ...options,
+  };
+  const hauteur = Math.round(disposerTableau({ ...base, hauteur: 0 }, mesurePolice(base.police)).hauteurNaturelle);
+  return { ...base, hauteur, y: Math.round((page.hauteur - hauteur) / 2) };
+}
+
 /** L'image entre à 60 % de la page au plus, proportions gardées, au centre. */
 export function creerImage(page: Format, ressource: Ressource): ElementImage {
   const echelle = Math.min((page.largeur * 0.6) / ressource.largeur, (page.hauteur * 0.6) / ressource.hauteur, 1);
@@ -294,6 +345,12 @@ export function nomElement(el: ElementPage): string {
       return el.ressource ? "Cadre photo" : "Cadre vide";
     case "maquette":
       return APPAREILS[el.appareil].libelle;
+    case "dessin":
+      return el.outil === "surligneur" ? "Surlignage" : "Dessin";
+    case "graphique":
+      return `Graphique ${GENRES_GRAPHIQUE.find((g) => g.id === el.genre)?.libelle.toLowerCase() ?? ""}`.trim();
+    case "tableau":
+      return "Tableau";
   }
 }
 

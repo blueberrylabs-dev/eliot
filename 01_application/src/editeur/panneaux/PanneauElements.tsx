@@ -7,8 +7,10 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { bibliothequePresente, collections as chargerCollections, rechercher, traces, useUrlVecteur, type Collection } from "../../bibliotheque/bibliotheque";
 import { normaliser, type EntreeIndex } from "../../bibliotheque/recherche";
 import { APPAREILS, cheminSvg, DISPOSITIONS } from "../../modele/cadres";
-import { creerCadre, creerEmoji, creerGrille, creerIcone, creerMaquette, creerQr } from "../../modele/fabriques";
-import type { Appareil, ElementPage, FormeCadre, Format } from "../../modele/types";
+import { useMarque } from "../../etat/marque";
+import { creerCadre, creerEmoji, creerGraphique, creerGrille, creerIcone, creerMaquette, creerQr, creerTableau } from "../../modele/fabriques";
+import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE } from "../../modele/graphiques";
+import type { Appareil, ElementPage, FormeCadre, Format, GenreGraphique } from "../../modele/types";
 import { glisserDepuisPanneau } from "../glisser";
 import { FORMES, GrilleFormes, TRAITS } from "./PanneauFormes";
 
@@ -120,6 +122,70 @@ function GrillesPhotos() {
   );
 }
 
+/** Le dessin de chaque genre de graphique, en miniature. */
+const DESSINS_GRAPHIQUES: Record<GenreGraphique, ReactNode> = {
+  colonnes: <><rect x="10" y="30" width="9" height="24" rx="1.5" className="fill-accent-600" /><rect x="23" y="18" width="9" height="36" rx="1.5" className="fill-amber-500" /><rect x="36" y="24" width="9" height="30" rx="1.5" className="fill-accent-600" /><rect x="49" y="10" width="9" height="44" rx="1.5" className="fill-amber-500" /></>,
+  barres: <><rect x="10" y="10" width="40" height="8" rx="1.5" className="fill-accent-600" /><rect x="10" y="22" width="28" height="8" rx="1.5" className="fill-amber-500" /><rect x="10" y="34" width="46" height="8" rx="1.5" className="fill-accent-600" /><rect x="10" y="46" width="20" height="8" rx="1.5" className="fill-amber-500" /></>,
+  lignes: <><path d="M8 48 L20 36 L32 40 L44 22 L56 14" fill="none" strokeWidth="3.5" strokeLinejoin="round" strokeLinecap="round" className="stroke-accent-600" /><circle cx="20" cy="36" r="3" className="fill-white stroke-accent-600" strokeWidth="2" /><circle cx="44" cy="22" r="3" className="fill-white stroke-accent-600" strokeWidth="2" /></>,
+  aires: <><path d="M8 54 L8 44 L20 32 L32 38 L44 20 L56 14 L56 54 Z" className="fill-accent-200" /><path d="M8 44 L20 32 L32 38 L44 20 L56 14" fill="none" strokeWidth="3" strokeLinejoin="round" className="stroke-accent-600" /></>,
+  secteurs: <><path d="M32 32 L32 8 A24 24 0 0 1 54 41 Z" className="fill-accent-600" /><path d="M32 32 L54 41 A24 24 0 0 1 16 50 Z" className="fill-amber-500" /><path d="M32 32 L16 50 A24 24 0 0 1 32 8 Z" className="fill-emerald-500" /></>,
+  anneau: <><circle cx="32" cy="32" r="19" fill="none" strokeWidth="10" className="stroke-emerald-500" /><path d="M32 13 A19 19 0 0 1 50 38" fill="none" strokeWidth="10" className="stroke-accent-600" /><path d="M50 38 A19 19 0 0 1 22 48" fill="none" strokeWidth="10" className="stroke-amber-500" /></>,
+  progression: <><circle cx="32" cy="32" r="20" fill="none" strokeWidth="7" className="stroke-neutral-200" /><path d="M32 12 A20 20 0 1 1 13 38" fill="none" strokeWidth="7" strokeLinecap="round" className="stroke-accent-600" /><text x="32" y="37" textAnchor="middle" fontSize="13" fontWeight="700" className="fill-neutral-800">%</text></>,
+};
+
+function GrilleGraphiques({ liste }: { liste: typeof GENRES_GRAPHIQUE }) {
+  // Les couleurs de la marque passent en premier, la palette complète ensuite.
+  const couleursMarque = useMarque((s) => s.kit.couleurs);
+  const couleurs = [...couleursMarque.map((c) => c.valeur).filter((c) => c !== "#ffffff"), ...PALETTE_GRAPHIQUE];
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {liste.map((g) => (
+        <button
+          key={g.id}
+          title={`Graphique : ${g.libelle.toLowerCase()}`}
+          onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerGraphique(format, g.id, couleurs)])}
+          className="flex aspect-square cursor-grab items-center justify-center rounded-lg border border-neutral-200 hover:border-accent-500 hover:bg-accent-50"
+        >
+          <svg viewBox="0 0 64 64" className="h-10 w-10">
+            {DESSINS_GRAPHIQUES[g.id]}
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export const MODELES_TABLEAUX: { id: string; libelle: string; mots: string; cellules: string[][] }[] = [
+  { id: "simple", libelle: "Tableau simple", mots: "tableau simple vide grille", cellules: [["Colonne 1", "Colonne 2", "Colonne 3"], ["", "", ""], ["", "", ""]] },
+  { id: "comparatif", libelle: "Comparatif", mots: "tableau comparatif comparaison avantages concurrence", cellules: [["", "Nous", "Les autres"], ["Livraison", "24 h", "3 à 5 jours"], ["Retours", "Gratuits", "Payants"], ["Garantie", "2 ans", "1 an"]] },
+  { id: "tarifs", libelle: "Tarifs", mots: "tableau tarifs prix offres formules abonnement", cellules: [["Formule", "Prix", "Pour qui"], ["Essentiel", "19 €", "Pour débuter"], ["Pro", "49 €", "Pour vendre plus"], ["Équipe", "99 €", "Pour grandir"]] },
+  { id: "planning", libelle: "Planning", mots: "tableau planning semaine horaires calendrier", cellules: [["Jour", "Matin", "Après-midi"], ["Lundi", "", ""], ["Mardi", "", ""], ["Mercredi", "", ""], ["Jeudi", "", ""], ["Vendredi", "", ""]] },
+];
+
+function GrilleTableaux({ liste }: { liste: typeof MODELES_TABLEAUX }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {liste.map((m) => (
+        <button
+          key={m.id}
+          title={m.libelle}
+          onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerTableau(format, m.cellules)])}
+          className="flex cursor-grab flex-col items-center gap-1 rounded-lg border border-neutral-200 p-2 hover:border-accent-500 hover:bg-accent-50"
+        >
+          <svg viewBox="0 0 64 40" className="h-9 w-14">
+            {m.cellules.slice(0, 5).map((r, i) =>
+              r.map((_, j) => (
+                <rect key={`${i}-${j}`} x={1 + (j * 62) / r.length} y={1 + (i * 38) / Math.min(5, m.cellules.length)} width={62 / r.length - 1} height={38 / Math.min(5, m.cellules.length) - 1} className={i === 0 ? "fill-neutral-700" : i % 2 === 0 ? "fill-neutral-200" : "fill-neutral-100"} />
+              )),
+            )}
+          </svg>
+          <span className="text-[11px] text-neutral-600">{m.libelle}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const PAR_PAGE = 96;
 
 type Vue = { genre: "icone" | "emoji"; collection?: string } | null;
@@ -178,6 +244,14 @@ export function PanneauElements() {
   const grillesTrouvees = useMemo(() => {
     const q = normaliser(requete);
     return q !== "" && "grille photos collage mosaique".includes(q);
+  }, [requete]);
+  const graphiquesTrouves = useMemo(() => {
+    const q = normaliser(requete);
+    return q ? GENRES_GRAPHIQUE.filter((g) => q.split(" ").every((m) => g.mots.includes(m) || `${g.mots} diagramme statistiques chiffres donnees`.includes(m))) : [];
+  }, [requete]);
+  const tableauxTrouves = useMemo(() => {
+    const q = normaliser(requete);
+    return q ? MODELES_TABLEAUX.filter((t) => q.split(" ").every((m) => t.mots.includes(m))) : [];
   }, [requete]);
 
   if (presente === false) {
@@ -278,6 +352,18 @@ export function PanneauElements() {
               <GrilleMaquettes liste={maquettesTrouvees} />
             </>
           )}
+          {graphiquesTrouves.length > 0 && (
+            <>
+              <Titre>Graphiques</Titre>
+              <GrilleGraphiques liste={graphiquesTrouves} />
+            </>
+          )}
+          {tableauxTrouves.length > 0 && (
+            <>
+              <Titre>Tableaux</Titre>
+              <GrilleTableaux liste={tableauxTrouves} />
+            </>
+          )}
           {icones.length > 0 && (
             <>
               <Titre>
@@ -308,7 +394,7 @@ export function PanneauElements() {
               Afficher plus
             </button>
           )}
-          {formesTrouvees.length + cadresTrouves.length + maquettesTrouvees.length + icones.length + emojis.length === 0 && !grillesTrouvees && <p className="mt-6 text-center text-xs text-neutral-500">Rien trouvé. Essaie un autre mot, en français ou en anglais.</p>}
+          {formesTrouvees.length + cadresTrouves.length + maquettesTrouvees.length + graphiquesTrouves.length + tableauxTrouves.length + icones.length + emojis.length === 0 && !grillesTrouvees && <p className="mt-6 text-center text-xs text-neutral-500">Rien trouvé. Essaie un autre mot, en français ou en anglais.</p>}
         </>
       )}
 
@@ -325,6 +411,12 @@ export function PanneauElements() {
           <GrillesPhotos />
           <Titre>Maquettes d'appareils</Titre>
           <GrilleMaquettes liste={MAQUETTES} />
+          <Titre>Graphiques</Titre>
+          <GrilleGraphiques liste={GENRES_GRAPHIQUE} />
+          <p className="mt-1.5 text-[11px] text-neutral-500">Les chiffres se changent dans la barre du haut, bouton Données.</p>
+          <Titre>Tableaux</Titre>
+          <GrilleTableaux liste={MODELES_TABLEAUX} />
+          <p className="mt-1.5 text-[11px] text-neutral-500">Double-clic sur une case pour écrire, Tab pour passer à la suivante.</p>
           <Titre voirTout={() => setVue({ genre: "emoji", collection: "fluent" })}>Emojis</Titre>
           <div className="grid grid-cols-6 gap-0.5">
             {EMOJIS_COURANTS.map((n) => (

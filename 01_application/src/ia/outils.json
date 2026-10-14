@@ -626,6 +626,265 @@
     }
   },
   {
+    "name": "dessiner",
+    "description": "Dessin à main levée : chaque trait est une suite de points (x, y en pixels de la page) relevée au stylo, au marqueur ou au surligneur ; les points sont lissés. Plusieurs traits posés ensemble restent groupés. Sert à souligner, entourer, flécher à la main, griffonner un dessin simple.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "traits": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "properties": {
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "description": "x1, y1, x2, y2… en pixels de la page."
+              },
+              "couleur": {
+                "type": "string",
+                "description": "#rrggbb"
+              },
+              "epaisseur": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 200
+              },
+              "outil": {
+                "type": "string",
+                "enum": [
+                  "stylo",
+                  "marqueur",
+                  "surligneur"
+                ]
+              }
+            },
+            "required": [
+              "points"
+            ]
+          }
+        }
+      },
+      "required": [
+        "traits"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_graphique",
+    "description": "Pose un graphique : colonnes, barres (horizontales), lignes (courbe), aires, secteurs (camembert), anneau, progression (une jauge circulaire avec le chiffre au centre). Les données : etiquettes (catégories) et series ([{ nom, valeurs, couleur? }], une valeur par étiquette) ; secteurs et anneau n'utilisent que la première série, une part par étiquette ; progression : une valeur, sur maximum (100 par défaut), etiquettes[0] écrite sous le chiffre. Les couleurs de la marque passent en premier.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "genre": {
+          "type": "string",
+          "enum": [
+            "colonnes",
+            "barres",
+            "lignes",
+            "aires",
+            "secteurs",
+            "anneau",
+            "progression"
+          ]
+        },
+        "etiquettes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "series": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "nom": {
+                "type": "string"
+              },
+              "valeurs": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "couleur": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "valeurs"
+            ]
+          }
+        },
+        "couleursParts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Secteurs et anneau : une couleur par part ; progression : la couleur du fond de la jauge."
+        },
+        "unite": {
+          "type": "string",
+          "description": "Ajoutée après les valeurs : %, €, k…"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "legende": {
+          "type": "boolean"
+        },
+        "valeurs": {
+          "type": "boolean",
+          "description": "Écrire les valeurs sur le graphique."
+        },
+        "grille": {
+          "type": "boolean"
+        },
+        "police": {
+          "type": "string"
+        },
+        "taillePolice": {
+          "type": "number"
+        },
+        "couleurTexte": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "genre"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_tableau",
+    "description": "Pose un tableau de texte : cellules est la liste des rangées, chacune une liste de textes (la première rangée sert d'en-tête par défaut). La hauteur suit le contenu à la largeur donnée. Pour changer une case ensuite : modifier avec la grille cellules entière.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "cellules": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20
+          }
+        },
+        "entete": {
+          "type": "boolean"
+        },
+        "colonnes": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "Largeurs relatives des colonnes, une par colonne."
+        },
+        "police": {
+          "type": "string"
+        },
+        "taillePolice": {
+          "type": "number"
+        },
+        "couleurTexte": {
+          "type": "string"
+        },
+        "fond": {
+          "type": "string"
+        },
+        "fondEntete": {
+          "type": "string"
+        },
+        "texteEntete": {
+          "type": "string"
+        },
+        "rayures": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bordure": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "couleur": {
+              "type": "string"
+            },
+            "epaisseur": {
+              "type": "number"
+            }
+          }
+        },
+        "alignement": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "marge": {
+          "type": "number"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "cellules"
+      ]
+    }
+  },
+  {
     "name": "importer_image",
     "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié.",
     "inputSchema": {
@@ -890,7 +1149,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H).",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge.",
     "inputSchema": {
       "type": "object",
       "properties": {

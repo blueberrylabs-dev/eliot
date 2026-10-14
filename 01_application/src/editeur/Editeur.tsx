@@ -40,7 +40,8 @@ function usePressePapiers() {
     const surCopie = (e: ClipboardEvent) => copier(e, false);
     const surCoupe = (e: ClipboardEvent) => copier(e, true);
     const surCollage = (e: ClipboardEvent) => {
-      if (dansUnChamp(e.target) || useEditeur.getState().enEdition) return;
+      // Déjà pris en main ailleurs (données d'un graphique collées depuis un tableur).
+      if (e.defaultPrevented || dansUnChamp(e.target) || useEditeur.getState().enEdition) return;
       const donnees = e.clipboardData;
       const images = Array.from(donnees?.files ?? []).filter((f) => f.type.startsWith("image/"));
       e.preventDefault();

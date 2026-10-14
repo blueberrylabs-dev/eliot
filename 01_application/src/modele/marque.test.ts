@@ -22,8 +22,8 @@ describe("kit de marque", () => {
   it("une couleur de la marque va au bon endroit selon l'objet", () => {
     const format = { largeur: 1080, hauteur: 1080 };
     expect(modifCouleur(creerForme(format, "rectangle"), "#123456")).toEqual({ remplissage: "#123456" });
-    // Une ligne ou une flèche n'a que son trait.
-    expect(modifCouleur(creerForme(format, "fleche"), "#123456")).toEqual({ contour: "#123456" });
+    // Une ligne ou une flèche porte la couleur de son trait dans son remplissage.
+    expect(modifCouleur(creerForme(format, "fleche"), "#123456")).toEqual({ remplissage: "#123456" });
     expect(modifCouleur(creerQr(format, "https://exemple.fr", "#000000"), "#123456")).toEqual({ couleur: "#123456" });
   });
 });

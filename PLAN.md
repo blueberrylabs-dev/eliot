@@ -153,11 +153,12 @@ Choix par défaut de Claude, modifiables sur simple demande :
       d'appareils (lot 2, 2026-10-14)
 - [x] Photos Pixabay (noyau Rust), kit de marque (lot 3, 2026-10-14 ; la vraie recherche reste
       à essayer sur le poste)
-- [ ] Dessin à main levée, graphiques, tableaux
+- [x] Dessin à main levée, graphiques, tableaux (lot 4, 2026-10-14)
 - [ ] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
       ajouter_emoji, ajouter_qr, lister_polices, effets par modifier ; lot 2 : ajouter_cadre,
       ajouter_grille, ajouter_maquette, remplir_photo ; lot 3 : chercher_photos,
-      ajouter_photo_pixabay, marque, modifier_marque, ajouter_logo)
+      ajouter_photo_pixabay, marque, modifier_marque, ajouter_logo ; lot 4 : dessiner,
+      ajouter_graphique, ajouter_tableau)
 - [ ] Une quarantaine de modèles de départ
 - [ ] Personnages (Open Peeps, Humaaans)
 - [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
@@ -169,8 +170,7 @@ Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes
 (révision 8 du BRIEF : onglet Audio, voix enregistrée au micro, nettoyage de la voix, niveau
 sonore par plateforme, musique qui baisse sous la voix, bruitages Freesound, jingles du kit de
 marque, export sans musique pour les sons tendance ; avant l'étape, Alexandre crée sa clé
-Freesound et leur écrit pour confirmer l'usage de leur API, message préparé par Claude ;
-questions Q3 et Q4 du BRIEF),
+Freesound ; usage personnel d'apprentissage, donc API Freesound et voix Piper permises),
 sous-titres mot par mot, texte qui entre par lignes sur un cadre fixe (principe retenu le
 2026-10-14, prototype `outils/animer_scenes.py`), zones sûres TikTok, Reels et Shorts, réglages d'export par
 plateforme, export MP4 et GIF ; le Rust apprend à rendre les calques de la page.
