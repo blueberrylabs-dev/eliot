@@ -25,8 +25,8 @@ lourd. Détail : `BRIEF.md`.
   le mini PC.
 - Enveloppe : Tauri (décision du 2026-10-14), Electron en repli.
 - Étape 1, l'éditeur : `01_application/`, livrée et essayée sur le poste le 2026-10-14.
-- Étape 2, les projets et l'édition complète : livrée sur le poste le 2026-10-14, essai
-  d'Alexandre attendu ; reste le pont vers une IA (`PLAN.md`).
+- Étape 2, les projets et l'édition complète, avec le pont vers une IA (`eliot-mcp`) : livrée
+  sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
 
 Suite : `PLAN.md`.
 
@@ -187,7 +187,49 @@ Vérifier : `test result: ok. 25 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  13 passed`.
+Vérifier : `Tests  15 passed`.
+
+### Le pont vers une IA (fin de l'étape 2)
+
+**13. Compiler le pont `eliot-mcp`** (une fois, puis à chaque livraison qui le change ;
+processeur seulement, 4 cœurs, une à deux minutes) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && cargo build --release -j 4
+```
+
+Vérifier : la dernière ligne commence par `Finished`, et le fichier
+`01_application/eliot-mcp/target/release/eliot-mcp` existe.
+
+**14. L'activer dans Eliot** : Fichier, « Réglages et pont IA… » (ou la roue dentée de
+l'accueil), puis l'interrupteur. Le réglage est gardé : le pont se rouvre à chaque lancement
+d'Eliot, jusqu'à ce que l'interrupteur soit coupé. Le pont ne lance jamais Eliot.
+
+**15. Le déclarer à Claude**, une fois. Dans l'application Claude de bureau : menu Claude,
+Settings, onglet Developer, bouton Edit Config ; ajouter l'entrée `eliot` dans `mcpServers`
+(la fenêtre des réglages d'Eliot la donne toute prête, avec un bouton pour la copier), puis
+quitter et relancer l'application Claude :
+
+```
+{
+  "mcpServers": {
+    "eliot": {
+      "command": "/home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp/target/release/eliot-mcp"
+    }
+  }
+}
+```
+
+Si le fichier contient déjà d'autres serveurs, ajouter seulement le bloc `"eliot": {…}` à
+côté d'eux. Avec Claude Code, la même chose en une commande :
+
+```
+claude mcp add eliot -- /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp/target/release/eliot-mcp
+```
+
+Vérifier : Eliot ouvert et le pont activé, demander à Claude « appelle l'outil etat
+d'Eliot » ; la réponse décrit le design ouvert. Le design et ses captures partent chez
+Anthropic pendant l'échange (règle 12).
 
 ## Arborescence
 

@@ -2,6 +2,7 @@
 //! l'interface ; tout le travail réel est dans le noyau, qui ne dépend pas de Tauri.
 
 mod commandes;
+mod ia;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn lancer() {
@@ -9,6 +10,11 @@ pub fn lancer() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(commandes::VerrouProjets::default())
+        .manage(ia::PontIa::default())
+        .setup(|app| {
+            ia::au_demarrage(app.handle());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commandes::projets_lister,
             commandes::projet_creer,
@@ -31,6 +37,9 @@ pub fn lancer() {
             commandes::dossier_export,
             commandes::autotest_demande,
             commandes::autotest_rapport,
+            ia::ia_infos,
+            ia::ia_activer,
+            ia::ia_repondre,
         ])
         .run(tauri::generate_context!())
         .expect("échec du lancement d'Eliot");

@@ -1,0 +1,17 @@
+[package]
+name = "eliot-mcp"
+version = "0.1.0"
+description = "Pont MCP vers Eliot ouvert : relaie les appels d'outils d'une IA vers la fenêtre d'Eliot."
+authors = ["Alexandre Do"]
+edition = "2024"
+
+[dependencies]
+rmcp = { version = "3.5", default-features = false, features = ["server", "transport-io"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "time"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+strip = true

@@ -96,8 +96,10 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (2026-10-14, chiffres au JOURNAL)
 - [x] Livraison sur le poste (2026-10-14)
 - [ ] Essai par Alexandre (commandes 8 à 10 du `CLAUDE.md`)
-- [ ] Pont IA : programme `eliot-mcp`, outils calqués sur le store, capture de la page,
-      réglage pour l'activer, essai avec Claude
+- [x] Pont IA : programme `eliot-mcp`, 22 outils calqués sur le store, capture de la page,
+      réglage pour l'activer ; vérifié de bout en bout dans le conteneur (2026-10-14)
+- [ ] Pont IA : Alexandre compile `eliot-mcp`, l'active et le déclare à Claude (commandes 13
+      à 15 du `CLAUDE.md`), puis premier essai de Claude dans Eliot
 
 ## Étape 3. La bibliothèque et la mise en forme publicitaire
 

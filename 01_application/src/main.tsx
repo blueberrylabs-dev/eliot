@@ -9,6 +9,7 @@ import { nouveauDesign, ouvrirDesign, renommerDesign } from "./etat/projets";
 import { exporter } from "./export/exporter";
 import { creerImage, creerTitre } from "./modele/fabriques";
 import { cheminAutotest, importerChemins, listerProjets, ouvrirProjet, rapportAutotest, surFermeture } from "./pont/tauri";
+import { brancherPiloteIa } from "./ia/pilote";
 import { chargerPolices } from "./polices";
 
 const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -65,6 +66,7 @@ async function autotest(chemin: string): Promise<void> {
 async function demarrer() {
   await chargerPolices();
   demarrerEnregistrementAuto();
+  void brancherPiloteIa();
   void surFermeture(async () => {
     await enregistrerMaintenant();
     await miniatureMaintenant();

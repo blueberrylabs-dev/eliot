@@ -1,0 +1,241 @@
+[
+  {
+    "name": "etat",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images importées dans le design, polices disponibles. À appeler en premier, et après chaque série de modifications.",
+    "inputSchema": { "type": "object", "properties": {} }
+  },
+  {
+    "name": "capture",
+    "description": "Image PNG d'une page du design, pour voir le résultat et juger la mise en page. Par défaut la page affichée, 800 px de large.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page": { "type": "integer", "minimum": 1, "description": "Numéro de page, à partir de 1." },
+        "largeur": { "type": "integer", "minimum": 100, "maximum": 1600, "description": "Largeur de l'image en pixels." }
+      }
+    }
+  },
+  {
+    "name": "lister_designs",
+    "description": "Les designs enregistrés et les modèles maison, du plus récent au plus ancien (identifiant, nom, format, nombre de pages).",
+    "inputSchema": { "type": "object", "properties": {} }
+  },
+  {
+    "name": "nouveau_design",
+    "description": "Crée un design vide et l'ouvre. Formats prêts : carre (1080 × 1080, post), portrait (1080 × 1350, post et carrousel Instagram), story (1080 × 1920, Reels, TikTok, Shorts), paysage (1920 × 1080, YouTube), miniature (1280 × 720, miniature YouTube), banniere (1500 × 500), a4, a5. Ou une taille libre avec largeur et hauteur.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "format": { "type": "string", "enum": ["carre", "portrait", "story", "paysage", "miniature", "banniere", "a4", "a5"] },
+        "largeur": { "type": "integer", "minimum": 16, "maximum": 20000 },
+        "hauteur": { "type": "integer", "minimum": 16, "maximum": 20000 },
+        "nom": { "type": "string" }
+      }
+    }
+  },
+  {
+    "name": "ouvrir_design",
+    "description": "Ouvre un design enregistré (identifiant donné par lister_designs). Avec modele à vrai, crée un nouveau design à partir de ce modèle maison.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "modele": { "type": "boolean" } },
+      "required": ["id"]
+    }
+  },
+  {
+    "name": "renommer_design",
+    "description": "Change le nom du design ouvert.",
+    "inputSchema": { "type": "object", "properties": { "nom": { "type": "string" } }, "required": ["nom"] }
+  },
+  {
+    "name": "ajouter_texte",
+    "description": "Ajoute un texte sur la page affichée. Coordonnées en pixels de la page, origine en haut à gauche ; sans x ni y, le texte est centré. La hauteur se calcule toute seule d'après la largeur et la police. Couleur : #rrggbb ou un dégradé.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "texte": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "largeur": { "type": "number", "description": "Largeur de la boîte : le texte va à la ligne à l'intérieur." },
+        "taillePolice": { "type": "number" },
+        "police": { "type": "string", "description": "Une des polices données par etat." },
+        "couleur": { "$ref": "#/$defs/couleur" },
+        "gras": { "type": "boolean" },
+        "italique": { "type": "boolean" },
+        "souligne": { "type": "boolean" },
+        "alignement": { "type": "string", "enum": ["left", "center", "right"] },
+        "interligne": { "type": "number", "description": "Multiple de la taille de police, 1.2 par défaut." },
+        "espacement": { "type": "number", "description": "Espacement des lettres en pixels." },
+        "rotation": { "type": "number" },
+        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["texte"],
+      "$defs": {
+        "couleur": {
+          "description": "Couleur unie #rrggbb, ou dégradé { type: lineaire | radial, angle (degrés, 0 de gauche à droite), arrets: [{ position de 0 à 1, couleur }] }.",
+          "anyOf": [
+            { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "enum": ["lineaire", "radial"] },
+                "angle": { "type": "number" },
+                "arrets": { "type": "array", "items": { "type": "object", "properties": { "position": { "type": "number" }, "couleur": { "type": "string" } }, "required": ["position", "couleur"] }, "minItems": 2 }
+              },
+              "required": ["type", "arrets"]
+            }
+          ]
+        }
+      }
+    }
+  },
+  {
+    "name": "ajouter_forme",
+    "description": "Ajoute une forme sur la page affichée : rectangle (arrondi possible), ellipse, triangle, etoile. Sans position, elle est centrée. Remplissage : #rrggbb ou un dégradé (voir ajouter_texte).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "forme": { "type": "string", "enum": ["rectangle", "ellipse", "triangle", "etoile"] },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "largeur": { "type": "number" },
+        "hauteur": { "type": "number" },
+        "remplissage": {},
+        "contour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "epaisseurContour": { "type": "number", "minimum": 0 },
+        "arrondi": { "type": "number", "minimum": 0, "description": "Rayon des coins, rectangle seulement." },
+        "rotation": { "type": "number" },
+        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["forme"]
+    }
+  },
+  {
+    "name": "importer_image",
+    "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié.",
+    "inputSchema": { "type": "object", "properties": { "chemin": { "type": "string" } }, "required": ["chemin"] }
+  },
+  {
+    "name": "ajouter_image",
+    "description": "Pose sur la page affichée une image déjà importée (identifiant de ressource donné par etat ou importer_image). Avec seulement largeur ou seulement hauteur, les proportions sont gardées ; sans position, elle est centrée.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ressource": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "largeur": { "type": "number" },
+        "hauteur": { "type": "number" },
+        "rotation": { "type": "number" },
+        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["ressource"]
+    }
+  },
+  {
+    "name": "modifier",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, alignement, interligne, espacement ; pour une forme : remplissage, contour, epaisseurContour, arrondi ; pour une image : retourneH, retourneV.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "modifications": {
+          "type": "array",
+          "items": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"], "additionalProperties": true },
+          "minItems": 1
+        }
+      },
+      "required": ["modifications"]
+    }
+  },
+  {
+    "name": "supprimer",
+    "description": "Supprime des éléments de la page affichée (un élément verrouillé est gardé).",
+    "inputSchema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 } }, "required": ["ids"] }
+  },
+  {
+    "name": "ordre",
+    "description": "Change l'ordre d'empilement : premier (tout devant), avant (un cran devant), arriere (un cran derrière), dernier (tout derrière).",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "sens": { "type": "string", "enum": ["premier", "avant", "arriere", "dernier"] } },
+      "required": ["ids", "sens"]
+    }
+  },
+  {
+    "name": "aligner",
+    "description": "Aligne des éléments : un seul s'aligne sur la page, plusieurs s'alignent entre eux.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "sens": { "type": "string", "enum": ["gauche", "centre", "droite", "haut", "milieu", "bas"] } },
+      "required": ["ids", "sens"]
+    }
+  },
+  {
+    "name": "repartir",
+    "description": "Répartit l'espace également entre trois éléments ou plus, le premier et le dernier restant en place.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 3 }, "axe": { "type": "string", "enum": ["horizontal", "vertical"] } },
+      "required": ["ids", "axe"]
+    }
+  },
+  {
+    "name": "grouper",
+    "description": "Groupe des éléments (ils se sélectionnent et bougent ensemble), ou les dégroupe avec degrouper à vrai.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "degrouper": { "type": "boolean" } },
+      "required": ["ids"]
+    }
+  },
+  {
+    "name": "fond_page",
+    "description": "Fond de la page affichée : #rrggbb ou un dégradé (voir ajouter_texte).",
+    "inputSchema": { "type": "object", "properties": { "couleur": {} }, "required": ["couleur"] }
+  },
+  {
+    "name": "pages",
+    "description": "Gère les pages : ajouter (après la page affichée), dupliquer (la page affichée), supprimer (numero), aller (numero), deplacer (numero vers une autre position). Les numéros commencent à 1.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "enum": ["ajouter", "dupliquer", "supprimer", "aller", "deplacer"] },
+        "numero": { "type": "integer", "minimum": 1 },
+        "vers": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["action"]
+    }
+  },
+  {
+    "name": "changer_format",
+    "description": "Passe le design dans un autre format (en pixels). Avec adapter (par défaut), le contenu est mis à l'échelle et centré.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "largeur": { "type": "integer", "minimum": 16, "maximum": 20000 }, "hauteur": { "type": "integer", "minimum": 16, "maximum": 20000 }, "adapter": { "type": "boolean" } },
+      "required": ["largeur", "hauteur"]
+    }
+  },
+  {
+    "name": "annuler",
+    "description": "Annule les dernières modifications (une par défaut), comme Ctrl+Z.",
+    "inputSchema": { "type": "object", "properties": { "fois": { "type": "integer", "minimum": 1, "maximum": 50 } } }
+  },
+  {
+    "name": "retablir",
+    "description": "Rétablit ce qui vient d'être annulé (une étape par défaut).",
+    "inputSchema": { "type": "object", "properties": { "fois": { "type": "integer", "minimum": 1, "maximum": 50 } } }
+  },
+  {
+    "name": "exporter",
+    "description": "Exporte en PNG ou JPEG dans le dossier Images/Eliot de l'utilisateur, la page affichée ou toutes les pages (une image par page). Renvoie les chemins écrits.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "format": { "type": "string", "enum": ["png", "jpeg"] },
+        "pages": { "type": "string", "enum": ["courante", "toutes"] },
+        "ratio": { "type": "integer", "enum": [1, 2] },
+        "transparent": { "type": "boolean" }
+      }
+    }
+  }
+]

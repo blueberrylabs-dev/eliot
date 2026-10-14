@@ -63,6 +63,9 @@ interface EtatEditeur {
   zoomAjuste: number;
   vueGrille: boolean;
   apercu: boolean;
+  /** Dernier outil appelé par une IA (pont MCP), pour le signal « l'IA travaille ». */
+  iaDernierAppel: { outil: string; quand: number } | null;
+  reglagesOuverts: boolean;
 
   chargerProjet: (projet: RefProjet | null, document: DocumentEliot, ressources: Ressource[]) => void;
   allerALAccueil: () => void;
@@ -117,6 +120,7 @@ interface EtatEditeur {
   definirZoomAjuste: (zoom: number) => void;
   basculerVueGrille: () => void;
   basculerApercu: (actif?: boolean) => void;
+  signalerIa: (outil: string) => void;
 }
 
 // ---- Lecture ----
@@ -187,6 +191,8 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   zoomAjuste: 0.5,
   vueGrille: false,
   apercu: false,
+  iaDernierAppel: null,
+  reglagesOuverts: false,
 
   chargerProjet(projet, document, ressources) {
     set({
@@ -566,5 +572,9 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
 
   basculerApercu(actif) {
     set({ apercu: actif ?? !get().apercu, selection: [], enEdition: null });
+  },
+
+  signalerIa(outil) {
+    set({ iaDernierAppel: { outil, quand: Date.now() } });
   },
 }));

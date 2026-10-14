@@ -1,7 +1,7 @@
 // L'accueil, comme celui de Canva : créer un design en choisissant son format, retrouver ses
 // designs récents et ses modèles maison.
 
-import { Copy, FileArchive, FolderInput, FolderOpen, LayoutTemplate, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Copy, FileArchive, FolderInput, FolderOpen, LayoutTemplate, MoreHorizontal, Pencil, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useEditeur } from "../etat/editeur";
 import { copierDepuisAccueil, exporterDesign, importerDesign, nouveauDesign, ouvrirDesign, renommerDepuisAccueil, supprimerDesign, utiliserModele } from "../etat/projets";
@@ -216,6 +216,9 @@ export function Accueil() {
             </button>
           </>
         )}
+        <button onClick={() => useEditeur.setState({ reglagesOuverts: true })} className="flex items-center gap-2 rounded-lg bg-white/15 px-3 py-1.5 text-sm hover:bg-white/25" title="Réglages et pont IA">
+          <Settings size={16} />
+        </button>
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto px-8 py-6 defilement-fin">

@@ -5,6 +5,33 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, pont vers une IA (MCP), dernier morceau de l'étape 2
+
+- Fait par Claude, comme prévu au BRIEF (§ 6) : programme `eliot-mcp` (Rust, `rmcp` 3.5,
+  binaire de 2 Mo), lancé par le client MCP par l'entrée et la sortie standard ; il relaie
+  chaque appel vers Eliot ouvert par un fichier de communication local
+  (`$XDG_RUNTIME_DIR/eliot/eliot.sock`, dossier 700, fichier 600, aucun port réseau). Côté
+  Eliot, `src-tauri/src/ia.rs` écoute seulement si le réglage est activé (Fichier, « Réglages
+  et pont IA… », gardé dans `~/.config/fr.alexandredo.eliot/reglages.json`) et passe chaque
+  appel à l'interface, qui l'exécute avec les actions du store (`src/ia/outils.ts`).
+- 22 outils, décrits une seule fois dans `src/ia/outils.json`, lu par l'interface et inclus
+  dans `eliot-mcp` à la compilation : etat, capture (PNG de la page), lister_designs,
+  nouveau_design, ouvrir_design, renommer_design, ajouter_texte, ajouter_forme,
+  importer_image, ajouter_image, modifier, supprimer, ordre, aligner, repartir, grouper,
+  fond_page, pages, changer_format, annuler, retablir, exporter. Aucun ne supprime un design,
+  n'efface une image importée ni n'écrit hors des dossiers d'Eliot. Un signal « IA : <outil> »
+  s'allume quelques secondes dans la barre du haut à chaque appel.
+- Vérifié dans le conteneur : `eliot-mcp` lancé comme par un client MCP, Eliot ouvert sous
+  Tauri : 19 vérifications sur 19 (initialisation et consignes, 22 outils listés, story créée,
+  fond en dégradé, titre en Bebas Neue, bouton arrondi, photo 24 Mpx importée en 0,9 s et
+  posée en gardant ses proportions, alignement, modification groupée, refus clair d'une
+  propriété inconnue, capture PNG, duplication de page puis annulation, export, outil inconnu
+  refusé, design listé) ; tests Rust du pont 2 sur 2 (dont « Eliot fermé donne un message
+  clair ») ; vitest 15 sur 15 (dont la concordance entre outils décrits et outils codés).
+- Reste : Alexandre compile le pont, l'active et le déclare à Claude (commandes 13 à 15 du
+  `CLAUDE.md`). Une fois déclaré dans l'application Claude de bureau, le pont est aussi
+  joignable depuis une session de Claude liée à son poste.
+
 ## 2026-10-14, étape 2 : projets et édition complète, livrée sur le poste
 
 - Fait par Claude, choix par défaut inscrits au `PLAN.md` : accueil (formats nommés par

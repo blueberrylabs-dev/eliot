@@ -422,6 +422,26 @@ export async function confirmer(message: string, titre: string): Promise<boolean
 }
 
 // ========================================================================================
+// Pont vers une IA (MCP)
+// ========================================================================================
+
+export interface InfosIa {
+  active: boolean;
+  ecoute: boolean;
+  socket: string;
+  binaire: string;
+  binaire_present: boolean;
+}
+
+export async function infosIa(): Promise<InfosIa | null> {
+  return dansTauri ? invoke<InfosIa>("ia_infos") : null;
+}
+
+export async function activerIa(active: boolean): Promise<InfosIa> {
+  return invoke<InfosIa>("ia_activer", { active });
+}
+
+// ========================================================================================
 // Export
 // ========================================================================================
 

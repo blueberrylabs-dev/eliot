@@ -43,6 +43,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Exporter en PNG (fond transparent possible) ou en JPEG, taille normale ou double, la page
   affichée ou toutes les pages (une image par page), dans `~/Images/Eliot/`.
 
+**Laisser une IA piloter Eliot**
+- Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
+  alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
+  poste, regarder une capture de la page et exporter. On la voit travailler dans la fenêtre,
+  et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 du `CLAUDE.md`.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -81,7 +87,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 ```
 01_application/
 ├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports (cargo test)
-├── src-tauri/        la fenêtre et les commandes appelées par l'interface (src/commandes.rs)
+├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
+├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── src/
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── accueil/      l'accueil : formats, designs, modèles
@@ -89,7 +96,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages
-│   └── export/       rendu d'une page hors écran, export
+│   ├── export/       rendu d'une page hors écran, export
+│   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
+│   └── reglages/     la fenêtre des réglages
 └── outils/           dessin de l'icône
 ```
 

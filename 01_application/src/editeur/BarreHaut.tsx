@@ -1,7 +1,7 @@
 // La barre du haut : accueil, menu Fichier, Redimensionner, annuler et rétablir, nom du
 // design et état de l'enregistrement, export.
 
-import { AlertTriangle, Check, ChevronDown, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, LayoutTemplate, Loader2, Maximize2, Redo2, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, Bot, Check, ChevronDown, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, LayoutTemplate, Loader2, Maximize2, Redo2, Settings, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
@@ -151,6 +151,7 @@ function MenuFichier({ fermer, redimensionner }: { fermer: () => void; redimensi
         inactif={!projet || !dansTauri}
         surClic={action(async () => projet && afficherDansDossier(`${await dossierDesigns()}/${projet.id}/document.json`))}
       />
+      <Ligne icone={<Settings size={16} />} libelle="Réglages et pont IA…" surClic={action(() => useEditeur.setState({ reglagesOuverts: true }))} />
       <Separateur />
       <Ligne icone={<Trash2 size={16} />} libelle="Mettre à la corbeille" inactif={!projet} surClic={action(() => projet && supprimerDesign(projet, nom))} />
     </div>
@@ -169,6 +170,24 @@ function EtatEnregistrement() {
     <span className={`flex items-center gap-1 text-xs ${etat === "erreur" ? "font-medium text-amber-200" : "text-white/70"}`} title="Eliot enregistre tout seul, une seconde après chaque modification">
       {contenu.icone}
       {contenu.texte}
+    </span>
+  );
+}
+
+/** Signal discret quand une IA vient d'agir dans Eliot (pont MCP). */
+function IndicateurIa() {
+  const appel = useEditeur((s) => s.iaDernierAppel);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    if (!appel) return;
+    setVisible(true);
+    const minuterie = setTimeout(() => setVisible(false), 4000);
+    return () => clearTimeout(minuterie);
+  }, [appel]);
+  if (!visible || !appel) return null;
+  return (
+    <span className="ml-3 flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-0.5 text-xs text-white" title="Une IA agit dans Eliot ; Ctrl+Z défait chacune de ses actions">
+      <Bot size={14} className="animate-pulse" /> IA : {appel.outil.replace(/_/g, " ")}
     </span>
   );
 }
@@ -239,6 +258,7 @@ export function BarreHaut() {
       <span className="ml-2">
         <EtatEnregistrement />
       </span>
+      <IndicateurIa />
       <span className="flex flex-1 justify-center">
         <NomDesign />
       </span>
