@@ -1,9 +1,10 @@
 # PLAN.md — Eliot
 
 Plan vivant, source de vérité de l'avancement. Version du 2026-10-14, alignée sur le
-`BRIEF.md` (révision 6, validée le 2026-10-14 ; la révision 5 ajoute la bibliothèque, le
+`BRIEF.md` (révision 7, validée le 2026-10-14 ; la révision 5 ajoute la bibliothèque, le
 labo photo, le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6 ;
-la révision 6 met Pixabay avant Pexels).
+la révision 6 met Pixabay avant Pexels ; la révision 7 ajoute la création de contenu pour
+YouTube, TikTok et Instagram et fait passer la vidéo avant le labo photo).
 
 ## Étape 0. Banc d'essai (ouverte le 2026-10-14, poste principal fait le 2026-10-14)
 
@@ -21,8 +22,8 @@ principal, lus par Claude, et la décision Tauri ou Electron inscrite au JOURNAL
 - [x] Claude lit les résultats (JOURNAL du 2026-10-14) ; règle 11 ajoutée au BRIEF
 - [x] Alexandre tranche : démarrer sur Tauri, Electron en repli (2026-10-14)
 - [x] Alexandre valide le BRIEF (2026-10-14)
-- [ ] Mini PC : même série, quand il sera disponible ; décision définitive Tauri ou Electron avant l'étape 5 (vidéo)
-- [ ] Comprendre la lecture au ralenti de la vidéo H.264 dans Tauri (avant l'étape 5)
+- [ ] Mini PC : même série, quand il sera disponible ; décision définitive Tauri ou Electron avant l'étape 4 (vidéo)
+- [ ] Comprendre la lecture au ralenti de la vidéo H.264 dans Tauri (avant l'étape 4)
 
 ## Étape 1. L'éditeur (ouverte le 2026-10-14, livrée sur le poste le 2026-10-14)
 
@@ -98,18 +99,20 @@ Choix par défaut de Claude, modifiables sur simple demande :
 
 ## Étape 3. La bibliothèque et la mise en forme publicitaire
 
-Icônes, emojis, personnages, polices, recherche Pixabay puis Pexels (Alexandre crée son
-compte Pixabay et relève sa clé avant), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
+Icônes, emojis, personnages, polices, recherche Pixabay puis Pexels (clé Pixabay posée par
+Alexandre dans le `.env` le 2026-10-14), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
 dessin, graphiques, tableaux, QR code ; pour finir, une quarantaine de modèles de départ.
 
-## Étape 4. Le labo photo et le Rust qui rend
-
-Banc de l'aperçu en direct, labo façon Lightroom et préréglages, recadrage, export depuis le
-document (PDF vectoriel, haute définition, WebP, SVG), perspective, détourage.
-
-## Étape 5. La vidéo façon CapCut
+## Étape 4. La vidéo façon CapCut
 
 Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son,
-sous-titres, export MP4 et GIF.
+sous-titres mot par mot, zones sûres TikTok, Reels et Shorts, réglages d'export par
+plateforme, export MP4 et GIF ; le Rust apprend à rendre les calques de la page.
+
+## Étape 5. Le labo photo et les exports de qualité
+
+Banc de l'aperçu en direct, labo façon Lightroom et préréglages (photos et clips), recadrage,
+export depuis le document (PDF vectoriel, haute définition, WebP, SVG), perspective,
+détourage.
 
 ## Étape 6. Le reste du catalogue

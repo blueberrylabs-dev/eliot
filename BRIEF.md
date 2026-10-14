@@ -1,12 +1,15 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-14, révision 6, **validée par Alexandre le
-2026-10-14**. La révision 6 remplace Pexels, qui a suspendu ses nouvelles clés, par Pixabay
-en premier (« Oui, je suis d'accord »). La révision 5 (« Pour tous tes points, c'est bon »)
-ajoute à la révision 4, validée plus tôt le même jour, ce qu'il a demandé en comparant Eliot
-à Canva (« Oui, tu rajoutes tout » : bibliothèque d'éléments, modèles de départ, photos et
-vidéos en ligne, nouvelles fonctions), le labo photo façon Lightroom, le mode vidéo façon
-CapCut, le pont vers une IA et un nouvel ordre de construction. Toute modification passe par une entrée du JOURNAL et par son accord
+Cadrage, écrit une fois. Version du 2026-10-14, révision 7, **validée par Alexandre le
+2026-10-14** (« Tu as mon accord »). La révision 7 ajoute son objectif de création de contenu
+pour YouTube, TikTok et Instagram, avec ce qu'il implique, fait passer la vidéo avant le labo
+photo et range les clés d'API dans le `.env` hors git. La révision 6 remplace Pexels, qui a
+suspendu ses nouvelles clés, par Pixabay en premier (« Oui, je suis d'accord »). La révision 5
+(« Pour tous tes points, c'est bon ») ajoute à la révision 4, validée plus tôt le même jour, ce
+qu'il a demandé en comparant Eliot à Canva (« Oui, tu rajoutes tout » : bibliothèque
+d'éléments, modèles de départ, photos et vidéos en ligne, nouvelles fonctions), le labo photo
+façon Lightroom, le mode vidéo façon CapCut, le pont vers une IA et un nouvel ordre de
+construction. Toute modification passe par une entrée du JOURNAL et par son accord
 (`00_moi/AUTONOMIE.md`, point 7).
 
 ## 1. Objet
@@ -18,7 +21,9 @@ souris (sélection, déplacement, redimensionnement et rotation par poignées) e
 rendu dans un dossier du poste.
 
 Usage : apprendre la création publicitaire en produisant des visuels (photos) et des spots
-vidéo, ainsi que des maquettes de produits. Eliot doit donc être simple, rapide et intuitif,
+vidéo, ainsi que des maquettes de produits ; et se lancer dans la création de contenu pour
+YouTube, TikTok et Instagram (vidéos, montages photo, carrousels), en apprenant le métier avec
+l'aide de l'IA (révision 7). Eliot doit donc être simple, rapide et intuitif,
 et offrir dès la version 1 un maximum de fonctions (catalogue au § 6). Deux outils servent de
 modèles en plus de Canva : Lightroom pour retoucher une photo avec des curseurs, CapCut pour
 monter une vidéo sur une frise à pistes, en bas de l'écran.
@@ -50,7 +55,9 @@ option qu'il y a sur Lightroom », « un ajustement avec des curseurs pour l'exp
 contraste, saturation, température, netteté, etc. », « pour la partie vidéo, façon CapCut »,
 « un mode vidéo animation ou mini timeline en bas de l'écran avec des pistes pour superposer
 du texte animé sur une vidéo », « est-ce que cet outil, on pourrait le brancher à une IA pour
-qu'il puisse faire les choses de lui-même ».
+qu'il puisse faire les choses de lui-même », « je cherche à me lancer dans la création de
+contenu euh, sur euh, YouTube, TikTok, Instagram, via des vidéos, des montages photos.
+apprendre le métier. Et tout ça avec l'assistance de l'IA ».
 
 ## 3. Public et posture
 
@@ -140,9 +147,12 @@ d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche C
 12. **Hors ligne par défaut.** Tout fonctionne sans internet. Seules sortent sur le réseau la
     recherche de photos et de vidéos libres (Pixabay, Pexels), quand Alexandre la lance, et
     les échanges avec Claude, quand il branche Claude sur Eliot (§ 6). C'est le Rust qui
-    appelle ces services ; les clés sont rangées dans le dossier de configuration du poste,
-    jamais dans le dépôt ni dans l'interface. Une photo ou une vidéo choisie est copiée dans les ressources avec le nom et
-    le lien de son auteur : le projet n'a plus besoin du réseau ensuite.
+    appelle ces services. Les clés vivent hors git : dans le `.env` à la racine du dépôt,
+    comme dans les autres projets d'Alexandre (`00_moi/COMPTES.md`), lu par le Rust en
+    développement ; dans le dossier de configuration du poste pour la version installée.
+    Jamais dans un commit ni dans l'interface. Une photo ou une vidéo choisie est copiée dans
+    les ressources avec le nom et le lien de son auteur : le projet n'a plus besoin du réseau
+    ensuite.
 13. **Une retouche ne touche jamais l'original.** Réglages de photo, recadrage, détourage,
     coupes et vitesse d'une vidéo sont des valeurs du document. Le Rust les applique à
     l'aperçu pour l'écran et à l'original pour l'export ; on peut toujours remettre à zéro.
@@ -161,11 +171,11 @@ ce que les outils imposent (`package.json`, `src-tauri/`, `Cargo.toml`, `main.rs
 | Import des images : décodage, orientation, aperçu, miniature, empreinte | noyau Rust natif | calcul lourd, plusieurs cœurs, l'interface ne reçoit qu'un aperçu léger |
 | Ouverture, enregistrement automatique, copie des projets | noyau Rust natif | accès disque, écriture atomique |
 | Écriture des exports | noyau Rust natif | idem |
-| Rendu d'export depuis le document, avec les images originales (PDF vectoriel, haute définition) | noyau Rust natif, étape 4 | qualité maximale, indépendante de l'écran |
-| Réglages de photo (labo façon Lightroom), histogramme | noyau Rust natif ; aperçu en direct par le Rust ou par un shader WebGL, choisi par mesure (étape 4) | calcul pixel par pixel sur des millions de pixels |
+| Rendu d'export depuis le document, avec les images originales (calques des vidéos, PDF vectoriel, haute définition) | noyau Rust natif, étapes 4 et 5 | qualité maximale, indépendante de l'écran |
+| Réglages de photo (labo façon Lightroom), histogramme | noyau Rust natif ; aperçu en direct par le Rust ou par un shader WebGL, choisi par mesure (étape 5) | calcul pixel par pixel sur des millions de pixels |
 | Recherche et téléchargement de photos et vidéos libres (Pixabay, Pexels) | noyau Rust natif | la clé reste hors de l'interface (règle 12) |
 | Frise vidéo, lecture, textes animés à l'écran | React et Konva | c'est de l'interface et du dessin interactif |
-| Vignettes et formes d'onde, copies d'aperçu des vidéos, export MP4, sous-titres automatiques | noyau Rust, avec le programme `ffmpeg` du système et Whisper sur le processeur (étape 5) | décodage, composition et encodage image par image |
+| Vignettes et formes d'onde, copies d'aperçu des vidéos, export MP4, sous-titres automatiques | noyau Rust, avec le programme `ffmpeg` du système et Whisper sur le processeur (étape 4) | décodage, composition et encodage image par image |
 
 Le noyau est une bibliothèque Rust à part (`noyau/`), sans aucune dépendance à Tauri : il se
 teste seul (`cargo test`), et si l'enveloppe change un jour, il reste.
@@ -179,7 +189,7 @@ surtout sur le mini PC. Le banc d'essai de l'étape 0 la mesure avant d'écrire 
 | Enveloppe | Statut | Raison |
 | --- | --- | --- |
 | Tauri (WebKitGTK) | proposée pour démarrer l'étape 1 ; passe le banc du poste principal avec la règle 11 | la plus légère, Rust natif à côté de l'interface ; marge faible sur le dessin (8,7 ms par page contre 1,0 dans Chrome), vidéo H.264 lue au ralenti |
-| Electron (Chromium embarqué) | repli, décision définitive après le banc du mini PC et avant l'étape 5 (vidéo) | moteur de Chrome sur les deux postes, environ 8 fois plus de marge sur le dessin, H.264 normale ; mais 123 Mo d'archive pour Electron seul et plus de mémoire ; le noyau Rust resterait natif (module Node écrit en Rust, napi-rs) |
+| Electron (Chromium embarqué) | repli, décision définitive après le banc du mini PC et avant l'étape 4 (vidéo) | moteur de Chrome sur les deux postes, environ 8 fois plus de marge sur le dessin, H.264 normale ; mais 123 Mo d'archive pour Electron seul et plus de mémoire ; le noyau Rust resterait natif (module Node écrit en Rust, napi-rs) |
 | Application web installée dans Chrome | écartée le 2026-10-14 | demande un hébergement ou un serveur local ; Alexandre veut une application locale |
 | Application 100 % Rust (iced, Slint, egui) | écartée sauf échec des deux premières | toute l'interface Canva serait à construire avec des outils moins mûrs : des mois de travail |
 
@@ -189,33 +199,33 @@ Canva est facile parce que chaque action courante est visible et se fait en un g
 reprend ces gestes et cette disposition, avec ses propres couleurs et sans le logo ni les
 polices de Canva.
 
-- **Le rail d'onglets à gauche**, avec un panneau qui s'ouvre à côté. Étape 1 : Textes,
-  Formes, Images, Calques. Révision 5, sur le modèle de la capture de Canva du 2026-10-14 :
-  Modèles, Éléments (formes, lignes, icônes, emojis, personnages, cadres et grilles photo,
-  maquettes d'appareils, graphiques, tableaux, QR code), Texte (styles et associations de
-  polices), Photos (Pixabay, Pexels), Importer, Marque, Dessin, Projets, Calques. Un clic pose l'objet
-  au centre de la page ; on peut aussi le glisser à l'endroit voulu (étape 2). Chaque panneau a
-  sa recherche par mot.
+- **Le rail d'onglets à gauche**, avec un panneau qui s'ouvre à côté. Étape 1 : Textes, Formes,
+  Images, Calques. Révision 5, sur le modèle de la capture de Canva du 2026-10-14 : Modèles,
+  Éléments (formes, lignes, icônes, emojis, personnages, cadres et grilles photo, maquettes
+  d'appareils, graphiques, tableaux, QR code), Texte (styles et associations de polices),
+  Photos (Pixabay, Pexels), Importer, Marque, Dessin, Projets, Calques. Un clic pose l'objet au
+  centre de la page ; on peut aussi le glisser à l'endroit voulu (étape 2). Chaque panneau a sa
+  recherche par mot.
 - **La barre du haut** : accueil, menu Fichier, nom du design (modifiable), état de
   l'enregistrement, Redimensionner (décliner le design dans un autre format), annuler et
   rétablir, bascule Photo ou Vidéo (qui ouvre la frise, voir CapCut plus bas), Exporter.
 - **La barre d'outils contextuelle** au-dessus de la page, qui change selon la sélection :
   police, taille, couleur, gras, italique, alignement pour un texte ; couleur et arrondi pour
   une forme ; retourner et transparence pour une image.
-- **La mini-barre flottante** juste au-dessus de l'objet sélectionné : dupliquer, supprimer,
-  et un bouton « plus » qui ouvre le menu de l'objet. Le même menu sort au clic droit.
+- **La mini-barre flottante** juste au-dessus de l'objet sélectionné : dupliquer, supprimer, et
+  un bouton « plus » qui ouvre le menu de l'objet. Le même menu sort au clic droit.
 - **Les poignées** rondes aux coins, en pilule sur les côtés, et la poignée de rotation sous
   l'objet. Pendant le geste, une étiquette affiche la taille ou l'angle.
-- **Les repères magnétiques** : en déplaçant un objet, des lignes roses apparaissent et
-  l'objet s'aimante au centre et aux bords de la page et des autres objets. C'est ce qui donne
+- **Les repères magnétiques** : en déplaçant un objet, des lignes roses apparaissent et l'objet
+  s'aimante au centre et aux bords de la page et des autres objets. C'est ce qui donne
   l'impression que « tout s'aligne tout seul ».
 - **L'édition du texte en place** : double-clic, on tape directement sur la page.
-- **Coller une image** depuis le presse-papiers (une capture d'écran, par exemple) et
-  **déposer un fichier** depuis le gestionnaire de fichiers (étape 2).
-- **La barre du bas** : zoom par curseur et « Ajuster à l'écran », vignettes des pages avec
-  un bouton pour en ajouter une, vue en grille des pages, plein écran.
-- **L'accueil** : créer un design en choisissant un format, rouvrir un design récent
-  (étape 2, avec les projets).
+- **Coller une image** depuis le presse-papiers (une capture d'écran, par exemple) et **déposer
+  un fichier** depuis le gestionnaire de fichiers (étape 2).
+- **La barre du bas** : zoom par curseur et « Ajuster à l'écran », vignettes des pages avec un
+  bouton pour en ajouter une, vue en grille des pages, plein écran.
+- **L'accueil** : créer un design en choisissant un format, rouvrir un design récent (étape 2,
+  avec les projets).
 - Les raccourcis clavier usuels : Ctrl+Z, Ctrl+Y, Ctrl+C, Ctrl+V, Ctrl+D, Suppr, flèches.
 
 Ce qu'Eliot ne reprend pas de la capture : IA Canva (génération), Présenter, Notes, Minuteur,
@@ -247,7 +257,7 @@ blancs, exposition, tonalités, courbe, couleurs, détail, effets. L'aperçu aff
 recalculé depuis l'aperçu de 2560 px, l'export depuis l'original (règles 5 et 7).
 
 Aperçu en direct, pendant qu'on tire un curseur : deux voies, départagées par un petit banc au
-début de l'étape 4, sur le poste principal puis sur le mini PC. Objectif : au moins 30 images
+début de l'étape 5, sur le poste principal puis sur le mini PC. Objectif : au moins 30 images
 par seconde sur le mini PC.
 
 | Voie | Principe | Pour | Contre |
@@ -283,8 +293,13 @@ l'écran avec des pistes pour superposer du texte animé sur une vidéo ».
   enchaîné, glissement, zoom, volet).
 - **Les sous-titres** : à la main, ou automatiques par reconnaissance vocale locale (Whisper,
   licence MIT, sur le processeur ; proposé par Claude), puis modifiables comme des textes.
+  Révision 7 : sous-titres animés mot par mot, le mot prononcé mis en valeur, à la façon des
+  vidéos TikTok.
 - **L'export** : MP4 (H.264, 1080p, 30 images par seconde par défaut) et GIF, avec une barre de
-  progression et un bouton pour annuler.
+  progression et un bouton pour annuler. Révision 7 : réglages d'export prêts par plateforme
+  (YouTube, Shorts, TikTok, Reels), valeurs vérifiées au moment de les écrire.
+- **Les zones sûres** : dans le format 9:16, un calque d'aide montre où TikTok, Reels ou
+  Shorts posent leurs boutons et leurs légendes, pour ne pas y placer de texte.
 
 Fonctionnement. Pendant l'édition, la vidéo joue dans la fenêtre, sur son propre calque
 (règle 11), à partir d'une copie légère que le Rust prépare à l'import, avec des images clés
@@ -293,7 +308,7 @@ mesure : au banc, la vidéo H.264 a joué au ralenti dans Tauri et la VP9 à vit
 textes animés sont calculés en TypeScript à chaque image ; le Rust reprend les mêmes formules
 pour l'export, contrôlées par un tableau de valeurs attendues commun aux deux. À l'export, le
 Rust décode les originaux avec `ffmpeg`, compose chaque image (la vidéo réglée, puis les calques
-rendus comme à l'étape 4), mixe le son, et `ffmpeg` encode le fichier.
+rendus par le Rust), mixe le son, et `ffmpeg` encode le fichier.
 
 ### Brancher une IA : Eliot piloté par Claude
 
@@ -304,17 +319,17 @@ Le socle s'y prête déjà : le document est un JSON (règle 1) et toute modific
 une action du store (règle 2). Il suffit d'offrir ces actions à une IA sous forme d'outils.
 
 - **Le pont** : MCP (Model Context Protocol), le protocole standard qui relie une IA à des
-  outils. Un petit programme `eliot-mcp`, lancé par l'application Claude elle-même (mode
-  local des clients MCP, par l'entrée et la sortie standard), relaie vers Eliot ouvert par un
-  fichier de communication local (socket Unix) réservé à l'utilisateur : aucun port réseau
-  n'est ouvert. Écrit en Rust avec `rmcp`, le kit officiel (§ 4). Le pont ne lance jamais
-  Eliot (règle 9) : fenêtre fermée, il répond qu'Eliot n'est pas ouvert. Il ne fonctionne que
-  si Alexandre l'a activé dans les réglages d'Eliot.
+  outils. Un petit programme `eliot-mcp`, lancé par l'application Claude elle-même (mode local
+  des clients MCP, par l'entrée et la sortie standard), relaie vers Eliot ouvert par un fichier
+  de communication local (socket Unix) réservé à l'utilisateur : aucun port réseau n'est
+  ouvert. Écrit en Rust avec `rmcp`, le kit officiel (§ 4). Le pont ne lance jamais Eliot
+  (règle 9) : fenêtre fermée, il répond qu'Eliot n'est pas ouvert. Il ne fonctionne que si
+  Alexandre l'a activé dans les réglages d'Eliot.
 - **Les outils de l'IA**, calqués sur les actions du store : lire le document ; ajouter,
-  modifier, déplacer, supprimer des éléments ; changer la page et son format ; chercher dans
-  la bibliothèque (icônes, emojis, polices, modèles) et dans les banques de photos ; importer une image du
-  poste ; appliquer des réglages du labo photo ; poser des clips et des animations sur la
-  frise ; exporter. Et un outil pour **voir** : une capture de la page en PNG, pour que l'IA
+  modifier, déplacer, supprimer des éléments ; changer la page et son format ; chercher dans la
+  bibliothèque (icônes, emojis, polices, modèles) et dans les banques de photos ; importer une
+  image du poste ; appliquer des réglages du labo photo ; poser des clips et des animations sur
+  la frise ; exporter. Et un outil pour **voir** : une capture de la page en PNG, pour que l'IA
   juge son propre travail.
 - **Les garde-fous** : chaque action de l'IA est une étape de l'historique, annulable par
   Ctrl+Z ; Alexandre la voit travailler en direct dans la fenêtre. L'IA n'a aucun outil pour
@@ -351,11 +366,11 @@ pourquoi cette mise en page fonctionne ».
 | Maquettes d'appareils : une capture dans un téléphone, un ordinateur, une tablette, une montre | Konva (cadre dessiné + découpe) | 3 |
 | Ombres portées sous un produit | Konva | 3 |
 | Modèles de départ, prêts à modifier | documents dessinés par Claude | fin de l'étape 3 |
-| Retouche des photos façon Lightroom | noyau Rust (les filtres de Konva tournent en JavaScript, pixel par pixel, trop lents sur une photo) | 4 |
-| Détourage : retirer le fond d'une photo de produit | noyau Rust avec un modèle d'IA local ; modèle et licence à choisir et vérifier | 4 |
-| Perspective : poser un visuel sur une boîte, un écran incliné, une affiche en biais | noyau Rust (Konva ne sait faire que des transformations sans perspective) | 4 |
-| Export haute définition et PDF vectoriel | noyau Rust | 4 |
-| Vidéo façon CapCut : frise, pistes, textes animés, musique, export MP4 | interface pour la frise ; noyau Rust pour les copies d'aperçu, le rendu image par image et l'encodage par le programme `ffmpeg` du système, appelé sans être embarqué | 5 |
+| Retouche des photos façon Lightroom | noyau Rust (les filtres de Konva tournent en JavaScript, pixel par pixel, trop lents sur une photo) | 5 |
+| Détourage : retirer le fond d'une photo de produit | noyau Rust avec un modèle d'IA local ; modèle et licence à choisir et vérifier | 5 |
+| Perspective : poser un visuel sur une boîte, un écran incliné, une affiche en biais | noyau Rust (Konva ne sait faire que des transformations sans perspective) | 5 |
+| Export haute définition et PDF vectoriel | noyau Rust | 5 |
+| Vidéo façon CapCut : frise, pistes, textes animés, musique, export MP4 | interface pour la frise ; noyau Rust pour les copies d'aperçu, le rendu image par image et l'encodage par le programme `ffmpeg` du système, appelé sans être embarqué | 4 |
 
 Le modèle de document décrit une page à un instant donné ; pour la vidéo, on lui ajoute le
 temps (apparitions, mouvements) et le noyau Rust rend chaque image. C'est une raison de plus
@@ -368,22 +383,24 @@ périmètre ; les étapes du § 7 ne fixent que l'ordre de construction. Pour qu
 simple malgré tout, chaque fonction n'apparaît que là où elle sert : les réglages d'un texte
 quand un texte est sélectionné, ceux d'une vidéo quand c'est une vidéo.
 
-- **Page et formats** : formats prêts à l'emploi (carré, portrait, story, paysage, bannière,
-  miniature vidéo, A4, A5), taille libre, fond uni, dégradé ou image, décliner un design dans
-  un autre format, plusieurs pages, règles, grille, marges de sécurité.
+- **Page et formats** : formats prêts à l'emploi, nommés par plateforme (révision 7 : TikTok,
+  Reels et Shorts en 9:16, post et carrousel Instagram en 4:5 et 1:1, vidéo YouTube en 16:9,
+  miniature YouTube en 1280 × 720, bannière de chaîne ; plus bannière, A4, A5), taille libre,
+  fond uni, dégradé ou image, décliner un design dans un autre format, plusieurs pages, règles,
+  grille, marges de sécurité.
 - **Éléments** : textes (titre, sous-titre, paragraphe, listes), formes (rectangle, arrondi,
   cercle, triangle, étoile, polygone, ligne, flèche), icônes (Tabler et Phosphor), emojis et
   autocollants (Fluent Emoji, OpenMoji), personnages (Open Peeps, Humaaans), images, photos et
-  vidéos Pixabay et Pexels, vidéos, cadres (une image dans une forme) et grilles de photos, maquettes
-  d'appareils (téléphone, ordinateur, tablette, montre), graphiques (barres, courbes,
+  vidéos Pixabay et Pexels, vidéos, cadres (une image dans une forme) et grilles de photos,
+  maquettes d'appareils (téléphone, ordinateur, tablette, montre), graphiques (barres, courbes,
   secteurs, anneaux) à partir d'un petit tableau de valeurs, tableaux, QR code, dessin à main
   levée (crayon, marqueur, surligneur, gomme). Tous les éléments embarqués se cherchent par
   mot.
 - **Texte** : 60 à 100 polices libres embarquées, choisies pour la publicité, plus les polices
   installées sur le poste (copiées dans le projet quand il les utilise, pour passer d'une
   machine à l'autre) ; associations de polices prêtes (titre et texte qui vont ensemble) ;
-  taille, gras, italique, souligné, barré, majuscules, alignement, interlignage, espacement
-  des lettres, couleur, ombre, contour, surlignage, texte courbé, styles enregistrés.
+  taille, gras, italique, souligné, barré, majuscules, alignement, interlignage, espacement des
+  lettres, couleur, ombre, contour, surlignage, texte courbé, styles enregistrés.
 - **Couleur** : sélecteur, pipette, couleurs déjà utilisées dans le document, kit de marque,
   dégradés linéaires et radiaux, transparence.
 - **Image** : recadrer et redresser, retourner, coins arrondis, bordure, ombre, labo photo
@@ -393,18 +410,19 @@ quand un texte est sélectionné, ceux d'une vidéo quand c'est une vidéo.
   dégrouper, aligner et répartir, repères magnétiques, copier le style d'un objet vers un
   autre, dupliquer, copier-coller entre designs.
 - **Vidéo** : mode vidéo façon CapCut (détail plus haut) : frise à pistes, couper, scinder,
-  vitesse, textes animés, images clés, transitions, musique et voix off avec volume et
-  fondus, sous-titres, aperçu en lecture, export MP4 et GIF.
+  vitesse, textes animés, images clés, transitions, musique et voix off avec volume et fondus,
+  sous-titres, aperçu en lecture, export MP4 et GIF.
 - **Modèles** : une quarantaine de modèles de départ dessinés par Claude pour Eliot (post
-  produit, promotion, story, bannière, miniature vidéo, affiche A4, maquette produit), avec
-  des cadres photo vides à remplir ; plus les modèles maison.
-- **Projets** : accueil, designs récents, nom du design, enregistrement automatique et son
-  état affiché, annuler et rétablir, modèles maison, projet en dossier autonome, import et
-  export d'un projet.
+  produit, promotion, story, bannière, miniature vidéo, affiche A4, maquette produit), avec des
+  cadres photo vides à remplir ; plus les modèles maison.
+- **Projets** : accueil, designs récents, nom du design, enregistrement automatique et son état
+  affiché, annuler et rétablir, modèles maison, projet en dossier autonome, import et export
+  d'un projet.
 - **Export** : PNG (fond transparent possible), JPEG, WebP, PDF vectoriel, SVG, MP4, GIF ;
-  résolution, qualité, pages choisies, dossier par défaut.
+  résolution, qualité, pages choisies, dossier par défaut ; réglages prêts par plateforme ; un
+  carrousel s'exporte en une image par page, numérotées dans l'ordre.
 - **Aides pour apprendre** : infobulle sur chaque outil, grille des tiers, zones sûres des
-  formats story (là où l'application qui affiche la story pose ses boutons), alerte de
+  formats verticaux (là où TikTok, Reels, Shorts ou une story posent leurs boutons), alerte de
   contraste quand un texte devient difficile à lire sur son fond, alerte de texte trop petit
   pour le format.
 - **Confort** : raccourcis clavier, menu au clic droit, zoom, aperçu plein écran, thème clair
@@ -427,13 +445,13 @@ Logiciels/Eliot/
     │   │   ├── panneaux/            un fichier par onglet du rail
     │   │   └── BarreBas.tsx         zoom et pages (étape 2)
     │   ├── bibliotheque/            catalogue des éléments embarqués et recherche (étape 3)
-    │   ├── labo/                    panneau de retouche façon Lightroom (étape 4)
-    │   ├── video/                   frise, pistes, lecture, animations (étape 5)
+    │   ├── labo/                    panneau de retouche façon Lightroom (étape 5)
+    │   ├── video/                   frise, pistes, lecture, animations (étape 4)
     │   ├── export/                  rendu de la page en image (étape 1)
     │   └── pont/                    le seul fichier qui parle à Tauri
     ├── noyau/                       bibliothèque Rust, sans Tauri (cargo test)
     │   └── src/  images.rs  export.rs  fichiers.rs (étape 1) ; projet.rs (2) ; pexels.rs (3) ;
-    │             reglages.rs  rendu.rs (4) ; video.rs (5)
+    │             rendu.rs  video.rs (4) ; reglages.rs (5)
     ├── eliot-mcp/                   le pont vers une IA (programme à part, si validé)
     └── src-tauri/                   l'enveloppe : expose le noyau à l'interface
         ├── Cargo.toml  tauri.conf.json  build.rs
@@ -571,11 +589,12 @@ les premiers octets, écrit dans le dossier Images de l'utilisateur sous `Eliot/
 renommage. Avec des aperçus de 2560 px, une page 1080 × 1080 exportée en ×2 (2160 px) garde
 des images nettes.
 
-Étape 4 : le Rust rend lui-même la page depuis le document, avec les images originales et les
-mêmes fichiers de police : PDF vectoriel (`svg2pdf`) et PNG haute définition (`resvg`), pour
-les grands formats comme l'A4 à 300 dpi. Point à surveiller : le texte doit tomber au même
-endroit qu'à l'écran. L'interface transmet donc ses coupures de lignes, et on compare les
-deux rendus pixel par pixel avant de s'y fier.
+Étapes 4 et 5 : le Rust rend lui-même la page depuis le document, avec les images originales et
+les mêmes fichiers de police : les calques d'une vidéo (étape 4), puis PDF vectoriel
+(`svg2pdf`) et PNG haute définition (`resvg`) pour les grands formats comme l'A4 à 300 dpi
+(étape 5). Point à surveiller : le texte doit tomber au même endroit qu'à l'écran. L'interface
+transmet donc ses coupures de lignes, et on compare les deux rendus pixel par pixel avant de
+s'y fier.
 
 Hors Tauri (`npm run dev` dans un navigateur), l'export devient un téléchargement et l'import
 passe par le navigateur : on peut travailler l'interface sans recompiler le Rust.
@@ -596,8 +615,8 @@ passe par le navigateur : on peut travailler l'interface sans recompiler le Rust
 | Photos et vidéos en ligne | Pixabay d'abord (ses règles demandent de copier l'image chez soi), Pexels en plus si une clé est obtenue ; une même interface de recherche pour les deux | Unsplash : liens directs obligatoires vers ses serveurs, contraire à la règle 12 |
 | Personnages illustrés | Open Peeps et Humaaans (CC0) | unDraw : sa licence interdit de redistribuer ses illustrations en lot |
 | Fichiers de police | TTF ou OTF, une seule copie par police, servie à la fenêtre et lue par le Rust pour l'export (étape 3) | woff2 seuls (paquets `@fontsource` de l'étape 1) : le Rust devrait les décompresser avant de s'en servir |
-| Aperçu en direct du labo photo | Rust en direct ou shader WebGL, départagés par mesure au début de l'étape 4 | filtres de Konva : JavaScript pixel par pixel, trop lents |
-| Copie d'aperçu des vidéos | format choisi par mesure au début de l'étape 5 (VP9 a joué à vitesse normale au banc, H.264 au ralenti) | lire l'original dans la fenêtre : trop lourd pour le mini PC |
+| Aperçu en direct du labo photo | Rust en direct ou shader WebGL, départagés par mesure au début de l'étape 5 | filtres de Konva : JavaScript pixel par pixel, trop lents |
+| Copie d'aperçu des vidéos | format choisi par mesure au début de l'étape 4 (VP9 a joué à vitesse normale au banc, H.264 au ralenti) | lire l'original dans la fenêtre : trop lourd pour le mini PC |
 | Sous-titres automatiques | Whisper, sur le processeur, dans le noyau | un service en ligne : contraire à la règle 12 |
 | Pont vers une IA | serveur MCP local (`rmcp`), par entrée et sortie standard et socket Unix | port réseau ouvert sur la machine : inutile ; API Claude dans Eliot : payante |
 
@@ -620,7 +639,7 @@ objets, une photo de 24 Mpx et deux vidéos 1080p (H.264 et VP9), mesurées dans
 Tauri et dans Chrome. On mesure la fluidité du glisser, du redimensionnement et de la lecture
 vidéo, et le coût de la réduction d'une photo par le Rust et par le moteur web. Fait le
 2026-10-14 sur le poste principal (résultats au § 4 et au JOURNAL). Reste : le mini PC, quand
-il sera disponible ; il décide entre Tauri et Electron avant l'étape 5 (vidéo).
+il sera disponible ; il décide entre Tauri et Electron avant l'étape 4 (vidéo).
 
 Étape 1, l'éditeur : interface Canva décrite au § 6, sélection, poignées, repères
 magnétiques, édition du texte, historique, ordre d'empilement, dupliquer, supprimer, import
@@ -642,25 +661,30 @@ et vidéos), effets de texte, cadres et grilles photo, maquettes d'appareils, om
 de marque, lignes et flèches, dessin à main levée, graphiques, tableaux, QR code. Pour finir,
 la quarantaine de modèles de départ, qui ont besoin de tout le reste.
 
-Étape 4, le labo photo et le Rust qui rend : petit banc pour l'aperçu en direct, labo façon
-Lightroom avec préréglages, recadrage et redressement, export depuis le document avec les
-originaux (PDF vectoriel, PNG haute définition, WebP, SVG), perspective, détourage local.
+Révision 7 : la vidéo, support principal d'Alexandre, passe avant le labo photo.
 
-Étape 5, la vidéo façon CapCut : décision Tauri ou Electron d'après le banc du mini PC, petit
-banc pour la copie d'aperçu, frise et pistes, clips, textes animés, images clés,
-transitions, son, sous-titres, export MP4 et GIF.
+Étape 4, la vidéo façon CapCut : décision Tauri ou Electron d'après le banc du mini PC (sur
+les mesures du poste principal s'il n'est pas encore là, à confirmer ensuite), petit banc
+pour la copie d'aperçu, frise et pistes, clips, textes animés, images clés, transitions, son,
+sous-titres mot par mot, zones sûres, réglages d'export par plateforme, export MP4 et GIF.
+Le Rust y apprend à rendre les calques de la page, ce qui sert ensuite aux autres exports.
+
+Étape 5, le labo photo et les exports de qualité : petit banc pour l'aperçu en direct, labo
+façon Lightroom avec préréglages (pour les photos et les clips vidéo), recadrage et
+redressement, export depuis le document avec les originaux (PDF vectoriel, PNG haute
+définition, WebP, SVG), perspective, détourage local.
 
 Étape 6 : le reste du catalogue (panneau des calques complet, aides pour apprendre, thème
 sombre, texte courbé, styles enregistrés).
 
 ## 8. Hors périmètre
 
-Hébergement, comptes Eliot, mises à jour automatiques par internet. Services en ligne, sauf
-la recherche de photos (Pixabay, Pexels) et Claude branché par Alexandre (règle 12). Autres banques d'images,
-modèles fournis par un tiers (ceux d'Eliot sont dessinés pour lui), génération d'images par
-IA, collaboration (commentaires, partage), mode présentation (présenter, notes, minuteur),
-applications tierces intégrées, mobile. Windows et macOS : le code reste portable, mais rien
-n'y sera testé.
+Hébergement, comptes Eliot, mises à jour automatiques par internet. Services en ligne, sauf la
+recherche de photos (Pixabay, Pexels) et Claude branché par Alexandre (règle 12). Autres
+banques d'images, modèles fournis par un tiers (ceux d'Eliot sont dessinés pour lui),
+génération d'images par IA, collaboration (commentaires, partage), mode présentation
+(présenter, notes, minuteur), applications tierces intégrées, mobile. Windows et macOS : le
+code reste portable, mais rien n'y sera testé.
 
 ## 9. Régime
 
@@ -687,7 +711,8 @@ Tranchées le 2026-10-14 par Alexandre :
 - Carte graphique : ne rien lancer dessus tant qu'Alexandre ne le dit pas (règle 9).
 - Nom : Eliot, dossier `Logiciels/Eliot/`.
 - Enveloppe : on démarre l'étape 1 sur Tauri ; Electron reste le repli, décidé au banc du mini
-  PC avant l'étape de la vidéo (4 à l'époque, 5 depuis la révision 5).
+  PC avant l'étape de la vidéo (4 à l'époque, 5 dans la révision 5, de nouveau 4 depuis la
+  révision 7).
 - BRIEF validé, propositions par défaut retenues (« tout par défaut ») : page de 1080 × 1080
   par défaut, export dans `~/Images/Eliot/` avec nom daté, dépôt git local seulement,
   commandes d'installation données par Claude et lancées par Alexandre, régime du § 9,
@@ -716,9 +741,15 @@ Validées avec la révision 5 (demandes d'Alexandre du même jour, mises en form
 - Le nouvel ordre de construction en six étapes (§ 7).
 - Les règles 12 et 13 (§ 5).
 
+Tranchées le 2026-10-14, révision 7, par Alexandre (« Tu as mon accord ») : objectif de création
+de contenu pour YouTube, TikTok et Instagram inscrit au § 1, avec formats par plateforme,
+zones sûres, sous-titres mot par mot et réglages d'export par plateforme ; vidéo en étape 4,
+labo photo en étape 5 ; clés d'API dans le `.env` hors git (règle 12).
+
 Action d'Alexandre avant l'étape 3 : créer un compte Pixabay et relever sa clé d'API
-gratuite (et une clé Pexels si la pause se lève) ; il la saisit lui-même dans les réglages
-d'Eliot, jamais dans un fichier du dépôt ni dans la conversation avec Claude.
+gratuite (et une clé Pexels si la pause se lève). Fait le 2026-10-14 pour Pixabay : la clé
+est dans le `.env` à la racine du dépôt (`PIXABAY_API_KEY`), exclu de git le même jour ;
+Claude ne l'a pas lue et ne la demande pas.
 
 Ouvertes, avec la proposition de Claude :
 

@@ -5,6 +5,24 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, révision 7 : création de contenu, vidéo avant le labo photo, clé dans le .env
+
+- Alexandre a posé sa clé Pixabay dans un `.env` à la racine du dépôt, sa convention habituelle
+  (`00_moi/COMPTES.md` : « Les .env des dépôts sont hors git »). Le `.gitignore` d'Eliot ne
+  l'excluait pas : ajouté par Claude, commit `2c962dd`, avant toute livraison qui aurait pu
+  l'embarquer (`git add -A`). Vérifié : jamais dans l'historique, droits 600. Claude n'a lu que
+  le nom de la variable, `PIXABAY_API_KEY`.
+- Alexandre : « je cherche à me lancer dans la création de contenu euh, sur euh, YouTube,
+  TikTok, Instagram, via des vidéos, des montages photos. apprendre le métier. Et tout ça avec
+  l'assistance de l'IA ».
+- Propositions de Claude, acceptées (« Tu as mon accord ») : objectif inscrit au § 1 ; formats
+  nommés par plateforme, zones sûres TikTok, Reels et Shorts, sous-titres animés mot par mot,
+  réglages d'export par plateforme ; vidéo en étape 4 et labo photo en étape 5 ; règle 12
+  réécrite pour les clés (`.env` hors git en développement, dossier de configuration pour la
+  version installée).
+- Conséquence : le rendu des calques par le Rust se construit à l'étape 4, pour l'export
+  vidéo ; les exports PDF et haute définition suivent à l'étape 5.
+
 ## 2026-10-14, révision 6 : Pixabay avant Pexels
 
 - Constat d'Alexandre, capture de la page de demande de clé Pexels : « Une nouvelle émission

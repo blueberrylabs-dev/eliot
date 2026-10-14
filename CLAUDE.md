@@ -14,9 +14,11 @@ lourd. Détail : `BRIEF.md`.
 
 ## État au 2026-10-14
 
-- `BRIEF.md` : révision 6, **validée par Alexandre le 2026-10-14** (bibliothèque, Pixabay
-  puis Pexels, modèles de départ, labo photo façon Lightroom, vidéo façon CapCut, pont vers une IA, étapes
-  renumérotées 2 à 6).
+- `BRIEF.md` : révision 7, **validée par Alexandre le 2026-10-14** : bibliothèque, Pixabay
+  puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
+  façon CapCut (étape 4), labo photo façon Lightroom (étape 5), pont vers une IA.
+- Secrets : `.env` à la racine du dépôt, hors git (`PIXABAY_API_KEY`). Ne jamais le lire ni le
+  committer ; le Rust le lit lui-même.
 - Étape 0, banc d'essai : passé sur le poste principal le 2026-10-14, dans la fenêtre Tauri
   et dans le navigateur intégré de Claude (résultats dans `00_banc_essai/resultats/`, lecture
   au JOURNAL). Tauri tient 60 images/s à condition d'appliquer la règle 11 du BRIEF. Reste :
