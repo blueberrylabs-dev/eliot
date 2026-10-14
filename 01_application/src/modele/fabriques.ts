@@ -3,25 +3,33 @@
 import Konva from "konva";
 import { POLICE_PAR_DEFAUT, pilePolice } from "../polices";
 import {
+  COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
   type DocumentEliot,
   type ElementForme,
   type ElementImage,
   type ElementPage,
   type ElementTexte,
+  type Format,
   type GenreForme,
-  type Page,
+  type PageEliot,
   type Ressource,
 } from "./types";
 
 let compteur = 0;
-export function nouvelId(): string {
+export function nouvelId(prefixe = "e"): string {
   compteur += 1;
-  return `e${Date.now().toString(36)}${compteur.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  return `${prefixe}${Date.now().toString(36)}${compteur.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function documentVide(): DocumentEliot {
-  return { version: VERSION_DOCUMENT, page: { largeur: 1080, hauteur: 1080, fond: "#ffffff" }, elements: [] };
+export const NOM_PAR_DEFAUT = "Design sans titre";
+
+export function nouvellePage(fond: PageEliot["fond"] = COULEUR_PAR_DEFAUT_FOND): PageEliot {
+  return { id: nouvelId("p"), fond, elements: [] };
+}
+
+export function documentVide(format: Format = { largeur: 1080, hauteur: 1080 }, nom = NOM_PAR_DEFAUT): DocumentEliot {
+  return { version: VERSION_DOCUMENT, nom, format: { ...format }, pages: [nouvellePage()] };
 }
 
 /** Hauteur réelle d'un texte, mesurée par Konva avec la même police que l'écran. */
@@ -45,7 +53,7 @@ export const styleTexte = (gras: boolean, italique: boolean) =>
 
 type ModeleTexte = Pick<ElementTexte, "texte" | "taillePolice" | "gras"> & Partial<ElementTexte>;
 
-export function creerTexte(page: Page, modele: ModeleTexte): ElementTexte {
+export function creerTexte(page: Format, modele: ModeleTexte): ElementTexte {
   const largeur = Math.round(page.largeur * 0.75);
   const base = {
     police: POLICE_PAR_DEFAUT,
@@ -73,16 +81,16 @@ export function creerTexte(page: Page, modele: ModeleTexte): ElementTexte {
   };
 }
 
-const echelleTexte = (page: Page) => Math.max(page.largeur, page.hauteur) / 1080;
+const echelleTexte = (page: Format) => Math.max(page.largeur, page.hauteur) / 1080;
 
-export const creerTitre = (page: Page, police?: string) =>
+export const creerTitre = (page: Format, police?: string) =>
   creerTexte(page, { texte: "Ajouter un titre", taillePolice: Math.round(96 * echelleTexte(page)), gras: true, ...(police ? { police } : {}) });
-export const creerSousTitre = (page: Page) =>
+export const creerSousTitre = (page: Format) =>
   creerTexte(page, { texte: "Ajouter un sous-titre", taillePolice: Math.round(56 * echelleTexte(page)), gras: true });
-export const creerParagraphe = (page: Page) =>
+export const creerParagraphe = (page: Format) =>
   creerTexte(page, { texte: "Ajouter un paragraphe de texte", taillePolice: Math.round(32 * echelleTexte(page)), gras: false });
 
-export function creerForme(page: Page, forme: GenreForme, arrondi = 0): ElementForme {
+export function creerForme(page: Format, forme: GenreForme, arrondi = 0): ElementForme {
   const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.35);
   return {
     id: nouvelId(),
@@ -104,7 +112,7 @@ export function creerForme(page: Page, forme: GenreForme, arrondi = 0): ElementF
 }
 
 /** L'image entre à 60 % de la page au plus, proportions gardées, au centre. */
-export function creerImage(page: Page, ressource: Ressource): ElementImage {
+export function creerImage(page: Format, ressource: Ressource): ElementImage {
   const echelle = Math.min((page.largeur * 0.6) / ressource.largeur, (page.hauteur * 0.6) / ressource.hauteur, 1);
   const largeur = Math.max(1, Math.round(ressource.largeur * echelle));
   const hauteur = Math.max(1, Math.round(ressource.hauteur * echelle));
@@ -126,9 +134,31 @@ export function creerImage(page: Page, ressource: Ressource): ElementImage {
   };
 }
 
-/** Copie avec un nouvel identifiant, décalée pour qu'on la voie. */
-export function dupliquer(el: ElementPage, decalage = 24): ElementPage {
-  return { ...el, id: nouvelId(), x: el.x + decalage, y: el.y + decalage, verrouille: false };
+/** Copie avec un nouvel identifiant, décalée pour qu'on la voie. Les éléments d'un même
+ *  groupe copiés ensemble restent groupés entre eux, sous une nouvelle étiquette. */
+export function dupliquer(el: ElementPage, decalage = 24, groupes?: Map<string, string>): ElementPage {
+  const copie = { ...el, id: nouvelId(), x: el.x + decalage, y: el.y + decalage, verrouille: false };
+  if (el.groupe) {
+    if (!groupes) delete copie.groupe;
+    else {
+      if (!groupes.has(el.groupe)) groupes.set(el.groupe, nouvelId("g"));
+      copie.groupe = groupes.get(el.groupe);
+    }
+  }
+  return copie;
+}
+
+/** Copie de plusieurs éléments : les groupes copiés en entier gardent leur lien. */
+export function dupliquerTous(elements: ElementPage[], decalage = 24): ElementPage[] {
+  const groupes = new Map<string, string>();
+  const compte = new Map<string, number>();
+  for (const e of elements) if (e.groupe) compte.set(e.groupe, (compte.get(e.groupe) ?? 0) + 1);
+  return elements.map((e) => dupliquer(e, decalage, e.groupe && (compte.get(e.groupe) ?? 0) > 1 ? groupes : undefined));
+}
+
+/** Copie d'une page entière : nouveaux identifiants, mêmes positions. */
+export function dupliquerPage(page: PageEliot): PageEliot {
+  return { ...page, id: nouvelId("p"), elements: dupliquerTous(page.elements, 0) };
 }
 
 /** Sommets d'une étoile à cinq branches inscrite dans la boîte (étirable avec elle). */

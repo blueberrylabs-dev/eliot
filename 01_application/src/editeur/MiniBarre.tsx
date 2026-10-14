@@ -1,9 +1,9 @@
 // La mini-barre flottante au-dessus de la sélection : dupliquer, verrouiller, supprimer, et
 // le menu « plus ». Elle s'efface pendant un geste.
 
-import { Copy, Lock, LockOpen, MoreHorizontal, Trash2 } from "lucide-react";
+import { Copy, Group, Lock, LockOpen, MoreHorizontal, Trash2, Ungroup } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useEditeur } from "../etat/editeur";
+import { elementsCourants, useEditeur } from "../etat/editeur";
 import { noeudElement, surGeste } from "./scene";
 
 interface Proprietes {
@@ -13,7 +13,7 @@ interface Proprietes {
 
 export function MiniBarre({ taille, ouvrirMenu }: Proprietes) {
   const selection = useEditeur((s) => s.selection);
-  const documentCourant = useEditeur((s) => s.document);
+  const documentCourant = useEditeur(elementsCourants);
   const enEdition = useEditeur((s) => s.enEdition);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [enGeste, setEnGeste] = useState(false);
@@ -38,7 +38,10 @@ export function MiniBarre({ taille, ouvrirMenu }: Proprietes) {
 
   if (!position || enGeste || enEdition || selection.length === 0) return null;
   const etat = useEditeur.getState();
-  const verrouille = etat.document.elements.some((e) => selection.includes(e.id) && e.verrouille);
+  const choisis = elementsCourants(etat).filter((e) => selection.includes(e.id));
+  const verrouille = choisis.some((e) => e.verrouille);
+  const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
+  const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
   const bouton = "flex h-8 w-8 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100";
 
   return (
@@ -47,6 +50,11 @@ export function MiniBarre({ taille, ouvrirMenu }: Proprietes) {
       style={{ left: position.x, top: position.y }}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {choisis.length > 1 && (
+        <button className={bouton} title={groupe ? "Dégrouper (Ctrl+Maj+G)" : "Grouper (Ctrl+G)"} onClick={() => (groupe ? etat.degrouperSelection() : etat.grouperSelection())}>
+          {groupe ? <Ungroup size={16} /> : <Group size={16} />}
+        </button>
+      )}
       <button className={bouton} title="Dupliquer (Ctrl+D)" onClick={() => etat.dupliquerSelection()}>
         <Copy size={16} />
       </button>

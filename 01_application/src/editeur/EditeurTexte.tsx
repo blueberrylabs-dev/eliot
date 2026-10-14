@@ -3,8 +3,8 @@
 // ailleurs valident.
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { useEditeur } from "../etat/editeur";
-import type { ElementTexte } from "../modele/types";
+import { elementsCourants, useEditeur } from "../etat/editeur";
+import { couleurPrincipale, type ElementTexte } from "../modele/types";
 import { pilePolice } from "../polices";
 import { noeudElement, scene } from "./scene";
 
@@ -20,7 +20,7 @@ export function EditeurTexte() {
       setStyle(null);
       return;
     }
-    const el = useEditeur.getState().document.elements.find((e) => e.id === enEdition) as ElementTexte | undefined;
+    const el = elementsCourants(useEditeur.getState()).find((e) => e.id === enEdition) as ElementTexte | undefined;
     const groupe = noeudElement(enEdition);
     if (!el || !groupe) return;
     const position = groupe.getAbsolutePosition();
@@ -37,7 +37,7 @@ export function EditeurTexte() {
       textDecoration: el.souligne ? "underline" : "none",
       lineHeight: el.interligne,
       letterSpacing: el.espacement * s,
-      color: el.couleur,
+      color: couleurPrincipale(el.couleur),
       textAlign: el.alignement,
       opacity: el.opacite,
       transform: `rotate(${groupe.getAbsoluteRotation()}deg)`,

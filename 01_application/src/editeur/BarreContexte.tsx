@@ -1,10 +1,42 @@
 // La barre d'outils qui change selon la sélection : page, texte, forme, image.
 
-import { AlignCenter, AlignLeft, AlignRight, ArrowDown, ArrowUp, Blend, Bold, CopyPlus, FlipHorizontal2, FlipVertical2, Italic, Lock, LockOpen, Minus, Plus, SlidersHorizontal, Trash2, Underline } from "lucide-react";
+import {
+  AlignCenter,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalDistributeCenter,
+  AlignLeft,
+  AlignRight,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalDistributeCenter,
+  ArrowDown,
+  ArrowUp,
+  Blend,
+  Bold,
+  CopyPlus,
+  FlipHorizontal2,
+  FlipVertical2,
+  Group,
+  Italic,
+  LayoutGrid,
+  Lock,
+  LockOpen,
+  Minus,
+  Paintbrush,
+  Plus,
+  SlidersHorizontal,
+  Trash2,
+  Underline,
+  Ungroup,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { elementsSelectionnes, useEditeur } from "../etat/editeur";
-import { FORMATS_PAGE, type Alignement, type ElementForme, type ElementPage, type ElementTexte } from "../modele/types";
+import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
+import type { SensAlignement } from "../modele/geometrie";
+import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { POLICES, pilePolice } from "../polices";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
@@ -22,36 +54,55 @@ function Bouton({ titre, surClic, enfoncé, children }: { titre: string; surClic
 }
 
 function ReglagePage() {
-  const page = useEditeur((s) => s.document.page);
-  const modifierPage = useEditeur((s) => s.modifierPage);
-  const format = FORMATS_PAGE.find((f) => f.largeur === page.largeur && f.hauteur === page.hauteur);
+  const fond = useEditeur((s) => pageCourante(s).fond);
+  const rang = useEditeur((s) => s.document.pages.findIndex((p) => p.id === s.pageActive));
+  const nombre = useEditeur((s) => s.document.pages.length);
+  const modifierFond = useEditeur((s) => s.modifierFond);
   return (
     <>
-      <span className="text-sm font-medium text-neutral-600">Page</span>
-      {separateur}
-      <label className="flex items-center gap-2 text-sm text-neutral-600">
-        Format
-        <select
-          className="h-8 rounded-md border border-neutral-300 bg-white px-2 text-sm"
-          value={format?.id ?? "libre"}
-          onChange={(e) => {
-            const f = FORMATS_PAGE.find((x) => x.id === e.target.value);
-            if (f) modifierPage({ largeur: f.largeur, hauteur: f.hauteur });
-          }}
-        >
-          {FORMATS_PAGE.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.libelle} ({f.largeur} × {f.hauteur})
-            </option>
-          ))}
-          {!format && <option value="libre">Libre ({page.largeur} × {page.hauteur})</option>}
-        </select>
-      </label>
+      <span className="text-sm font-medium text-neutral-600">{nombre > 1 ? `Page ${rang + 1} sur ${nombre}` : "Page"}</span>
       {separateur}
       <span className="text-sm text-neutral-600">Fond</span>
-      <SelecteurCouleur titre="Couleur de fond" valeur={page.fond} surChoix={(c) => modifierPage({ fond: c }, "fond")} />
-      <span className="ml-4 text-xs text-neutral-400">Astuce : double-clic sur un texte pour l'écrire, Maj+clic pour sélectionner plusieurs objets.</span>
+      <SelecteurCouleur titre="Couleur de fond" degrade valeur={fond} surChoix={(c) => modifierFond(c, "fond")} />
+      <span className="ml-4 truncate text-xs text-neutral-400">Astuce : double-clic sur un texte pour l'écrire, Maj+clic pour sélectionner plusieurs objets, Alt+clic pour un seul objet d'un groupe.</span>
     </>
+  );
+}
+
+const POSITIONS: { sens: SensAlignement; titre: string; icone: ReactNode }[] = [
+  { sens: "gauche", titre: "À gauche", icone: <AlignStartVertical size={16} /> },
+  { sens: "centre", titre: "Au centre", icone: <AlignCenterVertical size={16} /> },
+  { sens: "droite", titre: "À droite", icone: <AlignEndVertical size={16} /> },
+  { sens: "haut", titre: "En haut", icone: <AlignStartHorizontal size={16} /> },
+  { sens: "milieu", titre: "Au milieu", icone: <AlignCenterHorizontal size={16} /> },
+  { sens: "bas", titre: "En bas", icone: <AlignEndHorizontal size={16} /> },
+];
+
+function ReglagePosition({ nombreBlocs }: { nombreBlocs: number }) {
+  const etat = useEditeur.getState();
+  const surPage = nombreBlocs <= 1;
+  const case_ = "flex items-center gap-2 rounded-md border border-neutral-200 px-2 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50";
+  return (
+    <Bulle titre="Position" largeur={260} bouton={<><LayoutGrid size={16} /><span className="text-sm">Position</span></>}>
+      <p className="mb-1.5 text-xs font-medium text-neutral-500">{surPage ? "Aligner sur la page" : "Aligner entre eux"}</p>
+      <div className="mb-3 grid grid-cols-3 gap-1.5">
+        {POSITIONS.map((p) => (
+          <button key={p.sens} className={case_} onClick={() => etat.alignerSelection(p.sens)}>
+            {p.icone}
+            {p.titre}
+          </button>
+        ))}
+      </div>
+      <p className="mb-1.5 text-xs font-medium text-neutral-500">Répartir l'espace</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        <button className={case_} disabled={nombreBlocs < 3} onClick={() => etat.repartirSelection("horizontal")} title={nombreBlocs < 3 ? "Sélectionne au moins trois objets" : undefined}>
+          <AlignHorizontalDistributeCenter size={16} /> Horizontalement
+        </button>
+        <button className={case_} disabled={nombreBlocs < 3} onClick={() => etat.repartirSelection("vertical")} title={nombreBlocs < 3 ? "Sélectionne au moins trois objets" : undefined}>
+          <AlignVerticalDistributeCenter size={16} /> Verticalement
+        </button>
+      </div>
+    </Bulle>
   );
 }
 
@@ -92,7 +143,7 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
           <Plus size={14} />
         </button>
       </div>
-      <SelecteurCouleur titre="Couleur du texte" lettre="A" valeur={t.couleur} surChoix={(c) => modifier({ couleur: c }, "couleur")} />
+      <SelecteurCouleur titre="Couleur du texte" lettre="A" degrade valeur={t.couleur} surChoix={(c) => modifier({ couleur: c }, "couleur")} />
       {separateur}
       <Bouton titre="Gras" enfoncé={t.gras} surClic={() => modifier({ gras: !t.gras })}>
         <Bold size={16} />
@@ -130,10 +181,10 @@ function ReglagesForme({ formes, modifier }: { formes: ElementForme[]; modifier:
   return (
     <>
       <span className="text-sm text-neutral-600">Couleur</span>
-      <SelecteurCouleur titre="Couleur de remplissage" valeur={f.remplissage} surChoix={(c) => modifier({ remplissage: c }, "remplissage")} />
+      <SelecteurCouleur titre="Couleur de remplissage" degrade valeur={f.remplissage} surChoix={(c) => modifier({ remplissage: c }, "remplissage")} />
       {separateur}
       <span className="text-sm text-neutral-600">Contour</span>
-      <SelecteurCouleur titre="Couleur du contour" valeur={f.contour} surChoix={(c) => modifier({ contour: c, epaisseurContour: f.epaisseurContour || 4 }, "contour")} />
+      <SelecteurCouleur titre="Couleur du contour" valeur={f.contour} surChoix={(c) => typeof c === "string" && modifier({ contour: c, epaisseurContour: f.epaisseurContour || 4 }, "contour")} />
       <select
         title="Épaisseur du contour"
         className="h-8 rounded-md border border-neutral-300 bg-white px-1.5 text-sm"
@@ -175,6 +226,8 @@ export function BarreContexte() {
   const formes = choisis.filter((e): e is ElementForme => e.type === "forme");
   const images = choisis.filter((e) => e.type === "image");
   const verrouille = choisis.some((e) => e.verrouille);
+  const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
+  const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-200 bg-white px-3 defilement-fin">
@@ -200,6 +253,18 @@ export function BarreContexte() {
               <input type="range" min={0} max={1} step={0.01} value={choisis[0].opacite} onChange={(e) => modifier({ opacite: Number(e.target.value) }, "opacite")} className="w-full accent-accent-600" />
             </label>
           </Bulle>
+          <ReglagePosition nombreBlocs={groupes.size} />
+          {choisis.length > 1 && (
+            <Bouton titre={groupe ? "Dégrouper (Ctrl+Maj+G)" : "Grouper (Ctrl+G)"} surClic={() => (groupe ? etat.degrouperSelection() : etat.grouperSelection())}>
+              {groupe ? <Ungroup size={16} /> : <Group size={16} />}
+              <span className="ml-1 text-sm">{groupe ? "Dégrouper" : "Grouper"}</span>
+            </Bouton>
+          )}
+          {choisis.length === 1 && (
+            <Bouton titre="Copier le style (Ctrl+Alt+C), puis clique sur un autre objet" surClic={() => etat.copierStyle()}>
+              <Paintbrush size={16} />
+            </Bouton>
+          )}
           <span className="flex-1" />
           <Bouton titre="Avancer (Ctrl+↑)" surClic={() => etat.deplacerDansPile("avant")}>
             <ArrowUp size={16} />

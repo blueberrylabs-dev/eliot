@@ -2,28 +2,42 @@ import { ImagePlus } from "lucide-react";
 import { useState } from "react";
 import { useEditeur } from "../../etat/editeur";
 import { creerImage } from "../../modele/fabriques";
+import type { Ressource } from "../../modele/types";
 import { choisirEtImporterImages, dansTauri } from "../../pont/tauri";
+import { glisserDepuisPanneau } from "../glisser";
+import { useUrlRessource } from "../images";
+
+function CarteImage({ ressource }: { ressource: Ressource }) {
+  const url = useUrlRessource(ressource.id, "miniature");
+  return (
+    <button
+      title={`${ressource.nom} (${ressource.largeur} × ${ressource.hauteur})`}
+      onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerImage(format, ressource)])}
+      className="cursor-grab overflow-hidden rounded-lg border border-neutral-200 bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:16px_16px] hover:border-accent-500"
+    >
+      {url ? <img src={url} alt={ressource.nom} className="h-28 w-full object-contain" draggable={false} /> : <span className="block h-28" />}
+    </button>
+  );
+}
 
 export function PanneauImages() {
-  const page = useEditeur((s) => s.document.page);
   const ressources = useEditeur((s) => s.ressources);
   const ordre = useEditeur((s) => s.ordreRessources);
-  const ajouterRessources = useEditeur((s) => s.ajouterRessources);
-  const ajouter = useEditeur((s) => s.ajouterElements);
-  const notifier = useEditeur((s) => s.notifier);
   const [occupe, setOccupe] = useState(false);
 
   const importer = async () => {
+    const etat = useEditeur.getState();
+    if (!etat.projet) return;
     setOccupe(true);
     try {
-      const bilan = await choisirEtImporterImages();
+      const bilan = await choisirEtImporterImages(etat.projet);
       if (!bilan) return;
-      ajouterRessources(bilan.ressources);
+      etat.ajouterRessources(bilan.ressources);
       // Une seule image importée : elle va directement sur la page, comme dans Canva.
-      if (bilan.ressources.length === 1) ajouter([creerImage(page, bilan.ressources[0])]);
-      if (bilan.erreurs.length) notifier(`Non importé : ${bilan.erreurs.join(" ; ")}`, { erreur: true });
+      if (bilan.ressources.length === 1) etat.ajouterElements([creerImage(etat.document.format, bilan.ressources[0])]);
+      if (bilan.erreurs.length) etat.notifier(`Non importé : ${bilan.erreurs.join(" ; ")}`, { erreur: true });
     } catch (erreur) {
-      notifier(`Import impossible : ${String(erreur)}`, { erreur: true });
+      etat.notifier(`Import impossible : ${String(erreur)}`, { erreur: true });
     } finally {
       setOccupe(false);
     }
@@ -41,24 +55,16 @@ export function PanneauImages() {
       </button>
       {ordre.length === 0 ? (
         <p className="text-xs text-neutral-500">
-          Les images importées apparaissent ici. {dansTauri ? "Eliot en garde une copie dans son dossier de données ; tes fichiers d'origine ne sont jamais modifiés." : ""}
+          Les images de ce design apparaissent ici. Tu peux aussi déposer des fichiers sur la page, ou coller une capture d'écran (Ctrl+V).{" "}
+          {dansTauri ? "Eliot en garde une copie dans le dossier du design ; tes fichiers d'origine ne sont jamais modifiés." : ""}
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-2">
-          {ordre.map((id) => {
-            const r = ressources[id];
-            return (
-              <button
-                key={id}
-                title={`${r.nom} (${r.largeur} × ${r.hauteur})`}
-                onClick={() => ajouter([creerImage(page, r)])}
-                className="overflow-hidden rounded-lg border border-neutral-200 bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:16px_16px] hover:border-accent-500"
-              >
-                <img src={r.urlMiniature} alt={r.nom} className="h-28 w-full object-contain" draggable={false} />
-              </button>
-            );
-          })}
-        </div>
+        <>
+          <p className="mb-2 text-xs text-neutral-500">Clique pour poser au centre, ou glisse sur la page.</p>
+          <div className="grid grid-cols-2 gap-2">
+            {ordre.map((id) => ressources[id] && <CarteImage key={id} ressource={ressources[id]} />)}
+          </div>
+        </>
       )}
     </div>
   );

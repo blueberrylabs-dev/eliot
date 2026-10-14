@@ -77,23 +77,25 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - Tests : vitest pour la logique de l'interface (store, conversions, géométrie), en plus des
   tests Rust et du script Playwright.
 
-- [ ] Noyau `projet.rs` : créer, lister, ouvrir (avec conversion), enregistrer, renommer,
+- [x] Noyau `projet.rs` : créer, lister, ouvrir (avec conversion), enregistrer, renommer,
       dupliquer, corbeille, miniature, archive `.eliot`, modèles maison ; tests
-- [ ] Commandes Tauri et pont ; images rangées dans le dossier du design
-- [ ] Document version 2 dans l'interface, store par page
-- [ ] Accueil : créer un design (formats, taille libre), designs récents, modèles maison,
+- [x] Commandes Tauri et pont ; images rangées dans le dossier du design
+- [x] Document version 2 dans l'interface, store par page
+- [x] Accueil : créer un design (formats, taille libre), designs récents, modèles maison,
       ouvrir un `.eliot`
-- [ ] Barre du haut : accueil, menu Fichier, nom modifiable, état de l'enregistrement
-- [ ] Enregistrement automatique, et à la fermeture
-- [ ] Plusieurs pages : barre du bas avec vignettes, ajouter, dupliquer, supprimer,
+- [x] Barre du haut : accueil, menu Fichier, nom modifiable, état de l'enregistrement
+- [x] Enregistrement automatique, et à la fermeture
+- [x] Plusieurs pages : barre du bas avec vignettes, ajouter, dupliquer, supprimer,
       réordonner, vue en grille
-- [ ] Zoom (curseur, Ctrl + molette, Ajuster), défilement, aperçu plein écran
-- [ ] Redimensionner (ce design ou une copie)
-- [ ] Coller une image, déposer un fichier, glisser depuis le panneau
-- [ ] Grouper et dégrouper, aligner et répartir, copier le style
-- [ ] Dégradés : formes, textes, fond de page
-- [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
-- [ ] Livraison, essai par Alexandre
+- [x] Zoom (curseur, Ctrl + molette, Ajuster), défilement, aperçu plein écran
+- [x] Redimensionner (ce design ou une copie)
+- [x] Coller une image, déposer un fichier, glisser depuis le panneau
+- [x] Grouper et dégrouper, aligner et répartir, copier le style
+- [x] Dégradés : formes, textes, fond de page
+- [x] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
+      (2026-10-14, chiffres au JOURNAL)
+- [x] Livraison sur le poste (2026-10-14)
+- [ ] Essai par Alexandre (commandes 8 à 10 du `CLAUDE.md`)
 - [ ] Pont IA : programme `eliot-mcp`, outils calqués sur le store, capture de la page,
       réglage pour l'activer, essai avec Claude
 

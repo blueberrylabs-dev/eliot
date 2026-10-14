@@ -5,6 +5,40 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 2 : projets et édition complète, livrée sur le poste
+
+- Fait par Claude, choix par défaut inscrits au `PLAN.md` : accueil (formats nommés par
+  plateforme, taille libre, designs récents avec miniature, recherche, modèles maison),
+  designs enregistrés dans `~/Documents/Eliot/Designs/` (un dossier par design, version
+  précédente gardée en secours), enregistrement automatique une seconde après chaque
+  modification et à la fermeture, renommage, copie, corbeille du système, fichier `.eliot`
+  (zip vérifié à l'import), document version 2 (nom, format, pages ; conversion des documents
+  de version 1 par le noyau), plusieurs pages (bande des vignettes, vue en grille,
+  réordonner en glissant), zoom et défilement, aperçu plein écran, Redimensionner (sur place
+  ou sur une copie), coller une capture d'écran, déposer des fichiers, glisser depuis les
+  panneaux, grouper, aligner et répartir, copier le style, dégradés.
+- Vérifié dans le conteneur de Claude :
+  - noyau : 25 tests sur 25 (12 nouveaux : cycle d'un design, doublons, conversion de version,
+    document abîmé rouvert depuis la version précédente, renommage, copie vers les modèles,
+    corbeille, identifiants douteux, archive `.eliot` aller et retour, archive piégée refusée
+    sans rien écrire, images copiées d'un design à l'autre) ;
+  - logique de l'interface (vitest) : 13 tests sur 13 (géométrie, pages et annuler, groupes,
+    alignement, copier le style, changement de format, renommage hors historique) ;
+  - interface dans Chromium : 33 vérifications sur 33 (accueil, création, glisser depuis un
+    panneau, enregistrement automatique, gestes de l'étape 1, zoom, groupes, Alt + clic,
+    position, style, dégradé, copier-coller, coller une capture, déposer une image, pages,
+    vue en grille, renommage, copier et redimensionner, export de toutes les pages, aperçu,
+    retour à l'accueil et réouverture, corbeille) ; une seule alerte, propre au navigateur
+    (plein écran demandé hors d'un clic) ;
+  - fenêtre Tauri sur écran virtuel : design créé, photo 24 Mpx importée dans son dossier en
+    682 ms, deux pages, enregistrement, réouverture identique, miniature, renommage du dossier,
+    export des deux pages en 401 ms ; fermeture de la fenêtre une fraction de seconde après une
+    modification : la modification est bien sur le disque.
+- Écarts : le nom du fichier exporté reste `AAAA-MM-JJ_HHMMSS_eliot` comme au BRIEF (le nom du
+  design n'y figure pas) ; l'aperçu plein écran du navigateur de test demande un clic, sans
+  effet dans Tauri.
+- Reste de l'étape 2 : essai d'Alexandre, puis le pont vers une IA (MCP).
+
 ## 2026-10-14, révision 7 : création de contenu, vidéo avant le labo photo, clé dans le .env
 
 - Alexandre a posé sa clé Pixabay dans un `.env` à la racine du dépôt, sa convention habituelle

@@ -467,6 +467,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
+name = "cfg_aliases"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
+
+[[package]]
 name = "chrono"
 version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -906,10 +912,12 @@ dependencies = [
  "noyau",
  "percent-encoding",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
  "tauri-plugin-opener",
+ "trash",
 ]
 
 [[package]]
@@ -2251,6 +2259,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "650eef8c711430f1a879fdd01d4745a7deea475becfb90269c06775983bbf086"
 
 [[package]]
+name = "nix"
+version = "0.31.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf20d2fde8ff38632c426f1165ed7436270b44f199fc55284c38276f9db47c3d"
+dependencies = [
+ "bitflags 2.13.2",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
+]
+
+[[package]]
 name = "noyau"
 version = "0.1.0"
 dependencies = [
@@ -2261,6 +2281,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 2.0.21",
+ "zip",
 ]
 
 [[package]]
@@ -4192,6 +4213,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "trash"
+version = "5.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be89b3fe156965d29ac4f8522f3a640c655affdd9f21cb4f36857f0c92c00317"
+dependencies = [
+ "chrono",
+ "libc",
+ "log",
+ "objc2",
+ "objc2-foundation",
+ "once_cell",
+ "percent-encoding",
+ "scopeguard",
+ "urlencoding",
+ "windows",
+]
+
+[[package]]
 name = "tray-icon"
 version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4218,6 +4257,12 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "typed-path"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e28f89b80c87b8fb0cf04ab448d5dd0dd0ade2f8891bae878de66a75a28600e"
 
 [[package]]
 name = "typeid"
@@ -4266,6 +4311,12 @@ dependencies = [
  "serde",
  "serde_derive",
 ]
+
+[[package]]
+name = "urlencoding"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
 name = "urlpattern"
@@ -5133,6 +5184,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
+]
+
+[[package]]
+name = "zip"
+version = "9.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2d98561b612a84ae525331a7a094429ef8a5772514ed507ff6db5f54badc971"
+dependencies = [
+ "crc32fast",
+ "flate2",
+ "indexmap 2.14.2",
+ "memchr",
+ "nix",
+ "typed-path",
 ]
 
 [[package]]

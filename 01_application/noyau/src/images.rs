@@ -200,6 +200,58 @@ pub fn importer_plusieurs(chemins: &[PathBuf], dossier: &Path) -> Vec<Result<Res
     chemins.par_iter().map(|c| importer_fichier(c, dossier)).collect()
 }
 
+/// Les images rangées dans un dossier de ressources, la plus récemment importée d'abord.
+pub fn lister(dossier: &Path) -> Vec<Ressource> {
+    let Ok(entrees) = fs::read_dir(dossier.join("infos")) else { return Vec::new() };
+    let mut liste: Vec<(std::time::SystemTime, Ressource)> = entrees
+        .flatten()
+        .filter_map(|entree| {
+            let chemin = entree.path();
+            let id = chemin.file_stem()?.to_string_lossy().into_owned();
+            if !identifiant_valide(&id) || chemin.extension().is_none_or(|e| e != "json") {
+                return None;
+            }
+            let ressource: Ressource = serde_json::from_slice(&fs::read(&chemin).ok()?).ok()?;
+            let date = entree.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH);
+            Some((date, ressource))
+        })
+        .collect();
+    liste.sort_by(|a, b| b.0.cmp(&a.0));
+    liste.into_iter().map(|(_, r)| r).collect()
+}
+
+fn copier_atomiquement(source: &Path, cible: &Path) -> Result<(), ErreurImage> {
+    if cible.exists() {
+        return Ok(());
+    }
+    ecrire_atomiquement(cible, &fs::read(source)?)?;
+    Ok(())
+}
+
+/// Copie des images d'un dossier de ressources vers un autre (coller entre deux designs). Une
+/// image déjà présente dans la cible n'est pas recopiée.
+pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressource>, ErreurImage> {
+    for sous_dossier in ["originaux", "apercus", "miniatures", "infos"] {
+        fs::create_dir_all(cible.join(sous_dossier))?;
+    }
+    let mut copiees = Vec::new();
+    for id in ids {
+        let original = chemin_ressource(source, id, Genre::Original)?;
+        let infos: Ressource = serde_json::from_slice(&fs::read(chemin_infos(source, id))?)
+            .map_err(|e| ErreurImage::Decodage(e.to_string()))?;
+        let nom_original = original.file_name().expect("fichier nommé");
+        copier_atomiquement(&original, &cible.join("originaux").join(nom_original))?;
+        for genre in [Genre::Apercu, Genre::Miniature] {
+            let depuis = chemin_ressource(source, id, genre)?;
+            let relatif = depuis.strip_prefix(source).expect("sous la source");
+            copier_atomiquement(&depuis, &cible.join(relatif))?;
+        }
+        copier_atomiquement(&chemin_infos(source, id), &chemin_infos(cible, id))?;
+        copiees.push(infos);
+    }
+    Ok(copiees)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +321,27 @@ mod tests {
         let dossier = dossier_de_test("douteux");
         assert!(matches!(chemin_ressource(&dossier, "../../etc/passwd", Genre::Apercu), Err(ErreurImage::IdentifiantInvalide)));
         assert!(!identifiant_valide(&"A".repeat(64)));
+    }
+
+    #[test]
+    fn les_images_se_listent_et_se_copient_d_un_design_a_l_autre() {
+        let (a, b) = (dossier_de_test("copie-a"), dossier_de_test("copie-b"));
+        let r1 = importer(&jpeg(300, 200), "un.jpg", &a).unwrap();
+        let r2 = importer(&jpeg(200, 300), "deux.jpg", &a).unwrap();
+        let ids: Vec<String> = lister(&a).into_iter().map(|r| r.id).collect();
+        assert_eq!(ids.len(), 2);
+        assert!(ids.contains(&r1.id) && ids.contains(&r2.id));
+
+        let copiees = copier(&a, &b, std::slice::from_ref(&r2.id)).unwrap();
+        assert_eq!(copiees[0].id, r2.id);
+        assert!(chemin_ressource(&b, &r2.id, Genre::Original).unwrap().exists());
+        assert!(chemin_ressource(&b, &r2.id, Genre::Apercu).unwrap().exists());
+        assert_eq!(lister(&b).len(), 1);
+        // Recopier ne fait rien de plus ; un identifiant douteux est refusé.
+        copier(&a, &b, std::slice::from_ref(&r2.id)).unwrap();
+        assert!(copier(&a, &b, &["../x".to_string()]).is_err());
+        fs::remove_dir_all(&a).unwrap();
+        fs::remove_dir_all(&b).unwrap();
     }
 
     #[test]

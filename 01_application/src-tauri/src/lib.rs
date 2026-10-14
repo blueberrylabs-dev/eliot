@@ -8,9 +8,24 @@ pub fn lancer() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .manage(commandes::VerrouProjets::default())
         .invoke_handler(tauri::generate_handler![
+            commandes::projets_lister,
+            commandes::projet_creer,
+            commandes::projet_ouvrir,
+            commandes::projet_enregistrer,
+            commandes::projet_miniature_enregistrer,
+            commandes::projet_miniature_lire,
+            commandes::projet_renommer,
+            commandes::projet_dupliquer,
+            commandes::projet_supprimer,
+            commandes::projet_exporter_archive,
+            commandes::projet_importer_archive,
+            commandes::dossier_designs,
             commandes::importer_images,
             commandes::importer_image_octets,
+            commandes::ressources_lister,
+            commandes::ressources_copier,
             commandes::lire_ressource,
             commandes::exporter_rendu,
             commandes::dossier_export,

@@ -1,5 +1,6 @@
-// Références partagées vers la scène Konva, pour l'export et les éléments posés par-dessus
-// (mini-barre, saisie du texte). Écrites par ZoneDeTravail, lues ailleurs.
+// Références partagées vers la scène Konva, pour les éléments posés par-dessus (mini-barre,
+// saisie du texte) et pour les dépôts (glisser depuis un panneau, fichiers). Écrites par
+// ZoneDeTravail, lues ailleurs.
 
 import type Konva from "konva";
 
@@ -14,6 +15,17 @@ export function noeudElement(id: string): Konva.Group | null {
   const stage = scene.stage;
   if (!stage) return null;
   return (stage.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")) as Konva.Group | undefined) ?? null;
+}
+
+/** Un point de l'écran (coordonnées de la fenêtre) en pixels de la page, ou `null` s'il est
+ *  hors de la zone de travail. */
+export function pointDansLaPage(clientX: number, clientY: number): { x: number; y: number } | null {
+  const { stage, groupePage } = scene;
+  if (!stage || !groupePage) return null;
+  const boite = stage.container().getBoundingClientRect();
+  if (clientX < boite.left || clientX > boite.right || clientY < boite.top || clientY > boite.bottom) return null;
+  const inverse = groupePage.getAbsoluteTransform().copy().invert();
+  return inverse.point({ x: clientX - boite.left, y: clientY - boite.top });
 }
 
 // Petit signal « un geste est en cours » : la mini-barre s'efface pendant un glisser sans

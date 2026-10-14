@@ -1,9 +1,9 @@
 import { Eye, EyeOff, Image as IconeImage, Lock, LockOpen, Shapes, Type } from "lucide-react";
-import { useEditeur } from "../../etat/editeur";
+import { elementsCourants, useEditeur } from "../../etat/editeur";
 import { nomElement } from "../../modele/fabriques";
 
 export function PanneauCalques() {
-  const elements = useEditeur((s) => s.document.elements);
+  const elements = useEditeur(elementsCourants);
   const selection = useEditeur((s) => s.selection);
   const etat = useEditeur.getState();
   // Du dessus vers le dessous, comme on les voit.
@@ -19,11 +19,12 @@ export function PanneauCalques() {
           return (
             <div
               key={el.id}
-              onClick={(e) => (e.shiftKey ? etat.basculerDansSelection(el.id) : etat.selectionner([el.id]))}
+              onClick={(e) => (e.shiftKey ? etat.basculerDansSelection(el.id) : etat.selectionnerSeul(el.id))}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm ${choisi ? "border-accent-500 bg-accent-50" : "border-transparent hover:bg-neutral-100"} ${el.visible ? "" : "opacity-50"}`}
             >
               <span className="text-neutral-500">{el.type === "texte" ? <Type size={15} /> : el.type === "image" ? <IconeImage size={15} /> : <Shapes size={15} />}</span>
               <span className="flex-1 truncate text-neutral-800">{nomElement(el)}</span>
+              {el.groupe && <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-500" title="Fait partie d'un groupe">groupe</span>}
               <button
                 title={el.visible ? "Masquer" : "Afficher"}
                 className="rounded p-1 text-neutral-500 hover:bg-neutral-200"

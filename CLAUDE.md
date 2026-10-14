@@ -25,7 +25,8 @@ lourd. Détail : `BRIEF.md`.
   le mini PC.
 - Enveloppe : Tauri (décision du 2026-10-14), Electron en repli.
 - Étape 1, l'éditeur : `01_application/`, livrée et essayée sur le poste le 2026-10-14.
-- Étape 2, les projets et l'édition complète : ouverte le 2026-10-14 (`PLAN.md`).
+- Étape 2, les projets et l'édition complète : livrée sur le poste le 2026-10-14, essai
+  d'Alexandre attendu ; reste le pont vers une IA (`PLAN.md`).
 
 Suite : `PLAN.md`.
 
@@ -150,7 +151,8 @@ système.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm install
 ```
 
-Vérifier : aucune ligne ne commence par `npm error`.
+Vérifier : aucune ligne ne commence par `npm error`. À refaire après chaque livraison qui
+change `package.json` (l'étape 2 ajoute `vitest`, l'outil de test de l'interface).
 
 **9. Compiler l'application sans l'ouvrir.** Processeur seulement, limité à 4 cœurs ; la
 première fois, plusieurs minutes et quelques Go dans `01_application/src-tauri/target/`.
@@ -167,9 +169,9 @@ Vérifier : la dernière ligne commence par `Finished`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run tauri dev
 ```
 
-Arrêter : fermer la fenêtre ou `Ctrl+C` dans le terminal. Fermer efface la page tant que
-l'enregistrement du projet n'existe pas (étape 2) : exporter d'abord. Si la fenêtre reste
-blanche ou scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri dev`.
+Arrêter : fermer la fenêtre (le design en cours s'enregistre avant), ou `Ctrl+C` dans le
+terminal. Les designs sont dans `~/Documents/Eliot/Designs/`. Si la fenêtre reste blanche ou
+scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri dev`.
 
 **11. Tests du noyau Rust** (processeur seulement, sans fenêtre) :
 
@@ -177,7 +179,15 @@ blanche ou scintille, mêmes variables qu'à la commande 7, placées devant `npm
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 13 passed`.
+Vérifier : `test result: ok. 25 passed`.
+
+**12. Tests de l'interface** (sans fenêtre ni carte graphique) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
+```
+
+Vérifier : `Tests  13 passed`.
 
 ## Arborescence
 

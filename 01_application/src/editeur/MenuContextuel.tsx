@@ -1,9 +1,10 @@
 // Le menu du clic droit (et du bouton « plus » de la mini-barre).
 
-import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Lock, LockOpen, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Group, Lock, LockOpen, Paintbrush, Trash2, Ungroup } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useEditeur } from "../etat/editeur";
+import { elementsSelectionnes, useEditeur } from "../etat/editeur";
+import { collerAvecImages } from "../etat/projets";
 
 interface Proprietes {
   x: number;
@@ -14,7 +15,7 @@ interface Proprietes {
 export function MenuContextuel({ x, y, fermer }: Proprietes) {
   const boite = useRef<HTMLDivElement>(null);
   const selection = useEditeur((s) => s.selection);
-  const choisis = useEditeur(useShallow((s) => s.document.elements.filter((e) => s.selection.includes(e.id))));
+  const choisis = useEditeur(useShallow(elementsSelectionnes));
   const pressePapiers = useEditeur((s) => s.pressePapiers);
   const etat = useEditeur.getState();
 
@@ -38,6 +39,8 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
   const aSelection = selection.length > 0;
   const verrouille = choisis.some((e) => e.verrouille);
   const masque = choisis.length === 1 && !choisis[0].visible;
+  const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
+  const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
 
   const Ligne = ({ icone, libelle, raccourci, surClic, inactif }: { icone: ReactNode; libelle: string; raccourci?: string; surClic: () => void; inactif?: boolean }) => (
     <button
@@ -55,9 +58,18 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
   return (
     <div ref={boite} className="absolute z-20 w-60 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg" style={{ left: x, top: y }}>
       <Ligne icone={<Copy size={15} />} libelle="Copier" raccourci="Ctrl+C" inactif={!aSelection} surClic={action(etat.copierSelection)} />
-      <Ligne icone={<ClipboardPaste size={15} />} libelle="Coller" raccourci="Ctrl+V" inactif={pressePapiers.length === 0} surClic={action(etat.coller)} />
+      <Ligne icone={<ClipboardPaste size={15} />} libelle="Coller" raccourci="Ctrl+V" inactif={pressePapiers.elements.length === 0} surClic={action(() => void collerAvecImages())} />
       <Ligne icone={<CopyPlus size={15} />} libelle="Dupliquer" raccourci="Ctrl+D" inactif={!aSelection} surClic={action(etat.dupliquerSelection)} />
       <Ligne icone={<Trash2 size={15} />} libelle="Supprimer" raccourci="Suppr" inactif={!aSelection || verrouille} surClic={action(etat.supprimerSelection)} />
+      <Ligne icone={<Paintbrush size={15} />} libelle="Copier le style" raccourci="Ctrl+Alt+C" inactif={choisis.length !== 1} surClic={action(etat.copierStyle)} />
+      {choisis.length > 1 && (
+        <Ligne
+          icone={groupe ? <Ungroup size={15} /> : <Group size={15} />}
+          libelle={groupe ? "Dégrouper" : "Grouper"}
+          raccourci={groupe ? "Ctrl+Maj+G" : "Ctrl+G"}
+          surClic={action(() => (groupe ? etat.degrouperSelection() : etat.grouperSelection()))}
+        />
+      )}
       <Separateur />
       <Ligne icone={<ArrowUpToLine size={15} />} libelle="Premier plan" raccourci="Ctrl+Maj+↑" inactif={!aSelection} surClic={action(() => etat.deplacerDansPile("premier"))} />
       <Ligne icone={<ArrowUp size={15} />} libelle="Avancer" raccourci="Ctrl+↑" inactif={!aSelection} surClic={action(() => etat.deplacerDansPile("avant"))} />

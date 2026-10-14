@@ -1,5 +1,5 @@
-import { useEditeur } from "../../etat/editeur";
 import { creerForme, pointsEtoile } from "../../modele/fabriques";
+import { glisserDepuisPanneau } from "../glisser";
 import type { GenreForme } from "../../modele/types";
 
 const FORMES: { libelle: string; forme: GenreForme; arrondi?: number; dessin: React.ReactNode }[] = [
@@ -15,8 +15,6 @@ const FORMES: { libelle: string; forme: GenreForme; arrondi?: number; dessin: Re
 ];
 
 export function PanneauFormes() {
-  const page = useEditeur((s) => s.document.page);
-  const ajouter = useEditeur((s) => s.ajouterElements);
   return (
     <div>
       <p className="mb-3 text-sm font-semibold text-neutral-800">Formes</p>
@@ -25,8 +23,8 @@ export function PanneauFormes() {
           <button
             key={f.libelle}
             title={f.libelle}
-            onClick={() => ajouter([creerForme(page, f.forme, f.arrondi)])}
-            className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-neutral-200 hover:border-accent-500 hover:bg-accent-50"
+            onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerForme(format, f.forme, f.arrondi)])}
+            className="flex aspect-square cursor-grab flex-col items-center justify-center gap-1 rounded-lg border border-neutral-200 hover:border-accent-500 hover:bg-accent-50"
           >
             <svg viewBox="0 0 64 64" className="h-12 w-12 fill-accent-600">
               {f.dessin}
@@ -35,7 +33,7 @@ export function PanneauFormes() {
           </button>
         ))}
       </div>
-      <p className="mt-4 text-xs text-neutral-500">Les poignées des côtés étirent la forme, celles des coins aussi ; la poignée ronde du bas la fait tourner, par pas de 45° quand on s'en approche.</p>
+      <p className="mt-4 text-xs text-neutral-500">Clique pour poser au centre, ou glisse sur la page. Les poignées des côtés étirent la forme, celles des coins aussi ; la poignée ronde du bas la fait tourner, par pas de 45° quand on s'en approche.</p>
     </div>
   );
 }

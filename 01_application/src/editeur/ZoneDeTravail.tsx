@@ -5,18 +5,40 @@
 // (poignées, rectangle de sélection, contour de survol).
 // Pendant un geste, rien ne passe par React ni par le store (règle 3) : Konva déplace les
 // nœuds, le store reçoit le résultat à la fin, en une seule étape d'historique.
+// Zoom : la page s'ajuste à la zone, ou suit le zoom choisi (barre du bas, Ctrl + molette) ;
+// la molette fait défiler, la barre d'espace ou le bouton du milieu font glisser la vue.
 
 import Konva from "konva";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
-import { useEditeur } from "../etat/editeur";
-import type { ElementPage } from "../modele/types";
+import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import type { ElementPage, Format } from "../modele/types";
+import { remplissageKonva } from "./couleurs";
 import { EditeurTexte } from "./EditeurTexte";
 import { MenuContextuel } from "./MenuContextuel";
 import { MiniBarre } from "./MiniBarre";
 import { RenduElement } from "./RenduElement";
 import { aimanter, cibles, type Cibles } from "./reperes";
+import { deposerFichiers, deposerChemins } from "./depot";
 import { scene, signalerGeste } from "./scene";
+import { surDepotFichiers } from "../pont/tauri";
+
+/** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
+ *  centrée ; plus grande, elle suit la position voulue sans quitter la zone. */
+function cadrer(taille: { l: number; h: number }, format: Format, zoom: number | null, voulue: { x: number; y: number } | null) {
+  const ajuste = Math.max(0.02, Math.min((taille.l - 2 * MARGE) / format.largeur, (taille.h - 2 * MARGE) / format.hauteur));
+  const echelle = zoom ?? ajuste;
+  const pl = format.largeur * echelle;
+  const ph = format.hauteur * echelle;
+  const borne = (v: number, taillePage: number, tailleZone: number) =>
+    taillePage + 2 * MARGE <= tailleZone || v === undefined ? Math.round((tailleZone - taillePage) / 2) : Math.round(Math.min(MARGE, Math.max(tailleZone - taillePage - MARGE, v)));
+  return {
+    ajuste,
+    echelle,
+    ox: voulue ? borne(voulue.x, pl, taille.l) : Math.round((taille.l - pl) / 2),
+    oy: voulue ? borne(voulue.y, ph, taille.h) : Math.round((taille.h - ph) / 2),
+  };
+}
 
 const MARGE = 56;
 const ACCENT = "#4f46e5";
@@ -61,11 +83,19 @@ interface EtatGeste {
 export function ZoneDeTravail() {
   const conteneur = useRef<HTMLDivElement>(null);
   const [taille, setTaille] = useState({ l: 900, h: 600 });
-  const page = useEditeur((s) => s.document.page);
-  const elements = useEditeur((s) => s.document.elements);
+  const format = useEditeur((s) => s.document.format);
+  const fond = useEditeur((s) => pageCourante(s).fond);
+  const idPage = useEditeur((s) => s.pageActive);
+  const elements = useEditeur(elementsCourants);
   const selection = useEditeur((s) => s.selection);
   const enEdition = useEditeur((s) => s.enEdition);
+  const zoom = useEditeur((s) => s.zoom);
+  const styleCopie = useEditeur((s) => s.styleCopie);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [voulue, setVoulue] = useState<{ x: number; y: number } | null>(null);
+  const [depotFichiers, setDepotFichiers] = useState(false);
+  const espace = useRef(false);
+  const vue = useRef<{ x0: number; y0: number; ox: number; oy: number } | null>(null);
 
   const stageRef = useRef<Konva.Stage>(null);
   const calquePageRef = useRef<Konva.Layer>(null);
@@ -91,16 +121,111 @@ export function ZoneDeTravail() {
     return () => observer.disconnect();
   }, []);
 
-  const echelle = Math.max(0.02, Math.min((taille.l - 2 * MARGE) / page.largeur, (taille.h - 2 * MARGE) / page.hauteur));
-  const ox = Math.round((taille.l - page.largeur * echelle) / 2);
-  const oy = Math.round((taille.h - page.hauteur * echelle) / 2);
+  const { echelle, ox, oy, ajuste } = cadrer(taille, format, zoom, voulue);
   const transformationPage = { x: ox, y: oy, scaleX: echelle, scaleY: echelle };
+  const cadrage = useRef({ echelle, ox, oy, ajuste });
+  cadrage.current = { echelle, ox, oy, ajuste };
 
   useEffect(() => {
     scene.stage = stageRef.current;
     scene.groupePage = groupePageRef.current;
     scene.echelle = echelle;
   });
+
+  useEffect(() => useEditeur.getState().definirZoomAjuste(ajuste), [ajuste]);
+
+  // Revenir à « ajuster » recentre la page ; changer de page aussi.
+  useEffect(() => {
+    if (zoom === null) setVoulue(null);
+  }, [zoom]);
+  useEffect(() => setVoulue(null), [idPage]);
+
+  /** Zoom autour d'un point de la zone : ce point reste sous le pointeur. */
+  const zoomerAutour = useCallback((nouveau: number, px: number, py: number) => {
+    const { echelle: e, ox: x, oy: y } = cadrage.current;
+    const borne = Math.max(0.05, Math.min(8, nouveau));
+    voulueParPointeur.current = true;
+    setVoulue({ x: px - ((px - x) * borne) / e, y: py - ((py - y) * borne) / e });
+    useEditeur.getState().definirZoom(borne);
+  }, []);
+
+  // Molette : défiler, ou zoomer avec Ctrl.
+  useEffect(() => {
+    const div = conteneur.current;
+    if (!div) return;
+    const surMolette = (e: WheelEvent) => {
+      e.preventDefault();
+      const { echelle: ech, ox: x, oy: y } = cadrage.current;
+      if (e.ctrlKey || e.metaKey) {
+        const r = div.getBoundingClientRect();
+        zoomerAutour(ech * Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
+        return;
+      }
+      const dx = e.shiftKey ? e.deltaY : e.deltaX;
+      const dy = e.shiftKey ? 0 : e.deltaY;
+      setVoulue({ x: x - dx, y: y - dy });
+    };
+    div.addEventListener("wheel", surMolette, { passive: false });
+    return () => div.removeEventListener("wheel", surMolette);
+  }, [zoomerAutour]);
+
+  // Fichiers déposés depuis le gestionnaire de fichiers (Tauri donne leurs chemins).
+  useEffect(() => {
+    let fin: (() => void) | undefined;
+    let actif = true;
+    void surDepotFichiers(
+      (chemins, x, y) => void deposerChemins(chemins, x, y),
+      (survol) => setDepotFichiers(survol),
+    ).then((f) => {
+      if (actif) fin = f;
+      else f();
+    });
+    return () => {
+      actif = false;
+      fin?.();
+    };
+  }, []);
+
+  // Barre d'espace maintenue : la vue se déplace à la souris, comme dans Canva.
+  useEffect(() => {
+    const bas = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || e.repeat) return;
+      const cible = e.target as HTMLElement;
+      if (cible.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(cible.tagName)) return;
+      espace.current = true;
+      if (stageRef.current) stageRef.current.container().style.cursor = "grab";
+      e.preventDefault();
+    };
+    const haut = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      espace.current = false;
+      if (stageRef.current) stageRef.current.container().style.cursor = "default";
+    };
+    window.addEventListener("keydown", bas);
+    window.addEventListener("keyup", haut);
+    return () => {
+      window.removeEventListener("keydown", bas);
+      window.removeEventListener("keyup", haut);
+    };
+  }, []);
+
+  // Le zoom choisi par la barre du bas garde le centre de la zone.
+  const zoomPrecedent = useRef(zoom);
+  useEffect(() => {
+    const avant = zoomPrecedent.current;
+    zoomPrecedent.current = zoom;
+    if (zoom === null || avant === zoom || voulueParPointeur.current) {
+      voulueParPointeur.current = false;
+      return;
+    }
+    const { ajuste: aj, ox: x, oy: y } = cadrage.current;
+    const e = avant ?? aj;
+    const cx = taille.l / 2;
+    const cy = taille.h / 2;
+    setVoulue({ x: cx - ((cx - x) * zoom) / e, y: cy - ((cy - y) * zoom) / e });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zoom]);
+  const voulueParPointeur = useRef(false);
 
   // Les poignées suivent la sélection.
   const selectionnes = elements.filter((e) => selection.includes(e.id));
@@ -138,12 +263,12 @@ export function ZoneDeTravail() {
         .getChildren((n) => n.hasName("element") && !noeuds.has(n as Konva.Group) && n.isVisible())
         .map((n) => n.getClientRect({ relativeTo: gp, skipShadow: true }))
         .map((r) => ({ x: r.x, y: r.y, largeur: r.width, hauteur: r.height }));
-      const pageCourante = useEditeur.getState().document.page;
+      const formatCourant = useEditeur.getState().document.format;
 
       const liste = [...noeuds].map((n) => ({ n, rang: n.zIndex() })).sort((a, b) => a.rang - b.rang);
       liste.forEach(({ n }) => n.moveTo(gg));
       tr.moveTo(calqueGesteRef.current!);
-      geste.current = { noeuds: liste, cibles: cibles(pageCourante, autres) };
+      geste.current = { noeuds: liste, cibles: cibles(formatCourant, autres) };
 
       survolRef.current?.visible(false);
       calquePageRef.current?.batchDraw();
@@ -170,7 +295,7 @@ export function ZoneDeTravail() {
     if (etiquetteRef.current) etiquetteRef.current.style.display = "none";
 
     const etat = useEditeur.getState();
-    const parId = new Map(etat.document.elements.map((e) => [e.id, e]));
+    const parId = new Map(elementsCourants(etat).map((e) => [e.id, e]));
     const modifs: Record<string, Partial<ElementPage>> = {};
     for (const { n } of g.noeuds) {
       const el = parId.get(n.id());
@@ -224,7 +349,7 @@ export function ZoneDeTravail() {
     const groupe = reperesRef.current;
     if (!groupe) return;
     groupe.destroyChildren();
-    const { largeur, hauteur } = useEditeur.getState().document.page;
+    const { largeur, hauteur } = useEditeur.getState().document.format;
     const epaisseur = 1 / scene.echelle;
     for (const v of verticales) groupe.add(new Konva.Line({ points: [v, 0, v, hauteur], stroke: ROSE_REPERE, strokeWidth: epaisseur, listening: false }));
     for (const h of horizontales) groupe.add(new Konva.Line({ points: [0, h, largeur, h], stroke: ROSE_REPERE, strokeWidth: epaisseur, listening: false }));
@@ -254,7 +379,7 @@ export function ZoneDeTravail() {
     tr.on("transformstart.eliot", () => demarrerGeste());
     tr.on("transform.eliot", () => {
       const ancre = tr.getActiveAnchor();
-      const parId = new Map(useEditeur.getState().document.elements.map((el) => [el.id, el]));
+      const parId = new Map(elementsCourants(useEditeur.getState()).map((el) => [el.id, el]));
       for (const n of tr.nodes() as Konva.Group[]) {
         const el = parId.get(n.id());
         if (el?.type !== "texte" || ancre === "rotater") continue;
@@ -293,7 +418,8 @@ export function ZoneDeTravail() {
       const g = groupeElement(e.target);
       const survol = survolRef.current;
       const etat = useEditeur.getState();
-      stage.container().style.cursor = g && g.draggable() ? "move" : "default";
+      if (espace.current) return;
+      stage.container().style.cursor = etat.styleCopie ? "copy" : g && g.draggable() ? "move" : "default";
       if (!survol || !g || geste.current || etat.selection.includes(g.id())) return;
       const r = g.getClientRect({ skipTransform: true, skipShadow: true });
       const abs = g.getAbsoluteTransform().point({ x: r.x, y: r.y });
@@ -303,7 +429,7 @@ export function ZoneDeTravail() {
     stage.on("mouseout.eliot", () => {
       survolRef.current?.visible(false);
       survolRef.current?.getLayer()?.batchDraw();
-      stage.container().style.cursor = "default";
+      if (!espace.current) stage.container().style.cursor = useEditeur.getState().styleCopie ? "copy" : "default";
     });
 
     return () => {
@@ -315,6 +441,11 @@ export function ZoneDeTravail() {
   // ---- Souris : sélection, rectangle de sélection, double-clic, clic droit ----
 
   const finirRectangle = useCallback(() => {
+    if (vue.current) {
+      vue.current = null;
+      if (stageRef.current) stageRef.current.container().style.cursor = espace.current ? "grab" : "default";
+      return;
+    }
     const debut = rectangleSelection.current;
     const rect = rectangleRef.current;
     rectangleSelection.current = null;
@@ -339,6 +470,15 @@ export function ZoneDeTravail() {
   const surPointeurBas = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.evt.button === 2) return;
     setMenu(null);
+    // Déplacer la vue : barre d'espace maintenue, ou bouton du milieu.
+    if (espace.current || e.evt.button === 1) {
+      e.evt.preventDefault();
+      const { ox: x, oy: y } = cadrage.current;
+      vue.current = { x0: e.evt.clientX, y0: e.evt.clientY, ox: x, oy: y };
+      stageRef.current!.container().style.cursor = "grabbing";
+      stageRef.current?.stopDrag();
+      return;
+    }
     const cible = e.target;
     if (cible.getParent() instanceof Konva.Transformer) return;
     const etat = useEditeur.getState();
@@ -352,11 +492,21 @@ export function ZoneDeTravail() {
       return;
     }
     survolRef.current?.visible(false);
+    if (etat.styleCopie) {
+      etat.appliquerStyle(g.id());
+      return;
+    }
     if (e.evt.shiftKey) etat.basculerDansSelection(g.id());
+    else if (e.evt.altKey) etat.selectionnerSeul(g.id());
     else if (!etat.selection.includes(g.id())) etat.selectionner([g.id()]);
   };
 
-  const surPointeurDeplace = () => {
+  const surPointeurDeplace = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const v = vue.current;
+    if (v) {
+      setVoulue({ x: v.ox + e.evt.clientX - v.x0, y: v.oy + e.evt.clientY - v.y0 });
+      return;
+    }
     const debut = rectangleSelection.current;
     const rect = rectangleRef.current;
     if (!debut || !rect) return;
@@ -381,7 +531,26 @@ export function ZoneDeTravail() {
   };
 
   return (
-    <div ref={conteneur} className="relative min-w-0 flex-1 overflow-hidden bg-[#e9e7e2]" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      ref={conteneur}
+      data-zone-de-travail
+      className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#e9e7e2]"
+      onContextMenu={(e) => e.preventDefault()}
+      // Hors de Tauri (navigateur), le dépôt de fichiers passe par les événements HTML.
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) {
+          e.preventDefault();
+          setDepotFichiers(true);
+        }
+      }}
+      onDragLeave={() => setDepotFichiers(false)}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        setDepotFichiers(false);
+        void deposerFichiers(Array.from(e.dataTransfer.files), e.clientX, e.clientY);
+      }}
+    >
       <Stage
         ref={stageRef}
         width={taille.l}
@@ -392,18 +561,18 @@ export function ZoneDeTravail() {
         onContextMenu={surClicDroit}
       >
         <Layer listening={false}>
-          <Rect x={ox} y={oy} width={page.largeur * echelle} height={page.hauteur * echelle} fill="#ffffff" shadowColor="#000000" shadowBlur={18} shadowOpacity={0.14} shadowOffsetY={4} />
+          <Rect x={ox} y={oy} width={format.largeur * echelle} height={format.hauteur * echelle} fill="#ffffff" shadowColor="#000000" shadowBlur={18} shadowOpacity={0.14} shadowOffsetY={4} />
         </Layer>
         <Layer ref={calquePageRef}>
-          <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={page.largeur} clipHeight={page.hauteur}>
-            <Rect name="fond-page" width={page.largeur} height={page.hauteur} fill={page.fond} />
+          <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur}>
+            <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(fond, format.largeur, format.hauteur)} />
             {elements.map((el) => (
               <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} />
             ))}
           </Group>
         </Layer>
         <Layer ref={calqueGesteRef}>
-          <Group ref={groupeGesteRef} {...transformationPage} clipX={0} clipY={0} clipWidth={page.largeur} clipHeight={page.hauteur} />
+          <Group ref={groupeGesteRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur} />
           <Group ref={reperesRef} {...transformationPage} listening={false} />
         </Layer>
         <Layer ref={calqueInterfaceRef}>
@@ -436,6 +605,16 @@ export function ZoneDeTravail() {
       <MiniBarre taille={taille} ouvrirMenu={(x, y) => setMenu({ x, y })} />
       {menu && <MenuContextuel x={menu.x} y={menu.y} fermer={() => setMenu(null)} />}
       <div ref={etiquetteRef} className="pointer-events-none absolute hidden rounded-md bg-neutral-900/90 px-2 py-0.5 text-xs font-medium text-white tabular-nums" />
+      {styleCopie && (
+        <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Clique sur un objet pour lui donner ce style. Échap pour annuler.
+        </div>
+      )}
+      {depotFichiers && (
+        <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-2xl border-2 border-dashed border-accent-500 bg-accent-50/60 text-sm font-medium text-accent-700">
+          Lâche tes images ici
+        </div>
+      )}
     </div>
   );
 }
