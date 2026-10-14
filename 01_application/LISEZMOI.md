@@ -47,7 +47,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
   poste, regarder une capture de la page et exporter. On la voit travailler dans la fenêtre,
-  et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 du `CLAUDE.md`.
+  et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Raccourcis
 

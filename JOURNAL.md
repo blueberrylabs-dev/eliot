@@ -5,6 +5,24 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, déclarer le pont à l'application Claude : l'extension `.mcpb` en secours
+
+- Constat sur le poste : l'application Claude de bureau installée est le paquet non officiel
+  `claude-desktop-unofficial` (projet aaddrick/claude-desktop-debian). L'entrée `eliot` est
+  bien dans `~/.config/Claude/claude_desktop_config.json` et le fichier est valide, mais après
+  un redémarrage de l'application l'onglet Développeur affiche « Aucun serveur ajouté », le
+  journal `mcp.log` reste vide et le bouton « Modifier la configuration » ne fait rien.
+- Pistes en cours : `claude-desktop-unofficial --doctor` (vérification de la configuration
+  MCP prévue par le paquet) et un arrêt complet de l'application avant de la relancer (son
+  LISEZMOI demande de la quitter avant de modifier ce fichier à la main).
+- Solution de secours écrite par Claude : `eliot-mcp/emballer_mcpb.py` emballe le pont en
+  extension au format MCPB (archive zip : `manifest.json` version 0.3, serveur de type
+  binaire, le programme gardé exécutable), à installer depuis Réglages, Extensions, sans
+  passer par ce fichier. Produite sur le poste : `eliot-mcp/target/eliot.mcpb`, 852 Ko,
+  22 outils ; manifeste accepté par l'outil officiel `@anthropic-ai/mcpb` 2.1.2.
+- Rien n'a été modifié dans la configuration de l'application Claude par Claude : le dossier
+  `~/.config/Claude` lui est fermé, les changements restent ceux d'Alexandre.
+
 ## 2026-10-14, pont vers une IA (MCP), dernier morceau de l'étape 2
 
 - Fait par Claude, comme prévu au BRIEF (§ 6) : programme `eliot-mcp` (Rust, `rmcp` 3.5,

@@ -231,6 +231,20 @@ Vérifier : Eliot ouvert et le pont activé, demander à Claude « appelle l'out
 d'Eliot » ; la réponse décrit le design ouvert. Le design et ses captures partent chez
 Anthropic pendant l'échange (règle 12).
 
+**15 bis. Si l'application Claude ignore ce fichier** (cas constaté le 2026-10-14 avec le
+paquet non officiel `claude-desktop-unofficial` : « Aucun serveur ajouté » malgré l'entrée) :
+emballer le pont en extension, après la commande 13, puis l'installer depuis l'application
+Claude, Réglages, Extensions, en choisissant le fichier produit.
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && python3 emballer_mcpb.py
+```
+
+Vérifier : la commande affiche « Extension prête » suivi du chemin
+`01_application/eliot-mcp/target/eliot.mcpb`. À refaire après chaque nouvelle compilation du
+pont, puis réinstaller l'extension. Si l'extension et l'entrée du fichier sont actives toutes
+les deux, retirer l'entrée `eliot` du fichier pour éviter un doublon.
+
 ## Arborescence
 
 ```
