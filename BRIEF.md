@@ -1,9 +1,12 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-14, révision 7, **validée par Alexandre le
-2026-10-14** (« Tu as mon accord »). La révision 7 ajoute son objectif de création de contenu
-pour YouTube, TikTok et Instagram, avec ce qu'il implique, fait passer la vidéo avant le labo
-photo et range les clés d'API dans le `.env` hors git. La révision 6 remplace Pexels, qui a
+Cadrage, écrit une fois. Version du 2026-10-14, révision 8. La révision 8 ajoute le son (voix,
+nettoyage, musique, jingles, bruitages, banques de sons : § 6, « Le son ») selon la proposition
+de Claude **validée par Alexandre le 2026-10-14** (« Je valide »), texte à relire par lui ; il
+entre dans l'étape 4. La révision 7, **validée par Alexandre le 2026-10-14** (« Tu as mon
+accord »), ajoute son objectif de création de contenu pour YouTube, TikTok et Instagram, avec
+ce qu'il implique, fait passer la vidéo avant le labo photo et range les clés d'API dans le
+`.env` hors git. La révision 6 remplace Pexels, qui a
 suspendu ses nouvelles clés, par Pixabay en premier (« Oui, je suis d'accord »). La révision 5
 (« Pour tous tes points, c'est bon ») ajoute à la révision 4, validée plus tôt le même jour, ce
 qu'il a demandé en comparant Eliot à Canva (« Oui, tu rajoutes tout » : bibliothèque
@@ -112,6 +115,14 @@ d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche C
 | API Unsplash (écartée) | « All API uses must use the hotlinked image URLs returned by the API » : incompatible avec une photo copiée dans le projet et un travail hors ligne | https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines |
 | Kits MCP | `rmcp` 3.5.1, Apache-2.0, kit Rust officiel, transports par entrée et sortie standard (`transport-io`) et HTTP ; `@modelcontextprotocol/sdk` 1.32.1, MIT | `cargo info rmcp`, `npm view` |
 | Whisper (sous-titres automatiques) | « Whisper's code and model weights are released under the MIT License » ; modèles de 39 millions (tiny) à 1,55 milliard de paramètres (large) | https://github.com/openai/whisper |
+| API Freesound (révision 8) | gratuite avec une clé ; 60 requêtes par minute et 2 000 par jour ; recherche et extraits MP3 ou OGG avec la clé ; le fichier original demande OAuth2 (« It requires OAuth2 authentication »), 30 par minute et 500 par jour ; « You can use the Freesound API for free only for non-commercial purposes » ; « properly credit Freesound and Freesound users in accordance to sounds' licenses » ; sons sous CC0, CC BY ou CC BY-NC (Sampling+ pour d'anciens sons) | https://freesound.org/docs/api/overview.html ; https://freesound.org/docs/api/resources_apiv2.html ; https://freesound.org/docs/api/terms_of_use.html ; https://en.wikipedia.org/wiki/Freesound |
+| Pixabay, musique et bruitages | absents de l'API, qui couvre « royalty-free images and videos » ; seulement sur le site | https://pixabay.com/api/docs/ |
+| Pexels et le son | « All videos on Pexels are published without audio » ; pas de musique | https://help.pexels.com/hc/en-us/articles/43126081204505-Why-is-there-no-audio-on-my-video |
+| YouTube Audio Library (rapporté) | pas d'API, dans YouTube Studio ; titres sous licence standard réservés aux vidéos YouTube ; titres CC BY 4.0 utilisables ailleurs avec crédit ; à vérifier dans les conditions officielles | https://licenseorg.com/guide/music-audio/youtube-audio-library |
+| Free Music Archive | licences Creative Commons titre par titre, « not all of them can be used in videos, podcasts, short films or commercial projects » ; licence payante par Tribe of Noise (« €45 ») ; pas d'API annoncée | https://freemusicarchive.org/royalty-free-music/ |
+| Openverse | moteur de recherche d'œuvres libres ; sources audio : freesound, jamendo, wikimedia_audio ; API à étudier | https://docs.openverse.org/api/guides/quickstart.html |
+| Piper (voix de synthèse locale) | moteur sous GPL-3.0 (dépôt `OHF-Voice/piper1-gpl`) ; « intended for personal use and text to speech research only » ; « Some voices may have restrictive licenses » | https://github.com/OHF-Voice/piper1-gpl ; `docs/VOICES.md` du même dépôt |
+| Briques audio Rust | `nnnoiseless` 0.5.2 (BSD-3-Clause, réduction de bruit RNNoise), `deep_filter` 0.2.5 (MIT ou Apache-2.0, réduction de bruit), `ebur128` 0.1.10 (MIT, niveau sonore EBU R128), `cpal` 0.18.2 (Apache-2.0, micro), `symphonia` 0.6.1 (MPL-2.0, décodage), `rubato` 5.0.1 (MIT ou Apache-2.0, rééchantillonnage), `hound` 3.5.1 (Apache-2.0, WAV) | `cargo info <crate>` |
 
 ## 5. Règles du projet (au-delà de CONVENTIONS.md)
 
@@ -145,7 +156,8 @@ d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche C
     2026-10-14 : 45 images/s sans cette règle dans Tauri, 62 avec. Une vidéo qui joue suit la
     même logique : elle vit sur son propre calque.
 12. **Hors ligne par défaut.** Tout fonctionne sans internet. Seules sortent sur le réseau la
-    recherche de photos et de vidéos libres (Pixabay, Pexels), quand Alexandre la lance, et
+    recherche de photos et de vidéos libres (Pixabay, Pexels) et de sons (Freesound, révision
+    8), quand Alexandre la lance, et
     les échanges avec Claude, quand il branche Claude sur Eliot (§ 6). C'est le Rust qui
     appelle ces services. Les clés vivent hors git : dans le `.env` à la racine du dépôt,
     comme dans les autres projets d'Alexandre (`00_moi/COMPTES.md`), lu par le Rust en
@@ -205,7 +217,7 @@ polices de Canva.
   d'appareils, graphiques, tableaux, QR code), Texte (styles et associations de polices),
   Photos (Pixabay, Pexels), Importer, Marque, Dessin, Projets, Calques. Un clic pose l'objet au
   centre de la page ; on peut aussi le glisser à l'endroit voulu (étape 2). Chaque panneau a sa
-  recherche par mot.
+  recherche par mot. Révision 8 : un onglet Audio (étape 4, voir « Le son »).
 - **La barre du haut** : accueil, menu Fichier, nom du design (modifiable), état de
   l'enregistrement, Redimensionner (décliner le design dans un autre format), annuler et
   rétablir, bascule Photo ou Vidéo (qui ouvre la frise, voir CapCut plus bas), Exporter.
@@ -310,6 +322,58 @@ pour l'export, contrôlées par un tableau de valeurs attendues commun aux deux.
 Rust décode les originaux avec `ffmpeg`, compose chaque image (la vidéo réglée, puis les calques
 rendus par le Rust), mixe le son, et `ffmpeg` encode le fichier.
 
+### Le son : voix, nettoyage, musique, bruitages (révision 8)
+
+Demande d'Alexandre du 2026-10-14 : « intégrer aussi tout ce qui était voix, parole, musique de
+fond, jingle, puis le traitement et le nettoyage audio », avec les banques de sons et les
+bruitages. Proposition de Claude validée le même jour (« Je valide ») : le son se cale sur la
+frise, il entre donc dans l'étape 4. Tout se calcule sur le processeur (règle 9).
+
+- **L'onglet Audio** du rail : musiques, bruitages, voix ; recherche Freesound ; sons
+  importés ; enregistrements ; jingles de la marque. Un clic pose le son à la tête de lecture,
+  sur la piste audio qui convient ; un glisser le pose où l'on veut dans la frise.
+- **La voix** : enregistrer au micro dans Eliot (le Rust capte le son), prise par prise, avec
+  un compte à rebours et le niveau affiché ; chaque prise devient un clip de la piste voix.
+  Une voix de synthèse locale en français sert aux brouillons et aux maquettes (Piper, sur le
+  processeur) ; ses auteurs la destinent à un usage personnel et à la recherche (§ 4) : pas
+  dans une pub publiée tant que la licence de la voix choisie ne le permet pas.
+- **Le nettoyage d'une voix**, en valeurs du document (règle 13, l'original n'est jamais
+  touché) : réduction du bruit de fond, coupe des silences et des hésitations repérées par la
+  transcription Whisper, filtre des graves sous 80 Hz, égaliseur simple (chaleur, présence),
+  compresseur, dé-esseur ; un bouton « Voix nette » applique un réglage prêt.
+- **Le niveau sonore** : mesuré en LUFS (norme EBU R128) ; l'export se cale sur la cible de
+  la plateforme choisie (autour de -14 LUFS, valeurs vérifiées au moment de les écrire), crête
+  plafonnée pour éviter la saturation.
+- **Le mixage** : volume et fondus par clip ; la musique baisse toute seule quand la voix
+  parle (réglable) ; forme d'onde dans la frise.
+- **Musique et jingles** : un jingle d'ouverture et un de fin rangés dans le kit de marque,
+  posés d'un clic au début ou à la fin de la vidéo ; une musique trop courte se répète pour
+  couvrir la durée, avec un fondu de fin automatique.
+- **Les banques de sons** :
+  - Freesound, dans l'onglet Audio, par le Rust (règle 12), clé dans le `.env`
+    (`FREESOUND_API_KEY`). Seulement les sons CC0 et CC BY : ceux qui interdisent l'usage
+    commercial sont écartés dès la recherche. Le crédit est gardé avec le son, comme pour les
+    photos, et Eliot prépare la liste des crédits à coller dans la description de la vidéo.
+    Les extraits viennent avec la clé ; l'original, si besoin, par la connexion au compte
+    Freesound d'Alexandre (OAuth2).
+  - Pixabay Musique et bruitages, YouTube Audio Library, Free Music Archive : aucune API
+    utilisable. Alexandre télécharge sur leur site ; le fichier s'importe dans Eliot, qui
+    rappelle la licence à vérifier (YouTube Audio Library : la plupart des titres sont réservés
+    à YouTube ; Free Music Archive : licence titre par titre).
+  - Pexels : pas de musique. Openverse : à étudier pour de la musique libre d'usage commercial.
+- **L'export pour TikTok et Reels** : les sons tendance viennent de la bibliothèque de
+  l'application elle-même et ne s'importent pas. L'export propose donc aussi une version sans
+  musique, voix et bruitages gardés, pour ajouter le son tendance au moment de publier.
+- **Plus tard** : musiques et jingles créés par une IA locale ; ils demandent la carte
+  graphique (règle 9), et le modèle sera choisi d'après sa licence (certains interdisent
+  l'usage commercial).
+
+Fonctionnement. Un son importé, enregistré ou téléchargé est rangé dans les ressources du
+design comme une image (empreinte, original, copie d'écoute), avec son crédit. Le Rust décode,
+mesure le niveau, calcule une fois les traitements lourds (réduction de bruit) et garde le
+résultat en cache, pour que la lecture dans la fenêtre reste fluide ; à l'export, il applique
+tout aux originaux, mixe les pistes et `ffmpeg` encode.
+
 ### Brancher une IA : Eliot piloté par Claude
 
 Question d'Alexandre du 2026-10-14 : « est-ce que cet outil, on pourrait le brancher à une IA
@@ -350,8 +414,6 @@ pourquoi cette mise en page fonctionne ».
 
 ### Ce que demandent la publicité et les maquettes de produits
 
-| Besoin | Où il se fait | Étape |
-| --- | --- | --- |
 Étapes selon l'ordre de la révision 5 (§ 7).
 
 | Besoin | Où il se fait | Étape |
@@ -371,6 +433,7 @@ pourquoi cette mise en page fonctionne ».
 | Perspective : poser un visuel sur une boîte, un écran incliné, une affiche en biais | noyau Rust (Konva ne sait faire que des transformations sans perspective) | 5 |
 | Export haute définition et PDF vectoriel | noyau Rust | 5 |
 | Vidéo façon CapCut : frise, pistes, textes animés, musique, export MP4 | interface pour la frise ; noyau Rust pour les copies d'aperçu, le rendu image par image et l'encodage par le programme `ffmpeg` du système, appelé sans être embarqué | 4 |
+| Le son (révision 8) : voix enregistrée, nettoyage, niveau par plateforme, musique qui baisse sous la voix, bruitages Freesound, jingles de marque | noyau Rust (captation, traitements, mixage) ; interface pour l'onglet Audio et les réglages | 4 |
 
 Le modèle de document décrit une page à un instant donné ; pour la vidéo, on lui ajoute le
 temps (apparitions, mouvements) et le noyau Rust rend chaque image. C'est une raison de plus
@@ -411,7 +474,9 @@ quand un texte est sélectionné, ceux d'une vidéo quand c'est une vidéo.
   autre, dupliquer, copier-coller entre designs.
 - **Vidéo** : mode vidéo façon CapCut (détail plus haut) : frise à pistes, couper, scinder,
   vitesse, textes animés, images clés, transitions, musique et voix off avec volume et fondus,
-  sous-titres, aperçu en lecture, export MP4 et GIF.
+  sous-titres, aperçu en lecture, export MP4 et GIF. Révision 8 : voix enregistrée au micro,
+  nettoyage de la voix, niveau sonore par plateforme, musique qui baisse sous la voix,
+  bruitages Freesound, jingles de marque, export sans musique pour les sons tendance.
 - **Modèles** : une quarantaine de modèles de départ dessinés par Claude pour Eliot (post
   produit, promotion, story, bannière, miniature vidéo, affiche A4, maquette produit), avec des
   cadres photo vides à remplir ; plus les modèles maison.
@@ -532,6 +597,9 @@ version, testée) :
   garde le tableau `elements` trié par piste : l'ordre d'empilement découle donc des pistes,
   et passer un clip sur une piste plus haute le passe devant. Sur une même piste, deux clips
   ne se chevauchent jamais dans le temps.
+- Révision 8 : un clip `audio` porte aussi `role` (`musique`, `voix`, `bruitage` : la musique
+  baisse sous les clips `voix`), `traitement` (seulement les réglages actifs : bruit, silences,
+  graves, égaliseur, compresseur, dé-esseur) et, dans les ressources, le crédit du son.
 - Nouveaux types d'élément : `video`, `icone` et `emoji` (un dessin vectoriel de la
   bibliothèque, désigné par son nom et sa collection), `dessin` (tracés à main levée),
   `graphique` (type et tableau de valeurs), `tableau`, `cadre` (une forme ou une grille qui
@@ -667,6 +735,8 @@ Révision 7 : la vidéo, support principal d'Alexandre, passe avant le labo phot
 les mesures du poste principal s'il n'est pas encore là, à confirmer ensuite), petit banc
 pour la copie d'aperçu, frise et pistes, clips, textes animés, images clés, transitions, son,
 sous-titres mot par mot, zones sûres, réglages d'export par plateforme, export MP4 et GIF.
+Révision 8 : le son complet (§ 6, « Le son ») : onglet Audio, voix enregistrée, nettoyage,
+niveau, musique qui baisse sous la voix, Freesound, jingles de marque.
 Le Rust y apprend à rendre les calques de la page, ce qui sert ensuite aux autres exports.
 
 Étape 5, le labo photo et les exports de qualité : petit banc pour l'aperçu en direct, labo
@@ -680,7 +750,8 @@ sombre, texte courbé, styles enregistrés).
 ## 8. Hors périmètre
 
 Hébergement, comptes Eliot, mises à jour automatiques par internet. Services en ligne, sauf la
-recherche de photos (Pixabay, Pexels) et Claude branché par Alexandre (règle 12). Autres
+recherche de photos (Pixabay, Pexels), celle de sons (Freesound, révision 8) et Claude branché
+par Alexandre (règle 12). Autres
 banques d'images, modèles fournis par un tiers (ceux d'Eliot sont dessinés pour lui),
 génération d'images par IA, collaboration (commentaires, partage), mode présentation
 (présenter, notes, minuteur), applications tierces intégrées, mobile. Windows et macOS : le
@@ -746,6 +817,14 @@ de contenu pour YouTube, TikTok et Instagram inscrit au § 1, avec formats par p
 zones sûres, sous-titres mot par mot et réglages d'export par plateforme ; vidéo en étape 4,
 labo photo en étape 5 ; clés d'API dans le `.env` hors git (règle 12).
 
+Tranchées le 2026-10-14, révision 8, par Alexandre (« Je valide ») : le son entre dans
+l'étape 4 (voix, nettoyage, niveau, mixage, jingles de marque) ; Freesound est la banque de
+sons intégrée ; Pixabay Musique, YouTube Audio Library et Free Music Archive passent par un
+téléchargement à la main ; la création de musique par IA attend la carte graphique.
+
+Action d'Alexandre avant l'étape 4 : créer un compte Freesound, demander une clé d'API et
+l'ajouter au `.env` (`FREESOUND_API_KEY`).
+
 Action d'Alexandre avant l'étape 3 : créer un compte Pixabay et relever sa clé d'API
 gratuite (et une clé Pexels si la pause se lève). Fait le 2026-10-14 pour Pixabay : la clé
 est dans le `.env` à la racine du dépôt (`PIXABAY_API_KEY`), exclu de git le même jour ;
@@ -759,3 +838,10 @@ Ouvertes, avec la proposition de Claude :
   même dans un produit fermé) ou copyleft (GPL-3.0, toute version modifiée et distribuée doit
   rester ouverte) ? Sur quel compte GitHub ? Proposition : trancher avant la première
   publication ; d'ici là, tous droits réservés.
+- Q3. Freesound réserve son API gratuite aux usages « non-commercial ». Eliot n'est pas vendu,
+  mais il sert à des pubs. Proposition : Alexandre écrit à Freesound (formulaire de contact,
+  message préparé par Claude) avant l'étape 4 pour confirmer ; sans réponse favorable,
+  Freesound passe au téléchargement à la main, comme Pixabay Musique.
+- Q4. Voix de synthèse pour une pub publiée : Piper est destiné à l'usage personnel selon ses
+  auteurs. Proposition : Piper pour les brouillons ; pour une pub, la vraie voix enregistrée,
+  ou une voix dont la licence permet l'usage commercial, choisie à l'étape 4.

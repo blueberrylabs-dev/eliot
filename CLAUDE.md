@@ -16,7 +16,9 @@ lourd. Détail : `BRIEF.md`.
 
 - `BRIEF.md` : révision 7, **validée par Alexandre le 2026-10-14** : bibliothèque, Pixabay
   puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
-  façon CapCut (étape 4), labo photo façon Lightroom (étape 5), pont vers une IA.
+  façon CapCut (étape 4), labo photo façon Lightroom (étape 5), pont vers une IA. Révision 8
+  du même jour, le son (voix, nettoyage, musique, bruitages, Freesound), validée sur le
+  principe (« Je valide »), texte à relire par Alexandre.
 - Secrets : `.env` à la racine du dépôt, hors git (`PIXABAY_API_KEY`). Ne jamais le lire ni le
   committer ; le Rust le lit lui-même (une version installée lira
   `~/.config/fr.alexandredo.eliot/cles.env`).

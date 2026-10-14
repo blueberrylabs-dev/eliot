@@ -5,6 +5,27 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, BRIEF révision 8 : le son
+
+- Demande d'Alexandre : intégrer « voix, parole, musique de fond, jingle, puis le traitement
+  et le nettoyage audio », les banques de sons (Freesound, Pixabay Audio, Pexels Music,
+  YouTube Audio Library, Free Music Archive) et les bruitages. Avis de Claude : oui, avec
+  l'étape 4, parce que le son se cale sur la frise ; l'écrire au BRIEF dès maintenant pour que
+  la frise prévoie les pistes audio. Validé par Alexandre (« Je valide »).
+- Retenu : onglet Audio, voix enregistrée au micro, nettoyage de la voix en valeurs du
+  document, niveau sonore par plateforme, musique qui baisse sous la voix, jingles dans le kit
+  de marque, export sans musique pour ajouter un son tendance dans TikTok ou Instagram,
+  Freesound intégré (sons CC0 et CC BY seulement, crédit gardé). Tout sur le processeur.
+- Écartés ou à la main, après vérification le 2026-10-14 (sources au § 4 du BRIEF) : Pixabay
+  Musique (absente de l'API, téléchargement sur le site), Pexels (pas de musique), YouTube
+  Audio Library (pas d'API, titres surtout réservés à YouTube), Free Music Archive (pas d'API,
+  licence titre par titre). Création de musique par IA : plus tard, elle demande la carte
+  graphique.
+- Deux points ouverts (Q3 et Q4) : l'API de Freesound n'est gratuite que pour un usage « non
+  commercial », à faire confirmer avant l'étape 4 ; Piper, la voix de synthèse locale, est
+  destiné par ses auteurs à l'usage personnel, donc aux brouillons.
+- Au passage, un en-tête de tableau en double retiré du § 6.
+
 ## 2026-10-14, étape 3, lot 3 : photos Pixabay et kit de marque
 
 - Photos de Pixabay (onglet Photos du rail) : recherche, aperçus et téléchargement passent

@@ -165,7 +165,12 @@ Choix par défaut de Claude, modifiables sur simple demande :
 
 ## Étape 4. La vidéo façon CapCut
 
-Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son,
+Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son
+(révision 8 du BRIEF : onglet Audio, voix enregistrée au micro, nettoyage de la voix, niveau
+sonore par plateforme, musique qui baisse sous la voix, bruitages Freesound, jingles du kit de
+marque, export sans musique pour les sons tendance ; avant l'étape, Alexandre crée sa clé
+Freesound et leur écrit pour confirmer l'usage de leur API, message préparé par Claude ;
+questions Q3 et Q4 du BRIEF),
 sous-titres mot par mot, texte qui entre par lignes sur un cadre fixe (principe retenu le
 2026-10-14, prototype `outils/animer_scenes.py`), zones sûres TikTok, Reels et Shorts, réglages d'export par
 plateforme, export MP4 et GIF ; le Rust apprend à rendre les calques de la page.
