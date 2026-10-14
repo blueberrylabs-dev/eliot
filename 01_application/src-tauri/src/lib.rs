@@ -10,6 +10,7 @@ pub fn lancer() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(commandes::VerrouProjets::default())
+        .manage(commandes::PolicesPoste::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
             ia::au_demarrage(app.handle());
@@ -33,6 +34,11 @@ pub fn lancer() {
             commandes::ressources_lister,
             commandes::ressources_copier,
             commandes::lire_ressource,
+            commandes::polices_poste,
+            commandes::police_poste_lire,
+            commandes::police_vers_design,
+            commandes::polices_design,
+            commandes::police_design_lire,
             commandes::exporter_rendu,
             commandes::dossier_export,
             commandes::autotest_demande,
@@ -40,6 +46,7 @@ pub fn lancer() {
             ia::ia_infos,
             ia::ia_activer,
             ia::ia_repondre,
+            ia::ia_pret,
         ])
         .run(tauri::generate_context!())
         .expect("échec du lancement d'Eliot");

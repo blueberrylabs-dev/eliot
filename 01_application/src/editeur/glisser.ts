@@ -22,7 +22,7 @@ export function centrerSur(elements: ElementPage[], point: { x: number; y: numbe
  * À brancher sur `onPointerDown` d'un bouton de panneau. `fabriquer` crée les éléments au
  * centre de la page ; `vignette` est le nœud montré sous le pointeur pendant le glisser.
  */
-export function glisserDepuisPanneau(evenement: PointeurReact<HTMLElement>, fabriquer: (format: Format) => ElementPage[]): void {
+export function glisserDepuisPanneau(evenement: PointeurReact<HTMLElement>, fabriquer: (format: Format) => ElementPage[] | Promise<ElementPage[]>): void {
   if (evenement.button !== 0) return;
   evenement.preventDefault();
   const depart = { x: evenement.clientX, y: evenement.clientY };
@@ -52,23 +52,20 @@ export function glisserDepuisPanneau(evenement: PointeurReact<HTMLElement>, fabr
     fantome.style.top = `${e.clientY}px`;
   };
 
-  const lacher = (e: PointerEvent) => {
+  const lacher = async (e: PointerEvent) => {
     window.removeEventListener("pointermove", bouger);
-    window.removeEventListener("pointerup", lacher);
+    window.removeEventListener("pointerup", lacher as (e: PointerEvent) => void);
     const glisse = !!fantome;
     fantome?.remove();
     document.body.style.cursor = "";
-    const etat = useEditeur.getState();
-    const elements = fabriquer(etat.document.format);
+    // Le point est lu tout de suite : la fabrique peut attendre une police ou une image.
+    const point = glisse ? pointDansLaPage(e.clientX, e.clientY) : null;
+    if (glisse && !point) return;
+    const elements = await fabriquer(useEditeur.getState().document.format);
     if (elements.length === 0) return;
-    if (!glisse) {
-      etat.ajouterElements(elements);
-      return;
-    }
-    const point = pointDansLaPage(e.clientX, e.clientY);
-    if (point) etat.ajouterElements(centrerSur(elements, point));
+    useEditeur.getState().ajouterElements(point ? centrerSur(elements, point) : elements);
   };
 
   window.addEventListener("pointermove", bouger);
-  window.addEventListener("pointerup", lacher);
+  window.addEventListener("pointerup", lacher as (e: PointerEvent) => void);
 }

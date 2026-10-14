@@ -12,6 +12,7 @@ import Konva from "konva";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import { estTrait } from "../modele/fabriques";
 import type { ElementPage, Format } from "../modele/types";
 import { remplissageKonva } from "./couleurs";
 import { EditeurTexte } from "./EditeurTexte";
@@ -231,7 +232,17 @@ export function ZoneDeTravail() {
   const selectionnes = elements.filter((e) => selection.includes(e.id));
   const seul: ElementPage | null = selectionnes.length === 1 ? selectionnes[0] : null;
   const verrou = selectionnes.some((e) => e.verrouille);
-  const poignees = verrou ? [] : seul?.type === "texte" ? [...COINS, ...COTES_LATERAUX] : seul?.type === "forme" ? TOUS : COINS;
+  // Un texte change de largeur par ses côtés ; une ligne ou une flèche ne s'étire qu'en
+  // longueur ; une forme s'étire dans tous les sens ; le reste garde ses proportions.
+  const poignees = verrou
+    ? []
+    : seul?.type === "texte"
+      ? [...COINS, ...COTES_LATERAUX]
+      : seul?.type === "forme"
+        ? estTrait(seul.forme)
+          ? COTES_LATERAUX
+          : TOUS
+        : COINS;
 
   useEffect(() => {
     const tr = transformerRef.current;

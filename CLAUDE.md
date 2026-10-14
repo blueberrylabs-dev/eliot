@@ -27,6 +27,8 @@ lourd. Détail : `BRIEF.md`.
 - Étape 1, l'éditeur : `01_application/`, livrée et essayée sur le poste le 2026-10-14.
 - Étape 2, les projets et l'édition complète, avec le pont vers une IA (`eliot-mcp`) : livrée
   sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
+- Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lot 1 (icônes, emojis, QR, formes, polices,
+  effets de texte) livré, la suite au `PLAN.md`.
 
 Suite : `PLAN.md`.
 
@@ -154,6 +156,16 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm install
 Vérifier : aucune ligne ne commence par `npm error`. À refaire après chaque livraison qui
 change `package.json` (l'étape 2 ajoute `vitest`, l'outil de test de l'interface).
 
+**8 bis. Fabriquer la bibliothèque** (icônes, emojis, polices ; une fois, puis après chaque
+livraison qui la change ; processeur seulement, réseau pour les polices la première fois) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run bibliotheque
+```
+
+Vérifier : la dernière ligne annonce `7750 icônes, 4047 emojis, 95 polices`. Sans elle, Eliot
+s'ouvre, mais sans icônes, emojis ni polices de la bibliothèque.
+
 **9. Compiler l'application sans l'ouvrir.** Processeur seulement, limité à 4 cœurs ; la
 première fois, plusieurs minutes et quelques Go dans `01_application/src-tauri/target/`.
 
@@ -179,7 +191,7 @@ scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri 
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 25 passed`.
+Vérifier : `test result: ok. 28 passed`.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -187,7 +199,7 @@ Vérifier : `test result: ok. 25 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  15 passed`.
+Vérifier : `Tests  22 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bibliotheque": "node outils/preparer_bibliotheque.mjs"
   },
   "dependencies": {
     "@fontsource/bebas-neue": "^5.3.0",
@@ -24,18 +25,26 @@
     "@tauri-apps/plugin-opener": "^2",
     "konva": "^10.8.0",
     "lucide-react": "^1.57.0",
+    "qrcode": "1.5.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-konva": "^19.3.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@iconify-json/fluent-emoji-flat": "1.2.6",
+    "@phosphor-icons/core": "2.1.1",
+    "@tabler/icons": "3.49.0",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2",
     "@types/node": "^24",
+    "@types/qrcode": "1.5.6",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^6.0.2",
+    "cldr-annotations-derived-full": "48.2.0",
+    "cldr-annotations-full": "48.2.0",
+    "openmoji": "17.0.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.3",
     "vite": "^8.0.16",

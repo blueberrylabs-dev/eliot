@@ -23,7 +23,7 @@ use thiserror::Error;
 use crate::fichiers::{ecrire_atomiquement, nettoyer_nom};
 
 /// Version du document que cette version d'Eliot écrit.
-pub const VERSION_DOCUMENT: u64 = 2;
+pub const VERSION_DOCUMENT: u64 = 3;
 
 pub const FICHIER_DOCUMENT: &str = "document.json";
 pub const FICHIER_PRECEDENT: &str = "document.precedent.json";
@@ -111,6 +111,8 @@ fn nom_de_dossier(nom: &str) -> String {
 
 /// Amène un document à la version courante. Version 1 (étape 1) : une page unique
 /// `{ page: { largeur, hauteur, fond }, elements }`. Version 2 : `{ nom, format, pages }`.
+/// Version 3 (étape 3) : de nouveaux types d'éléments et des champs facultatifs ; un document
+/// de version 2 reste valable tel quel.
 pub fn migrer(mut document: Value, nom_par_defaut: &str) -> Result<Value, ErreurProjet> {
     let version = document
         .get("version")
@@ -134,6 +136,11 @@ pub fn migrer(mut document: Value, nom_par_defaut: &str) -> Result<Value, Erreur
             "format": { "largeur": largeur, "hauteur": hauteur },
             "pages": [ { "id": "page-1", "fond": fond, "elements": elements } ],
         });
+    }
+    if version <= 2 {
+        if let Some(objet) = document.as_object_mut() {
+            objet.insert("version".into(), json!(3));
+        }
     }
     verifier_forme(&document)?;
     Ok(document)
@@ -522,7 +529,7 @@ mod tests {
             "elements": [ { "id": "a1", "type": "forme" } ],
         });
         let nouveau = migrer(ancien, "Ancien").unwrap();
-        assert_eq!(nouveau["version"], 2);
+        assert_eq!(nouveau["version"], 3);
         assert_eq!(nouveau["nom"], "Ancien");
         assert_eq!(nouveau["format"]["hauteur"], 1920);
         assert_eq!(nouveau["pages"][0]["fond"], "#123456");
@@ -530,13 +537,28 @@ mod tests {
     }
 
     #[test]
+    fn un_document_de_l_etape_2_garde_tout_sauf_son_numero() {
+        let ancien = json!({
+            "version": 2,
+            "nom": "Story",
+            "format": { "largeur": 1080, "hauteur": 1920 },
+            "pages": [ { "id": "p1", "fond": "#ffffff", "elements": [ { "id": "t1", "type": "texte", "texte": "Bonjour" } ] } ],
+        });
+        let nouveau = migrer(ancien.clone(), "x").unwrap();
+        assert_eq!(nouveau["version"], 3);
+        let mut attendu = ancien;
+        attendu["version"] = json!(3);
+        assert_eq!(nouveau, attendu);
+    }
+
+    #[test]
     fn un_document_trop_recent_ou_bancal_est_refuse() {
         assert!(matches!(migrer(json!({ "version": 99 }), "x"), Err(ErreurProjet::VersionFuture(99))));
-        assert!(migrer(json!({ "version": 2, "nom": "x" }), "x").is_err());
+        assert!(migrer(json!({ "version": 3, "nom": "x" }), "x").is_err());
         let rayon = rayon_de_test("refus");
         let info = creer(&rayon, &document_vide("Bon", 10, 10)).unwrap();
         assert!(enregistrer(&rayon, &info.id, b"{ pas du json").is_err());
-        assert!(enregistrer(&rayon, &info.id, &texte(&json!({ "version": 2 }))).is_err());
+        assert!(enregistrer(&rayon, &info.id, &texte(&json!({ "version": 3 }))).is_err());
         let (_, relu) = ouvrir(&rayon, &info.id).unwrap();
         assert_eq!(relu["nom"], "Bon", "un enregistrement refusé ne touche pas au fichier");
         fs::remove_dir_all(&rayon).unwrap();

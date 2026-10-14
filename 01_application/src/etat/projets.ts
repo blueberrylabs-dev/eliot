@@ -4,6 +4,7 @@
 import { documentVide, NOM_PAR_DEFAUT } from "../modele/fabriques";
 import type { Format, InfoProjet, RefProjet } from "../modele/types";
 import * as pont from "../pont/tauri";
+import { assurerPolicesDocument, chargerPolicesDesign, fichiersDuPoste } from "../polices";
 import { enregistrerMaintenant, miniatureMaintenant } from "./enregistrement";
 import { useEditeur } from "./editeur";
 
@@ -17,6 +18,10 @@ export async function ouvrirDesign(ref: RefProjet): Promise<boolean> {
     const { info, document } = await pont.ouvrirProjet(ref);
     const ressources = await pont.listerRessources(ref);
     if (precedent && (precedent.rayon !== ref.rayon || precedent.id !== ref.id)) pont.oublierImages(precedent);
+    // Les textes se mesurent avec leur vraie police : elle doit être chargée avant, y compris
+    // une police du poste copiée dans le design.
+    await chargerPolicesDesign(await pont.policesDesign(ref).catch(() => []), (f) => pont.lirePoliceDesign(ref, f));
+    await assurerPolicesDocument(document);
     useEditeur.getState().chargerProjet(ref, document, ressources);
     if (!info.miniature) void miniatureMaintenant(ref, document);
     return true;
@@ -183,4 +188,16 @@ export async function collerAvecImages(): Promise<void> {
     }
   }
   useEditeur.getState().coller();
+}
+
+/** Une police du poste employée dans le design y est copiée : il s'ouvrira pareil ailleurs. */
+export async function copierPoliceDansDesign(famille: string): Promise<void> {
+  const ref = useEditeur.getState().projet;
+  const chemins = fichiersDuPoste(famille);
+  if (!ref || chemins.length === 0) return;
+  try {
+    await Promise.all(chemins.map((c) => pont.policeVersDesign(ref, c)));
+  } catch (e) {
+    erreur(`Police ${famille} non copiée dans le design`, e);
+  }
 }

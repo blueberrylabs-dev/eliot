@@ -5,6 +5,40 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 1 : bibliothèque, panneau Éléments, polices, effets de texte
+
+- Demande d'Alexandre : « Étape 3 d'Eliot » (choix donné par une question). Choix par défaut
+  écrits au PLAN avant le code.
+- Bibliothèque fabriquée sur le poste (`npm run bibliotheque`, `outils/preparer_bibliotheque.mjs`)
+  dans `public/bibliotheque/`, hors git : 7 750 icônes (Tabler 3.49.0 au trait et pleines,
+  Phosphor 2.1.1 en six épaisseurs), 4 047 emojis (Fluent Emoji en version plate, OpenMoji
+  17.0.0 sans les variantes de couleur de peau), noms français des emojis (CLDR 48.2), 95
+  polices de Google Fonts en TTF (38 Mo), chaque fichier contrôlé par son empreinte
+  (`outils/polices.verrou.json`). 10 s la première fois, 4 s ensuite. Licences recopiées
+  dans `LICENCES-TIERS.md`.
+- Écartés : Fluent Emoji en relief (103 Mo) ; Merriweather (9 Mo) et Dela Gothic One (2,5 Mo,
+  surtout des caractères japonais), trop lourdes pour ce qu'elles apportent. Gardées : sept
+  polices sous licence Apache 2.0 (Permanent Marker, Luckiest Guy…), libres elles aussi.
+- Document version 3 : types `icone`, `emoji`, `qr` ; formes `polygone`, `coeur`, `ligne`,
+  `fleche` ; ombre sur tous les éléments ; contour, surlignage, capitales et barré pour les
+  textes. Un document de version 2 est converti sans autre changement que son numéro (test
+  Rust).
+- Panneau Éléments (ouvert par défaut) : recherche en français (dictionnaire de 451 mots vers
+  les mots-clés anglais des icônes, noms CLDR pour les emojis), formes, lignes et flèches,
+  emojis et icônes courants, « Tout voir » par collection, QR code. Panneau Texte : 22
+  associations de polices, toutes les polices par genre ; sélecteur de police avec recherche
+  et aperçu ; une police sans gras ou sans italique ne reçoit plus de faux gras.
+- Polices du poste : le Rust les liste (`fontdb`, largeur normale seulement) et copie celle
+  qui sert dans le dossier du design (`ressources/polices/`), qui s'ouvre alors pareil ailleurs.
+- Pont IA : 5 outils de plus (27 en tout) ; et un défaut corrigé : un appel arrivé pendant le
+  chargement de la fenêtre attendait 120 s pour rien, il attend maintenant que l'interface
+  écoute (`ia_pret`).
+- Vérifié dans le conteneur : Chromium 23 sur 23 (recherche, pose, QR relu par OpenCV,
+  export) ; Tauri sous écran virtuel, piloté par le pont, 22 sur 22 (WebKitGTK dessine
+  icônes, emojis, QR, flèche, texte surligné ; police du poste copiée) ; non-régression étape 2
+  33 sur 33 (Chromium) et 19 sur 19 (pont) ; vitest 22 sur 22 ; tests Rust du noyau 28 sur 28,
+  du pont 4 sur 4 ; `npm run build` passe.
+
 ## 2026-10-14, première vidéo par le pont : présentation de Nimeria, principe d'animation retenu
 
 - Demande d'Alexandre : « une petite vidéo pour présenter Nimeria ». Claude compose sept

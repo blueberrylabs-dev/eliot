@@ -38,11 +38,16 @@ function couleursDuDocument(): string[] {
   for (const page of document.pages) {
     ajouter(page.fond);
     for (const e of page.elements) {
-      if (e.type === "texte") ajouter(e.couleur);
+      if (e.type === "texte") {
+        ajouter(e.couleur);
+        if (e.contour) ajouter(e.contour.couleur);
+        if (e.surlignage) ajouter(e.surlignage.couleur);
+      }
       if (e.type === "forme") {
         ajouter(e.remplissage);
         if (e.epaisseurContour > 0) ajouter(e.contour);
       }
+      if (e.type === "icone" || e.type === "qr") ajouter(e.couleur);
     }
   }
   return [...vues].slice(0, 18);

@@ -1,0 +1,2249 @@
+{
+  "accueil": [
+    "home",
+    "house"
+  ],
+  "achat": [
+    "shopping",
+    "cart",
+    "bag",
+    "buy"
+  ],
+  "acheter": [
+    "shopping",
+    "cart",
+    "buy"
+  ],
+  "aide": [
+    "help",
+    "question",
+    "lifebuoy",
+    "support"
+  ],
+  "aimant": [
+    "magnet"
+  ],
+  "aimer": [
+    "heart",
+    "like",
+    "love",
+    "thumb-up"
+  ],
+  "ajouter": [
+    "plus",
+    "add",
+    "new"
+  ],
+  "alarme": [
+    "alarm",
+    "bell",
+    "alert"
+  ],
+  "alerte": [
+    "alert",
+    "warning",
+    "exclamation",
+    "bell"
+  ],
+  "ambulance": [
+    "ambulance",
+    "medical"
+  ],
+  "ampoule": [
+    "bulb",
+    "lightbulb",
+    "idea"
+  ],
+  "ancre": [
+    "anchor"
+  ],
+  "ange": [
+    "angel"
+  ],
+  "animal": [
+    "animal",
+    "pet",
+    "paw",
+    "dog",
+    "cat"
+  ],
+  "anniversaire": [
+    "birthday",
+    "cake",
+    "gift",
+    "party",
+    "confetti"
+  ],
+  "annuler": [
+    "x",
+    "close",
+    "cancel",
+    "undo"
+  ],
+  "appareil": [
+    "camera",
+    "device"
+  ],
+  "appel": [
+    "phone",
+    "call"
+  ],
+  "application": [
+    "app",
+    "apps",
+    "grid"
+  ],
+  "arbre": [
+    "tree",
+    "plant"
+  ],
+  "argent": [
+    "money",
+    "cash",
+    "coin",
+    "currency",
+    "wallet",
+    "dollar",
+    "euro"
+  ],
+  "arobase": [
+    "at",
+    "mail",
+    "email"
+  ],
+  "arrivee": [
+    "flag",
+    "finish",
+    "arrival"
+  ],
+  "article": [
+    "article",
+    "news",
+    "file-text"
+  ],
+  "ascenseur": [
+    "elevator"
+  ],
+  "assiette": [
+    "plate",
+    "food",
+    "tools-kitchen"
+  ],
+  "atelier": [
+    "tool",
+    "tools",
+    "hammer",
+    "workshop"
+  ],
+  "attention": [
+    "alert",
+    "warning",
+    "exclamation"
+  ],
+  "audio": [
+    "audio",
+    "volume",
+    "music",
+    "speaker",
+    "headphones"
+  ],
+  "automne": [
+    "leaf",
+    "autumn",
+    "fall"
+  ],
+  "avion": [
+    "plane",
+    "airplane",
+    "flight",
+    "travel"
+  ],
+  "avis": [
+    "star",
+    "review",
+    "rating",
+    "message"
+  ],
+  "badge": [
+    "badge",
+    "id",
+    "award"
+  ],
+  "bagage": [
+    "luggage",
+    "suitcase",
+    "briefcase"
+  ],
+  "bague": [
+    "ring",
+    "diamond"
+  ],
+  "balance": [
+    "scale",
+    "balance"
+  ],
+  "ballon": [
+    "ball",
+    "balloon",
+    "soccer",
+    "football",
+    "basketball"
+  ],
+  "banane": [
+    "banana"
+  ],
+  "banque": [
+    "bank",
+    "building-bank",
+    "money"
+  ],
+  "barbecue": [
+    "grill",
+    "barbecue",
+    "fire"
+  ],
+  "bas": [
+    "down",
+    "arrow-down",
+    "chevron-down"
+  ],
+  "basket": [
+    "basketball",
+    "ball"
+  ],
+  "bateau": [
+    "boat",
+    "ship",
+    "sailboat"
+  ],
+  "batterie": [
+    "battery",
+    "charging"
+  ],
+  "beaute": [
+    "beauty",
+    "lipstick",
+    "sparkles",
+    "cosmetic"
+  ],
+  "bebe": [
+    "baby",
+    "child",
+    "bottle"
+  ],
+  "bibliotheque": [
+    "library",
+    "books",
+    "book"
+  ],
+  "biere": [
+    "beer",
+    "drink"
+  ],
+  "bijou": [
+    "diamond",
+    "jewelry",
+    "ring",
+    "gem"
+  ],
+  "billet": [
+    "ticket",
+    "money",
+    "cash"
+  ],
+  "bio": [
+    "leaf",
+    "eco",
+    "plant",
+    "organic"
+  ],
+  "blog": [
+    "article",
+    "news",
+    "pencil",
+    "writing"
+  ],
+  "bluetooth": [
+    "bluetooth"
+  ],
+  "boisson": [
+    "drink",
+    "cup",
+    "glass",
+    "bottle",
+    "coffee"
+  ],
+  "boite": [
+    "box",
+    "package",
+    "archive"
+  ],
+  "bonbon": [
+    "candy",
+    "lollipop"
+  ],
+  "bonheur": [
+    "smile",
+    "happy",
+    "mood-happy"
+  ],
+  "bonhomme": [
+    "user",
+    "person",
+    "man"
+  ],
+  "bouclier": [
+    "shield",
+    "security"
+  ],
+  "bougie": [
+    "candle",
+    "fire"
+  ],
+  "boulangerie": [
+    "bread",
+    "baguette",
+    "croissant",
+    "bakery"
+  ],
+  "boussole": [
+    "compass",
+    "direction"
+  ],
+  "bouteille": [
+    "bottle",
+    "wine",
+    "drink"
+  ],
+  "boutique": [
+    "shop",
+    "store",
+    "building-store",
+    "bag"
+  ],
+  "bouton": [
+    "button",
+    "click",
+    "pointer"
+  ],
+  "bras": [
+    "arm",
+    "muscle",
+    "strong"
+  ],
+  "brosse": [
+    "brush"
+  ],
+  "bulle": [
+    "bubble",
+    "message",
+    "chat"
+  ],
+  "bureau": [
+    "office",
+    "desk",
+    "briefcase",
+    "building"
+  ],
+  "bus": [
+    "bus",
+    "transport"
+  ],
+  "cadeau": [
+    "gift",
+    "present",
+    "box"
+  ],
+  "cadenas": [
+    "lock",
+    "padlock",
+    "security"
+  ],
+  "cafe": [
+    "coffee",
+    "cup",
+    "mug",
+    "cafe"
+  ],
+  "calculatrice": [
+    "calculator"
+  ],
+  "calendrier": [
+    "calendar",
+    "date",
+    "event",
+    "schedule"
+  ],
+  "camera": [
+    "camera",
+    "video"
+  ],
+  "camion": [
+    "truck",
+    "delivery"
+  ],
+  "campagne": [
+    "campaign",
+    "speakerphone",
+    "megaphone"
+  ],
+  "camping": [
+    "tent",
+    "camping",
+    "campfire"
+  ],
+  "carte": [
+    "map",
+    "card",
+    "credit-card"
+  ],
+  "carton": [
+    "box",
+    "package"
+  ],
+  "casque": [
+    "headphones",
+    "headset",
+    "helmet"
+  ],
+  "cerveau": [
+    "brain",
+    "mind",
+    "idea"
+  ],
+  "chaine": [
+    "link",
+    "chain"
+  ],
+  "chaise": [
+    "chair",
+    "armchair"
+  ],
+  "chambre": [
+    "bed",
+    "bedroom"
+  ],
+  "chance": [
+    "clover",
+    "luck",
+    "dice"
+  ],
+  "chapeau": [
+    "hat"
+  ],
+  "chargement": [
+    "loader",
+    "loading",
+    "spinner"
+  ],
+  "chariot": [
+    "cart",
+    "shopping-cart"
+  ],
+  "chat": [
+    "cat",
+    "message",
+    "chat"
+  ],
+  "chaud": [
+    "fire",
+    "flame",
+    "hot",
+    "temperature"
+  ],
+  "chaussure": [
+    "shoe",
+    "sneaker",
+    "boot"
+  ],
+  "chemise": [
+    "shirt",
+    "clothes"
+  ],
+  "cheval": [
+    "horse"
+  ],
+  "chien": [
+    "dog",
+    "pet",
+    "paw"
+  ],
+  "chiffre": [
+    "number",
+    "numbers",
+    "hash"
+  ],
+  "chocolat": [
+    "chocolate",
+    "candy"
+  ],
+  "chronometre": [
+    "stopwatch",
+    "timer",
+    "clock"
+  ],
+  "ciel": [
+    "sky",
+    "cloud",
+    "sun"
+  ],
+  "cinema": [
+    "movie",
+    "film",
+    "clapperboard",
+    "popcorn"
+  ],
+  "ciseaux": [
+    "scissors",
+    "cut"
+  ],
+  "citation": [
+    "quote",
+    "blockquote"
+  ],
+  "citron": [
+    "lemon",
+    "fruit"
+  ],
+  "clavier": [
+    "keyboard"
+  ],
+  "cle": [
+    "key",
+    "lock"
+  ],
+  "clic": [
+    "click",
+    "pointer",
+    "hand-click"
+  ],
+  "client": [
+    "user",
+    "customer",
+    "users"
+  ],
+  "cloche": [
+    "bell",
+    "notification"
+  ],
+  "cocher": [
+    "check",
+    "checkbox",
+    "circle-check"
+  ],
+  "code": [
+    "code",
+    "terminal",
+    "brackets"
+  ],
+  "coeur": [
+    "heart",
+    "love",
+    "like"
+  ],
+  "coffre": [
+    "safe",
+    "box",
+    "chest"
+  ],
+  "colere": [
+    "angry",
+    "mood-angry",
+    "anger"
+  ],
+  "colis": [
+    "package",
+    "box",
+    "delivery",
+    "truck"
+  ],
+  "commande": [
+    "order",
+    "shopping",
+    "receipt",
+    "cart"
+  ],
+  "commentaire": [
+    "comment",
+    "message",
+    "chat",
+    "bubble"
+  ],
+  "communaute": [
+    "users",
+    "group",
+    "community"
+  ],
+  "comparer": [
+    "compare",
+    "arrows",
+    "scale"
+  ],
+  "compte": [
+    "user",
+    "account",
+    "profile"
+  ],
+  "concert": [
+    "music",
+    "microphone",
+    "guitar"
+  ],
+  "confettis": [
+    "confetti",
+    "party",
+    "celebration"
+  ],
+  "connexion": [
+    "login",
+    "plug",
+    "link",
+    "wifi"
+  ],
+  "contact": [
+    "contact",
+    "address-book",
+    "phone",
+    "mail"
+  ],
+  "copier": [
+    "copy",
+    "clipboard"
+  ],
+  "couleur": [
+    "palette",
+    "color",
+    "paint",
+    "brush"
+  ],
+  "couronne": [
+    "crown",
+    "king"
+  ],
+  "courrier": [
+    "mail",
+    "envelope",
+    "letter"
+  ],
+  "course": [
+    "run",
+    "running",
+    "shoe"
+  ],
+  "coussin": [
+    "pillow"
+  ],
+  "couteau": [
+    "knife",
+    "tools-kitchen"
+  ],
+  "crayon": [
+    "pencil",
+    "pen",
+    "edit"
+  ],
+  "creme": [
+    "ice-cream",
+    "cream"
+  ],
+  "croissance": [
+    "growth",
+    "trending-up",
+    "chart",
+    "arrow-up"
+  ],
+  "croix": [
+    "x",
+    "close",
+    "cross"
+  ],
+  "cuisine": [
+    "kitchen",
+    "chef",
+    "tools-kitchen",
+    "cooking",
+    "pot"
+  ],
+  "cuisinier": [
+    "chef",
+    "chef-hat",
+    "cooking"
+  ],
+  "culture": [
+    "book",
+    "theater",
+    "museum"
+  ],
+  "danger": [
+    "alert",
+    "warning",
+    "skull",
+    "danger"
+  ],
+  "danse": [
+    "dance",
+    "music"
+  ],
+  "date": [
+    "calendar",
+    "date"
+  ],
+  "dauphin": [
+    "dolphin",
+    "fish"
+  ],
+  "de": [
+    "dice",
+    "cube"
+  ],
+  "decouvrir": [
+    "discover",
+    "compass",
+    "search"
+  ],
+  "dentiste": [
+    "tooth",
+    "dental"
+  ],
+  "depart": [
+    "start",
+    "flag",
+    "rocket"
+  ],
+  "dessin": [
+    "draw",
+    "pencil",
+    "brush",
+    "palette"
+  ],
+  "diamant": [
+    "diamond",
+    "gem"
+  ],
+  "diplome": [
+    "diploma",
+    "certificate",
+    "school",
+    "graduation"
+  ],
+  "direction": [
+    "direction",
+    "compass",
+    "signpost",
+    "arrow"
+  ],
+  "document": [
+    "file",
+    "document",
+    "file-text",
+    "page"
+  ],
+  "dollar": [
+    "dollar",
+    "currency-dollar",
+    "money"
+  ],
+  "domicile": [
+    "home",
+    "house"
+  ],
+  "donnees": [
+    "database",
+    "data",
+    "chart"
+  ],
+  "dossier": [
+    "folder",
+    "folders"
+  ],
+  "douche": [
+    "shower",
+    "bath"
+  ],
+  "drapeau": [
+    "flag"
+  ],
+  "droite": [
+    "right",
+    "arrow-right",
+    "chevron-right"
+  ],
+  "eau": [
+    "water",
+    "droplet",
+    "drop",
+    "wave"
+  ],
+  "echange": [
+    "exchange",
+    "arrows",
+    "switch",
+    "refresh"
+  ],
+  "eclair": [
+    "bolt",
+    "lightning",
+    "flash",
+    "energy"
+  ],
+  "ecole": [
+    "school",
+    "education",
+    "book"
+  ],
+  "ecologie": [
+    "eco",
+    "leaf",
+    "recycle",
+    "plant"
+  ],
+  "ecouter": [
+    "headphones",
+    "ear",
+    "listen"
+  ],
+  "ecran": [
+    "screen",
+    "monitor",
+    "device-desktop",
+    "tv"
+  ],
+  "ecrire": [
+    "pencil",
+    "write",
+    "edit",
+    "pen"
+  ],
+  "education": [
+    "school",
+    "book",
+    "graduation",
+    "education"
+  ],
+  "eglise": [
+    "church",
+    "building-church"
+  ],
+  "electricite": [
+    "bolt",
+    "plug",
+    "electric",
+    "energy"
+  ],
+  "email": [
+    "mail",
+    "email",
+    "envelope",
+    "at"
+  ],
+  "enceinte": [
+    "speaker",
+    "volume"
+  ],
+  "enfant": [
+    "child",
+    "kid",
+    "baby",
+    "mood-kid"
+  ],
+  "enregistrer": [
+    "save",
+    "device-floppy",
+    "record",
+    "bookmark"
+  ],
+  "entreprise": [
+    "building",
+    "company",
+    "briefcase",
+    "office"
+  ],
+  "envoyer": [
+    "send",
+    "paper-plane",
+    "arrow"
+  ],
+  "epingle": [
+    "pin",
+    "map-pin",
+    "pushpin"
+  ],
+  "equipe": [
+    "team",
+    "users",
+    "group"
+  ],
+  "escalier": [
+    "stairs"
+  ],
+  "espace": [
+    "space",
+    "rocket",
+    "planet",
+    "galaxy"
+  ],
+  "essence": [
+    "gas",
+    "fuel",
+    "gas-station"
+  ],
+  "ete": [
+    "sun",
+    "summer",
+    "beach"
+  ],
+  "etiquette": [
+    "tag",
+    "label",
+    "price-tag",
+    "discount"
+  ],
+  "etoile": [
+    "star",
+    "rating",
+    "favorite"
+  ],
+  "etudiant": [
+    "student",
+    "school",
+    "graduation"
+  ],
+  "euro": [
+    "euro",
+    "currency-euro",
+    "money"
+  ],
+  "evenement": [
+    "event",
+    "calendar",
+    "ticket",
+    "party"
+  ],
+  "facture": [
+    "invoice",
+    "receipt",
+    "file-invoice"
+  ],
+  "famille": [
+    "family",
+    "users",
+    "home"
+  ],
+  "fenetre": [
+    "window",
+    "app-window"
+  ],
+  "fete": [
+    "party",
+    "confetti",
+    "celebration",
+    "balloon"
+  ],
+  "feu": [
+    "fire",
+    "flame"
+  ],
+  "feuille": [
+    "leaf",
+    "page",
+    "file"
+  ],
+  "filtre": [
+    "filter",
+    "funnel"
+  ],
+  "fin": [
+    "flag",
+    "finish",
+    "end"
+  ],
+  "flamme": [
+    "flame",
+    "fire"
+  ],
+  "fleche": [
+    "arrow",
+    "chevron"
+  ],
+  "fleur": [
+    "flower",
+    "plant",
+    "rose"
+  ],
+  "football": [
+    "soccer",
+    "ball",
+    "football"
+  ],
+  "forme": [
+    "shape",
+    "shapes",
+    "square",
+    "circle"
+  ],
+  "fourchette": [
+    "fork",
+    "tools-kitchen"
+  ],
+  "fraise": [
+    "strawberry",
+    "fruit"
+  ],
+  "froid": [
+    "snow",
+    "snowflake",
+    "cold",
+    "temperature"
+  ],
+  "fromage": [
+    "cheese"
+  ],
+  "fruit": [
+    "fruit",
+    "apple",
+    "lemon",
+    "cherry"
+  ],
+  "fumee": [
+    "smoke",
+    "cloud"
+  ],
+  "fusee": [
+    "rocket",
+    "launch",
+    "space"
+  ],
+  "galerie": [
+    "gallery",
+    "photo",
+    "image",
+    "images"
+  ],
+  "gant": [
+    "glove"
+  ],
+  "garage": [
+    "garage",
+    "car"
+  ],
+  "gateau": [
+    "cake",
+    "birthday",
+    "cupcake"
+  ],
+  "gauche": [
+    "left",
+    "arrow-left",
+    "chevron-left"
+  ],
+  "glace": [
+    "ice-cream",
+    "ice",
+    "snow"
+  ],
+  "globe": [
+    "world",
+    "globe",
+    "earth"
+  ],
+  "golf": [
+    "golf"
+  ],
+  "gps": [
+    "gps",
+    "map-pin",
+    "location",
+    "navigation"
+  ],
+  "graphique": [
+    "chart",
+    "graph",
+    "chart-bar",
+    "chart-line",
+    "chart-pie"
+  ],
+  "groupe": [
+    "users",
+    "group",
+    "team"
+  ],
+  "guitare": [
+    "guitar",
+    "music"
+  ],
+  "gymnastique": [
+    "gym",
+    "barbell",
+    "fitness"
+  ],
+  "haltere": [
+    "barbell",
+    "dumbbell",
+    "fitness",
+    "gym"
+  ],
+  "haut": [
+    "up",
+    "arrow-up",
+    "chevron-up"
+  ],
+  "haut-parleur": [
+    "speaker",
+    "volume",
+    "speakerphone"
+  ],
+  "heure": [
+    "clock",
+    "time",
+    "hour"
+  ],
+  "hiver": [
+    "snow",
+    "snowflake",
+    "winter"
+  ],
+  "homme": [
+    "man",
+    "user",
+    "person"
+  ],
+  "hopital": [
+    "hospital",
+    "medical",
+    "building-hospital",
+    "cross"
+  ],
+  "horloge": [
+    "clock",
+    "time"
+  ],
+  "hotel": [
+    "hotel",
+    "bed",
+    "building"
+  ],
+  "idee": [
+    "bulb",
+    "idea",
+    "lightbulb"
+  ],
+  "image": [
+    "photo",
+    "image",
+    "picture"
+  ],
+  "immeuble": [
+    "building",
+    "apartment"
+  ],
+  "imprimer": [
+    "printer",
+    "print"
+  ],
+  "info": [
+    "info",
+    "info-circle",
+    "information"
+  ],
+  "information": [
+    "info",
+    "info-circle",
+    "information"
+  ],
+  "ingredient": [
+    "food",
+    "salt",
+    "pepper"
+  ],
+  "instagram": [
+    "instagram",
+    "camera"
+  ],
+  "internet": [
+    "world",
+    "globe",
+    "wifi",
+    "web"
+  ],
+  "jardin": [
+    "garden",
+    "plant",
+    "flower",
+    "seedling",
+    "shovel"
+  ],
+  "jeu": [
+    "game",
+    "gamepad",
+    "dice",
+    "puzzle"
+  ],
+  "jeux": [
+    "game",
+    "gamepad",
+    "dice",
+    "device-gamepad"
+  ],
+  "jouet": [
+    "toy",
+    "teddy-bear"
+  ],
+  "journal": [
+    "news",
+    "newspaper",
+    "article"
+  ],
+  "jus": [
+    "juice",
+    "drink",
+    "glass"
+  ],
+  "lampe": [
+    "lamp",
+    "bulb",
+    "light"
+  ],
+  "lancement": [
+    "rocket",
+    "launch"
+  ],
+  "langue": [
+    "language",
+    "translate",
+    "world"
+  ],
+  "lapin": [
+    "rabbit",
+    "bunny"
+  ],
+  "lecture": [
+    "book",
+    "reading",
+    "read"
+  ],
+  "legume": [
+    "vegetable",
+    "carrot",
+    "salad"
+  ],
+  "lettre": [
+    "letter",
+    "mail",
+    "envelope"
+  ],
+  "lien": [
+    "link",
+    "chain",
+    "url"
+  ],
+  "lion": [
+    "lion"
+  ],
+  "liste": [
+    "list",
+    "checklist",
+    "list-check"
+  ],
+  "lit": [
+    "bed",
+    "sleep"
+  ],
+  "livraison": [
+    "delivery",
+    "truck",
+    "package",
+    "shipping"
+  ],
+  "livre": [
+    "book",
+    "books",
+    "notebook"
+  ],
+  "localisation": [
+    "map-pin",
+    "location",
+    "gps",
+    "pin"
+  ],
+  "logement": [
+    "home",
+    "house",
+    "building"
+  ],
+  "loisir": [
+    "game",
+    "beach",
+    "ball"
+  ],
+  "loupe": [
+    "search",
+    "zoom",
+    "magnifying-glass"
+  ],
+  "lumiere": [
+    "light",
+    "bulb",
+    "sun"
+  ],
+  "lune": [
+    "moon",
+    "night"
+  ],
+  "lunettes": [
+    "glasses",
+    "sunglasses"
+  ],
+  "machine": [
+    "machine",
+    "settings",
+    "gear"
+  ],
+  "magasin": [
+    "shop",
+    "store",
+    "building-store"
+  ],
+  "magie": [
+    "magic",
+    "wand",
+    "sparkles",
+    "stars"
+  ],
+  "main": [
+    "hand",
+    "hands"
+  ],
+  "maison": [
+    "home",
+    "house"
+  ],
+  "mallette": [
+    "briefcase",
+    "work",
+    "business"
+  ],
+  "marche": [
+    "market",
+    "store",
+    "walk"
+  ],
+  "mariage": [
+    "wedding",
+    "ring",
+    "heart",
+    "rings"
+  ],
+  "marteau": [
+    "hammer",
+    "tool"
+  ],
+  "medaille": [
+    "medal",
+    "award",
+    "trophy"
+  ],
+  "medecin": [
+    "doctor",
+    "stethoscope",
+    "medical",
+    "nurse"
+  ],
+  "medicament": [
+    "pill",
+    "pills",
+    "medicine",
+    "capsule"
+  ],
+  "menu": [
+    "menu",
+    "list",
+    "hamburger"
+  ],
+  "mer": [
+    "sea",
+    "wave",
+    "beach",
+    "ocean"
+  ],
+  "message": [
+    "message",
+    "chat",
+    "comment",
+    "bubble",
+    "mail"
+  ],
+  "meteo": [
+    "weather",
+    "sun",
+    "cloud",
+    "rain"
+  ],
+  "micro": [
+    "microphone",
+    "mic",
+    "podcast"
+  ],
+  "microphone": [
+    "microphone",
+    "mic"
+  ],
+  "modifier": [
+    "edit",
+    "pencil",
+    "pen"
+  ],
+  "moins": [
+    "minus",
+    "remove",
+    "subtract"
+  ],
+  "montagne": [
+    "mountain",
+    "mountains"
+  ],
+  "montre": [
+    "watch",
+    "clock",
+    "smartwatch"
+  ],
+  "moto": [
+    "motorbike",
+    "motorcycle",
+    "scooter"
+  ],
+  "mouton": [
+    "sheep"
+  ],
+  "musee": [
+    "museum",
+    "building"
+  ],
+  "musique": [
+    "music",
+    "note",
+    "headphones",
+    "playlist"
+  ],
+  "nature": [
+    "nature",
+    "leaf",
+    "tree",
+    "plant",
+    "mountain"
+  ],
+  "navigation": [
+    "navigation",
+    "compass",
+    "map"
+  ],
+  "neige": [
+    "snow",
+    "snowflake"
+  ],
+  "noel": [
+    "christmas",
+    "gift",
+    "tree",
+    "snowflake"
+  ],
+  "note": [
+    "note",
+    "notes",
+    "sticky-note",
+    "music"
+  ],
+  "notification": [
+    "bell",
+    "notification",
+    "badge"
+  ],
+  "nouveau": [
+    "new",
+    "sparkles",
+    "plus"
+  ],
+  "nuage": [
+    "cloud",
+    "weather"
+  ],
+  "nuit": [
+    "moon",
+    "night",
+    "stars"
+  ],
+  "objectif": [
+    "target",
+    "goal",
+    "focus"
+  ],
+  "oeil": [
+    "eye",
+    "view",
+    "visible"
+  ],
+  "oiseau": [
+    "bird",
+    "feather"
+  ],
+  "ordinateur": [
+    "computer",
+    "laptop",
+    "device-desktop",
+    "device-laptop"
+  ],
+  "outil": [
+    "tool",
+    "tools",
+    "wrench",
+    "hammer"
+  ],
+  "ouvrir": [
+    "open",
+    "lock-open",
+    "external-link"
+  ],
+  "paiement": [
+    "payment",
+    "credit-card",
+    "cash",
+    "wallet"
+  ],
+  "pain": [
+    "bread",
+    "baguette"
+  ],
+  "palmier": [
+    "palm",
+    "beach",
+    "tree"
+  ],
+  "panier": [
+    "basket",
+    "cart",
+    "shopping-cart",
+    "shopping"
+  ],
+  "papier": [
+    "paper",
+    "file",
+    "page"
+  ],
+  "paquet": [
+    "package",
+    "box",
+    "gift"
+  ],
+  "parametres": [
+    "settings",
+    "gear",
+    "adjustments",
+    "cog"
+  ],
+  "parapluie": [
+    "umbrella",
+    "rain"
+  ],
+  "partage": [
+    "share",
+    "send",
+    "arrow"
+  ],
+  "partager": [
+    "share",
+    "send",
+    "arrow"
+  ],
+  "passeport": [
+    "passport",
+    "travel",
+    "id"
+  ],
+  "pause": [
+    "pause",
+    "player-pause"
+  ],
+  "payer": [
+    "payment",
+    "credit-card",
+    "wallet"
+  ],
+  "peinture": [
+    "paint",
+    "brush",
+    "palette",
+    "roller"
+  ],
+  "personne": [
+    "user",
+    "person",
+    "man",
+    "woman"
+  ],
+  "petit-dejeuner": [
+    "coffee",
+    "croissant",
+    "breakfast"
+  ],
+  "pharmacie": [
+    "pharmacy",
+    "pill",
+    "medical",
+    "cross"
+  ],
+  "photo": [
+    "photo",
+    "camera",
+    "image",
+    "picture"
+  ],
+  "piano": [
+    "piano",
+    "music"
+  ],
+  "pieces": [
+    "coin",
+    "coins",
+    "money"
+  ],
+  "pied": [
+    "foot",
+    "shoe",
+    "footprints"
+  ],
+  "pile": [
+    "battery"
+  ],
+  "pin": [
+    "pin",
+    "map-pin"
+  ],
+  "pizza": [
+    "pizza",
+    "food"
+  ],
+  "plage": [
+    "beach",
+    "umbrella",
+    "sun",
+    "sea"
+  ],
+  "planete": [
+    "planet",
+    "world",
+    "space"
+  ],
+  "plante": [
+    "plant",
+    "leaf",
+    "seedling",
+    "potted-plant"
+  ],
+  "play": [
+    "play",
+    "player-play"
+  ],
+  "pluie": [
+    "rain",
+    "cloud-rain",
+    "umbrella"
+  ],
+  "plume": [
+    "feather",
+    "pen",
+    "writing"
+  ],
+  "plus": [
+    "plus",
+    "add"
+  ],
+  "pneu": [
+    "tire",
+    "wheel"
+  ],
+  "poisson": [
+    "fish",
+    "seafood"
+  ],
+  "pomme": [
+    "apple",
+    "fruit"
+  ],
+  "pompier": [
+    "fire",
+    "firefighter",
+    "fire-truck"
+  ],
+  "porte": [
+    "door"
+  ],
+  "portefeuille": [
+    "wallet",
+    "money"
+  ],
+  "poubelle": [
+    "trash",
+    "delete",
+    "bin"
+  ],
+  "pouce": [
+    "thumb-up",
+    "thumbs-up",
+    "like",
+    "thumb"
+  ],
+  "pourcentage": [
+    "percentage",
+    "discount",
+    "percent"
+  ],
+  "prendre": [
+    "hand",
+    "grab"
+  ],
+  "presentation": [
+    "presentation",
+    "slideshow",
+    "chart"
+  ],
+  "printemps": [
+    "flower",
+    "spring",
+    "plant"
+  ],
+  "prise": [
+    "plug",
+    "outlet",
+    "electric"
+  ],
+  "prix": [
+    "price",
+    "tag",
+    "money",
+    "label",
+    "currency-euro"
+  ],
+  "profil": [
+    "user",
+    "profile",
+    "id",
+    "account"
+  ],
+  "promo": [
+    "discount",
+    "percentage",
+    "tag",
+    "sale",
+    "rosette-discount"
+  ],
+  "promotion": [
+    "discount",
+    "percentage",
+    "tag",
+    "sale"
+  ],
+  "protection": [
+    "shield",
+    "lock",
+    "security"
+  ],
+  "publicite": [
+    "ad",
+    "advertising",
+    "speakerphone",
+    "megaphone"
+  ],
+  "puzzle": [
+    "puzzle",
+    "jigsaw"
+  ],
+  "qr": [
+    "qrcode",
+    "qr-code",
+    "scan"
+  ],
+  "qualite": [
+    "award",
+    "rosette",
+    "medal",
+    "check"
+  ],
+  "question": [
+    "question",
+    "help",
+    "question-mark"
+  ],
+  "radio": [
+    "radio",
+    "antenna"
+  ],
+  "rapide": [
+    "bolt",
+    "fast",
+    "flash",
+    "rocket"
+  ],
+  "recherche": [
+    "search",
+    "zoom",
+    "magnifying-glass"
+  ],
+  "recycler": [
+    "recycle",
+    "eco"
+  ],
+  "reglages": [
+    "settings",
+    "adjustments",
+    "gear",
+    "sliders"
+  ],
+  "regle": [
+    "ruler",
+    "measure"
+  ],
+  "reine": [
+    "crown",
+    "queen"
+  ],
+  "rendez-vous": [
+    "calendar",
+    "clock",
+    "event"
+  ],
+  "repas": [
+    "meal",
+    "food",
+    "tools-kitchen",
+    "plate"
+  ],
+  "reseau": [
+    "network",
+    "share",
+    "wifi",
+    "social"
+  ],
+  "restaurant": [
+    "restaurant",
+    "tools-kitchen",
+    "chef",
+    "food"
+  ],
+  "retour": [
+    "back",
+    "arrow-back",
+    "undo",
+    "return"
+  ],
+  "reussite": [
+    "trophy",
+    "award",
+    "check",
+    "success"
+  ],
+  "reveil": [
+    "alarm",
+    "clock"
+  ],
+  "rire": [
+    "laugh",
+    "mood-happy",
+    "joy"
+  ],
+  "robot": [
+    "robot",
+    "ai"
+  ],
+  "rose": [
+    "rose",
+    "flower"
+  ],
+  "roue": [
+    "wheel",
+    "settings",
+    "gear"
+  ],
+  "route": [
+    "road",
+    "route",
+    "map"
+  ],
+  "sablier": [
+    "hourglass",
+    "time"
+  ],
+  "sac": [
+    "bag",
+    "shopping-bag",
+    "backpack"
+  ],
+  "salade": [
+    "salad",
+    "vegetable"
+  ],
+  "sante": [
+    "health",
+    "heart",
+    "medical",
+    "stethoscope",
+    "first-aid"
+  ],
+  "sapin": [
+    "tree",
+    "christmas",
+    "pine"
+  ],
+  "savon": [
+    "soap",
+    "bath"
+  ],
+  "scooter": [
+    "scooter",
+    "motorbike"
+  ],
+  "securite": [
+    "security",
+    "shield",
+    "lock"
+  ],
+  "sel": [
+    "salt"
+  ],
+  "semaine": [
+    "calendar",
+    "week"
+  ],
+  "serveur": [
+    "server",
+    "database"
+  ],
+  "service": [
+    "service",
+    "tool",
+    "support"
+  ],
+  "signal": [
+    "signal",
+    "antenna",
+    "wifi"
+  ],
+  "smartphone": [
+    "phone",
+    "smartphone",
+    "device-mobile",
+    "mobile"
+  ],
+  "soiree": [
+    "party",
+    "moon",
+    "glass"
+  ],
+  "soldes": [
+    "discount",
+    "sale",
+    "percentage",
+    "tag"
+  ],
+  "soleil": [
+    "sun",
+    "weather",
+    "sunny"
+  ],
+  "son": [
+    "volume",
+    "sound",
+    "speaker",
+    "music"
+  ],
+  "sourire": [
+    "smile",
+    "mood-smile",
+    "happy"
+  ],
+  "souris": [
+    "mouse",
+    "pointer"
+  ],
+  "sport": [
+    "sport",
+    "ball",
+    "run",
+    "barbell",
+    "trophy"
+  ],
+  "statistiques": [
+    "chart",
+    "stats",
+    "analytics",
+    "graph"
+  ],
+  "stylo": [
+    "pen",
+    "pencil",
+    "ballpen"
+  ],
+  "succes": [
+    "trophy",
+    "check",
+    "award",
+    "success"
+  ],
+  "suivant": [
+    "next",
+    "arrow-right",
+    "chevron-right",
+    "player-skip-forward"
+  ],
+  "supprimer": [
+    "trash",
+    "delete",
+    "x"
+  ],
+  "tableau": [
+    "table",
+    "board",
+    "chart"
+  ],
+  "tablette": [
+    "tablet",
+    "device-tablet",
+    "ipad"
+  ],
+  "tasse": [
+    "cup",
+    "mug",
+    "coffee",
+    "tea"
+  ],
+  "taxi": [
+    "taxi",
+    "car"
+  ],
+  "telecharger": [
+    "download",
+    "arrow-down",
+    "cloud-download"
+  ],
+  "telephone": [
+    "phone",
+    "call",
+    "device-mobile",
+    "smartphone"
+  ],
+  "television": [
+    "tv",
+    "television",
+    "screen"
+  ],
+  "temperature": [
+    "temperature",
+    "thermometer"
+  ],
+  "temps": [
+    "clock",
+    "time",
+    "hourglass",
+    "weather"
+  ],
+  "tennis": [
+    "tennis",
+    "ball"
+  ],
+  "terre": [
+    "world",
+    "globe",
+    "earth",
+    "planet"
+  ],
+  "texte": [
+    "text",
+    "typography",
+    "letter",
+    "file-text"
+  ],
+  "the": [
+    "tea",
+    "cup"
+  ],
+  "theatre": [
+    "theater",
+    "masks",
+    "drama"
+  ],
+  "ticket": [
+    "ticket"
+  ],
+  "tiktok": [
+    "tiktok",
+    "music",
+    "video"
+  ],
+  "tirelire": [
+    "piggy-bank",
+    "savings",
+    "money"
+  ],
+  "train": [
+    "train",
+    "railway",
+    "transport"
+  ],
+  "transport": [
+    "transport",
+    "car",
+    "bus",
+    "train",
+    "truck"
+  ],
+  "travail": [
+    "work",
+    "briefcase",
+    "office",
+    "tool"
+  ],
+  "triste": [
+    "sad",
+    "mood-sad",
+    "cry"
+  ],
+  "trophee": [
+    "trophy",
+    "award",
+    "cup"
+  ],
+  "tv": [
+    "tv",
+    "television"
+  ],
+  "universite": [
+    "university",
+    "school",
+    "graduation"
+  ],
+  "urgence": [
+    "emergency",
+    "alert",
+    "ambulance",
+    "siren"
+  ],
+  "utilisateur": [
+    "user",
+    "person",
+    "profile"
+  ],
+  "vacances": [
+    "vacation",
+    "beach",
+    "plane",
+    "suitcase",
+    "palm"
+  ],
+  "valider": [
+    "check",
+    "circle-check",
+    "validate"
+  ],
+  "valise": [
+    "luggage",
+    "suitcase",
+    "travel"
+  ],
+  "velo": [
+    "bike",
+    "bicycle",
+    "cycling"
+  ],
+  "vendre": [
+    "sale",
+    "tag",
+    "cash",
+    "store"
+  ],
+  "vent": [
+    "wind",
+    "weather"
+  ],
+  "vente": [
+    "sale",
+    "discount",
+    "tag",
+    "cash"
+  ],
+  "verre": [
+    "glass",
+    "drink",
+    "wine"
+  ],
+  "verrou": [
+    "lock",
+    "padlock"
+  ],
+  "vetement": [
+    "shirt",
+    "clothes",
+    "hanger"
+  ],
+  "video": [
+    "video",
+    "movie",
+    "camera",
+    "player-play",
+    "film"
+  ],
+  "ville": [
+    "city",
+    "building",
+    "buildings"
+  ],
+  "vin": [
+    "wine",
+    "glass",
+    "bottle"
+  ],
+  "visage": [
+    "face",
+    "mood",
+    "smile"
+  ],
+  "voir": [
+    "eye",
+    "view"
+  ],
+  "voiture": [
+    "car",
+    "vehicle",
+    "automobile"
+  ],
+  "volume": [
+    "volume",
+    "sound",
+    "speaker"
+  ],
+  "voyage": [
+    "travel",
+    "plane",
+    "luggage",
+    "map",
+    "world"
+  ],
+  "web": [
+    "world",
+    "globe",
+    "browser",
+    "web"
+  ],
+  "wifi": [
+    "wifi",
+    "wireless",
+    "signal"
+  ],
+  "youtube": [
+    "youtube",
+    "video",
+    "player-play"
+  ],
+  "zoom": [
+    "zoom",
+    "search",
+    "magnifying-glass"
+  ]
+}

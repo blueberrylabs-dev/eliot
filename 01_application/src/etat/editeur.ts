@@ -3,7 +3,7 @@
 // Les actions sur les éléments visent la page affichée (`pageActive`).
 
 import { create } from "zustand";
-import { documentVide, dupliquerPage, dupliquerTous, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
+import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
 import type { Couleur, DocumentEliot, ElementPage, ElementTexte, Format, PageEliot, RefProjet, Ressource } from "../modele/types";
 
@@ -30,9 +30,12 @@ interface Instantane {
 
 /** Propriétés recopiées par « Copier le style », selon le type de l'objet source. */
 const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
-  texte: ["police", "taillePolice", "gras", "italique", "souligne", "alignement", "couleur", "interligne", "espacement", "opacite"],
-  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "opacite"],
-  image: ["opacite"],
+  texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre"],
+  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre"],
+  image: ["opacite", "ombre"],
+  icone: ["couleur", "trait", "opacite", "ombre"],
+  emoji: ["opacite", "ombre"],
+  qr: ["couleur", "fond", "opacite"],
 };
 
 export interface StyleCopie {
@@ -313,8 +316,14 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
         change = true;
         const suivant = { ...e, ...modif } as ElementPage;
         // Un texte dont la police, la taille ou la largeur change doit remesurer sa hauteur.
-        if (suivant.type === "texte" && ("texte" in modif || "police" in modif || "taillePolice" in modif || "largeur" in modif || "gras" in modif || "italique" in modif || "interligne" in modif || "espacement" in modif) && !("hauteur" in modif)) {
+        if (suivant.type === "texte" && ("texte" in modif || "police" in modif || "taillePolice" in modif || "largeur" in modif || "gras" in modif || "italique" in modif || "interligne" in modif || "espacement" in modif || "majuscules" in modif) && !("hauteur" in modif)) {
           (suivant as ElementTexte).hauteur = mesurerHauteurTexte(suivant);
+        }
+        // Une ligne ou une flèche plus épaisse grandit autour de son axe.
+        if (suivant.type === "forme" && estTrait(suivant.forme) && ("epaisseurContour" in modif || "forme" in modif) && !("hauteur" in modif)) {
+          const hauteur = hauteurTrait(suivant.forme, suivant.epaisseurContour);
+          suivant.y = e.y + (e.hauteur - hauteur) / 2;
+          suivant.hauteur = hauteur;
         }
         return suivant;
       });

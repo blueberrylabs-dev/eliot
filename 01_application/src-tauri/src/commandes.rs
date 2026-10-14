@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-use noyau::{export, images, projet};
+use noyau::{export, images, polices, projet};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -16,6 +16,11 @@ use tauri::{AppHandle, Manager};
 /// jamais un renommage du même dossier.
 #[derive(Default)]
 pub struct VerrouProjets(Mutex<()>);
+
+/// Les polices du poste, lues une fois (la liste sert aussi à refuser la lecture d'un fichier
+/// qu'elle ne contient pas).
+#[derive(Default)]
+pub struct PolicesPoste(Mutex<Option<Vec<polices::PoliceInstallee>>>);
 
 /// `~/Documents/Eliot` (le dossier Documents de l'utilisateur, sinon le dossier personnel).
 fn racine(app: &AppHandle) -> Result<PathBuf, String> {
@@ -274,6 +279,65 @@ pub async fn lire_ressource(app: AppHandle, rayon_nom: String, projet_id: String
         .await
         .map_err(|e| format!("lecture interrompue : {e}"))?
         .map_err(|e| format!("lecture impossible : {e}"))?;
+    Ok(Response::new(octets))
+}
+
+// ----------------------------------------------------------------------------------------
+// Polices du poste et polices copiées dans un design (étape 3)
+// ----------------------------------------------------------------------------------------
+
+fn liste_polices_poste(app: &AppHandle) -> Vec<polices::PoliceInstallee> {
+    let etat = app.state::<PolicesPoste>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    garde.get_or_insert_with(polices::lister_poste).clone()
+}
+
+/// Les polices installées sur le poste.
+#[tauri::command]
+pub async fn polices_poste(app: AppHandle) -> Result<Vec<polices::PoliceInstallee>, String> {
+    tauri::async_runtime::spawn_blocking(move || liste_polices_poste(&app))
+        .await
+        .map_err(|e| format!("lecture des polices interrompue : {e}"))
+}
+
+/// Les octets d'une police du poste, pour la montrer dans la fenêtre.
+#[tauri::command]
+pub async fn police_poste_lire(app: AppHandle, chemin: String) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || polices::lire_poste(&chemin, &liste_polices_poste(&app)))
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))?
+        .map_err(|e| format!("police illisible : {e}"))?;
+    Ok(Response::new(octets))
+}
+
+/// Copie une police du poste dans le design : il pourra s'ouvrir sur une autre machine.
+#[tauri::command]
+pub async fn police_vers_design(app: AppHandle, rayon_nom: String, projet_id: String, chemin: String) -> Result<String, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let connues = liste_polices_poste(&app);
+    if !connues.iter().flat_map(|p| &p.fichiers).any(|f| f.chemin == chemin) {
+        return Err("police inconnue du poste".into());
+    }
+    sur_le_disque(&app, move || polices::copier_dans_design(&PathBuf::from(chemin), &dossier).map_err(|e| e.to_string())).await
+}
+
+/// Les polices copiées dans un design.
+#[tauri::command]
+pub async fn polices_design(app: AppHandle, rayon_nom: String, projet_id: String) -> Result<Vec<polices::PoliceInstallee>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || polices::lister_design(&dossier))
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+/// Les octets d'une police copiée dans un design.
+#[tauri::command]
+pub async fn police_design_lire(app: AppHandle, rayon_nom: String, projet_id: String, fichier: String) -> Result<Response, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let octets = tauri::async_runtime::spawn_blocking(move || polices::lire_design(&dossier, &fichier))
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))?
+        .map_err(|e| format!("police illisible : {e}"))?;
     Ok(Response::new(octets))
 }
 

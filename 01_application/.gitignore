@@ -1,3 +1,5 @@
 node_modules/
 dist/
 *.tsbuildinfo
+# Fabriquée sur le poste par npm run bibliotheque (étape 3), hors git
+public/bibliotheque/

@@ -41,7 +41,7 @@ export function Bulle({ titre, bouton, largeur = 240, children, classeBouton }: 
 
   return (
     <>
-      <button ref={refBouton} title={titre} onClick={basculer} className={classeBouton ?? "flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-neutral-700 hover:bg-neutral-100"}>
+      <button ref={refBouton} title={titre} onClick={basculer} className={classeBouton ?? "flex h-8 min-w-8 shrink-0 items-center justify-center gap-1 rounded-md px-1.5 whitespace-nowrap text-neutral-700 hover:bg-neutral-100"}>
         {bouton}
       </button>
       {ouverte &&

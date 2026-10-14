@@ -2,7 +2,10 @@
   {
     "name": "etat",
     "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images importées dans le design, polices disponibles. À appeler en premier, et après chaque série de modifications.",
-    "inputSchema": { "type": "object", "properties": {} }
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
   },
   {
     "name": "capture",
@@ -10,15 +13,27 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "page": { "type": "integer", "minimum": 1, "description": "Numéro de page, à partir de 1." },
-        "largeur": { "type": "integer", "minimum": 100, "maximum": 1600, "description": "Largeur de l'image en pixels." }
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Numéro de page, à partir de 1."
+        },
+        "largeur": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 1600,
+          "description": "Largeur de l'image en pixels."
+        }
       }
     }
   },
   {
     "name": "lister_designs",
     "description": "Les designs enregistrés et les modèles maison, du plus récent au plus ancien (identifiant, nom, format, nombre de pages).",
-    "inputSchema": { "type": "object", "properties": {} }
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    }
   },
   {
     "name": "nouveau_design",
@@ -26,10 +41,32 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "format": { "type": "string", "enum": ["carre", "portrait", "story", "paysage", "miniature", "banniere", "a4", "a5"] },
-        "largeur": { "type": "integer", "minimum": 16, "maximum": 20000 },
-        "hauteur": { "type": "integer", "minimum": 16, "maximum": 20000 },
-        "nom": { "type": "string" }
+        "format": {
+          "type": "string",
+          "enum": [
+            "carre",
+            "portrait",
+            "story",
+            "paysage",
+            "miniature",
+            "banniere",
+            "a4",
+            "a5"
+          ]
+        },
+        "largeur": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 20000
+        },
+        "hauteur": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 20000
+        },
+        "nom": {
+          "type": "string"
+        }
       }
     }
   },
@@ -38,14 +75,33 @@
     "description": "Ouvre un design enregistré (identifiant donné par lister_designs). Avec modele à vrai, crée un nouveau design à partir de ce modèle maison.",
     "inputSchema": {
       "type": "object",
-      "properties": { "id": { "type": "string" }, "modele": { "type": "boolean" } },
-      "required": ["id"]
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "modele": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ]
     }
   },
   {
     "name": "renommer_design",
     "description": "Change le nom du design ouvert.",
-    "inputSchema": { "type": "object", "properties": { "nom": { "type": "string" } }, "required": ["nom"] }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "nom": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "nom"
+      ]
+    }
   },
   {
     "name": "ajouter_texte",
@@ -53,36 +109,111 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "texte": { "type": "string" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "largeur": { "type": "number", "description": "Largeur de la boîte : le texte va à la ligne à l'intérieur." },
-        "taillePolice": { "type": "number" },
-        "police": { "type": "string", "description": "Une des polices données par etat." },
-        "couleur": { "$ref": "#/$defs/couleur" },
-        "gras": { "type": "boolean" },
-        "italique": { "type": "boolean" },
-        "souligne": { "type": "boolean" },
-        "alignement": { "type": "string", "enum": ["left", "center", "right"] },
-        "interligne": { "type": "number", "description": "Multiple de la taille de police, 1.2 par défaut." },
-        "espacement": { "type": "number", "description": "Espacement des lettres en pixels." },
-        "rotation": { "type": "number" },
-        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+        "texte": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number",
+          "description": "Largeur de la boîte : le texte va à la ligne à l'intérieur."
+        },
+        "taillePolice": {
+          "type": "number"
+        },
+        "police": {
+          "type": "string",
+          "description": "Une des polices données par etat."
+        },
+        "couleur": {
+          "$ref": "#/$defs/couleur"
+        },
+        "gras": {
+          "type": "boolean"
+        },
+        "italique": {
+          "type": "boolean"
+        },
+        "souligne": {
+          "type": "boolean"
+        },
+        "alignement": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "interligne": {
+          "type": "number",
+          "description": "Multiple de la taille de police, 1.2 par défaut."
+        },
+        "espacement": {
+          "type": "number",
+          "description": "Espacement des lettres en pixels."
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
-      "required": ["texte"],
+      "required": [
+        "texte"
+      ],
       "$defs": {
         "couleur": {
           "description": "Couleur unie #rrggbb, ou dégradé { type: lineaire | radial, angle (degrés, 0 de gauche à droite), arrets: [{ position de 0 à 1, couleur }] }.",
           "anyOf": [
-            { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+            {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
             {
               "type": "object",
               "properties": {
-                "type": { "type": "string", "enum": ["lineaire", "radial"] },
-                "angle": { "type": "number" },
-                "arrets": { "type": "array", "items": { "type": "object", "properties": { "position": { "type": "number" }, "couleur": { "type": "string" } }, "required": ["position", "couleur"] }, "minItems": 2 }
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "lineaire",
+                    "radial"
+                  ]
+                },
+                "angle": {
+                  "type": "number"
+                },
+                "arrets": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "position": {
+                        "type": "number"
+                      },
+                      "couleur": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "position",
+                      "couleur"
+                    ]
+                  },
+                  "minItems": 2
+                }
               },
-              "required": ["type", "arrets"]
+              "required": [
+                "type",
+                "arrets"
+              ]
             }
           ]
         }
@@ -91,29 +222,273 @@
   },
   {
     "name": "ajouter_forme",
-    "description": "Ajoute une forme sur la page affichée : rectangle (arrondi possible), ellipse, triangle, etoile. Sans position, elle est centrée. Remplissage : #rrggbb ou un dégradé (voir ajouter_texte).",
+    "description": "Ajoute une forme sur la page affichée : rectangle (arrondi possible), ellipse, triangle, etoile, polygone, coeur, ligne, fleche. Sans position, elle est centrée. Remplissage : #rrggbb ou un dégradé (voir ajouter_texte) ; pour une ligne ou une flèche, c'est la couleur du trait et epaisseurContour son épaisseur.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "forme": { "type": "string", "enum": ["rectangle", "ellipse", "triangle", "etoile"] },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "largeur": { "type": "number" },
-        "hauteur": { "type": "number" },
+        "forme": {
+          "type": "string",
+          "enum": [
+            "rectangle",
+            "ellipse",
+            "triangle",
+            "etoile",
+            "polygone",
+            "coeur",
+            "ligne",
+            "fleche"
+          ]
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
         "remplissage": {},
-        "contour": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
-        "epaisseurContour": { "type": "number", "minimum": 0 },
-        "arrondi": { "type": "number", "minimum": 0, "description": "Rayon des coins, rectangle seulement." },
-        "rotation": { "type": "number" },
-        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+        "contour": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "epaisseurContour": {
+          "type": "number",
+          "minimum": 0
+        },
+        "arrondi": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Rayon des coins, rectangle seulement."
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cotes": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 24,
+          "description": "Polygone : nombre de côtés ; étoile : nombre de branches (12 et plus : badge dentelé)."
+        },
+        "tirets": {
+          "type": "boolean",
+          "description": "Ligne ou flèche en tirets."
+        },
+        "pointes": {
+          "type": "object",
+          "properties": {
+            "debut": {
+              "type": "boolean"
+            },
+            "fin": {
+              "type": "boolean"
+            }
+          },
+          "description": "Flèche : pointe au début (gauche) et à la fin (droite) ; par défaut, à la fin seulement."
+        }
       },
-      "required": ["forme"]
+      "required": [
+        "forme"
+      ]
+    }
+  },
+  {
+    "name": "chercher_bibliotheque",
+    "description": "Cherche dans la bibliothèque d'Eliot des icônes (Tabler, Phosphor) et des emojis (Fluent Emoji, OpenMoji) par mot, en français ou en anglais : cœur, panier, flèche, fête, café… Renvoie collection et nom, à donner à ajouter_icone ou ajouter_emoji. Pour Phosphor, la collection renvoyée est « phosphor » : choisir l'épaisseur en ajoutant -regular, -thin, -light, -bold, -fill ou -duotone.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requete": {
+          "type": "string"
+        },
+        "genre": {
+          "type": "string",
+          "enum": [
+            "icone",
+            "emoji"
+          ],
+          "description": "Limiter aux icônes ou aux emojis."
+        },
+        "nombre": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Nombre de résultats, 30 par défaut."
+        }
+      },
+      "required": [
+        "requete"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_icone",
+    "description": "Pose une icône de la bibliothèque (vectorielle, d'une seule couleur) sur la page affichée. Collections : tabler (au trait), tabler-plein, phosphor-regular, phosphor-thin, phosphor-light, phosphor-bold, phosphor-fill, phosphor-duotone. Sans position, elle est centrée ; carrée par défaut.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string"
+        },
+        "nom": {
+          "type": "string"
+        },
+        "couleur": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "collection",
+        "nom"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_emoji",
+    "description": "Pose un emoji de la bibliothèque (vectoriel, en couleurs) sur la page affichée. Collections : fluent (Fluent Emoji de Microsoft, style plat) ou openmoji. Sans position, il est centré.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "collection": {
+          "type": "string",
+          "enum": [
+            "fluent",
+            "openmoji"
+          ]
+        },
+        "nom": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "collection",
+        "nom"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_qr",
+    "description": "Pose un QR code sur la page affichée : une adresse web ou un texte. Fond blanc par défaut (null : transparent).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "contenu": {
+          "type": "string"
+        },
+        "couleur": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "fond": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "contenu"
+      ]
+    }
+  },
+  {
+    "name": "lister_polices",
+    "description": "Les polices d'Eliot avec leur genre (sans, impact, empattement, manuscrite, chasse-fixe, poste) et leur usage conseillé (luxe, sport, promo…), pour choisir une police qui va avec le message.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "genre": {
+          "type": "string",
+          "enum": [
+            "sans",
+            "impact",
+            "empattement",
+            "manuscrite",
+            "chasse-fixe",
+            "poste"
+          ]
+        }
+      }
     }
   },
   {
     "name": "importer_image",
     "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié.",
-    "inputSchema": { "type": "object", "properties": { "chemin": { "type": "string" } }, "required": ["chemin"] }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "chemin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chemin"
+      ]
+    }
   },
   {
     "name": "ajouter_image",
@@ -121,44 +496,109 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "ressource": { "type": "string" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "largeur": { "type": "number" },
-        "hauteur": { "type": "number" },
-        "rotation": { "type": "number" },
-        "opacite": { "type": "number", "minimum": 0, "maximum": 1 }
+        "ressource": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
       },
-      "required": ["ressource"]
+      "required": [
+        "ressource"
+      ]
     }
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, alignement, interligne, espacement ; pour une forme : remplissage, contour, epaisseurContour, arrondi ; pour une image : retourneH, retourneV.",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H).",
     "inputSchema": {
       "type": "object",
       "properties": {
         "modifications": {
           "type": "array",
-          "items": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"], "additionalProperties": true },
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ],
+            "additionalProperties": true
+          },
           "minItems": 1
         }
       },
-      "required": ["modifications"]
+      "required": [
+        "modifications"
+      ]
     }
   },
   {
     "name": "supprimer",
     "description": "Supprime des éléments de la page affichée (un élément verrouillé est gardé).",
-    "inputSchema": { "type": "object", "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 } }, "required": ["ids"] }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "ids"
+      ]
+    }
   },
   {
     "name": "ordre",
     "description": "Change l'ordre d'empilement : premier (tout devant), avant (un cran devant), arriere (un cran derrière), dernier (tout derrière).",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "sens": { "type": "string", "enum": ["premier", "avant", "arriere", "dernier"] } },
-      "required": ["ids", "sens"]
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "sens": {
+          "type": "string",
+          "enum": [
+            "premier",
+            "avant",
+            "arriere",
+            "dernier"
+          ]
+        }
+      },
+      "required": [
+        "ids",
+        "sens"
+      ]
     }
   },
   {
@@ -166,8 +606,30 @@
     "description": "Aligne des éléments : un seul s'aligne sur la page, plusieurs s'alignent entre eux.",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "sens": { "type": "string", "enum": ["gauche", "centre", "droite", "haut", "milieu", "bas"] } },
-      "required": ["ids", "sens"]
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "sens": {
+          "type": "string",
+          "enum": [
+            "gauche",
+            "centre",
+            "droite",
+            "haut",
+            "milieu",
+            "bas"
+          ]
+        }
+      },
+      "required": [
+        "ids",
+        "sens"
+      ]
     }
   },
   {
@@ -175,8 +637,26 @@
     "description": "Répartit l'espace également entre trois éléments ou plus, le premier et le dernier restant en place.",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 3 }, "axe": { "type": "string", "enum": ["horizontal", "vertical"] } },
-      "required": ["ids", "axe"]
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 3
+        },
+        "axe": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ]
+        }
+      },
+      "required": [
+        "ids",
+        "axe"
+      ]
     }
   },
   {
@@ -184,14 +664,35 @@
     "description": "Groupe des éléments (ils se sélectionnent et bougent ensemble), ou les dégroupe avec degrouper à vrai.",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }, "degrouper": { "type": "boolean" } },
-      "required": ["ids"]
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "degrouper": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ids"
+      ]
     }
   },
   {
     "name": "fond_page",
     "description": "Fond de la page affichée : #rrggbb ou un dégradé (voir ajouter_texte).",
-    "inputSchema": { "type": "object", "properties": { "couleur": {} }, "required": ["couleur"] }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "couleur": {}
+      },
+      "required": [
+        "couleur"
+      ]
+    }
   },
   {
     "name": "pages",
@@ -199,11 +700,28 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "action": { "type": "string", "enum": ["ajouter", "dupliquer", "supprimer", "aller", "deplacer"] },
-        "numero": { "type": "integer", "minimum": 1 },
-        "vers": { "type": "integer", "minimum": 1 }
+        "action": {
+          "type": "string",
+          "enum": [
+            "ajouter",
+            "dupliquer",
+            "supprimer",
+            "aller",
+            "deplacer"
+          ]
+        },
+        "numero": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "vers": {
+          "type": "integer",
+          "minimum": 1
+        }
       },
-      "required": ["action"]
+      "required": [
+        "action"
+      ]
     }
   },
   {
@@ -211,19 +729,54 @@
     "description": "Passe le design dans un autre format (en pixels). Avec adapter (par défaut), le contenu est mis à l'échelle et centré.",
     "inputSchema": {
       "type": "object",
-      "properties": { "largeur": { "type": "integer", "minimum": 16, "maximum": 20000 }, "hauteur": { "type": "integer", "minimum": 16, "maximum": 20000 }, "adapter": { "type": "boolean" } },
-      "required": ["largeur", "hauteur"]
+      "properties": {
+        "largeur": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 20000
+        },
+        "hauteur": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 20000
+        },
+        "adapter": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "largeur",
+        "hauteur"
+      ]
     }
   },
   {
     "name": "annuler",
     "description": "Annule les dernières modifications (une par défaut), comme Ctrl+Z.",
-    "inputSchema": { "type": "object", "properties": { "fois": { "type": "integer", "minimum": 1, "maximum": 50 } } }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fois": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      }
+    }
   },
   {
     "name": "retablir",
     "description": "Rétablit ce qui vient d'être annulé (une étape par défaut).",
-    "inputSchema": { "type": "object", "properties": { "fois": { "type": "integer", "minimum": 1, "maximum": 50 } } }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fois": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      }
+    }
   },
   {
     "name": "exporter",
@@ -231,10 +784,30 @@
     "inputSchema": {
       "type": "object",
       "properties": {
-        "format": { "type": "string", "enum": ["png", "jpeg"] },
-        "pages": { "type": "string", "enum": ["courante", "toutes"] },
-        "ratio": { "type": "integer", "enum": [1, 2] },
-        "transparent": { "type": "boolean" }
+        "format": {
+          "type": "string",
+          "enum": [
+            "png",
+            "jpeg"
+          ]
+        },
+        "pages": {
+          "type": "string",
+          "enum": [
+            "courante",
+            "toutes"
+          ]
+        },
+        "ratio": {
+          "type": "integer",
+          "enum": [
+            1,
+            2
+          ]
+        },
+        "transparent": {
+          "type": "boolean"
+        }
       }
     }
   }

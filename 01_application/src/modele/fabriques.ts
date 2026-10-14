@@ -1,13 +1,16 @@
 // Fabriques : les valeurs par défaut de chaque nouvel élément, au centre de la page.
 
 import Konva from "konva";
-import { POLICE_PAR_DEFAUT, pilePolice } from "../polices";
+import { POLICE_PAR_DEFAUT, pilePolice, variantesPossibles } from "../polices";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
   type DocumentEliot,
+  type ElementEmoji,
   type ElementForme,
+  type ElementIcone,
   type ElementImage,
+  type ElementQr,
   type ElementPage,
   type ElementTexte,
   type Format,
@@ -32,10 +35,13 @@ export function documentVide(format: Format = { largeur: 1080, hauteur: 1080 }, 
   return { version: VERSION_DOCUMENT, nom, format: { ...format }, pages: [nouvellePage()] };
 }
 
+/** Le texte tel qu'il s'affiche (en capitales si l'effet est choisi). */
+export const texteAffiche = (el: Pick<ElementTexte, "texte"> & { majuscules?: boolean }) => (el.majuscules ? el.texte.toLocaleUpperCase("fr") : el.texte);
+
 /** Hauteur réelle d'un texte, mesurée par Konva avec la même police que l'écran. */
-export function mesurerHauteurTexte(el: Pick<ElementTexte, "texte" | "largeur" | "police" | "taillePolice" | "gras" | "italique" | "interligne" | "espacement">): number {
+export function mesurerHauteurTexte(el: Pick<ElementTexte, "texte" | "largeur" | "police" | "taillePolice" | "gras" | "italique" | "interligne" | "espacement"> & { majuscules?: boolean }): number {
   const mesure = new Konva.Text({
-    text: el.texte || " ",
+    text: texteAffiche(el) || " ",
     width: el.largeur,
     fontFamily: pilePolice(el.police),
     fontSize: el.taillePolice,
@@ -66,6 +72,7 @@ export function creerTexte(page: Format, modele: ModeleTexte): ElementTexte {
     ...modele,
     largeur,
   };
+  Object.assign(base, variantesPossibles(base.police, base));
   const hauteur = mesurerHauteurTexte(base);
   return {
     id: nouvelId(),
@@ -90,25 +97,67 @@ export const creerSousTitre = (page: Format) =>
 export const creerParagraphe = (page: Format) =>
   creerTexte(page, { texte: "Ajouter un paragraphe de texte", taillePolice: Math.round(32 * echelleTexte(page)), gras: false });
 
-export function creerForme(page: Format, forme: GenreForme, arrondi = 0): ElementForme {
+export const estTrait = (forme: GenreForme) => forme === "ligne" || forme === "fleche";
+
+/** Hauteur de la boîte d'une ligne ou d'une flèche : le trait, ou la pointe de la flèche. */
+export const hauteurTrait = (forme: GenreForme, epaisseur: number) => Math.max(4, forme === "fleche" ? epaisseur * 3.2 : epaisseur);
+
+const elementCentre = (page: Format, largeur: number, hauteur: number) => ({
+  id: nouvelId(),
+  x: Math.round((page.largeur - largeur) / 2),
+  y: Math.round((page.hauteur - hauteur) / 2),
+  largeur,
+  hauteur,
+  rotation: 0,
+  opacite: 1,
+  visible: true,
+  verrouille: false,
+});
+
+export function creerForme(page: Format, forme: GenreForme, options: Partial<ElementForme> = {}): ElementForme {
   const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.35);
+  if (estTrait(forme)) {
+    const epaisseur = Math.max(4, Math.round(Math.min(page.largeur, page.hauteur) / 160));
+    const largeur = Math.round(Math.min(page.largeur, page.hauteur) * 0.45);
+    return {
+      ...elementCentre(page, largeur, hauteurTrait(forme, epaisseur)),
+      type: "forme",
+      forme,
+      remplissage: "#1f1f1d",
+      contour: "#1f1f1d",
+      epaisseurContour: epaisseur,
+      arrondi: 0,
+      ...(forme === "fleche" ? { pointes: { debut: false, fin: true } } : {}),
+      ...options,
+    };
+  }
   return {
-    id: nouvelId(),
+    ...elementCentre(page, cote, cote),
     type: "forme",
     forme,
-    x: Math.round((page.largeur - cote) / 2),
-    y: Math.round((page.hauteur - cote) / 2),
-    largeur: cote,
-    hauteur: cote,
-    rotation: 0,
-    opacite: 1,
-    visible: true,
-    verrouille: false,
     remplissage: "#4f46e5",
     contour: "#1f1f1d",
     epaisseurContour: 0,
-    arrondi,
+    arrondi: 0,
+    ...(forme === "polygone" ? { cotes: 6 } : {}),
+    ...options,
   };
+}
+
+/** Une icône de la bibliothèque, carrée, au quart de la page. */
+export function creerIcone(page: Format, collection: string, nom: string, couleur = "#1f1f1d"): ElementIcone {
+  const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.25);
+  return { ...elementCentre(page, cote, cote), type: "icone", collection, nom, couleur };
+}
+
+export function creerEmoji(page: Format, collection: string, nom: string): ElementEmoji {
+  const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.25);
+  return { ...elementCentre(page, cote, cote), type: "emoji", collection, nom };
+}
+
+export function creerQr(page: Format, contenu = "https://", couleur = "#1f1f1d"): ElementQr {
+  const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.3);
+  return { ...elementCentre(page, cote, cote), type: "qr", contenu, couleur, fond: "#ffffff", correction: "M" };
 }
 
 /** L'image entre à 60 % de la page au plus, proportions gardées, au centre. */
@@ -161,7 +210,10 @@ export function dupliquerPage(page: PageEliot): PageEliot {
   return { ...page, id: nouvelId("p"), elements: dupliquerTous(page.elements, 0) };
 }
 
-/** Sommets d'une étoile à cinq branches inscrite dans la boîte (étirable avec elle). */
+/** Creux d'une étoile : une étoile à beaucoup de branches devient un badge dentelé. */
+export const creuxEtoile = (branches: number) => (branches >= 10 ? 0.8 : 0.45);
+
+/** Sommets d'une étoile inscrite dans la boîte (étirable avec elle). */
 export function pointsEtoile(largeur: number, hauteur: number, branches = 5, creux = 0.45): number[] {
   const points: number[] = [];
   for (let i = 0; i < branches * 2; i++) {
@@ -172,9 +224,41 @@ export function pointsEtoile(largeur: number, hauteur: number, branches = 5, cre
   return points;
 }
 
+const NOMS_FORMES: Record<GenreForme, string> = {
+  rectangle: "Rectangle",
+  ellipse: "Cercle",
+  triangle: "Triangle",
+  etoile: "Étoile",
+  polygone: "Polygone",
+  coeur: "Cœur",
+  ligne: "Ligne",
+  fleche: "Flèche",
+};
+
 export function nomElement(el: ElementPage): string {
   if (el.nom) return el.nom;
-  if (el.type === "texte") return el.texte.replace(/\s+/g, " ").slice(0, 28) || "Texte vide";
-  if (el.type === "image") return "Image";
-  return { rectangle: el.arrondi > 0 ? "Rectangle arrondi" : "Rectangle", ellipse: "Cercle", triangle: "Triangle", etoile: "Étoile" }[el.forme];
+  switch (el.type) {
+    case "texte":
+      return el.texte.replace(/\s+/g, " ").slice(0, 28) || "Texte vide";
+    case "image":
+      return "Image";
+    case "icone":
+      return `Icône ${el.nom.replace(/-/g, " ")}`;
+    case "emoji":
+      return "Emoji";
+    case "qr":
+      return "QR code";
+    case "forme":
+      return el.forme === "rectangle" && el.arrondi > 0 ? "Rectangle arrondi" : NOMS_FORMES[el.forme];
+  }
+}
+
+/** Sommets d'un polygone régulier inscrit dans la boîte, pointe en haut. */
+export function pointsPolygone(largeur: number, hauteur: number, cotes = 6): number[] {
+  const points: number[] = [];
+  for (let i = 0; i < cotes; i++) {
+    const angle = -Math.PI / 2 + (i * 2 * Math.PI) / cotes;
+    points.push((0.5 + 0.5 * Math.cos(angle)) * largeur, (0.5 + 0.5 * Math.sin(angle)) * hauteur);
+  }
+  return points;
 }

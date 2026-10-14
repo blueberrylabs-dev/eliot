@@ -1,8 +1,10 @@
 // Le document : la seule vérité d'Eliot (BRIEF, règle 1). Konva ne fait que le dessiner.
 // Version 2 (étape 2) : un nom, un format commun à toutes les pages, plusieurs pages. Le noyau
 // convertit un document de version 1 à l'ouverture (noyau/src/projet.rs).
+// Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte.
+// Les nouveaux champs sont facultatifs : un document de version 2 reste valable tel quel.
 
-export const VERSION_DOCUMENT = 2 as const;
+export const VERSION_DOCUMENT = 3 as const;
 
 export type Alignement = "left" | "center" | "right";
 
@@ -22,6 +24,17 @@ export interface Degrade {
 /** Une couleur unie (`#rrggbb`) ou un dégradé. */
 export type Couleur = string | Degrade;
 
+/** Ombre portée, en pixels de la page. */
+export interface Ombre {
+  couleur: string;
+  /** Rayon du flou. */
+  flou: number;
+  x: number;
+  y: number;
+  /** De 0 à 1. */
+  opacite: number;
+}
+
 /** La boîte commune à tous les éléments, en pixels de la page, origine en haut à gauche ;
  *  la rotation (degrés) se fait autour de ce coin, comme dans Konva. */
 interface ElementBase {
@@ -38,6 +51,7 @@ interface ElementBase {
   nom?: string;
   /** Étiquette de groupe : les éléments qui la partagent se sélectionnent ensemble. */
   groupe?: string;
+  ombre?: Ombre;
 }
 
 export interface ElementTexte extends ElementBase {
@@ -54,18 +68,62 @@ export interface ElementTexte extends ElementBase {
   interligne: number;
   /** Espacement des lettres, en pixels de la page. */
   espacement: number;
+  barre?: boolean;
+  /** Affiché en capitales ; le texte saisi garde ses minuscules. */
+  majuscules?: boolean;
+  /** Contour des lettres. */
+  contour?: { couleur: string; epaisseur: number };
+  /** Bande de couleur derrière le texte, comme un surligneur. */
+  surlignage?: { couleur: string; marge: number; arrondi: number };
 }
 
-export type GenreForme = "rectangle" | "ellipse" | "triangle" | "etoile";
+export type GenreForme = "rectangle" | "ellipse" | "triangle" | "etoile" | "polygone" | "coeur" | "ligne" | "fleche";
 
 export interface ElementForme extends ElementBase {
   type: "forme";
   forme: GenreForme;
+  /** Remplissage ; pour une ligne ou une flèche, la couleur du trait. */
   remplissage: Couleur;
   contour: string;
+  /** Épaisseur du contour ; pour une ligne ou une flèche, l'épaisseur du trait. */
   epaisseurContour: number;
   /** Rayon des coins (rectangle seulement). */
   arrondi: number;
+  /** Polygone : nombre de côtés ; étoile : nombre de branches. */
+  cotes?: number;
+  /** Ligne ou flèche : trait en tirets. */
+  tirets?: boolean;
+  /** Flèche : pointe au début (gauche de la boîte) et à la fin (droite). */
+  pointes?: { debut: boolean; fin: boolean };
+}
+
+/** Une icône de la bibliothèque, d'une seule couleur, dessinée en vecteurs. */
+export interface ElementIcone extends ElementBase {
+  type: "icone";
+  /** Collection de la bibliothèque (`tabler`, `phosphor-regular`…). */
+  collection: string;
+  nom: string;
+  couleur: string;
+  /** Épaisseur du trait, pour les icônes au trait (Tabler). */
+  trait?: number;
+}
+
+/** Un emoji de la bibliothèque, avec ses couleurs, dessiné en vecteurs. */
+export interface ElementEmoji extends ElementBase {
+  type: "emoji";
+  collection: string;
+  nom: string;
+}
+
+/** Un QR code : le contenu (adresse, texte) et ses couleurs ; les carrés sont recalculés. */
+export interface ElementQr extends ElementBase {
+  type: "qr";
+  contenu: string;
+  couleur: string;
+  /** `null` : fond transparent. */
+  fond: string | null;
+  /** Niveau de correction d'erreur : plus il est haut, plus le code résiste aux taches. */
+  correction: "L" | "M" | "Q" | "H";
 }
 
 export interface ElementImage extends ElementBase {
@@ -76,7 +134,7 @@ export interface ElementImage extends ElementBase {
   retourneV: boolean;
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage;
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr;
 
 export interface PageEliot {
   id: string;

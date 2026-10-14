@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useEditeur } from "../etat/editeur";
 import type { PageEliot, RefProjet } from "../modele/types";
+import { prechargerVecteurs } from "../bibliotheque/bibliotheque";
+import { assurerPolicesElements } from "../polices";
 import { urlRessource, type GenreImage } from "../pont/tauri";
 
 const pretes = new Map<string, HTMLImageElement>();
@@ -67,11 +69,16 @@ export function useImageRessource(id: string | undefined, genre: GenreImage = "a
   return id ? image : undefined;
 }
 
-/** Charge toutes les images d'une page avant un rendu hors écran (export, miniature). */
+/** Charge tout ce qu'une page dessine avant un rendu hors écran (export, miniature) : images
+ *  du design, icônes et emojis de la bibliothèque, polices des textes. */
 export async function prechargerPage(page: PageEliot): Promise<void> {
   const projet = useEditeur.getState().projet;
   const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" ? [e.ressource] : [])))];
-  await Promise.all(ids.map((id) => imageDeRessource(projet, id, "apercu").catch(() => undefined)));
+  await Promise.all([
+    ...ids.map((id) => imageDeRessource(projet, id, "apercu").catch(() => undefined)),
+    prechargerVecteurs(page.elements),
+    assurerPolicesElements(page.elements),
+  ]);
 }
 
 /** L'adresse d'une image du design ouvert (pour une balise `<img>`), une fois connue. */

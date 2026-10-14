@@ -1,8 +1,8 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 et 2 du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
-compose à la souris comme dans Canva, un enregistrement automatique et l'export en PNG ou en
-JPEG.
+L'éditeur, étapes 1 et 2 du `BRIEF.md` et début de l'étape 3 : un accueil qui range tes
+designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
+d'emojis et de polices, un enregistrement automatique et l'export en PNG ou en JPEG.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -42,6 +42,17 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Aperçu en plein écran (F11), flèches pour changer de page, Échap pour sortir.
 - Exporter en PNG (fond transparent possible) ou en JPEG, taille normale ou double, la page
   affichée ou toutes les pages (une image par page), dans `~/Images/Eliot/`.
+
+**Bibliothèque (étape 3, lot 1)**
+- Fabriquée sur le poste une fois : `npm run bibliotheque` (commande 8 bis du `CLAUDE.md`).
+- Panneau Éléments : formes (dont polygone, cœur, badge), lignes et flèches, 7 750 icônes
+  (Tabler, Phosphor), 4 047 emojis (Fluent Emoji, OpenMoji), QR code ; une recherche par mot,
+  en français (« panier », « cœur », « fusée ») ou en anglais.
+- Panneau Texte : 95 polices rangées par genre, avec leur usage (« luxe », « promo qui
+  claque »…), 22 associations titre et texte, et les polices installées sur le poste (copiées
+  dans le design qui s'en sert).
+- Effets de texte : ombre, néon, contour, surlignage, capitales, barré. Ombre portée pour les
+  formes, images, icônes et emojis.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
@@ -89,8 +100,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 ├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
+├── public/bibliotheque/  icônes, emojis, polices : fabriqués par npm run bibliotheque, hors git
 ├── src/
 │   ├── App.tsx       l'accueil ou l'éditeur
+│   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes
 │   ├── accueil/      l'accueil : formats, designs, modèles
 │   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
@@ -99,7 +112,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── export/       rendu d'une page hors écran, export
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
-└── outils/           dessin de l'icône, prototype du texte animé (animer_scenes.py)
+└── outils/           fabrication de la bibliothèque, dessin de l'icône, prototype du texte animé
 ```
 
 Le document est un objet JSON, seule source de vérité ; Konva ne fait que le dessiner. Pendant

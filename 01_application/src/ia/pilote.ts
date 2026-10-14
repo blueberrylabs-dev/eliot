@@ -25,4 +25,6 @@ export async function brancherPiloteIa(): Promise<void> {
       await invoke("ia_repondre", { id: payload.id, ok: false, resultat: null, erreur: e instanceof Error ? e.message : String(e) });
     }
   });
+  // Les appels arrivés pendant le chargement de la fenêtre attendaient ce signal.
+  await invoke("ia_pret");
 }

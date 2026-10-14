@@ -107,11 +107,58 @@ Choix par défaut de Claude, modifiables sur simple demande :
       au poste, Claude liste les designs, en ouvre un et en prend une capture (2026-10-14)
 - [ ] Premier vrai design composé par Claude dans Eliot, sous les yeux d'Alexandre
 
-## Étape 3. La bibliothèque et la mise en forme publicitaire
+## Étape 3. La bibliothèque et la mise en forme publicitaire (ouverte le 2026-10-14)
 
-Icônes, emojis, personnages, polices, recherche Pixabay puis Pexels (clé Pixabay posée par
-Alexandre dans le `.env` le 2026-10-14), effets de texte, cadres et grilles photo, maquettes d'appareils, kit de marque,
-dessin, graphiques, tableaux, QR code ; pour finir, une quarantaine de modèles de départ.
+Résultat visible attendu : le rail de Canva au complet (Modèles, Éléments, Texte, Photos,
+Importer, Marque, Dessin, Calques), une recherche par mot en français dans chaque panneau,
+des milliers d'icônes et d'emojis, une centaine de polices, des photos Pixabay, des cadres,
+des maquettes d'appareils, des graphiques ; pour finir, une quarantaine de modèles de départ ;
+et Claude peut se servir de tout cela par le pont. Détail : `BRIEF.md` § 6 et § 7.
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- La bibliothèque se fabrique sur le poste par une commande (`npm run bibliotheque`), à
+  partir de paquets npm à version fixe et des polices de Google Fonts (fichiers TTF, chacun
+  contrôlé par son empreinte SHA-256). Elle va dans `01_application/public/bibliotheque/`,
+  hors git ; les licences sont recopiées dans `01_application/LICENCES-TIERS.md`.
+- Icônes : Tabler 3.49.0 (5 184 au trait, 1 054 pleines) et Phosphor 2.1.1 (1 512, en six
+  épaisseurs). Emojis : Fluent Emoji de Microsoft en version plate (paquet
+  `@iconify-json/fluent-emoji-flat` 1.2.6, MIT ; la version en relief pèse 103 Mo, écartée)
+  et OpenMoji 17.0.0 (CC-BY-SA, crédit affiché dans le panneau). Noms français des emojis
+  tirés du CLDR 48.2 (Unicode) ; pour les icônes, un dictionnaire de mots français vers les
+  mots-clés anglais des paquets.
+- Polices : une centaine de familles libres (OFL) choisies pour la publicité, rangées par
+  genre (sans empattement, impact, avec empattement, manuscrite, à chasse fixe), avec une
+  ligne « à quoi elle sert » ; une vingtaine d'associations titre et texte ; les polices du
+  poste listées par le Rust et copiées dans le design qui s'en sert.
+- Document version 3 : nouveaux types `icone`, `emoji`, `cadre`, `maquette`, `dessin`,
+  `graphique`, `tableau`, `qr` ; lignes, flèches et polygones rejoignent les formes ; ombre
+  sur tous les éléments ; contour, surlignage, majuscules et barré pour les textes. Le noyau
+  convertit un document de version 2 sans rien changer d'autre que le numéro.
+- Icônes et emojis restent vectoriels dans le document (collection et nom) ; l'écran et
+  l'export les dessinent à la taille voulue.
+- Photos Pixabay : la recherche, les aperçus et le téléchargement passent par le Rust, qui lit
+  la clé dans le `.env` ; résultats gardés 24 h ; la photo choisie est copiée dans le design
+  avec le nom et le lien de son auteur. Recherche de vidéos Pixabay : avec l'étape 4, quand
+  Eliot saura poser une vidéo. Pexels : même panneau, dès qu'une clé existera.
+- Kit de marque : un seul kit, dans `~/Documents/Eliot/Marque/` (couleurs, polices du titre et
+  du texte, logos), proposé partout où l'on choisit une couleur ou une police.
+- Personnages : Open Peeps et Humaaans ne se téléchargent que depuis leurs sites, à la main ;
+  ils viendront en dernier, avec une commande qui range le fichier téléchargé par Alexandre.
+
+- [x] Fabrication de la bibliothèque, licences, document version 3 (lot 1, 2026-10-14)
+- [x] Panneau Éléments : formes, lignes et flèches, icônes, emojis, QR code, recherche (lot 1)
+- [x] Texte : polices et associations, effets (ombre, contour, surlignage), polices du poste (lot 1)
+- [ ] Ombre portée (faite au lot 1), cadres (une photo dans une forme), grilles photo, maquettes
+      d'appareils
+- [ ] Photos Pixabay (noyau Rust), kit de marque
+- [ ] Dessin à main levée, graphiques, tableaux
+- [ ] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
+      ajouter_emoji, ajouter_qr, lister_polices, effets par modifier)
+- [ ] Une quarantaine de modèles de départ
+- [ ] Personnages (Open Peeps, Humaaans)
+- [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel
+- [ ] Livraison sur le poste, puis essai par Alexandre
 
 ## Étape 4. La vidéo façon CapCut
 

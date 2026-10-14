@@ -69,7 +69,13 @@ pub struct PontIa {
     arret: Mutex<Option<Arc<AtomicBool>>>,
     attentes: Attentes,
     compteur: Arc<AtomicU64>,
+    /// L'interface écoute les appels : au lancement, le fichier de communication s'ouvre avant
+    /// que la fenêtre ait fini de charger ; un appel arrivé trop tôt attend ce signal.
+    interface_prete: Arc<AtomicBool>,
 }
+
+/// Temps laissé à la fenêtre pour finir de se charger quand un appel arrive au lancement.
+const DELAI_DEMARRAGE: Duration = Duration::from_secs(30);
 
 #[derive(Deserialize)]
 struct Demande {
@@ -88,7 +94,19 @@ struct AppelIa {
 
 /// Une connexion d'`eliot-mcp` : on lit les demandes une à une, on attend la réponse de
 /// l'interface, on la renvoie.
-fn servir(app: AppHandle, flux: UnixStream, attentes: Attentes, compteur: Arc<AtomicU64>) {
+/// Attend que l'interface écoute, au plus `DELAI_DEMARRAGE`.
+fn attendre_interface(prete: &AtomicBool) -> bool {
+    let debut = std::time::Instant::now();
+    while !prete.load(Ordering::Relaxed) {
+        if debut.elapsed() > DELAI_DEMARRAGE {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    true
+}
+
+fn servir(app: AppHandle, flux: UnixStream, attentes: Attentes, compteur: Arc<AtomicU64>, prete: Arc<AtomicBool>) {
     let Ok(lecture) = flux.try_clone() else { return };
     let mut ecriture = flux;
     for ligne in BufReader::new(lecture).lines() {
@@ -103,11 +121,15 @@ fn servir(app: AppHandle, flux: UnixStream, attentes: Attentes, compteur: Arc<At
                 let (envoi, reception) = mpsc::channel();
                 attentes.lock().unwrap_or_else(|e| e.into_inner()).insert(interne, envoi);
                 let appel = AppelIa { id: interne, outil: demande.outil, arguments: demande.arguments };
-                let resultat = match app.emit("ia-appel", appel) {
+                let resultat = if !attendre_interface(&prete) {
+                    json!({ "ok": false, "erreur": "Eliot finit de démarrer : réessaie dans quelques secondes" })
+                } else {
+                    match app.emit("ia-appel", appel) {
                     Err(e) => json!({ "ok": false, "erreur": format!("interface injoignable : {e}") }),
                     Ok(()) => reception
                         .recv_timeout(DELAI_REPONSE)
                         .unwrap_or_else(|_| json!({ "ok": false, "erreur": "Eliot n'a pas répondu à temps" })),
+                    }
                 };
                 attentes.lock().unwrap_or_else(|e| e.into_inner()).remove(&interne);
                 let mut objet = resultat;
@@ -147,14 +169,14 @@ pub fn demarrer(app: &AppHandle) -> Result<PathBuf, String> {
 
     let drapeau = Arc::new(AtomicBool::new(false));
     *arret = Some(drapeau.clone());
-    let (app, attentes, compteur, chemin_fil) = (app.clone(), pont.attentes.clone(), pont.compteur.clone(), chemin.clone());
+    let (app, attentes, compteur, prete, chemin_fil) = (app.clone(), pont.attentes.clone(), pont.compteur.clone(), pont.interface_prete.clone(), chemin.clone());
     std::thread::spawn(move || {
         while !drapeau.load(Ordering::Relaxed) {
             match ecoute.accept() {
                 Ok((flux, _)) => {
                     let _ = flux.set_nonblocking(false);
-                    let (app, attentes, compteur) = (app.clone(), attentes.clone(), compteur.clone());
-                    std::thread::spawn(move || servir(app, flux, attentes, compteur));
+                    let (app, attentes, compteur, prete) = (app.clone(), attentes.clone(), compteur.clone(), prete.clone());
+                    std::thread::spawn(move || servir(app, flux, attentes, compteur, prete));
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(Duration::from_millis(100)),
                 Err(_) => std::thread::sleep(Duration::from_millis(500)),
@@ -224,6 +246,12 @@ pub fn ia_activer(app: AppHandle, active: bool) -> Result<InfosIa, String> {
 }
 
 /// Réponse de l'interface à un appel d'outil.
+/// L'interface signale qu'elle écoute les appels de l'IA.
+#[tauri::command]
+pub fn ia_pret(app: AppHandle) {
+    app.state::<PontIa>().interface_prete.store(true, Ordering::Relaxed);
+}
+
 #[tauri::command]
 pub fn ia_repondre(app: AppHandle, id: u64, ok: bool, resultat: Value, erreur: Option<String>) {
     let pont = app.state::<PontIa>();

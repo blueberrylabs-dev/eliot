@@ -5,14 +5,15 @@
 
 import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerMaintenant } from "../etat/enregistrement";
-import { nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
+import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
 import { exporter } from "../export/exporter";
 import { rendrePage } from "../export/rendu";
-import { creerForme, creerImage, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
+import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces } from "../bibliotheque/bibliotheque";
+import { creerEmoji, creerForme, creerIcone, creerImage, creerQr, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
 import { FORMATS_PAGE, type Couleur, type Degrade, type ElementPage, type GenreForme } from "../modele/types";
 import { importerChemins, listerProjets } from "../pont/tauri";
-import { POLICES } from "../polices";
+import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
 
 export type Arguments = Record<string, unknown>;
@@ -73,18 +74,35 @@ function resumer() {
     elements: page.elements,
     selection: s.selection,
     images: s.ordreRessources.map((id) => s.ressources[id]).filter(Boolean),
-    polices: POLICES.map((p) => p.famille),
+    polices: polices().map((p) => p.famille),
     annulable: s.passe.length,
   };
 }
 
 /** Propriétés qu'une modification peut toucher, selon le type de l'élément. */
-const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom"];
+const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "ombre"];
 const PAR_TYPE: Record<ElementPage["type"], string[]> = {
-  texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "alignement", "interligne", "espacement"],
-  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme"],
+  texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
+  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
   image: ["retourneH", "retourneV"],
+  icone: ["couleur", "trait"],
+  emoji: [],
+  qr: ["contenu", "couleur", "fond", "correction"],
 };
+
+/** Une ombre envoyée par l'IA : couleur, flou, décalage, opacité ; `null` l'enlève. */
+function ombre(v: unknown) {
+  if (v === null) return undefined;
+  const o = v as Record<string, unknown>;
+  exiger(o && typeof o === "object", "ombre : objet { couleur, flou, x, y, opacite } ou null");
+  return {
+    couleur: (couleur(o.couleur ?? "#000000", "ombre.couleur") as string) ?? "#000000",
+    flou: Math.max(0, nombre(o.flou, 20)!),
+    x: nombre(o.x, 0)!,
+    y: nombre(o.y, 8)!,
+    opacite: Math.max(0, Math.min(1, nombre(o.opacite, 0.35)!)),
+  };
+}
 
 function nettoyerModification(el: ElementPage, brut: Arguments): Partial<ElementPage> {
   const permises = new Set([...COMMUNES, ...PAR_TYPE[el.type]]);
@@ -92,12 +110,22 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
   for (const [cle, valeur] of Object.entries(brut)) {
     if (cle === "id") continue;
     exiger(permises.has(cle), `propriété inconnue pour un élément ${el.type} : ${cle}`);
-    if (cle === "couleur" || cle === "remplissage") propre[cle] = couleur(valeur, cle);
-    else if (cle === "contour") propre[cle] = couleur(valeur, cle) as string;
+    if (cle === "couleur" && el.type !== "texte") {
+      propre[cle] = couleur(valeur, cle) as string;
+      exiger(typeof propre[cle] === "string", `${cle} : couleur unie #rrggbb attendue`);
+    } else if (cle === "couleur" || cle === "remplissage") propre[cle] = couleur(valeur, cle);
+    else if (cle === "ombre") propre[cle] = ombre(valeur);
+    else if (cle === "contour" && el.type === "texte") {
+      const c = valeur as { couleur?: unknown; epaisseur?: unknown } | null;
+      propre[cle] = c === null ? undefined : { couleur: couleur(c.couleur ?? "#000000", "contour.couleur") as string, epaisseur: Math.max(0, nombre(c.epaisseur, 4)!) };
+    } else if (cle === "surlignage") {
+      const s = valeur as { couleur?: unknown; marge?: unknown; arrondi?: unknown } | null;
+      propre[cle] = s === null ? undefined : { couleur: couleur(s.couleur ?? "#ffde59", "surlignage.couleur") as string, marge: Math.max(0, nombre(s.marge, 12)!), arrondi: Math.max(0, nombre(s.arrondi, 8)!) };
+    } else if (cle === "contour" || cle === "fond") propre[cle] = valeur === null ? null : (couleur(valeur, cle) as string);
     else if (cle === "police") {
-      exiger(POLICES.some((p) => p.famille === valeur), `police inconnue : ${String(valeur)} (voir etat)`);
+      exiger(polices().some((p) => p.famille === valeur), `police inconnue : ${String(valeur)} (voir etat)`);
       propre[cle] = valeur;
-    } else if (["x", "y", "largeur", "hauteur", "rotation", "opacite", "taillePolice", "interligne", "espacement", "epaisseurContour", "arrondi"].includes(cle)) {
+    } else if (["x", "y", "largeur", "hauteur", "rotation", "opacite", "taillePolice", "interligne", "espacement", "epaisseurContour", "arrondi", "cotes", "trait"].includes(cle)) {
       exiger(typeof valeur === "number" && Number.isFinite(valeur), `${cle} : nombre attendu`);
       propre[cle] = valeur;
     } else propre[cle] = valeur;
@@ -181,13 +209,15 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: { nom: etat().document.nom, id: etat().projet?.id } };
   },
 
-  ajouter_texte(args) {
+  async ajouter_texte(args) {
     designOuvert();
     const contenu = texte(args.texte);
     exiger(contenu?.trim(), "texte vide");
     const format = etat().document.format;
     const police = texte(args.police);
-    if (police) exiger(POLICES.some((p) => p.famille === police), `police inconnue : ${police} (voir etat)`);
+    if (police) exiger(polices().some((p) => p.famille === police), `police inconnue : ${police} (voir etat)`);
+    await assurerPolice(police ?? "Inter", booleen(args.gras) ?? false, booleen(args.italique) ?? false);
+    if (police) await copierPoliceDansDesign(police);
     const base = creerTexte(format, {
       texte: contenu!,
       taillePolice: nombre(args.taillePolice, Math.round((56 * Math.max(format.largeur, format.hauteur)) / 1080))!,
@@ -210,11 +240,16 @@ const OUTILS: Record<string, Outil> = {
   ajouter_forme(args) {
     designOuvert();
     const genre = texte(args.forme) as GenreForme;
-    exiger(["rectangle", "ellipse", "triangle", "etoile"].includes(genre), "forme : rectangle, ellipse, triangle ou etoile");
-    const base = creerForme(etat().document.format, genre, nombre(args.arrondi, 0));
+    const genres = ["rectangle", "ellipse", "triangle", "etoile", "polygone", "coeur", "ligne", "fleche"];
+    exiger(genres.includes(genre), `forme : ${genres.join(", ")}`);
+    const base = creerForme(etat().document.format, genre, { arrondi: nombre(args.arrondi, 0) });
+    const pointes = args.pointes as { debut?: unknown; fin?: unknown } | undefined;
     const el = placer(
       {
         ...base,
+        ...(nombre(args.cotes) !== undefined ? { cotes: Math.max(3, Math.min(24, Math.round(nombre(args.cotes)!))) } : {}),
+        ...(booleen(args.tirets) !== undefined ? { tirets: booleen(args.tirets) } : {}),
+        ...(pointes && typeof pointes === "object" ? { pointes: { debut: pointes.debut === true, fin: pointes.fin !== false } } : {}),
         ...(args.remplissage !== undefined ? { remplissage: couleur(args.remplissage, "remplissage")! } : {}),
         ...(args.contour !== undefined ? { contour: couleur(args.contour, "contour") as string } : {}),
         ...(nombre(args.epaisseurContour) !== undefined ? { epaisseurContour: nombre(args.epaisseurContour)! } : {}),
@@ -223,6 +258,63 @@ const OUTILS: Record<string, Outil> = {
     );
     etat().ajouterElements([el]);
     return { donnees: el };
+  },
+
+  async chercher_bibliotheque(args) {
+    const requete = texte(args.requete)?.trim();
+    exiger(requete, "requete vide");
+    const genre = args.genre === "icone" || args.genre === "emoji" ? args.genre : undefined;
+    const resultats = (await rechercher(requete!, genre)).slice(0, Math.max(1, Math.min(100, nombre(args.nombre, 30)!)));
+    const noms = await nomsEmojis().catch(() => ({}) as Record<string, string>);
+    return {
+      donnees: resultats.map(([collection, nom]) => ({
+        collection,
+        nom,
+        genre: collection === "phosphor" || collection.startsWith("tabler") ? "icone" : "emoji",
+        ...(noms[`${collection}/${nom}`] ? { nomFrancais: noms[`${collection}/${nom}`] } : {}),
+      })),
+    };
+  },
+
+  async ajouter_icone(args) {
+    designOuvert();
+    const id = texte(args.collection) === "phosphor" ? "phosphor-regular" : texte(args.collection);
+    const nom = texte(args.nom);
+    const c = id ? await collectionBibliotheque(id) : undefined;
+    exiger(c && c.genre === "icone", `collection d'icônes inconnue : ${String(args.collection)} (voir chercher_bibliotheque)`);
+    exiger(nom && (await traces(id!))[nom] !== undefined, `icône inconnue dans ${id} : ${String(args.nom)}`);
+    const base = creerIcone(etat().document.format, id!, nom!, (couleur(args.couleur ?? "#1f1f1d", "couleur") as string) ?? "#1f1f1d");
+    const el = placer(base, { ...args, hauteur: args.hauteur ?? args.largeur, largeur: args.largeur ?? args.hauteur });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  async ajouter_emoji(args) {
+    designOuvert();
+    const id = texte(args.collection);
+    const nom = texte(args.nom);
+    const c = id ? await collectionBibliotheque(id) : undefined;
+    exiger(c && c.genre === "emoji", `collection d'emojis inconnue : ${String(args.collection)} (fluent ou openmoji)`);
+    exiger(nom && (await traces(id!))[nom] !== undefined, `emoji inconnu dans ${id} : ${String(args.nom)} (voir chercher_bibliotheque)`);
+    const el = placer(creerEmoji(etat().document.format, id!, nom!), { ...args, hauteur: args.hauteur ?? args.largeur, largeur: args.largeur ?? args.hauteur });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  ajouter_qr(args) {
+    designOuvert();
+    const contenu = texte(args.contenu);
+    exiger(contenu?.trim(), "contenu vide");
+    const base = creerQr(etat().document.format, contenu!, (couleur(args.couleur ?? "#1f1f1d", "couleur") as string) ?? "#1f1f1d");
+    const fond = args.fond === null ? null : args.fond !== undefined ? (couleur(args.fond, "fond") as string) : base.fond;
+    const el = placer({ ...base, fond }, { ...args, hauteur: args.largeur });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  lister_polices(args) {
+    const genre = texte(args.genre);
+    return { donnees: polices().filter((p) => !genre || p.genre === genre).map((p) => ({ famille: p.famille, genre: p.genre, usage: p.usage, gras: p.gras, italique: p.italique })) };
   },
 
   async importer_image(args) {
@@ -250,7 +342,7 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: el };
   },
 
-  modifier(args) {
+  async modifier(args) {
     designOuvert();
     exiger(Array.isArray(args.modifications) && args.modifications.length, "modifications : liste d'objets { id, … }");
     const parId = new Map(elementsCourants(etat()).map((e) => [e.id, e]));
@@ -259,6 +351,12 @@ const OUTILS: Record<string, Outil> = {
       const el = parId.get(String(m.id));
       exiger(el, `élément introuvable sur la page affichée : ${String(m.id)}`);
       modifs[el.id] = nettoyerModification(el, m);
+    }
+    // Une nouvelle police se charge avant que le texte ne soit remesuré.
+    for (const [id, m] of Object.entries(modifs)) {
+      const el = { ...parId.get(id), ...m } as ElementPage;
+      if (el.type === "texte") await assurerPolice(el.police, el.gras, el.italique);
+      if (el.type === "texte" && "police" in m) await copierPoliceDansDesign(el.police);
     }
     etat().modifierElements(modifs);
     const apres = new Map(elementsCourants(etat()).map((e) => [e.id, e]));

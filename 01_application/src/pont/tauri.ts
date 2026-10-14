@@ -500,3 +500,39 @@ export async function cheminAutotest(): Promise<string | null> {
 export async function rapportAutotest(rapport: unknown): Promise<void> {
   await invoke("autotest_rapport", { texte: JSON.stringify(rapport, null, 2) });
 }
+
+// ---- Polices du poste et polices copiées dans un design (étape 3) ----
+
+export interface FichierPolice {
+  /** Chemin complet (poste) ou nom du fichier (design). */
+  chemin: string;
+  style: "normal" | "italic";
+  poids: number;
+}
+
+export interface PoliceInstallee {
+  famille: string;
+  fichiers: FichierPolice[];
+}
+
+/** Les polices installées sur le poste (aucune dans le navigateur). */
+export async function policesPoste(): Promise<PoliceInstallee[]> {
+  return dansTauri ? invoke<PoliceInstallee[]>("polices_poste") : [];
+}
+
+export async function lirePolicePoste(chemin: string): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>("police_poste_lire", { chemin });
+}
+
+/** Copie une police du poste dans le design ; renvoie le nom du fichier copié. */
+export async function policeVersDesign(ref: RefProjet, chemin: string): Promise<string | null> {
+  return dansTauri ? invoke<string>("police_vers_design", { rayonNom: ref.rayon, projetId: ref.id, chemin }) : null;
+}
+
+export async function policesDesign(ref: RefProjet): Promise<PoliceInstallee[]> {
+  return dansTauri ? invoke<PoliceInstallee[]>("polices_design", { rayonNom: ref.rayon, projetId: ref.id }) : [];
+}
+
+export async function lirePoliceDesign(ref: RefProjet, fichier: string): Promise<ArrayBuffer> {
+  return invoke<ArrayBuffer>("police_design_lire", { rayonNom: ref.rayon, projetId: ref.id, fichier });
+}

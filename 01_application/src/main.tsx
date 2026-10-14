@@ -8,9 +8,9 @@ import { demarrerEnregistrementAuto, enregistrerMaintenant, miniatureMaintenant 
 import { nouveauDesign, ouvrirDesign, renommerDesign } from "./etat/projets";
 import { exporter } from "./export/exporter";
 import { creerImage, creerTitre } from "./modele/fabriques";
-import { cheminAutotest, importerChemins, listerProjets, ouvrirProjet, rapportAutotest, surFermeture } from "./pont/tauri";
+import { cheminAutotest, importerChemins, lirePolicePoste, listerProjets, ouvrirProjet, policesPoste, rapportAutotest, surFermeture } from "./pont/tauri";
 import { brancherPiloteIa } from "./ia/pilote";
-import { chargerPolices } from "./polices";
+import { chargerCatalogue, chargerPolicesPoste } from "./polices";
 
 const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -64,7 +64,9 @@ async function autotest(chemin: string): Promise<void> {
 }
 
 async function demarrer() {
-  await chargerPolices();
+  await chargerCatalogue();
+  // Les polices du poste arrivent ensuite, sans retarder l'ouverture.
+  void chargerPolicesPoste(policesPoste, lirePolicePoste);
   demarrerEnregistrementAuto();
   void brancherPiloteIa();
   void surFermeture(async () => {
