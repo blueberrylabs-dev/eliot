@@ -9,9 +9,10 @@ import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, ut
 import { exporter } from "../export/exporter";
 import { rendrePage } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces } from "../bibliotheque/bibliotheque";
-import { creerEmoji, creerForme, creerIcone, creerImage, creerQr, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
+import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
+import { creerCadre, creerEmoji, creerForme, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTexte, mesurerHauteurTexte } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, type Couleur, type Degrade, type ElementPage, type GenreForme } from "../modele/types";
+import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementPage, type FormeCadre, type GenreForme } from "../modele/types";
 import { importerChemins, listerProjets } from "../pont/tauri";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
@@ -84,10 +85,12 @@ const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visibl
 const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
-  image: ["retourneH", "retourneV"],
+  image: ["retourneH", "retourneV", "arrondi", "bordure"],
   icone: ["couleur", "trait"],
   emoji: [],
   qr: ["contenu", "couleur", "fond", "correction"],
+  cadre: ["forme", "ressource", "recadrage", "bordure", "fond"],
+  maquette: ["appareil", "couleur", "ressource", "recadrage"],
 };
 
 /** Une ombre envoyée par l'IA : couleur, flou, décalage, opacité ; `null` l'enlève. */
@@ -115,6 +118,13 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
       exiger(typeof propre[cle] === "string", `${cle} : couleur unie #rrggbb attendue`);
     } else if (cle === "couleur" || cle === "remplissage") propre[cle] = couleur(valeur, cle);
     else if (cle === "ombre") propre[cle] = ombre(valeur);
+    else if (cle === "bordure") {
+      const b = valeur as { couleur?: unknown; epaisseur?: unknown } | null;
+      propre[cle] = b === null ? undefined : { couleur: couleur(b.couleur ?? "#ffffff", "bordure.couleur") as string, epaisseur: Math.max(0, nombre(b.epaisseur, 8)!) };
+    } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
+      exiger(valeur === null || etat().ressources[String(valeur)], `image inconnue dans ce design : ${String(valeur)}`);
+      propre[cle] = valeur === null ? undefined : valeur;
+    }
     else if (cle === "contour" && el.type === "texte") {
       const c = valeur as { couleur?: unknown; epaisseur?: unknown } | null;
       propre[cle] = c === null ? undefined : { couleur: couleur(c.couleur ?? "#000000", "contour.couleur") as string, epaisseur: Math.max(0, nombre(c.epaisseur, 4)!) };
@@ -310,6 +320,62 @@ const OUTILS: Record<string, Outil> = {
     const el = placer({ ...base, fond }, { ...args, hauteur: args.largeur });
     etat().ajouterElements([el]);
     return { donnees: el };
+  },
+
+  ajouter_cadre(args) {
+    designOuvert();
+    const formes = ["rectangle", "arrondi", "cercle", "arche", "goutte", "hexagone", "etoile", "coeur"];
+    const forme = texte(args.forme) as FormeCadre;
+    exiger(formes.includes(forme), `forme : ${formes.join(", ")}`);
+    const ressource = texte(args.ressource);
+    if (ressource) exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+    const el = placer(creerCadre(etat().document.format, forme, ressource), args);
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  ajouter_grille(args) {
+    designOuvert();
+    const id = texte(args.disposition);
+    exiger(DISPOSITIONS.some((d) => d.id === id), `disposition : ${DISPOSITIONS.map((d) => d.id).join(", ")}`);
+    const cadres = creerGrille(etat().document.format, id!);
+    etat().ajouterElements(cadres);
+    return { donnees: cadres };
+  },
+
+  ajouter_maquette(args) {
+    designOuvert();
+    const appareil = texte(args.appareil) as Appareil;
+    exiger(appareil in APPAREILS, "appareil : telephone, tablette, ordinateur ou montre");
+    const ressource = texte(args.ressource);
+    if (ressource) exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+    const base = creerMaquette(etat().document.format, appareil, (couleur(args.couleur ?? "#1c1c1e", "couleur") as string) ?? "#1c1c1e", ressource);
+    // Les proportions de l'appareil sont gardées : la hauteur suit la largeur, ou l'inverse.
+    const proportion = APPAREILS[appareil].proportion;
+    const largeur = nombre(args.largeur);
+    const hauteur = nombre(args.hauteur);
+    const dimensions = largeur ? { largeur, hauteur: largeur / proportion } : hauteur ? { largeur: hauteur * proportion, hauteur } : {};
+    const el = placer(base, { ...args, ...dimensions });
+    etat().ajouterElements([el]);
+    return { donnees: el };
+  },
+
+  remplir_photo(args) {
+    designOuvert();
+    const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
+    exiger(el && recoitPhoto(el), `cadre ou maquette introuvable sur la page affichée : ${String(args.id)}`);
+    const ressource = texte(args.ressource);
+    if (ressource) {
+      exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+      etat().remplirPhoto(el.id, ressource);
+    }
+    const apres = elementsCourants(etat()).find((e) => e.id === el.id);
+    if (apres && recoitPhoto(apres) && (args.zoom !== undefined || args.x !== undefined || args.y !== undefined)) {
+      const r = apres.recadrage;
+      const borne = (v: number | undefined, defaut: number, min: number, max: number) => Math.max(min, Math.min(max, v ?? defaut));
+      etat().modifierElements({ [el.id]: { recadrage: { zoom: borne(nombre(args.zoom), r.zoom, 1, 5), x: borne(nombre(args.x), r.x, 0, 1), y: borne(nombre(args.y), r.y, 0, 1) } } as Partial<ElementPage> });
+    }
+    return { donnees: elementsCourants(etat()).find((e) => e.id === el.id) };
   },
 
   lister_polices(args) {

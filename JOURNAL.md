@@ -5,6 +5,25 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, étape 3, lot 2 : cadres photo, grilles, maquettes d'appareils
+
+- Cadres (type `cadre`) : huit formes (rectangle, arrondi, rond, arche, organique, hexagone,
+  étoile, cœur) qui découpent une photo. La photo couvre toujours le cadre ; son cadrage est
+  une valeur du document (`recadrage` : zoom, et la partie visible de 0 à 1), jamais une
+  retouche de l'image (règle 13). Une photo glissée depuis le panneau Importer, ou un fichier
+  déposé, va dans le cadre qui est dessous ; double-clic pour la faire glisser dans son cadre,
+  molette pour l'agrandir, la photo entière se devine autour ; Échap pour finir ; une seule
+  étape d'annulation par geste.
+- Grilles photo : neuf dispositions qui remplissent la page de cadres vides groupés, avec un
+  écart exact entre les cases (les bords sont arrondis au pixel, pas les tailles).
+- Maquettes (type `maquette`) : téléphone, tablette, ordinateur, montre, dessinés par Eliot
+  (aucun dessin de marque), six couleurs de boîtier, une capture dans l'écran comme dans un
+  cadre.
+- Photos : coins arrondis et bordure. Pont IA : 4 outils de plus (31 en tout).
+- Vérifié : Chromium 18 sur 18 (dépôt dans un cadre, ajustement, molette, Ctrl+Z en une
+  étape, grille, maquette, rendu au pixel) ; Tauri par le pont 14 sur 14 (WebKitGTK découpe
+  les cadres et arrondit les photos) ; non-régression 33 sur 33 et 23 sur 23 ; vitest 28 sur 28.
+
 ## 2026-10-14, étape 3, lot 1 : bibliothèque, panneau Éléments, polices, effets de texte
 
 - Demande d'Alexandre : « Étape 3 d'Eliot » (choix donné par une question). Choix par défaut

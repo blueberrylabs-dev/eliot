@@ -8,7 +8,8 @@ import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } f
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
-import { couleurPrincipale, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementPage, type ElementQr, type ElementTexte, type Format, type Ombre, type PageEliot } from "../modele/types";
+import { ecranAppareil, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
+import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementQr, type ElementTexte, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
@@ -102,11 +103,12 @@ function Forme({ el }: { el: ElementForme }) {
 
 function Photo({ el }: { el: ElementImage }) {
   const image = useImageRessource(el.ressource);
+  const arrondi = Math.min(el.arrondi ?? 0, el.largeur / 2, el.hauteur / 2);
   if (!image) {
     // En attendant l'aperçu (ou s'il manque), une plaque grise à la bonne taille.
-    return <Rect width={el.largeur} height={el.hauteur} fill="#d9d6ce" />;
+    return <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#d9d6ce" />;
   }
-  return (
+  const photo = (
     <ImageKonva
       image={image}
       width={el.largeur}
@@ -116,9 +118,185 @@ function Photo({ el }: { el: ElementImage }) {
       scaleX={el.retourneH ? -1 : 1}
       scaleY={el.retourneV ? -1 : 1}
       perfectDrawEnabled={false}
-      {...ombreKonva(el.ombre)}
+      {...(arrondi > 0 ? {} : ombreKonva(el.ombre))}
     />
   );
+  const bordure = el.bordure && el.bordure.epaisseur > 0 && (
+    <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} stroke={el.bordure.couleur} strokeWidth={el.bordure.epaisseur} listening={false} perfectDrawEnabled={false} />
+  );
+  if (arrondi <= 0) {
+    return (
+      <>
+        {photo}
+        {bordure}
+      </>
+    );
+  }
+  // Coins arrondis : la photo est découpée ; l'ombre est portée par une plaque de même forme.
+  return (
+    <>
+      {el.ombre && <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#ffffff" {...ombreKonva(el.ombre)} listening={false} />}
+      <Group clipFunc={(ctx) => tracerRectangleArrondi(ctx as unknown as Parameters<typeof tracerRectangleArrondi>[0], 0, 0, el.largeur, el.hauteur, arrondi)}>{photo}</Group>
+      {bordure}
+    </>
+  );
+}
+
+/** Une photo qui couvre une zone, cadrée comme le dit `recadrage`. */
+function PhotoCadree({ ressource, largeur, hauteur, recadrage }: { ressource: string; largeur: number; hauteur: number; recadrage: Recadrage }) {
+  const image = useImageRessource(ressource);
+  if (!image) return <Rect width={largeur} height={hauteur} fill="#d9d6ce" />;
+  const p = placerPhoto(image.naturalWidth || image.width, image.naturalHeight || image.height, largeur, hauteur, recadrage);
+  return <ImageKonva image={image} x={p.x} y={p.y} width={p.largeur} height={p.hauteur} perfectDrawEnabled={false} />;
+}
+
+/** L'invitation d'un cadre vide : une petite montagne et, à l'écran, « Glisse une photo ». */
+function CadreVide({ largeur, hauteur, fond, statique, sombre = false }: { largeur: number; hauteur: number; fond: string; statique: boolean; sombre?: boolean }) {
+  const cote = Math.min(largeur, hauteur) * 0.22;
+  const cx = largeur / 2;
+  const cy = hauteur / 2 - (statique ? 0 : cote * 0.25);
+  const trait = sombre ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.28)";
+  return (
+    <>
+      <Rect width={largeur} height={hauteur} fill={fond} />
+      <Line
+        points={[cx - cote / 2, cy + cote / 3, cx - cote / 8, cy - cote / 6, cx + cote / 8, cy + cote / 8, cx + cote / 4, cy, cx + cote / 2, cy + cote / 3]}
+        stroke={trait}
+        strokeWidth={Math.max(2, cote / 14)}
+        lineJoin="round"
+        lineCap="round"
+        listening={false}
+      />
+      <Ellipse x={cx + cote / 4} y={cy - cote / 3} radiusX={cote / 10} radiusY={cote / 10} fill={trait} listening={false} />
+      {!statique && largeur > 120 && (
+        <Text text="Glisse une photo ici" width={largeur} y={cy + cote / 2} align="center" fontSize={Math.max(12, Math.min(largeur, hauteur) * 0.055)} fontFamily={pilePolice("Inter")} fill={trait} listening={false} />
+      )}
+    </>
+  );
+}
+
+function Cadre({ el, statique, ajustement }: { el: ElementCadre; statique: boolean; ajustement: boolean }) {
+  const { largeur: l, hauteur: h } = el;
+  const decouper = (ctx: Konva.Context) => tracerCadre(ctx as unknown as Parameters<typeof tracerCadre>[0], el.forme, l, h);
+  return (
+    <>
+      {/* L'ombre suit la forme du cadre : une plaque de même contour, sous la photo. */}
+      {el.ombre && (
+        <Shape
+          sceneFunc={(ctx, forme) => {
+            decouper(ctx);
+            ctx.fillStrokeShape(forme);
+          }}
+          fill="#ffffff"
+          {...ombreKonva(el.ombre)}
+          listening={false}
+        />
+      )}
+      {/* Pendant l'ajustement, toute la photo se devine autour du cadre, comme dans Canva. */}
+      {ajustement && el.ressource && (
+        <Group opacity={0.35} listening={false}>
+          <PhotoCadree ressource={el.ressource} largeur={l} hauteur={h} recadrage={el.recadrage} />
+        </Group>
+      )}
+      <Group clipFunc={decouper}>
+        {el.ressource ? <PhotoCadree ressource={el.ressource} largeur={l} hauteur={h} recadrage={el.recadrage} /> : <CadreVide largeur={l} hauteur={h} fond={el.fond} statique={statique} />}
+      </Group>
+      {el.bordure && el.bordure.epaisseur > 0 && (
+        <Shape
+          sceneFunc={(ctx, forme) => {
+            decouper(ctx);
+            ctx.fillStrokeShape(forme);
+          }}
+          stroke={el.bordure.couleur}
+          strokeWidth={el.bordure.epaisseur}
+          listening={false}
+        />
+      )}
+      {/* Toute la boîte réagit à la souris, même les coins découpés d'un cercle. */}
+      <Rect width={l} height={h} fill="rgba(0,0,0,0)" />
+    </>
+  );
+}
+
+/** Teinte un peu plus sombre (ou plus claire) d'une couleur, pour les reliefs du boîtier. */
+function nuance(hex: string, facteur: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const canal = (d: number) => Math.max(0, Math.min(255, Math.round(((n >> d) & 255) * facteur)));
+  return `#${[16, 8, 0].map((d) => canal(d).toString(16).padStart(2, "0")).join("")}`;
+}
+
+function Maquette({ el, statique, ajustement }: { el: ElementMaquette; statique: boolean; ajustement: boolean }) {
+  const { largeur: l, hauteur: h, couleur } = el;
+  const ecran = ecranAppareil(el.appareil, l, h);
+  const clair = parseInt(couleur.slice(1, 3), 16) > 200;
+  const bord = nuance(couleur, clair ? 0.82 : 1.35);
+  const decouperEcran = (ctx: Konva.Context) => tracerRectangleArrondi(ctx as unknown as Parameters<typeof tracerRectangleArrondi>[0], 0, 0, ecran.largeur, ecran.hauteur, ecran.rayon);
+  const contenuEcran = (
+    <>
+      {ajustement && el.ressource && (
+        <Group x={ecran.x} y={ecran.y} opacity={0.35} listening={false}>
+          <PhotoCadree ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} recadrage={el.recadrage} />
+        </Group>
+      )}
+      <Group x={ecran.x} y={ecran.y} clipFunc={decouperEcran}>
+        {el.ressource ? (
+          <PhotoCadree ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} recadrage={el.recadrage} />
+        ) : (
+          <CadreVide largeur={ecran.largeur} hauteur={ecran.hauteur} fond="#2a2f3a" statique={statique} sombre />
+        )}
+      </Group>
+    </>
+  );
+  const ombre = ombreKonva(el.ombre);
+  switch (el.appareil) {
+    case "telephone":
+    case "tablette":
+    case "montre": {
+      const corps = el.appareil === "montre" ? { x: 0, l: l * 0.92, rayon: l * 0.24 } : { x: 0, l, rayon: el.appareil === "telephone" ? l * 0.155 : l * 0.065 };
+      return (
+        <>
+          {el.appareil === "montre" && (
+            <>
+              <Rect x={l * 0.88} y={h * 0.27} width={l * 0.12} height={h * 0.15} cornerRadius={l * 0.03} fill={bord} />
+              <Rect x={l * 0.89} y={h * 0.5} width={l * 0.07} height={h * 0.13} cornerRadius={l * 0.02} fill={bord} />
+            </>
+          )}
+          <Rect x={corps.x} width={corps.l} height={h} cornerRadius={corps.rayon} fill={couleur} stroke={bord} strokeWidth={Math.max(1, l * 0.006)} {...ombre} />
+          <Rect x={ecran.x - l * 0.012} y={ecran.y - l * 0.012} width={ecran.largeur + l * 0.024} height={ecran.hauteur + l * 0.024} cornerRadius={ecran.rayon + l * 0.012} fill="#0b0b0d" />
+          {contenuEcran}
+          {el.appareil === "telephone" && <Rect x={l * 0.35} y={ecran.y + l * 0.03} width={l * 0.3} height={l * 0.085} cornerRadius={l * 0.0425} fill="#0b0b0d" />}
+          {el.appareil === "tablette" && <Ellipse x={l / 2} y={ecran.y / 2} radiusX={l * 0.008} radiusY={l * 0.008} fill="#3a3a3c" />}
+        </>
+      );
+    }
+    case "ordinateur": {
+      const couvercle = { x: l * 0.09, y: 0, l: l * 0.82, h: h * 0.885 };
+      return (
+        <>
+          <Rect x={couvercle.x} y={couvercle.y} width={couvercle.l} height={couvercle.h} cornerRadius={l * 0.018} fill="#0b0b0d" stroke={bord} strokeWidth={Math.max(1, l * 0.003)} {...ombre} />
+          {contenuEcran}
+          <Ellipse x={l / 2} y={ecran.y / 2} radiusX={l * 0.004} radiusY={l * 0.004} fill="#3a3a3c" />
+          <Shape
+            sceneFunc={(ctx, forme) => {
+              // Le socle, en trapèze vu de face, plus large que l'écran.
+              ctx.beginPath();
+              ctx.moveTo(couvercle.x - l * 0.02, h * 0.885);
+              ctx.lineTo(couvercle.x + couvercle.l + l * 0.02, h * 0.885);
+              ctx.lineTo(l, h * 0.955);
+              ctx.lineTo(0, h * 0.955);
+              ctx.closePath();
+              ctx.fillStrokeShape(forme);
+            }}
+            fill={couleur}
+            stroke={bord}
+            strokeWidth={Math.max(1, l * 0.002)}
+          />
+          <Rect x={0} y={h * 0.95} width={l} height={h * 0.05} cornerRadius={[0, 0, l * 0.03, l * 0.03]} fill={nuance(couleur, clair ? 0.85 : 0.75)} />
+          <Rect x={l * 0.42} y={h * 0.885} width={l * 0.16} height={h * 0.018} cornerRadius={[0, 0, l * 0.01, l * 0.01]} fill={nuance(couleur, clair ? 0.8 : 0.7)} />
+        </>
+      );
+    }
+  }
 }
 
 /** Icône ou emoji de la bibliothèque : une image faite depuis son SVG, à la bonne taille. */
@@ -220,11 +398,13 @@ const rien = () => {};
 interface Proprietes {
   el: ElementPage;
   enEdition?: boolean;
+  /** La photo du cadre se déplace dans le cadre : le cadre, lui, ne bouge pas. */
+  enAjustement?: boolean;
   /** Rendu figé (vignette, export) : ni glisser ni souris. */
   statique?: boolean;
 }
 
-export const RenduElement = memo(function RenduElement({ el, enEdition = false, statique = false }: Proprietes) {
+export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false }: Proprietes) {
   return (
     <Group
       id={statique ? undefined : el.id}
@@ -234,7 +414,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       rotation={el.rotation}
       opacity={el.opacite}
       visible={el.visible}
-      draggable={!statique && !el.verrouille && !enEdition}
+      draggable={!statique && !el.verrouille && !enEdition && !enAjustement}
       listening={!statique}
       onDragEnd={statique ? undefined : rien}
     >
@@ -243,6 +423,8 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       {el.type === "image" && <Photo el={el} />}
       {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
       {el.type === "qr" && <CodeQr el={el} />}
+      {el.type === "cadre" && <Cadre el={el} statique={statique} ajustement={enAjustement} />}
+      {el.type === "maquette" && <Maquette el={el} statique={statique} ajustement={enAjustement} />}
     </Group>
   );
 });

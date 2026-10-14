@@ -13,7 +13,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
 import { estTrait } from "../modele/fabriques";
-import type { ElementPage, Format } from "../modele/types";
+import { deplacerRecadrage, ecranAppareil } from "../modele/cadres";
+import { recoitPhoto, type ElementPage, type Format, type Recadrage } from "../modele/types";
 import { remplissageKonva } from "./couleurs";
 import { EditeurTexte } from "./EditeurTexte";
 import { MenuContextuel } from "./MenuContextuel";
@@ -90,6 +91,7 @@ export function ZoneDeTravail() {
   const elements = useEditeur(elementsCourants);
   const selection = useEditeur((s) => s.selection);
   const enEdition = useEditeur((s) => s.enEdition);
+  const enAjustement = useEditeur((s) => s.enAjustement);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -110,6 +112,8 @@ export function ZoneDeTravail() {
   const survolRef = useRef<Konva.Rect>(null);
   const etiquetteRef = useRef<HTMLDivElement>(null);
   const geste = useRef<EtatGeste | null>(null);
+  /** Photo glissée dans son cadre (mode ajustement) : point de départ et cadrage de départ. */
+  const panoramique = useRef<{ id: string; x0: number; y0: number; recadrage: Recadrage } | null>(null);
   const rectangleSelection = useRef<{ x0: number; y0: number; ajout: boolean } | null>(null);
 
   // Taille de la zone : la page se recale à chaque redimensionnement de la fenêtre.
@@ -156,6 +160,14 @@ export function ZoneDeTravail() {
     if (!div) return;
     const surMolette = (e: WheelEvent) => {
       e.preventDefault();
+      // En ajustant une photo dans son cadre, la molette l'agrandit ou la réduit.
+      const etat = useEditeur.getState();
+      const ajuste = etat.enAjustement ? elementsCourants(etat).find((x) => x.id === etat.enAjustement) : undefined;
+      if (ajuste && recoitPhoto(ajuste) && !e.ctrlKey) {
+        const zoom = Math.max(1, Math.min(5, ajuste.recadrage.zoom * Math.exp(-e.deltaY * 0.0015)));
+        etat.modifierElements({ [ajuste.id]: { recadrage: { ...ajuste.recadrage, zoom } } as Partial<ElementPage> }, `zoom-photo:${ajuste.id}`);
+        return;
+      }
       const { echelle: ech, ox: x, oy: y } = cadrage.current;
       if (e.ctrlKey || e.metaKey) {
         const r = div.getBoundingClientRect();
@@ -242,19 +254,21 @@ export function ZoneDeTravail() {
         ? estTrait(seul.forme)
           ? COTES_LATERAUX
           : TOUS
-        : COINS;
+        : seul?.type === "cadre"
+          ? TOUS
+          : COINS;
 
   useEffect(() => {
     const tr = transformerRef.current;
     const gp = groupePageRef.current;
     if (!tr || !gp || geste.current) return;
     const noeuds = selection
-      .filter((id) => id !== enEdition)
+      .filter((id) => id !== enEdition && id !== enAjustement)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
       .filter((n): n is Konva.Group => !!n && n.isVisible());
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
-  }, [selection, elements, enEdition]);
+  }, [selection, elements, enEdition, enAjustement]);
 
   // ---- Gestes : glisser et transformer ----
 
@@ -452,6 +466,11 @@ export function ZoneDeTravail() {
   // ---- Souris : sélection, rectangle de sélection, double-clic, clic droit ----
 
   const finirRectangle = useCallback(() => {
+    if (panoramique.current) {
+      panoramique.current = null;
+      if (stageRef.current) stageRef.current.container().style.cursor = "default";
+      return;
+    }
     if (vue.current) {
       vue.current = null;
       if (stageRef.current) stageRef.current.container().style.cursor = espace.current ? "grab" : "default";
@@ -495,6 +514,17 @@ export function ZoneDeTravail() {
     const etat = useEditeur.getState();
     if (etat.enEdition && document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const g = groupeElement(cible);
+    // Ajustement : un appui sur la photo commence à la faire glisser dans son cadre.
+    if (g && etat.enAjustement === g.id()) {
+      const el = elementsCourants(etat).find((x) => x.id === g.id());
+      const p = stageRef.current!.getPointerPosition();
+      if (el && recoitPhoto(el) && p) {
+        const pp = groupePageRef.current!.getAbsoluteTransform().copy().invert().point(p);
+        panoramique.current = { id: el.id, x0: pp.x, y0: pp.y, recadrage: el.recadrage };
+        stageRef.current!.container().style.cursor = "grabbing";
+      }
+      return;
+    }
     if (!g) {
       if (!e.evt.shiftKey) etat.deselectionner();
       const p = stageRef.current!.getPointerPosition()!;
@@ -513,6 +543,25 @@ export function ZoneDeTravail() {
   };
 
   const surPointeurDeplace = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const pano = panoramique.current;
+    if (pano) {
+      const etat = useEditeur.getState();
+      const el = elementsCourants(etat).find((x) => x.id === pano.id);
+      const p = stageRef.current!.getPointerPosition();
+      const photo = el && recoitPhoto(el) && el.ressource ? etat.ressources[el.ressource] : undefined;
+      if (!el || !recoitPhoto(el) || !p || !photo) return;
+      const pp = groupePageRef.current!.getAbsoluteTransform().copy().invert().point(p);
+      // Le déplacement dans le repère de l'élément, qui peut être tourné.
+      const a = (-el.rotation * Math.PI) / 180;
+      const dx = pp.x - pano.x0;
+      const dy = pp.y - pano.y0;
+      const lx = dx * Math.cos(a) - dy * Math.sin(a);
+      const ly = dx * Math.sin(a) + dy * Math.cos(a);
+      const zone = el.type === "maquette" ? ecranAppareil(el.appareil, el.largeur, el.hauteur) : { largeur: el.largeur, hauteur: el.hauteur };
+      const recadrage = deplacerRecadrage(photo.largeur, photo.hauteur, zone.largeur, zone.hauteur, pano.recadrage, lx, ly);
+      etat.modifierElements({ [el.id]: { recadrage } as Partial<ElementPage> }, `ajuster:${el.id}`);
+      return;
+    }
     const v = vue.current;
     if (v) {
       setVoulue({ x: v.ox + e.evt.clientX - v.x0, y: v.oy + e.evt.clientY - v.y0 });
@@ -528,7 +577,12 @@ export function ZoneDeTravail() {
 
   const surDoubleClic = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const g = groupeElement(e.target);
-    if (g) useEditeur.getState().commencerEdition(g.id());
+    if (!g) return;
+    const etat = useEditeur.getState();
+    const el = elementsCourants(etat).find((x) => x.id === g.id());
+    // Double-clic sur un cadre rempli : on ajuste la photo ; sur un texte : on l'écrit.
+    if (el && recoitPhoto(el) && el.ressource) etat.commencerAjustement(el.id);
+    else etat.commencerEdition(g.id());
   };
 
   const surClicDroit = (e: Konva.KonvaEventObject<PointerEvent>) => {
@@ -578,7 +632,7 @@ export function ZoneDeTravail() {
           <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur}>
             <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(fond, format.largeur, format.hauteur)} />
             {elements.map((el) => (
-              <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} />
+              <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} enAjustement={el.id === enAjustement} />
             ))}
           </Group>
         </Layer>
@@ -592,7 +646,7 @@ export function ZoneDeTravail() {
             ref={transformerRef}
             enabledAnchors={poignees}
             rotateEnabled={!verrou}
-            keepRatio={seul?.type !== "forme"}
+            keepRatio={seul?.type !== "forme" && seul?.type !== "cadre"}
             rotationSnaps={PAS_ROTATION}
             rotationSnapTolerance={4}
             rotateAnchorAngle={180}
@@ -616,6 +670,11 @@ export function ZoneDeTravail() {
       <MiniBarre taille={taille} ouvrirMenu={(x, y) => setMenu({ x, y })} />
       {menu && <MenuContextuel x={menu.x} y={menu.y} fermer={() => setMenu(null)} />}
       <div ref={etiquetteRef} className="pointer-events-none absolute hidden rounded-md bg-neutral-900/90 px-2 py-0.5 text-xs font-medium text-white tabular-nums" />
+      {enAjustement && (
+        <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Glisse la photo dans son cadre, molette pour l'agrandir. Échap ou un clic ailleurs pour finir.
+        </div>
+      )}
       {styleCopie && (
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Clique sur un objet pour lui donner ce style. Échap pour annuler.

@@ -19,12 +19,14 @@ import {
   CopyPlus,
   FlipHorizontal2,
   FlipVertical2,
+  ImageOff,
   Group,
   Italic,
   LayoutGrid,
   Lock,
   LockOpen,
   Minus,
+  Move,
   CaseUpper,
   Paintbrush,
   Plus,
@@ -33,6 +35,7 @@ import {
   SlidersHorizontal,
   Trash2,
   Underline,
+  ZoomIn,
   Ungroup,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -41,7 +44,8 @@ import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur"
 import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
-import { couleurPrincipale, type ElementIcone, type ElementQr, type Ombre } from "../modele/types";
+import { APPAREILS, COULEURS_APPAREIL } from "../modele/cadres";
+import { couleurPrincipale, type ElementCadre, type ElementIcone, type ElementImage, type ElementMaquette, type ElementQr, type FormeCadre, type Ombre } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
@@ -408,6 +412,94 @@ function ReglagesQr({ q, modifier }: { q: ElementQr; modifier: (m: Partial<Eleme
   );
 }
 
+const FORMES_CADRE: { forme: FormeCadre; nom: string }[] = [
+  { forme: "rectangle", nom: "Rectangle" },
+  { forme: "arrondi", nom: "Arrondi" },
+  { forme: "cercle", nom: "Rond" },
+  { forme: "arche", nom: "Arche" },
+  { forme: "goutte", nom: "Organique" },
+  { forme: "hexagone", nom: "Hexagone" },
+  { forme: "etoile", nom: "Étoile" },
+  { forme: "coeur", nom: "Cœur" },
+];
+
+/** Réglages communs à une photo dans un cadre ou un écran : ajuster, zoom, retirer. */
+function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
+  const etat = useEditeur.getState();
+  if (!el.ressource) return <span className="text-xs text-neutral-500">Glisse une photo dessus depuis le panneau Importer.</span>;
+  return (
+    <>
+      <Bouton titre="Ajuster la photo (double-clic)" surClic={() => etat.commencerAjustement(el.id)}>
+        <Move size={16} />
+        <span className="ml-1 text-sm">Ajuster</span>
+      </Bouton>
+      <Bulle titre="Zoom de la photo" bouton={<ZoomIn size={16} />}>
+        <Curseur libelle="Zoom" valeur={el.recadrage.zoom} min={1} max={5} pas={0.05} surChange={(v) => etat.modifierElements({ [el.id]: { recadrage: { ...el.recadrage, zoom: v } } as Partial<ElementPage> }, `zoom-photo:${el.id}`)} />
+        <button className="mt-1 text-xs text-accent-700 hover:underline" onClick={() => etat.modifierElements({ [el.id]: { recadrage: { zoom: 1, x: 0.5, y: 0.5 } } as Partial<ElementPage> })}>
+          Recentrer
+        </button>
+      </Bulle>
+      <Bouton titre="Retirer la photo" surClic={() => etat.retirerPhoto(el.id)}>
+        <ImageOff size={16} />
+      </Bouton>
+    </>
+  );
+}
+
+function ReglagesCadre({ c, modifier }: { c: ElementCadre; modifier: (m: Partial<ElementCadre>, etiquette?: string) => void }) {
+  return (
+    <>
+      <select title="Forme du cadre" value={c.forme} onChange={(e) => modifier({ forme: e.target.value as FormeCadre })} className="h-8 shrink-0 rounded-md border border-neutral-300 bg-white px-1.5 text-sm">
+        {FORMES_CADRE.map((f) => (
+          <option key={f.forme} value={f.forme}>
+            {f.nom}
+          </option>
+        ))}
+      </select>
+      {separateur}
+      <ReglagesPhotoCadree el={c} />
+      {separateur}
+      <ReglesBordure bordure={c.bordure} surChange={(b, e) => modifier({ bordure: b }, e)} />
+    </>
+  );
+}
+
+function ReglagesMaquette({ m, modifier }: { m: ElementMaquette; modifier: (x: Partial<ElementMaquette>, etiquette?: string) => void }) {
+  return (
+    <>
+      <span className="text-sm text-neutral-600">{APPAREILS[m.appareil].libelle}</span>
+      <div className="flex shrink-0 items-center gap-1">
+        {COULEURS_APPAREIL.map((c) => (
+          <button key={c.couleur} title={c.nom} onClick={() => modifier({ couleur: c.couleur })} className={`h-6 w-6 rounded-full border ${m.couleur === c.couleur ? "border-accent-600 ring-2 ring-accent-200" : "border-neutral-300"}`} style={{ background: c.couleur }} />
+        ))}
+      </div>
+      {separateur}
+      <ReglagesPhotoCadree el={m} />
+    </>
+  );
+}
+
+/** Bordure d'une photo ou d'un cadre : présente ou non, couleur, épaisseur. */
+function ReglesBordure({ bordure, surChange }: { bordure: { couleur: string; epaisseur: number } | undefined; surChange: (b: { couleur: string; epaisseur: number } | undefined, etiquette?: string) => void }) {
+  return (
+    <Bulle titre="Bordure" bouton={<span className="text-sm">Bordure</span>}>
+      <label className="mb-2 flex items-center gap-2 text-xs font-medium text-neutral-700">
+        <input type="checkbox" checked={!!bordure} onChange={(e) => surChange(e.target.checked ? { couleur: "#ffffff", epaisseur: 12 } : undefined)} className="accent-accent-600" />
+        Bordure
+      </label>
+      {bordure && (
+        <>
+          <div className="mb-2 flex items-center gap-2 text-xs text-neutral-600">
+            Couleur
+            <SelecteurCouleur titre="Couleur de la bordure" valeur={bordure.couleur} surChoix={(c) => typeof c === "string" && surChange({ ...bordure, couleur: c }, "bordure")} />
+          </div>
+          <Curseur libelle="Épaisseur" valeur={bordure.epaisseur} min={1} max={80} surChange={(v) => surChange({ ...bordure, epaisseur: v }, "bordure")} />
+        </>
+      )}
+    </Bulle>
+  );
+}
+
 export function BarreContexte() {
   const choisis = useEditeur(useShallow(elementsSelectionnes));
   const etat = useEditeur.getState();
@@ -423,6 +515,8 @@ export function BarreContexte() {
   const images = choisis.filter((e) => e.type === "image");
   const icones = choisis.filter((e): e is ElementIcone => e.type === "icone");
   const qrs = choisis.filter((e): e is ElementQr => e.type === "qr");
+  const cadres = choisis.filter((e): e is ElementCadre => e.type === "cadre");
+  const maquettes = choisis.filter((e): e is ElementMaquette => e.type === "maquette");
   const verrouille = choisis.some((e) => e.verrouille);
   const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
   const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
@@ -440,10 +534,24 @@ export function BarreContexte() {
           <Bouton titre="Retourner verticalement" surClic={() => choisis.forEach((e) => e.type === "image" && etat.modifierElements({ [e.id]: { retourneV: !e.retourneV } }))}>
             <FlipVertical2 size={16} />
           </Bouton>
+          {separateur}
+          <Bulle titre="Coins arrondis" bouton={<span className="text-sm">Coins</span>}>
+            <Curseur
+              libelle="Rayon"
+              valeur={(choisis[0] as ElementImage).arrondi ?? 0}
+              min={0}
+              max={Math.round(Math.min(choisis[0].largeur, choisis[0].hauteur) / 2)}
+              unite=" px"
+              surChange={(v) => modifier({ arrondi: v } as Partial<ElementImage>, "arrondi-image")}
+            />
+          </Bulle>
+          <ReglesBordure bordure={(choisis[0] as ElementImage).bordure} surChange={(b, e) => modifier({ bordure: b } as Partial<ElementImage>, e)} />
         </>
       )}
       {choisis.length > 0 && icones.length === choisis.length && <ReglagesIcone icones={icones} modifier={modifier} />}
       {choisis.length === 1 && qrs.length === 1 && <ReglagesQr q={qrs[0]} modifier={modifier} />}
+      {choisis.length === 1 && cadres.length === 1 && <ReglagesCadre c={cadres[0]} modifier={modifier} />}
+      {choisis.length === 1 && maquettes.length === 1 && <ReglagesMaquette m={maquettes[0]} modifier={modifier} />}
       {choisis.length > 0 && (
         <>
           {separateur}

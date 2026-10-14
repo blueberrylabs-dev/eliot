@@ -47,6 +47,7 @@ export function useRaccourcis(): void {
       else if (e.key === "Delete" || e.key === "Backspace") etat.supprimerSelection();
       else if (e.key === "Escape") {
         if (etat.styleCopie) etat.oublierStyle();
+        else if (etat.enAjustement) etat.terminerAjustement();
         else if (etat.vueGrille) etat.basculerVueGrille();
         else etat.deselectionner();
       } else if (e.key === "Enter" && etat.selection.length === 1) etat.commencerEdition(etat.selection[0]);

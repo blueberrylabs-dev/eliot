@@ -27,8 +27,9 @@ lourd. Détail : `BRIEF.md`.
 - Étape 1, l'éditeur : `01_application/`, livrée et essayée sur le poste le 2026-10-14.
 - Étape 2, les projets et l'édition complète, avec le pont vers une IA (`eliot-mcp`) : livrée
   sur le poste le 2026-10-14, essai d'Alexandre attendu (`PLAN.md`).
-- Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lot 1 (icônes, emojis, QR, formes, polices,
-  effets de texte) livré, la suite au `PLAN.md`.
+- Étape 3, la bibliothèque : ouverte le 2026-10-14 ; lots 1 (icônes, emojis, QR, formes, polices,
+  effets de texte) et 2 (cadres photo, grilles, maquettes d'appareils) livrés, la suite au
+  `PLAN.md`.
 
 Suite : `PLAN.md`.
 
@@ -199,7 +200,7 @@ Vérifier : `test result: ok. 28 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  22 passed`.
+Vérifier : `Tests  28 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

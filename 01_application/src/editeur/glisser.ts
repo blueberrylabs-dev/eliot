@@ -3,9 +3,10 @@
 // ne pas dépendre du glisser-déposer HTML, que l'enveloppe peut intercepter.
 
 import type { PointerEvent as PointeurReact } from "react";
-import { useEditeur } from "../etat/editeur";
+import { elementsCourants, useEditeur } from "../etat/editeur";
+import { elementAPhotoSous } from "../modele/cadres";
 import { boiteDe } from "../modele/geometrie";
-import type { ElementPage, Format } from "../modele/types";
+import { recoitPhoto, type ElementPage, type Format } from "../modele/types";
 import { pointDansLaPage } from "./scene";
 
 const SEUIL_PX = 5;
@@ -22,7 +23,11 @@ export function centrerSur(elements: ElementPage[], point: { x: number; y: numbe
  * À brancher sur `onPointerDown` d'un bouton de panneau. `fabriquer` crée les éléments au
  * centre de la page ; `vignette` est le nœud montré sous le pointeur pendant le glisser.
  */
-export function glisserDepuisPanneau(evenement: PointeurReact<HTMLElement>, fabriquer: (format: Format) => ElementPage[] | Promise<ElementPage[]>): void {
+export function glisserDepuisPanneau(
+  evenement: PointeurReact<HTMLElement>,
+  fabriquer: (format: Format) => ElementPage[] | Promise<ElementPage[]>,
+  options: { photo?: string } = {},
+): void {
   if (evenement.button !== 0) return;
   evenement.preventDefault();
   const depart = { x: evenement.clientX, y: evenement.clientY };
@@ -61,6 +66,17 @@ export function glisserDepuisPanneau(evenement: PointeurReact<HTMLElement>, fabr
     // Le point est lu tout de suite : la fabrique peut attendre une police ou une image.
     const point = glisse ? pointDansLaPage(e.clientX, e.clientY) : null;
     if (glisse && !point) return;
+    // Une photo lâchée sur un cadre ou une maquette va dedans ; un clic la met dans le cadre
+    // sélectionné, s'il y en a un seul.
+    if (options.photo) {
+      const etat = useEditeur.getState();
+      const elements = elementsCourants(etat);
+      const cible = point ? elementAPhotoSous(elements, point) : elements.find((x) => etat.selection.length === 1 && x.id === etat.selection[0] && recoitPhoto(x));
+      if (cible) {
+        etat.remplirPhoto(cible.id, options.photo);
+        return;
+      }
+    }
     const elements = await fabriquer(useEditeur.getState().document.format);
     if (elements.length === 0) return;
     useEditeur.getState().ajouterElements(point ? centrerSur(elements, point) : elements);

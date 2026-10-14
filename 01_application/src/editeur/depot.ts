@@ -1,7 +1,8 @@
 // Ce qui arrive de l'extérieur : fichiers déposés sur la fenêtre, image collée depuis le
 // presse-papiers. Les images passent par le noyau (règle 4) puis se posent sur la page.
 
-import { useEditeur } from "../etat/editeur";
+import { elementsCourants, useEditeur } from "../etat/editeur";
+import { elementAPhotoSous } from "../modele/cadres";
 import { ouvrirDesign } from "../etat/projets";
 import { creerImage } from "../modele/fabriques";
 import type { Ressource } from "../modele/types";
@@ -18,8 +19,16 @@ function poser(bilan: BilanImport, point: { x: number; y: number } | null) {
   if (bilan.erreurs.length) etat.notifier(`Non importé : ${bilan.erreurs.join(" ; ")}`, { erreur: true });
   if (bilan.ressources.length === 0) return;
   etat.ajouterRessources(bilan.ressources);
+  // La première photo lâchée sur un cadre ou une maquette va dedans.
+  const cible = point ? elementAPhotoSous(elementsCourants(etat), point) : null;
+  let ressources = bilan.ressources;
+  if (cible) {
+    etat.remplirPhoto(cible.id, ressources[0].id);
+    ressources = ressources.slice(1);
+    if (ressources.length === 0) return;
+  }
   const format = etat.document.format;
-  const elements = bilan.ressources.map((r: Ressource, i) => {
+  const elements = ressources.map((r: Ressource, i) => {
     const el = creerImage(format, r);
     if (!point) return { ...el, x: el.x + i * DECALAGE_PX, y: el.y + i * DECALAGE_PX };
     return centrerSur([el], { x: point.x + i * DECALAGE_PX, y: point.y + i * DECALAGE_PX })[0];

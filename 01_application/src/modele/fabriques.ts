@@ -2,12 +2,17 @@
 
 import Konva from "konva";
 import { POLICE_PAR_DEFAUT, pilePolice, variantesPossibles } from "../polices";
+import { APPAREILS, casesDeGrille, DISPOSITIONS, RECADRAGE_PAR_DEFAUT } from "./cadres";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
   type DocumentEliot,
+  type Appareil,
+  type ElementCadre,
   type ElementEmoji,
   type ElementForme,
+  type ElementMaquette,
+  type FormeCadre,
   type ElementIcone,
   type ElementImage,
   type ElementQr,
@@ -155,6 +160,41 @@ export function creerEmoji(page: Format, collection: string, nom: string): Eleme
   return { ...elementCentre(page, cote, cote), type: "emoji", collection, nom };
 }
 
+/** Un cadre vide, carré, au tiers de la page. */
+export function creerCadre(page: Format, forme: FormeCadre, ressource?: string): ElementCadre {
+  const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.45);
+  return { ...elementCentre(page, cote, forme === "arche" ? Math.round(cote * 1.3) : cote), type: "cadre", forme, recadrage: { ...RECADRAGE_PAR_DEFAUT }, fond: "#dcd8cf", ...(ressource ? { ressource } : {}) };
+}
+
+/** Une grille de cadres qui remplit la page, groupée, avec un petit écart entre les cases. */
+export function creerGrille(page: Format, disposition: string): ElementCadre[] {
+  const d = DISPOSITIONS.find((x) => x.id === disposition) ?? DISPOSITIONS[0];
+  const ecart = Math.round(Math.min(page.largeur, page.hauteur) * 0.012);
+  const groupe = nouvelId("g");
+  return casesDeGrille(d, { x: 0, y: 0, largeur: page.largeur, hauteur: page.hauteur }, ecart).map((c) => ({
+    ...elementCentre(page, c.largeur, c.hauteur),
+    x: c.x,
+    y: c.y,
+    type: "cadre",
+    forme: "rectangle",
+    recadrage: { ...RECADRAGE_PAR_DEFAUT },
+    fond: "#dcd8cf",
+    groupe,
+  }));
+}
+
+/** Une maquette d'appareil aux bonnes proportions, haute de 70 % de la page au plus. */
+export function creerMaquette(page: Format, appareil: Appareil, couleur = "#1c1c1e", ressource?: string): ElementMaquette {
+  const proportion = APPAREILS[appareil].proportion;
+  let hauteur = page.hauteur * 0.7;
+  let largeur = hauteur * proportion;
+  if (largeur > page.largeur * 0.8) {
+    largeur = page.largeur * 0.8;
+    hauteur = largeur / proportion;
+  }
+  return { ...elementCentre(page, Math.round(largeur), Math.round(hauteur)), type: "maquette", appareil, couleur, recadrage: { ...RECADRAGE_PAR_DEFAUT }, ...(ressource ? { ressource } : {}) };
+}
+
 export function creerQr(page: Format, contenu = "https://", couleur = "#1f1f1d"): ElementQr {
   const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.3);
   return { ...elementCentre(page, cote, cote), type: "qr", contenu, couleur, fond: "#ffffff", correction: "M" };
@@ -250,6 +290,10 @@ export function nomElement(el: ElementPage): string {
       return "QR code";
     case "forme":
       return el.forme === "rectangle" && el.arrondi > 0 ? "Rectangle arrondi" : NOMS_FORMES[el.forme];
+    case "cadre":
+      return el.ressource ? "Cadre photo" : "Cadre vide";
+    case "maquette":
+      return APPAREILS[el.appareil].libelle;
   }
 }
 

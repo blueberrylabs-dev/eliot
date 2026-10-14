@@ -43,7 +43,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Exporter en PNG (fond transparent possible) ou en JPEG, taille normale ou double, la page
   affichée ou toutes les pages (une image par page), dans `~/Images/Eliot/`.
 
-**Bibliothèque (étape 3, lot 1)**
+**Bibliothèque et mise en forme (étape 3)**
 - Fabriquée sur le poste une fois : `npm run bibliotheque` (commande 8 bis du `CLAUDE.md`).
 - Panneau Éléments : formes (dont polygone, cœur, badge), lignes et flèches, 7 750 icônes
   (Tabler, Phosphor), 4 047 emojis (Fluent Emoji, OpenMoji), QR code ; une recherche par mot,
@@ -53,6 +53,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   dans le design qui s'en sert).
 - Effets de texte : ombre, néon, contour, surlignage, capitales, barré. Ombre portée pour les
   formes, images, icônes et emojis.
+- Cadres photo (rond, arche, cœur…), grilles qui remplissent la page, maquettes de téléphone,
+  tablette, ordinateur et montre : on y glisse une photo depuis le panneau Importer ; double-clic
+  pour la faire glisser dans son cadre, molette pour l'agrandir. Photos à coins arrondis, bordure.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut

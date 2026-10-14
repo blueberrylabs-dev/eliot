@@ -149,12 +149,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [x] Fabrication de la bibliothèque, licences, document version 3 (lot 1, 2026-10-14)
 - [x] Panneau Éléments : formes, lignes et flèches, icônes, emojis, QR code, recherche (lot 1)
 - [x] Texte : polices et associations, effets (ombre, contour, surlignage), polices du poste (lot 1)
-- [ ] Ombre portée (faite au lot 1), cadres (une photo dans une forme), grilles photo, maquettes
-      d'appareils
+- [x] Ombre portée (lot 1), cadres (une photo dans une forme), grilles photo, maquettes
+      d'appareils (lot 2, 2026-10-14)
 - [ ] Photos Pixabay (noyau Rust), kit de marque
 - [ ] Dessin à main levée, graphiques, tableaux
 - [ ] Outils du pont IA pour tout ce qui précède (lot 1 : chercher_bibliotheque, ajouter_icone,
-      ajouter_emoji, ajouter_qr, lister_polices, effets par modifier)
+      ajouter_emoji, ajouter_qr, lister_polices, effets par modifier ; lot 2 : ajouter_cadre,
+      ajouter_grille, ajouter_maquette, remplir_photo)
 - [ ] Une quarantaine de modèles de départ
 - [ ] Personnages (Open Peeps, Humaaans)
 - [ ] Vérification : tests Rust et vitest, Playwright, essai Tauri sur écran virtuel

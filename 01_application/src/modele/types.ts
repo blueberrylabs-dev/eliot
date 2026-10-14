@@ -1,7 +1,8 @@
 // Le document : la seule vérité d'Eliot (BRIEF, règle 1). Konva ne fait que le dessiner.
 // Version 2 (étape 2) : un nom, un format commun à toutes les pages, plusieurs pages. Le noyau
 // convertit un document de version 1 à l'ouverture (noyau/src/projet.rs).
-// Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte.
+// Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte,
+// cadres photo, maquettes d'appareils.
 // Les nouveaux champs sont facultatifs : un document de version 2 reste valable tel quel.
 
 export const VERSION_DOCUMENT = 3 as const;
@@ -132,9 +133,54 @@ export interface ElementImage extends ElementBase {
   ressource: string;
   retourneH: boolean;
   retourneV: boolean;
+  /** Rayon des coins arrondis, en pixels de la page. */
+  arrondi?: number;
+  /** Bordure autour de la photo. */
+  bordure?: { couleur: string; epaisseur: number };
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr;
+/**
+ * Cadrage d'une photo dans un cadre ou un écran : elle couvre toujours toute la zone (comme
+ * `object-fit: cover`), agrandie de `zoom` (1 au moins) ; `x` et `y`, de 0 à 1, disent quelle
+ * partie de la photo se voit (0,5 : le centre ; 0 : le bord gauche ou haut).
+ */
+export interface Recadrage {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
+export type FormeCadre = "rectangle" | "arrondi" | "cercle" | "arche" | "etoile" | "coeur" | "hexagone" | "goutte";
+
+/** Un cadre : une forme qui découpe une photo. Vide, il attend qu'on y glisse une image. */
+export interface ElementCadre extends ElementBase {
+  type: "cadre";
+  forme: FormeCadre;
+  /** La photo du cadre (ressource du design), absente tant qu'il est vide. */
+  ressource?: string;
+  recadrage: Recadrage;
+  /** Couleur montrée tant que le cadre est vide. */
+  fond: string;
+  bordure?: { couleur: string; epaisseur: number };
+}
+
+export type Appareil = "telephone" | "tablette" | "ordinateur" | "montre";
+
+/** Une maquette d'appareil : le dessin du téléphone (ou autre) et une capture dans son écran. */
+export interface ElementMaquette extends ElementBase {
+  type: "maquette";
+  appareil: Appareil;
+  /** Couleur du boîtier. */
+  couleur: string;
+  ressource?: string;
+  recadrage: Recadrage;
+}
+
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementQr | ElementCadre | ElementMaquette;
+
+/** Les éléments qui reçoivent une photo glissée dessus. */
+export type ElementAPhoto = ElementCadre | ElementMaquette;
+export const recoitPhoto = (e: ElementPage): e is ElementAPhoto => e.type === "cadre" || e.type === "maquette";
 
 export interface PageEliot {
   id: string;

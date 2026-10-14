@@ -5,7 +5,7 @@
 import { create } from "zustand";
 import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
-import type { Couleur, DocumentEliot, ElementPage, ElementTexte, Format, PageEliot, RefProjet, Ressource } from "../modele/types";
+import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
 
 const LIMITE_HISTORIQUE = 100;
 /** Deux modifications de même nature à moins de 700 ms forment une seule étape à annuler
@@ -32,10 +32,12 @@ interface Instantane {
 const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre"],
-  image: ["opacite", "ombre"],
+  image: ["arrondi", "bordure", "opacite", "ombre"],
   icone: ["couleur", "trait", "opacite", "ombre"],
   emoji: ["opacite", "ombre"],
   qr: ["couleur", "fond", "opacite"],
+  cadre: ["forme", "bordure", "opacite", "ombre"],
+  maquette: ["couleur", "opacite", "ombre"],
 };
 
 export interface StyleCopie {
@@ -52,6 +54,8 @@ interface EtatEditeur {
   ordreRessources: string[];
   selection: string[];
   enEdition: string | null;
+  /** Cadre ou maquette dont on déplace la photo à l'intérieur (double-clic). */
+  enAjustement: string | null;
   passe: Instantane[];
   futur: Instantane[];
   derniereEtiquette: string | null;
@@ -115,6 +119,11 @@ interface EtatEditeur {
 
   commencerEdition: (id: string) => void;
   terminerEdition: (texte: string | null) => void;
+  commencerAjustement: (id: string) => void;
+  terminerAjustement: () => void;
+  /** Met une photo du design dans un cadre ou un écran de maquette (cadrage remis au centre). */
+  remplirPhoto: (id: string, ressource: string) => void;
+  retirerPhoto: (id: string) => void;
 
   ajouterRessources: (ressources: Ressource[]) => void;
   notifier: (texte: string, options?: { erreur?: boolean; chemin?: string }) => void;
@@ -182,6 +191,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   ordreRessources: [],
   selection: [],
   enEdition: null,
+  enAjustement: null,
   passe: [],
   futur: [],
   derniereEtiquette: null,
@@ -207,6 +217,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       ordreRessources: ressources.map((r) => r.id),
       selection: [],
       enEdition: null,
+      enAjustement: null,
       passe: [],
       futur: [],
       derniereEtiquette: null,
@@ -219,7 +230,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   allerALAccueil() {
-    set({ vue: "accueil", selection: [], enEdition: null, apercu: false, vueGrille: false, styleCopie: null });
+    set({ vue: "accueil", selection: [], enEdition: null, enAjustement: null, apercu: false, vueGrille: false, styleCopie: null });
   },
 
   definirProjet(projet) {
@@ -502,7 +513,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   allerALaPage(id) {
     if (get().pageActive === id || !get().document.pages.some((p) => p.id === id)) return;
     if (typeof window !== "undefined" && window.document.activeElement instanceof HTMLTextAreaElement) window.document.activeElement.blur();
-    set({ pageActive: id, selection: [], enEdition: null });
+    set({ pageActive: id, selection: [], enEdition: null, enAjustement: null });
   },
 
   // ---- Sélection ----
@@ -510,7 +521,9 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   selectionner(ids, ajout = false) {
     const complets = avecGroupes(ids, elementsCourants(get()));
     const actuelle = get().selection;
-    set({ selection: ajout ? [...new Set([...actuelle, ...complets])] : complets });
+    const selection = ajout ? [...new Set([...actuelle, ...complets])] : complets;
+    const enAjustement = get().enAjustement && selection.length === 1 && selection[0] === get().enAjustement ? get().enAjustement : null;
+    set({ selection, enAjustement });
   },
 
   selectionnerSeul(id) {
@@ -528,12 +541,35 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   deselectionner() {
-    if (get().selection.length) set({ selection: [] });
+    if (get().selection.length || get().enAjustement) set({ selection: [], enAjustement: null });
   },
 
   commencerEdition(id) {
     const e = parId(elementsCourants(get())).get(id);
     if (e?.type === "texte" && !e.verrouille) set({ enEdition: id, selection: [id] });
+  },
+
+  commencerAjustement(id) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (e && recoitPhoto(e) && e.ressource && !e.verrouille) set({ enAjustement: id, selection: [id] });
+  },
+
+  terminerAjustement() {
+    if (get().enAjustement) set({ enAjustement: null });
+  },
+
+  remplirPhoto(id, ressource) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (!e || !recoitPhoto(e) || e.verrouille) return;
+    get().modifierElements({ [id]: { ressource, recadrage: { zoom: 1, x: 0.5, y: 0.5 } } as Partial<ElementPage> });
+    set({ selection: [id] });
+  },
+
+  retirerPhoto(id) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (!e || !recoitPhoto(e) || !e.ressource) return;
+    get().modifierElements({ [id]: { ressource: undefined } as Partial<ElementPage> });
+    if (get().enAjustement === id) set({ enAjustement: null });
   },
 
   terminerEdition(texte) {

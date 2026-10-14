@@ -476,6 +476,156 @@
     }
   },
   {
+    "name": "ajouter_cadre",
+    "description": "Pose un cadre photo (une forme qui découpe une photo) sur la page affichée : rectangle, arrondi, cercle, arche, goutte, hexagone, etoile, coeur. Avec ressource (photo du design, voir etat ou importer_image), il est rempli tout de suite ; sinon il reste vide, à remplir avec remplir_photo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "forme": {
+          "type": "string",
+          "enum": [
+            "rectangle",
+            "arrondi",
+            "cercle",
+            "arche",
+            "goutte",
+            "hexagone",
+            "etoile",
+            "coeur"
+          ]
+        },
+        "ressource": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "forme"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_grille",
+    "description": "Remplit la page d'une grille de cadres photo vides, groupés, avec un petit écart : deux-colonnes, deux-lignes, trois-colonnes, trois-lignes, une-et-deux (une grande, deux petites), deux-et-une, quatre, une-et-trois, neuf. Renvoie les cadres, à remplir avec remplir_photo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "deux-colonnes",
+            "deux-lignes",
+            "trois-colonnes",
+            "trois-lignes",
+            "une-et-deux",
+            "deux-et-une",
+            "quatre",
+            "une-et-trois",
+            "neuf"
+          ]
+        }
+      },
+      "required": [
+        "disposition"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_maquette",
+    "description": "Pose une maquette d'appareil (telephone, tablette, ordinateur, montre) avec, si ressource est donnée, une capture d'écran du design dans son écran. Couleur du boîtier : #rrggbb (noir #1c1c1e par défaut, blanc #f2f2f4, argent #c9c9ce, or #e3cba8, bleu nuit #3b4a6b, rose #f3c4cf). Garde les proportions de l'appareil : donner largeur ou hauteur.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "appareil": {
+          "type": "string",
+          "enum": [
+            "telephone",
+            "tablette",
+            "ordinateur",
+            "montre"
+          ]
+        },
+        "ressource": {
+          "type": "string"
+        },
+        "couleur": {
+          "type": "string",
+          "pattern": "^#[0-9a-fA-F]{6}$"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "appareil"
+      ]
+    }
+  },
+  {
+    "name": "remplir_photo",
+    "description": "Met une photo du design dans un cadre ou dans l'écran d'une maquette, ou change son cadrage : zoom (1 au moins), x et y de 0 à 1 (la partie de la photo qui se voit ; 0,5 : le centre). Sans ressource, garde la photo et ne change que le cadrage.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "ressource": {
+          "type": "string"
+        },
+        "zoom": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "x": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "y": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "importer_image",
     "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié.",
     "inputSchema": {
@@ -527,7 +677,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H).",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H).",
     "inputSchema": {
       "type": "object",
       "properties": {

@@ -12,7 +12,7 @@ function CarteImage({ ressource }: { ressource: Ressource }) {
   return (
     <button
       title={`${ressource.nom} (${ressource.largeur} × ${ressource.hauteur})`}
-      onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerImage(format, ressource)])}
+      onPointerDown={(e) => glisserDepuisPanneau(e, (format) => [creerImage(format, ressource)], { photo: ressource.id })}
       className="cursor-grab overflow-hidden rounded-lg border border-neutral-200 bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:16px_16px] hover:border-accent-500"
     >
       {url ? <img src={url} alt={ressource.nom} className="h-28 w-full object-contain" draggable={false} /> : <span className="block h-28" />}
@@ -45,7 +45,7 @@ export function PanneauImages() {
 
   return (
     <div>
-      <p className="mb-3 text-sm font-semibold text-neutral-800">Images</p>
+      <p className="mb-3 text-sm font-semibold text-neutral-800">Importer</p>
       <button
         disabled={occupe}
         onClick={() => void importer()}
@@ -60,7 +60,7 @@ export function PanneauImages() {
         </p>
       ) : (
         <>
-          <p className="mb-2 text-xs text-neutral-500">Clique pour poser au centre, ou glisse sur la page.</p>
+          <p className="mb-2 text-xs text-neutral-500">Clique pour poser au centre, ou glisse sur la page. Lâchée sur un cadre ou un écran de maquette, la photo va dedans.</p>
           <div className="grid grid-cols-2 gap-2">
             {ordre.map((id) => ressources[id] && <CarteImage key={id} ressource={ressources[id]} />)}
           </div>
