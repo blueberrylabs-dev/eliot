@@ -103,8 +103,9 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [x] Extension `.mcpb` en secours (`eliot-mcp/emballer_mcpb.py`, commande 15 bis) ;
       installée, elle se charge, mais ne trouvait pas Eliot (environnement réduit) : pont
       corrigé le 2026-10-14, à recompiler et réemballer
-- [ ] Pont IA : l'application Claude charge `eliot` (fichier ou extension), puis premier essai
-      de Claude dans Eliot
+- [x] Pont IA : l'application Claude charge `eliot` par l'extension ; depuis une session liée
+      au poste, Claude liste les designs, en ouvre un et en prend une capture (2026-10-14)
+- [ ] Premier vrai design composé par Claude dans Eliot, sous les yeux d'Alexandre
 
 ## Étape 3. La bibliothèque et la mise en forme publicitaire
 

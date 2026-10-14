@@ -34,6 +34,9 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
   conteneur : Eliot ouvert avec `/run/user/0`, pont lancé avec le même environnement réduit ;
   l'ancien pont répond « pas joignable », le nouveau répond ; essai complet du pont 19 sur 19,
   tests Rust du pont 4 sur 4 (dont « le second chemin sert si le premier est vide »).
+- Pont recompilé, réemballé et réinstallé par Alexandre : depuis cette session liée au poste,
+  `etat`, `lister_designs`, `ouvrir_design` et `capture` répondent (design « Design sans
+  titre », story 1080 × 1920, vide). Le pont marche de bout en bout sur le poste.
 
 ## 2026-10-14, pont vers une IA (MCP), dernier morceau de l'étape 2
 
