@@ -116,7 +116,8 @@ dessin, graphiques, tableaux, QR code ; pour finir, une quarantaine de modèles 
 ## Étape 4. La vidéo façon CapCut
 
 Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son,
-sous-titres mot par mot, zones sûres TikTok, Reels et Shorts, réglages d'export par
+sous-titres mot par mot, texte qui entre par lignes sur un cadre fixe (principe retenu le
+2026-10-14, prototype `outils/animer_scenes.py`), zones sûres TikTok, Reels et Shorts, réglages d'export par
 plateforme, export MP4 et GIF ; le Rust apprend à rendre les calques de la page.
 
 ## Étape 5. Le labo photo et les exports de qualité

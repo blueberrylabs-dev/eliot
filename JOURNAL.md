@@ -5,6 +5,25 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-14, première vidéo par le pont : présentation de Nimeria, principe d'animation retenu
+
+- Demande d'Alexandre : « une petite vidéo pour présenter Nimeria ». Claude compose sept
+  scènes dans Eliot par le pont IA (design « Nimeria présentation », story 1080 × 1920, sept
+  pages, bleu marine #14243a du site et touches dorées), textes et prix repris de nimeria.fr :
+  accroche, « La donnée juste, ou rien. », la règle du « ? », audit SEO dès 9 €, audit de parc
+  FDS dès 200 €, paiement à l'acte, essai gratuit.
+- Animation faite hors d'Eliot, qui n'anime pas encore (étape 4) : captures des pages par
+  l'outil `capture`, puis `01_application/outils/animer_scenes.py`. Le cadre reste fixe, le
+  contenu de chaque scène entre par bandes (fondu, montée de 46 px, décalage de 0,13 s entre
+  bandes) et s'efface en 0,3 s. MP4 H.264 de 23,5 s, piste son muette (musique ajoutée par
+  Alexandre à la publication, avec les sons de la plateforme).
+- Écarté : zoom lent sur toute l'image avec fondus enchaînés (premier essai), le cadre se
+  dédoublait pendant les fondus et le zoom saccadait d'un pixel à l'autre.
+- Alexandre : « Oui, c'est très bien » ; il accepte de garder ce principe pour le mode vidéo
+  d'Eliot à l'étape 4, où le noyau Rust l'appliquera aux calques du document.
+- Vérifié : images extraites de la vidéo relues une à une ; l'outil rangé dans le dépôt
+  reproduit la vidéo livrée à l'image près.
+
 ## 2026-10-14, déclarer le pont à l'application Claude : l'extension `.mcpb` en secours
 
 - Constat sur le poste : l'application Claude de bureau installée est le paquet non officiel

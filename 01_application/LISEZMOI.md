@@ -99,7 +99,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── export/       rendu d'une page hors écran, export
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
-└── outils/           dessin de l'icône
+└── outils/           dessin de l'icône, prototype du texte animé (animer_scenes.py)
 ```
 
 Le document est un objet JSON, seule source de vérité ; Konva ne fait que le dessiner. Pendant
