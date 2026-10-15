@@ -14,6 +14,7 @@ pub fn lancer() {
         .manage(commandes::Pixabay::default())
         .manage(commandes::Freesound::default())
         .manage(commandes::Micro::default())
+        .manage(commandes::Transcriptions::default())
         .manage(commandes::ExportVideo::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
@@ -70,6 +71,10 @@ pub fn lancer() {
             commandes::piper_etat,
             commandes::piper_ecouter,
             commandes::piper_ajouter,
+            commandes::parole_analyser,
+            commandes::whisper_etat,
+            commandes::parole_transcrire,
+            commandes::parole_annuler,
             commandes::marque_lire,
             commandes::marque_enregistrer,
             commandes::exporter_rendu,

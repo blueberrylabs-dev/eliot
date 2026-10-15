@@ -12,6 +12,7 @@ import { borneNettoyage, estVoixNette, nettoyageActif, REGLAGES_NETTOYAGE, VOIX_
 import { cleVersion, useNettoyages } from "../etat/nettoyage";
 import { ouvrirLien } from "../pont/tauri";
 import { Bulle } from "./Bulle";
+import { BulleBlancs } from "./BulleBlancs";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { IconeRole, nomSon } from "./frise/ClipSon";
 import { dureeLisible } from "./videos";
@@ -164,6 +165,7 @@ export function ReglagesSon() {
           </Bulle>
         </>
       )}
+      {seul && !boucle(c) && <BulleBlancs id={c.id} />}
       {c.role === "musique" ? (
         <Bouton
           titre={c.jusquALaFin ? "La musique couvre la page jusqu'au bout, répétée au besoin : clique pour l'arrêter à sa longueur" : "Faire durer la musique jusqu'au bout de la page, répétée au besoin, avec un fondu de fin"}

@@ -135,6 +135,27 @@ export interface ElementTexte extends ElementBase {
   contour?: { couleur: string; epaisseur: number };
   /** Bande de couleur derrière le texte, comme un surligneur. */
   surlignage?: { couleur: string; marge: number; arrondi: number };
+  /** Page vidéo : un sous-titre fait depuis la voix (lot 7), qui suit les mots dits. */
+  sousTitre?: SousTitre;
+}
+
+/**
+ * Un sous-titre (étape 4, lot 7) : un texte de la frise fait depuis la transcription d'une voix.
+ * Il garde le temps de chacun de ses mots, pour mettre en valeur le mot prononcé ; le texte reste
+ * modifiable (un mot ajouté ou retiré : la durée des mots est partagée également).
+ */
+export interface SousTitre {
+  /** Début et fin de chaque mot du texte (les mots séparés par des blancs, dans l'ordre), en ms
+   *  depuis le début du clip. */
+  mots: { debut: number; fin: number }[];
+  /** Le mot prononcé prend cette couleur et grandit de ce facteur ; absent : il ne change pas. */
+  actif?: { couleur: string; echelle: number };
+  /** Les mots n'apparaissent qu'une fois dits. */
+  progressif?: boolean;
+  /** Le style des sous-titres (`modele/sousTitres.ts`), pour les refaire pareils. */
+  style?: string;
+  /** La ressource dont la voix est transcrite : ses sous-titres se refont après une coupe. */
+  source?: string;
 }
 
 export type GenreForme = "rectangle" | "ellipse" | "triangle" | "etoile" | "polygone" | "coeur" | "ligne" | "fleche";

@@ -12,6 +12,7 @@ import { useApparu } from "../apparu";
 import { glisserDepuisPanneau } from "../glisser";
 import { pageCourante, useEditeur } from "../../etat/editeur";
 import { creerTexteStyle, STYLES_VIDEO, type StyleVideo } from "../../modele/stylesVideo";
+import { SectionSousTitres } from "./SectionSousTitres";
 
 interface Association {
   titre: string;
@@ -131,6 +132,8 @@ export function PanneauTextes() {
           <span className="text-sm text-neutral-700">Ajouter un paragraphe de texte</span>
         </button>
       </div>
+
+      {pageVideo && <SectionSousTitres />}
 
       {polices.length > 0 && pageVideo && (
         <>

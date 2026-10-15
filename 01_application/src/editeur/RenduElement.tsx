@@ -10,7 +10,8 @@ import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { useImagePersonnage } from "../bibliotheque/personnages";
 import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
 import { ecranAppareil, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type Recadrage, type SousTitre } from "../modele/types";
+import { motActif, nombreDeMots } from "../modele/sousTitres";
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
@@ -509,52 +510,118 @@ export function compteurMorceaux(lignes: () => { text: string }[]) {
 export const rangEtTotal = (genre: Unites["genre"], r: ReturnType<ReturnType<typeof compteurMorceaux>>): [number, number] =>
   genre === "lignes" ? [r.ligne, r.totaux.lignes] : genre === "mots" ? [r.mot, r.totaux.mots] : [r.lettre, r.totaux.lettres];
 
+/** Un sous-titre dont le mot prononcé se voit (couleur, agrandissement, apparition). */
+export const sousTitreAnime = (el: ElementPage): boolean => el.type === "texte" && !!el.sousTitre && !!(el.sousTitre.actif || el.sousTitre.progressif);
+
+const etenduesGardees = new WeakMap<object, { x0: number; x1: number }[]>();
+
 /**
- * Le dessin lettre par lettre d'un texte qui entre ou sort par morceaux : Konva appelle cette
- * fonction pour chaque lettre, dans l'ordre ; elle règle l'opacité, le décalage et l'échelle de
- * la lettre d'après son morceau (lettre, mot ou ligne). Sans animation en cours, elle ne change
- * rien : le texte garde le même dessin (lettres posées une à une) avant, pendant et après.
+ * L'étendue de chaque mot d'un texte, en abscisse, telle que Konva pose ses lettres une à une
+ * (alignement de la ligne, largeur de chaque lettre, espacement) : un mot prononcé grandit
+ * autour de son milieu. Calculée une fois par mise en lignes.
  */
-function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObject<Unites | undefined>) {
+export function etenduesDesMots(t: Konva.Text): { x0: number; x1: number }[] {
+  const lignes = t.textArr;
+  const gardee = etenduesGardees.get(lignes);
+  if (gardee) return gardee;
+  const etendues: { x0: number; x1: number }[] = [];
+  const largeur = t.width();
+  const espacement = t.letterSpacing();
+  for (const ligne of lignes) {
+    let x = t.align() === "right" ? largeur - ligne.width : t.align() === "center" ? (largeur - ligne.width) / 2 : 0;
+    let blancAvant = true;
+    for (const lettre of segmenteur ? Array.from(segmenteur.segment(ligne.text), (g) => g.segment) : Array.from(ligne.text)) {
+      const l = t.measureSize(lettre).width;
+      const blanc = /\s/.test(lettre);
+      if (!blanc) {
+        if (blancAvant) etendues.push({ x0: x, x1: x + l });
+        else etendues[etendues.length - 1].x1 = x + l;
+      }
+      blancAvant = blanc;
+      x += l + espacement;
+    }
+  }
+  etenduesGardees.set(lignes, etendues);
+  return etendues;
+}
+
+/** Ce que le dessin lettre par lettre doit savoir à l'instant : le morceau d'animation en cours,
+ *  et, pour un sous-titre, le mot prononcé. */
+interface Courant {
+  unites?: Unites;
+  sousTitre?: { st: SousTitre; actif: number };
+}
+
+/**
+ * Le dessin lettre par lettre d'un texte qui entre ou sort par morceaux, ou d'un sous-titre :
+ * Konva appelle cette fonction pour chaque lettre, dans l'ordre. Elle règle l'opacité, le
+ * décalage et l'échelle de la lettre d'après son morceau (lettre, mot ou ligne) ; dans un
+ * sous-titre, le mot prononcé prend sa couleur et grandit autour de son milieu, et un mot pas
+ * encore dit reste caché (mode progressif). Sans rien en cours, elle ne change rien : le texte
+ * garde le même dessin (lettres posées une à une) avant, pendant et après.
+ */
+function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObject<Courant>) {
   const compter = compteurMorceaux(() => noeud.current?.textArr ?? []);
+  // Une lettre invisible part très loin : WebKit dessine parfois l'ombre d'un texte transparent.
+  const cacher = (c: { context: Konva.Context }) => c.context.translate(-LOIN, -LOIN);
   return (c: { char: string; index: number; x: number; y: number; lineIndex: number; width: number; context: Konva.Context }) => {
     const rangs = compter(c);
-    const u = courant.current;
-    if (!u) return;
-    const [i, n] = rangEtTotal(u.genre, rangs);
-    const e = etatUnite(u, i, n);
-    // Une lettre invisible part très loin : WebKit dessine parfois l'ombre d'un texte
-    // transparent.
-    if (e.opacite <= 0.001) {
-      c.context.translate(-LOIN, -LOIN);
-      return;
+    const { unites: u, sousTitre } = courant.current ?? {};
+    const taille = noeud.current?.fontSize() ?? 40;
+    if (u) {
+      const [i, n] = rangEtTotal(u.genre, rangs);
+      const e = etatUnite(u, i, n);
+      if (e.opacite <= 0.001) return cacher(c);
+      if (e.opacite < 1) c.context.setAttr("globalAlpha", (c.context as unknown as { _context: CanvasRenderingContext2D })._context.globalAlpha * e.opacite);
+      if (e.dyEm !== 0 || e.echelle !== 1) {
+        const cx = c.x + c.width / 2;
+        const cy = c.y - taille * 0.35;
+        c.context.translate(cx, cy + e.dyEm * taille);
+        c.context.scale(e.echelle, e.echelle);
+        c.context.translate(-cx, -cy);
+      }
     }
-    if (e.opacite < 1) c.context.setAttr("globalAlpha", (c.context as unknown as { _context: CanvasRenderingContext2D })._context.globalAlpha * e.opacite);
-    if (e.dyEm !== 0 || e.echelle !== 1) {
-      const taille = noeud.current?.fontSize() ?? 40;
-      const cx = c.x + c.width / 2;
-      const cy = c.y - taille * 0.35;
-      c.context.translate(cx, cy + e.dyEm * taille);
-      c.context.scale(e.echelle, e.echelle);
-      c.context.translate(-cx, -cy);
+    if (!sousTitre) return;
+    const { st, actif } = sousTitre;
+    if (st.progressif && rangs.mot > actif) return cacher(c);
+    if (!st.actif || rangs.mot !== actif) return;
+    c.context.setAttr("fillStyle", st.actif.couleur);
+    if (st.actif.echelle !== 1 && noeud.current) {
+      const m = etenduesDesMots(noeud.current)[rangs.mot];
+      const mx = m ? (m.x0 + m.x1) / 2 : c.x + c.width / 2;
+      const my = c.y - taille * 0.35;
+      c.context.translate(mx, my);
+      c.context.scale(st.actif.echelle, st.actif.echelle);
+      c.context.translate(-mx, -my);
     }
   };
 }
 
-function Texte({ el, masque, unites }: { el: ElementTexte; masque: boolean; unites?: Unites }) {
+/** Le mot prononcé d'un sous-titre à l'instant de la tête de lecture (ou à `instant`) ; le
+ *  composant ne se redessine que quand il change. */
+function useMotActif(el: ElementTexte, instant: number | undefined): number {
+  const st = sousTitreAnime(el) && el.temps ? el.sousTitre : undefined;
+  const n = st ? nombreDeMots(texteAffiche(el)) : 0;
+  const debut = el.temps?.debut ?? 0;
+  const vivant = useTemps((s) => (st && instant === undefined ? motActif(st.mots, n, s.tete - debut) : -1));
+  return st && instant !== undefined ? motActif(st.mots, n, instant - debut) : vivant;
+}
+
+function Texte({ el, masque, unites, instant }: { el: ElementTexte; masque: boolean; unites?: Unites; instant?: number }) {
   // Quand une police finit de se charger, le texte se recompose avec elle.
   const version = useVersionPolices();
   const decoration = [el.souligne ? "underline" : "", el.barre ? "line-through" : ""].filter(Boolean).join(" ");
   const s = el.surlignage;
-  const parMorceaux = aDesUnites(el);
+  const parMorceaux = aDesUnites(el) || sousTitreAnime(el);
   const noeud = useRef<Konva.Text>(null);
-  const courant = useRef<Unites | undefined>(unites);
-  courant.current = unites;
+  const actif = useMotActif(el, instant);
+  const courant = useRef<Courant>({});
+  courant.current = { unites, ...(el.sousTitre && sousTitreAnime(el) && el.temps ? { sousTitre: { st: el.sousTitre, actif } } : {}) };
   const rendu = useMemo(() => (parMorceaux ? renduParMorceaux(noeud, courant) : undefined), [parMorceaux]);
   // L'avancement change sans que Konva le sache : on redessine le calque.
   useLayoutEffect(() => {
     if (parMorceaux) noeud.current?.getLayer()?.batchDraw();
-  }, [parMorceaux, unites?.p, unites?.genre, unites?.sens]);
+  }, [parMorceaux, unites?.p, unites?.genre, unites?.sens, actif]);
   return (
     <>
       {s && <Rect x={-s.marge} y={-s.marge} width={el.largeur + 2 * s.marge} height={el.hauteur + 2 * s.marge} cornerRadius={s.arrondi} fill={s.couleur} opacity={masque ? 0.4 : 1} perfectDrawEnabled={false} />}
@@ -627,7 +694,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
   const contenu = useMemo(
     () => (
       <>
-        {el.type === "texte" && <Texte el={el} masque={enEdition} unites={unites} />}
+        {el.type === "texte" && <Texte el={el} masque={enEdition} unites={unites} instant={instant} />}
         {el.type === "forme" && <Forme el={el} />}
         {el.type === "image" && <Photo el={el} />}
         {el.type === "video" && <Video el={el} statique={statique} anime={anime} image={imageVideo} />}
@@ -641,7 +708,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
         {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
       </>
     ),
-    [el, enEdition, unites?.genre, unites?.sens, unites?.p, statique, anime, imageVideo, enAjustement, celluleMasquee],
+    [el, enEdition, unites?.genre, unites?.sens, unites?.p, statique, anime, imageVideo, enAjustement, celluleMasquee, instant],
   );
   // Sur une page vidéo, deux groupes de plus entre la boîte et le dessin : le volet (découpe)
   // et l'effet (autour du centre). Ils sont toujours là, pour qu'une vidéo ne soit pas

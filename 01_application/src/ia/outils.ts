@@ -3,7 +3,10 @@
 // se faire dans la fenêtre. Aucun outil ne supprime un design, n'efface une image importée ni
 // n'écrit hors des dossiers d'Eliot.
 
-import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import { dureesDe, elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import { apercuCoupe, couperLesBlancs, creerLesSousTitres, useParole, whisperPret } from "../etat/parole";
+import { clipsACouper, estHesitation, OPTIONS_BLANCS, SILENCE_MIN, type LangueParole } from "../modele/parole";
+import { ajusterSousTitres, centreParDefaut, estSousTitre, motsDeLaPage, retirerSousTitres, sourcesDeParole, STYLES_SOUS_TITRES } from "../modele/sousTitres";
 import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
 import { exporter } from "../export/exporter";
@@ -154,6 +157,7 @@ function resumerFrise() {
         id: e.id,
         type: e.type,
         nom: e.nom ?? (e.type === "texte" ? e.texte.slice(0, 40) : e.type),
+        ...(e.type === "texte" && e.sousTitre ? { sousTitre: true } : {}),
         debut: e.temps?.debut,
         fin: e.temps?.fin,
         ...(e.type === "video" ? { coupe: e.coupe ?? null, vitesse: e.vitesse ?? 1 } : {}),
@@ -1237,6 +1241,115 @@ const OUTILS: Record<string, Outil> = {
     exiger(id, "voix non posée");
     const c = pageCourante(etat()).audio!.find((x) => x.id === id)!;
     return { donnees: { son: resumerSon(c), voix: { id: voix!.id, nom: voix!.nom, licence: voix!.licence ?? null }, frise: resumerFrise() } };
+  },
+
+  async transcrire(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la transcription se fait sur une page vidéo");
+    const parole = useParole.getState();
+    const manque = whisperPret(parole.whisper ?? (await parole.verifierWhisper()));
+    exiger(!manque, `${manque} ; Alexandre installe Whisper avec les commandes 18 et 19 du CLAUDE.md, puis relance Eliot`);
+    if (args.langue !== undefined) {
+      exiger(["fr", "en", "auto"].includes(String(args.langue)), "langue : fr, en ou auto");
+      parole.definirLangue(String(args.langue) as LangueParole);
+    }
+    let sources = sourcesDeParole(page, etat().ressources);
+    if (args.clip !== undefined) {
+      const id = String(args.clip);
+      sources = sources.filter((x) => x.id === id);
+      exiger(sources.length, `clip inconnu ou sans voix : ${id} (une vidéo qu'on entend, ou un son au rôle voix ; voir etat, frise)`);
+    }
+    exiger(sources.length, "aucune voix sur cette page : une vidéo qu'on entend, ou un son au rôle voix");
+    const analyses = await parole.transcrire([...new Set(sources.map((x) => x.ressource))], booleen(args.forcer) ?? false);
+    const toutes = { ...useParole.getState().analyses, ...analyses };
+    return {
+      donnees: {
+        sources: sources.map((x) => {
+          const mots = motsDeLaPage([x], toutes, { hesitations: true });
+          const t = toutes[x.ressource]?.transcription;
+          return {
+            clip: x.id,
+            genre: x.genre,
+            ressource: x.ressource,
+            langue: t?.langue ?? null,
+            modele: t?.modele ?? null,
+            texte: mots.map((m) => m.texte).join(" "),
+            // Au temps de la page, en ms ; les hésitations comprises (couper_blancs les retire).
+            mots: mots.slice(0, 3000).map((m) => ({ texte: m.texte, debut: m.debut, fin: m.fin, ...(estHesitation(m.texte) ? { hesitation: true } : {}) })),
+          };
+        }),
+      },
+    };
+  },
+
+  async sous_titres(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "les sous-titres se font sur une page vidéo");
+    const durees = dureesDe(etat().ressources);
+    const resume = () => ({
+      sousTitres: pageCourante(etat())
+        .elements.filter(estSousTitre)
+        .map((e) => ({ id: e.id, texte: e.texte, debut: e.temps?.debut, fin: e.temps?.fin, piste: e.piste })),
+      styles: STYLES_SOUS_TITRES.map((x) => ({ id: x.id, libelle: x.libelle, description: x.description })),
+    });
+    if (booleen(args.retirer)) {
+      etat().appliquerPage((p) => retirerSousTitres(p, durees), "sous-titres-retirer");
+      return { donnees: resume() };
+    }
+    if (args.style !== undefined) exiger(STYLES_SOUS_TITRES.some((x) => x.id === String(args.style)), `style inconnu : ${String(args.style)} (${STYLES_SOUS_TITRES.map((x) => x.id).join(", ")})`);
+    const centre = nombre(args.centre);
+    if (args.centre !== undefined) exiger(centre !== undefined && centre >= 0.08 && centre <= 0.92, "centre : de 0,08 à 0,92 (part de la hauteur de la page)");
+    if (args.langue !== undefined) {
+      exiger(["fr", "en", "auto"].includes(String(args.langue)), "langue : fr, en ou auto");
+      useParole.getState().definirLangue(String(args.langue) as LangueParole);
+    }
+    const existants = page.elements.filter(estSousTitre);
+    const refaire = args.style !== undefined || booleen(args.refaire) || existants.length === 0 || args.hesitations !== undefined;
+    if (refaire) {
+      const style = String(args.style ?? existants[0]?.sousTitre.style ?? STYLES_SOUS_TITRES[0].id);
+      const format = etat().document.format;
+      await creerLesSousTitres({ style, centre: centre ?? (existants.length ? (existants[0].y + existants[0].hauteur / 2) / format.hauteur : centreParDefaut(format)), hesitations: booleen(args.hesitations) ?? false });
+    }
+    const changement: Parameters<typeof ajusterSousTitres>[2] = {};
+    const taille = nombre(args.taille);
+    if (args.taille !== undefined) {
+      exiger(taille !== undefined && taille >= 12 && taille <= 400, "taille : la taille de police, en pixels de la page (12 à 400)");
+      changement.taillePolice = Math.round(taille);
+    }
+    if (!refaire && centre !== undefined) changement.centre = centre;
+    if (args.couleurActif !== undefined) {
+      exiger(typeof args.couleurActif === "string" && HEX.test(args.couleurActif), "couleurActif : couleur #rrggbb");
+      changement.couleurActif = args.couleurActif.toLowerCase();
+    }
+    if (args.majuscules !== undefined) changement.majuscules = booleen(args.majuscules);
+    if (Object.keys(changement).length) etat().modifierElements(ajusterSousTitres(pageCourante(etat()), etat().document.format, changement, mesurerHauteurTexte), "sous-titres-ia");
+    return { donnees: { ...resume(), frise: resumerFrise() } };
+  },
+
+  async couper_blancs(args) {
+    designOuvert();
+    const id = String(args.clip ?? "");
+    const page = pageCourante(etat());
+    exiger(clipsACouper(page, id), `clip inconnu ou impossible à couper : ${id} (une vidéo de la frise, ou un son qui ne boucle pas ; voir etat, frise)`);
+    const silences = nombre(args.silences, OPTIONS_BLANCS.silenceMin)!;
+    exiger(silences >= SILENCE_MIN.min && silences <= SILENCE_MIN.max, `silences : de ${SILENCE_MIN.min} à ${SILENCE_MIN.max} ms`);
+    const parole = useParole.getState();
+    const manque = whisperPret(parole.whisper ?? (await parole.verifierWhisper()));
+    const hesitations = booleen(args.hesitations) ?? !manque;
+    exiger(!hesitations || !manque, `${manque} : hesitations: false pour ne couper que les blancs, ou Alexandre installe Whisper (commandes 18 et 19 du CLAUDE.md)`);
+    const options = { ...OPTIONS_BLANCS, silenceMin: silences, hesitations };
+    if (booleen(args.apercu)) {
+      if (hesitations) await parole.transcrire([clipsACouper(page, id)!.ressource]);
+      const a = await apercuCoupe(id, options);
+      exiger(a, "clip introuvable");
+      return { donnees: { garder: a.garder, retireMs: a.retire, fenetre: a.fenetre } };
+    }
+    useTemps.getState().pause();
+    const bilan = await couperLesBlancs(id, options);
+    if (!bilan) return { donnees: { coupe: false, raison: "aucun blanc assez long, ni hésitation, dans ce clip" } };
+    return { donnees: { coupe: true, morceaux: bilan.morceaux, retireMs: bilan.retire, sousTitresRefaits: bilan.sousTitres, selection: etat().selection, frise: resumerFrise() } };
   },
 
   ajouter_image(args) {

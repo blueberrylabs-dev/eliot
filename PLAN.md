@@ -205,9 +205,11 @@ Choix par défaut de Claude, modifiables sur simple demande :
   dans le noyau, coupe des graves, égaliseur, compresseur et dé-esseur par les filtres de
   `ffmpeg`, niveau EBU R128 mesuré par `ebur128` (lots 5 et 6, JOURNAL). Micro lu par
   `ffmpeg`, lancé par le noyau (lot 6).
-- Sous-titres : Whisper sur le processeur (modèle téléchargé une fois par Alexandre, comme
-  les archives des personnages) ; voix de synthèse : Piper, même principe. Les deux viennent
-  dans leurs lots, avec leurs commandes.
+- Sous-titres : Whisper sur le processeur (`whisper-ctranslate2`, programme installé par
+  Alexandre ; modèle `faster-whisper-small` téléchargé une fois, comme les archives des
+  personnages) ; voix de synthèse : Piper, même principe (lots 6 et 7, commandes 16 à 19).
+  La coupe des silences et des hésitations se fait en morceaux visibles dans la frise (lot 7,
+  JOURNAL).
 
 - [x] Lot 0 : banc des copies d'aperçu dans `00_banc_essai/` (VP9, VP8 et H.264, en 1080p,
       720p et 540p, une image clé par demi-seconde) : lecture sur un calque à part avec la
@@ -288,8 +290,20 @@ Choix par défaut de Claude, modifiables sur simple demande :
       Vérifié : noyau 74, interface 148, Chromium (voix 37, suites de l'étape 4), Tauri (voix
       20 dont une prise au micro d'essai et la lecture enregistrée, suites de l'étape 4). Reste
       l'essai d'Alexandre (commandes 16 et 17 une fois, pour Piper).
-- [ ] Lot 7 : les sous-titres : Whisper, sous-titres mot par mot (le mot prononcé mis en
+- [x] Lot 7 : les sous-titres : Whisper, sous-titres mot par mot (le mot prononcé mis en
       valeur), coupe des silences et des hésitations.
+      Livré le 2026-10-15 : analyse de la parole par le noyau (`parole.rs` : où l'on parle,
+      niveau toutes les 10 ms), transcription par Whisper sur le processeur (programme
+      `whisper-ctranslate2`, modèle small, mots recalés sur la voix, gardée dans le design),
+      « Blancs » dans la barre d'une vidéo ou d'un son (aperçu, blancs et « euh » coupés en
+      morceaux qui se suivent, son détaché coupé avec sa vidéo), sous-titres automatiques dans
+      l'onglet Texte (quatre styles, mot prononcé en couleur et agrandi, ou mots qui
+      apparaissent, réglages communs, refaits après une coupe), le mot prononcé à l'export
+      (`sous_titres.rs`, tableau commun de 264 cas), une seule balise vidéo par fichier dans
+      la fenêtre, trois outils de plus pour le pont IA (61 en tout). Vérifié : noyau 83,
+      interface 170, Chromium (sous-titres 44, suites d'avant), Tauri (sous-titres 17 dont
+      le vrai Whisper, le film et la lecture enregistrée, suites de l'étape 4). Reste l'essai
+      d'Alexandre (commandes 18 et 19 une fois, pour Whisper).
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 

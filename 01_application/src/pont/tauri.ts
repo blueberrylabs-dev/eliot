@@ -5,6 +5,7 @@
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { AnalyseParole, LangueParole } from "../modele/parole";
 
 export const dansTauri = isTauri();
 
@@ -314,12 +315,38 @@ export function urlCopie(ref: RefRessources, ressource: Ressource): Promise<stri
   const cle = `${ref.rayon}/${ref.id}/${ressource.id}/copie`;
   let promesse = urls.get(cle);
   if (!promesse) {
-    const type = ressource.son ? "audio/webm" : ressource.video?.copie === "mp4" ? "video/mp4" : "video/webm";
-    promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" }).then((octets) => URL.createObjectURL(new Blob([octets], { type })));
+    promesse = blobCopie(ref, ressource).then((b) => URL.createObjectURL(b));
     promesse.catch(() => urls.delete(cle));
     urls.set(cle, promesse);
   }
   return promesse;
+}
+
+const blobsCopies = new Map<string, Promise<Blob>>();
+
+/** La copie d'une ressource, lue une fois par le noyau. */
+function blobCopie(ref: RefRessources, ressource: Ressource): Promise<Blob> {
+  const cle = `${ref.rayon}/${ref.id}/${ressource.id}/copie`;
+  let promesse = blobsCopies.get(cle);
+  if (!promesse) {
+    const type = ressource.son ? "audio/webm" : ressource.video?.copie === "mp4" ? "video/mp4" : "video/webm";
+    promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" }).then((octets) => new Blob([octets], { type }));
+    promesse.catch(() => blobsCopies.delete(cle));
+    blobsCopies.set(cle, promesse);
+  }
+  return promesse;
+}
+
+/**
+ * Une adresse neuve de la copie d'aperçu d'une vidéo, pour une balise qui naît, à libérer quand
+ * elle disparaît (le fichier n'est lu qu'une fois). Mesuré dans WebKitGTK : une balise qui
+ * reprend l'adresse d'une balise rendue juste avant échoue souvent.
+ */
+export async function urlCopieNeuve(ref: RefRessources, ressource: Ressource): Promise<{ url: string; liberer: () => void }> {
+  const navigateur = ressourcesNavigateur.get(ressource.id);
+  if (navigateur?.urls.copie) return { url: navigateur.urls.copie, liberer: () => undefined };
+  const url = URL.createObjectURL(await blobCopie(ref, ressource));
+  return { url, liberer: () => URL.revokeObjectURL(url) };
 }
 
 /** L'image d'une vidéo à l'instant `ms` de son fichier (JPEG), tirée de la copie d'aperçu par
@@ -1358,6 +1385,61 @@ export async function ajouterVoixDite(ref: RefRessources, voix: string, texte: s
   const ressource: Ressource = { ...bilan.ressources[0], nom: credit.titre ?? "voix", credit, son: { ...bilan.ressources[0].son!, origine: "synthese" } };
   ressourcesNavigateur.get(ressource.id)!.ressource = ressource;
   return ressource;
+}
+
+// ========================================================================================
+// La parole (étape 4, lot 7) : où l'on parle, ce qui est dit (Whisper dans le noyau)
+// ========================================================================================
+
+/** Whisper est-il installé, quel modèle servira, où ranger un modèle. */
+export interface EtatWhisper {
+  installe: boolean;
+  modele: string | null;
+  dossier: string;
+}
+
+/** Les essais de l'interface dans un navigateur posent une fausse transcription dans
+ *  `window.__paroleEssai` (développement seulement). */
+interface ParoleEssai {
+  whisper(): Promise<EtatWhisper>;
+  analyser(ressource: string): Promise<AnalyseParole>;
+  transcrire(ressource: string, langue: LangueParole, avancement: (p: number) => void): Promise<AnalyseParole>;
+  annuler?(): void;
+}
+const paroleEssai = (): ParoleEssai | undefined => (!dansTauri && import.meta.env.DEV ? (window as unknown as { __paroleEssai?: ParoleEssai }).__paroleEssai : undefined);
+
+const HORS_FENETRE_PAROLE = "la parole ne s'analyse que dans la fenêtre Eliot";
+
+/** L'état de Whisper ; `null` hors de la fenêtre Eliot. */
+export async function etatWhisper(): Promise<EtatWhisper | null> {
+  if (dansTauri) return invoke<EtatWhisper>("whisper_etat");
+  return (await paroleEssai()?.whisper()) ?? null;
+}
+
+/** Où l'on parle dans un son ou une vidéo du design (le noyau garde l'analyse). */
+export async function analyserParole(ref: RefRessources, ressource: string): Promise<AnalyseParole> {
+  if (dansTauri) return invoke<AnalyseParole>("parole_analyser", { rayonNom: ref.rayon, projetId: ref.id, id: ressource });
+  const essai = paroleEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PAROLE);
+  return essai.analyser(ressource);
+}
+
+/** Ce qui est dit, mot par mot (Whisper sur le processeur) ; `avancement` reçoit de 0 à 1. */
+export async function transcrireParole(ref: RefRessources, ressource: string, langue: LangueParole, forcer: boolean, avancement: (p: number) => void): Promise<AnalyseParole> {
+  if (dansTauri) {
+    const canal = new Channel<number>();
+    canal.onmessage = avancement;
+    return invoke<AnalyseParole>("parole_transcrire", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, langue, forcer, avancement: canal });
+  }
+  const essai = paroleEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PAROLE);
+  return essai.transcrire(ressource, langue, avancement);
+}
+
+/** Arrête la transcription en cours. */
+export function annulerTranscription(): void {
+  if (dansTauri) void invoke("parole_annuler");
+  else paroleEssai()?.annuler?.();
 }
 
 // ========================================================================================

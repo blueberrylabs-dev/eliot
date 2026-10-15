@@ -1751,6 +1751,118 @@
     }
   },
   {
+    "name": "transcrire",
+    "description": "Fait écrire par Whisper (sur le processeur du poste) ce que disent les voix de la page vidéo affichée : chaque vidéo qu'on entend et chaque son au rôle voix, ou seulement clip. Renvoie, par clip, le texte et les mots avec leur début et leur fin au temps de la page (ms), les hésitations (« euh ») marquées. La transcription est gardée dans le design : la redemander est immédiat, sauf forcer. Whisper doit être installé (commandes 18 et 19 du CLAUDE.md).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "clip": {
+          "type": "string",
+          "description": "Identifiant d'une vidéo ou d'un son de la frise ; toutes les voix de la page par défaut."
+        },
+        "langue": {
+          "type": "string",
+          "enum": [
+            "fr",
+            "en",
+            "auto"
+          ],
+          "description": "La langue de la voix : fr par défaut, auto la laisse reconnaître."
+        },
+        "forcer": {
+          "type": "boolean",
+          "description": "Refaire la transcription même si elle est gardée."
+        }
+      }
+    }
+  },
+  {
+    "name": "sous_titres",
+    "description": "Sous-titres automatiques de la page vidéo affichée : Whisper transcrit les voix (vidéos qu'on entend, sons au rôle voix), puis les mots deviennent des textes courts posés sur une piste au-dessus de tout, à la place des anciens sous-titres. Le mot prononcé est mis en valeur à la lecture et à l'export (couleur, agrandissement, ou mots qui apparaissent un à un). Styles : surligne (trois mots, le mot dit en jaune), mot (un mot à la fois, en grand), progressif (les mots apparaissent quand ils sont dits), classique (une phrase sur une bande noire). Avec des sous-titres déjà posés et sans style ni refaire : seulement les réglages communs (taille, centre, couleurActif, majuscules). retirer les enlève tous. Un sous-titre se corrige ensuite comme un texte (modifier, champ texte). À faire après couper_blancs (une coupe refait les sous-titres de la voix coupée).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "style": {
+          "type": "string",
+          "enum": [
+            "surligne",
+            "mot",
+            "progressif",
+            "classique"
+          ],
+          "description": "surligne par défaut (ou celui des sous-titres déjà posés)."
+        },
+        "refaire": {
+          "type": "boolean",
+          "description": "Refaire les sous-titres depuis la voix (après un changement du montage)."
+        },
+        "centre": {
+          "type": "number",
+          "minimum": 0.08,
+          "maximum": 0.92,
+          "description": "Hauteur du milieu des sous-titres, en part de la page ; en 9:16, 0,66 (au-dessus des légendes de TikTok) par défaut."
+        },
+        "hesitations": {
+          "type": "boolean",
+          "description": "Écrire aussi les « euh » et les « hum » (non par défaut)."
+        },
+        "langue": {
+          "type": "string",
+          "enum": [
+            "fr",
+            "en",
+            "auto"
+          ]
+        },
+        "taille": {
+          "type": "number",
+          "description": "Taille de police de tous les sous-titres, en pixels de la page."
+        },
+        "couleurActif": {
+          "type": "string",
+          "description": "Couleur #rrggbb du mot prononcé."
+        },
+        "majuscules": {
+          "type": "boolean"
+        },
+        "retirer": {
+          "type": "boolean",
+          "description": "Enlever tous les sous-titres de la page."
+        }
+      }
+    }
+  },
+  {
+    "name": "couper_blancs",
+    "description": "Coupe les blancs (silences plus longs que silences ms) d'une vidéo ou d'un son de la frise, et ses hésitations (« euh », « hum », repérées par Whisper) : le clip devient des morceaux qui se suivent (la piste principale se resserre), un son détaché de la vidéo est coupé avec elle, et les sous-titres de cette voix sont refaits. On garde 120 ms de blanc contre la voix ; l'original n'est jamais touché et chaque morceau se rallonge à la main. apercu : dit seulement ce qui serait gardé (ms du fichier) et le temps retiré. Ctrl+Z (annuler) défait la coupe d'un coup.",
+    "inputSchema": {
+      "type": "object",
+      "required": [
+        "clip"
+      ],
+      "properties": {
+        "clip": {
+          "type": "string",
+          "description": "Identifiant de la vidéo ou du son (voir etat, frise)."
+        },
+        "silences": {
+          "type": "integer",
+          "minimum": 300,
+          "maximum": 2000,
+          "description": "Un blanc plus long que cela est raccourci ; 600 ms par défaut."
+        },
+        "hesitations": {
+          "type": "boolean",
+          "description": "Couper aussi les hésitations ; oui par défaut quand Whisper est installé."
+        },
+        "apercu": {
+          "type": "boolean",
+          "description": "Ne rien couper : dire ce qui serait coupé."
+        }
+      }
+    }
+  },
+  {
     "name": "page_video",
     "description": "Fait de la page affichée une page vidéo (la frise s'ouvre : chaque élément sur sa piste, visible tout du long, la page dure 5 s ou autant que sa plus longue vidéo) ou la remet en image fixe (temps et pistes oubliés ; annulable). Poser une vidéo sur une page fixe en fait aussi une page vidéo.",
     "inputSchema": {

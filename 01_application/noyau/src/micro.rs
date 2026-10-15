@@ -108,6 +108,11 @@ pub fn entete_wav(echantillons: u32) -> [u8; 44] {
 
 /// L'en-tête d'un fichier WAV à 48 kHz, 16 bits, de `trames` trames de `canaux` canaux.
 pub fn entete_wav_canaux(trames: u32, canaux: u16) -> [u8; 44] {
+    entete_wav_a(trames, canaux, FREQUENCE)
+}
+
+/// L'en-tête d'un fichier WAV 16 bits à la fréquence `frequence` (Hz).
+pub fn entete_wav_a(trames: u32, canaux: u16, frequence: u32) -> [u8; 44] {
     let donnees = trames.saturating_mul(2 * canaux as u32);
     let mut e = [0u8; 44];
     e[0..4].copy_from_slice(b"RIFF");
@@ -116,8 +121,8 @@ pub fn entete_wav_canaux(trames: u32, canaux: u16) -> [u8; 44] {
     e[16..20].copy_from_slice(&16u32.to_le_bytes());
     e[20..22].copy_from_slice(&1u16.to_le_bytes());
     e[22..24].copy_from_slice(&canaux.to_le_bytes());
-    e[24..28].copy_from_slice(&FREQUENCE.to_le_bytes());
-    e[28..32].copy_from_slice(&(FREQUENCE * 2 * canaux as u32).to_le_bytes());
+    e[24..28].copy_from_slice(&frequence.to_le_bytes());
+    e[28..32].copy_from_slice(&(frequence * 2 * canaux as u32).to_le_bytes());
     e[32..34].copy_from_slice(&(2 * canaux).to_le_bytes());
     e[34..36].copy_from_slice(&16u16.to_le_bytes());
     e[36..40].copy_from_slice(b"data");

@@ -31,6 +31,7 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::animation::{self, Contexte, ElementAnime, Format, GenreUnites, Repere};
+use crate::sous_titres::{self, SousTitre};
 use crate::fichiers::{chemin_libre, chemin_temporaire};
 use crate::images::{self, Genre};
 use crate::son::{self, ClipAudio};
@@ -72,6 +73,12 @@ pub struct Unite {
     pub cx: f64,
     pub cy: f64,
     pub taille: f64,
+    /// Sous-titre (lot 7) : la variante de la lettre quand son mot est prononcé (couleur du
+    /// mot prononcé), et le milieu de son mot, autour duquel il grandit.
+    #[serde(default)]
+    pub actif: bool,
+    pub mx: Option<f64>,
+    pub my: Option<f64>,
 }
 
 /// Un calque d'élément (voir `contexteSvg.ts`).
@@ -622,6 +629,8 @@ struct ElementEnPlace {
     ctx: Contexte,
     calques: Vec<CalqueEnPlace>,
     totaux: Option<Totaux>,
+    /// Un sous-titre (lot 7) : le temps de ses mots, le mot prononcé mis en valeur.
+    sous_titre: Option<SousTitre>,
     /// Échelle des rendus fins : celle du film, fois le plus fort agrandissement de l'élément.
     finesse: f64,
     /// Vidéo : durée du fichier, en ms.
@@ -878,7 +887,8 @@ impl Scene {
                 };
                 calques.push(CalqueEnPlace { calque: c.clone(), rendu, decoupes });
             }
-            elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, finesse, duree_fichier });
+            let sous_titre = e.element.get("sousTitre").and_then(|v| serde_json::from_value::<SousTitre>(v.clone()).ok());
+            elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier });
         }
         Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: reglages.images_par_seconde as f64 })
     }
@@ -921,14 +931,33 @@ impl Scene {
                 finesse: el.finesse,
             };
             let (totaux, finesse) = (el.totaux, el.finesse);
+            // Un sous-titre : le mot prononcé maintenant et à l'image suivante.
+            let sous_titre = el.sous_titre.clone();
+            let debut_clip = el.el.temps.as_ref().map_or(0.0, |tp| tp.debut);
+            let mots = totaux.map_or(0, |t| t.mots.max(0.0) as usize);
+            let actif_a = |instant: f64| sous_titre.as_ref().map_or(-1, |st| sous_titres::mot_actif(&st.mots, mots, instant - debut_clip));
+            let (actif, actif_suivant) = (actif_a(t), actif_a(t + pas));
             for calque in &mut el.calques {
                 let (opacite, fusion, unite, ombre) = calque.commun();
                 let (fusion, unite, ombre) = (mode_de_fusion(fusion), unite.copied(), ombre.copied());
-                // Une lettre d'un texte par morceaux : sa propre transformation et son opacité.
-                let lettre = |e: &Etat| -> Option<(Affine, f64)> {
-                    match (&unite, &e.unites) {
-                        (Some(u), Some(us)) => etat_lettre(u, us, totaux.as_ref()),
-                        _ => Some((Affine::IDENTITE, 1.0)),
+                // Une lettre d'un texte par morceaux : sa propre transformation et son opacité ;
+                // une lettre de sous-titre : visible ou non, agrandie autour de son mot.
+                let lettre = |e: &Etat, actif: i64| -> Option<(Affine, f64)> {
+                    let (m, alpha) = match (&unite, &e.unites) {
+                        (Some(u), Some(us)) => etat_lettre(u, us, totaux.as_ref())?,
+                        _ => (Affine::IDENTITE, 1.0),
+                    };
+                    match (&unite, &sous_titre) {
+                        (Some(u), Some(st)) => {
+                            let echelle = sous_titres::lettre_de_sous_titre(st, u.mot, u.actif, actif)?;
+                            if (echelle - 1.0).abs() < 1e-9 {
+                                return Some((m, alpha));
+                            }
+                            let (mx, my) = (u.mx.unwrap_or(u.cx), u.my.unwrap_or(u.cy));
+                            let grand = Affine::translation(mx, my).fois(&Affine::echelle(echelle)).fois(&Affine::translation(-mx, -my));
+                            Some((m.fois(&grand), alpha))
+                        }
+                        _ => Some((m, alpha)),
                     }
                 };
                 // L'ombre se décale dans le repère de la page, comme celle d'un canevas.
@@ -936,9 +965,9 @@ impl Scene {
                     let decalage = ombre.map_or(Affine::IDENTITE, |o| Affine::translation(o.dx * e.echelle_noeuds, o.dy * e.echelle_noeuds));
                     sortie.fois(&decalage).fois(&e.element).fois(u)
                 };
-                let Some((u, alpha_lettre)) = lettre(&etat) else { continue };
+                let Some((u, alpha_lettre)) = lettre(&etat, actif) else { continue };
                 let m = place(&etat, &u);
-                let immobile = lettre(&suivant).is_some_and(|(u2, _)| place(&suivant, &u2).proche(&m));
+                let immobile = lettre(&suivant, actif_suivant).is_some_and(|(u2, _)| place(&suivant, &u2).proche(&m));
                 let paint = PixmapPaint {
                     opacity: (etat.opacite * opacite * alpha_lettre).clamp(0.0, 1.0) as f32,
                     blend_mode: fusion,
@@ -1624,6 +1653,55 @@ mod tests {
         let _ = fs::remove_dir_all(&dossier);
     }
 
+    /// Un sous-titre de deux mots (deux carrés), chacun en deux variantes : noire d'ordinaire,
+    /// rouge et agrandie de moitié quand le mot est dit. À 0,5 s, le premier mot est dit ; à
+    /// 1,5 s, le second. Un second sous-titre, progressif, n'a encore que son premier mot.
+    #[test]
+    fn un_sous_titre_met_en_valeur_le_mot_dit() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("sous-titre");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let lettre = |x: f64, y: f64, mot: f64, actif: bool| {
+            let mut c = rectangle_svg(40.0, 40.0, if actif { "#ff0000" } else { "#000000" });
+            c["svg"] = json!(c["svg"].as_str().unwrap().replace("viewBox=\"0 0 40 40\"", &format!("viewBox=\"{x} {y} 40 40\"")).replace("M0 0L40 0L40 40L0 40Z", &format!("M{x} {y}L{} {y}L{} {}L{x} {}Z", x + 40.0, x + 40.0, y + 40.0, y + 40.0)));
+            c["boite"] = json!({ "x0": x, "y0": y, "x1": x + 40.0, "y1": y + 40.0 });
+            c["unite"] = json!({ "lettre": mot, "mot": mot, "ligne": 0, "cx": x + 20.0, "cy": y + 20.0, "taille": 40, "actif": actif, "mx": x + 20.0, "my": y + 20.0 });
+            c
+        };
+        let texte = |id: &str, y: f64, progressif: bool| {
+            json!({
+                "element": { "id": id, "type": "texte", "x": 0, "y": 0, "largeur": 320, "hauteur": 180, "rotation": 0, "opacite": 1, "visible": true,
+                             "temps": { "debut": 0, "fin": 2000 }, "piste": 1,
+                             "sousTitre": { "mots": [{ "debut": 0, "fin": 1000 }, { "debut": 1000, "fin": 2000 }], "actif": { "couleur": "#ff0000", "echelle": 1.5 }, "progressif": progressif } },
+                "calques": [lettre(40.0, y, 0.0, false), lettre(40.0, y, 0.0, true), lettre(200.0, y, 1.0, false), lettre(200.0, y, 1.0, true)],
+                "totaux": { "lettres": 2, "mots": 2, "lignes": 1 }
+            })
+        };
+        let page: DescriptionPage = serde_json::from_value(json!({
+            "largeur": 320, "hauteur": 180, "duree": 2000,
+            "fond": [rectangle_svg(320.0, 180.0, "#ffffff")],
+            "elements": [texte("a", 20.0, false), texte("b", 110.0, true)],
+            "polices": []
+        }))
+        .unwrap();
+        let cible = dossier.join("sortie").join("film.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |_| (), &AtomicBool::new(false)).unwrap();
+        let (a, b) = (image_a(&cible, 0.5), image_a(&cible, 1.5));
+        let (rouge, noir, blanc) = ([255, 0, 0], [0, 0, 0], [255, 255, 255]);
+        // Premier sous-titre (carrés de y 20 à 60) : à 0,5 s, le mot 0 rouge et agrandi (il
+        // déborde jusqu'à x = 30), le mot 1 noir ; à 1,5 s, l'inverse.
+        assert!(proche(a.get_pixel(60, 40), rouge) && proche(a.get_pixel(33, 40), rouge) && proche(a.get_pixel(220, 40), noir) && proche(a.get_pixel(195, 40), blanc), "{:?}", (a.get_pixel(60, 40), a.get_pixel(33, 40), a.get_pixel(220, 40)));
+        assert!(proche(b.get_pixel(60, 40), noir) && proche(b.get_pixel(33, 40), blanc) && proche(b.get_pixel(220, 40), rouge) && proche(b.get_pixel(193, 40), rouge), "{:?}", (b.get_pixel(60, 40), b.get_pixel(220, 40)));
+        // Le progressif (y de 110 à 150) : à 0,5 s, le mot 1 n'est pas encore là.
+        assert!(proche(a.get_pixel(60, 130), rouge) && proche(a.get_pixel(220, 130), blanc), "{:?}", (a.get_pixel(60, 130), a.get_pixel(220, 130)));
+        assert!(proche(b.get_pixel(60, 130), noir) && proche(b.get_pixel(220, 130), rouge), "{:?}", (b.get_pixel(60, 130), b.get_pixel(220, 130)));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
     /// Le niveau moyen du son du film entre deux instants (s), autour d'une fréquence (Hz).
     fn niveau_a(film: &Path, debut: f64, fin: f64, frequence: u32) -> f32 {
         let s = Command::new("ffmpeg")
@@ -1845,7 +1923,7 @@ mod tests {
 
     #[test]
     fn une_lettre_d_un_texte_par_morceaux() {
-        let u = Unite { lettre: 3.0, mot: 1.0, ligne: 0.0, cx: 100.0, cy: 50.0, taille: 40.0 };
+        let u = Unite { lettre: 3.0, mot: 1.0, ligne: 0.0, cx: 100.0, cy: 50.0, taille: 40.0, actif: false, mx: None, my: None };
         let totaux = Totaux { lettres: 10.0, mots: 3.0, lignes: 1.0 };
         // Machine à écrire à mi-course : les cinq premières lettres se voient, pas les autres.
         let machine = animation::Unites { genre: GenreUnites::MachineAEcrire, sens: animation::Sens::Entree, p: 0.5 };

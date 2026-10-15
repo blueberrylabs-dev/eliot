@@ -12,8 +12,8 @@ import { createRoot } from "react-dom/client";
 import { Group, Layer, Rect, Stage } from "react-konva";
 import { remplissageKonva } from "../editeur/couleurs";
 import { prechargerPage, ressourceDeImage } from "../editeur/images";
-import { compteurMorceaux, RenduElement } from "../editeur/RenduElement";
-import type { ClipAudio, ElementPage, Format, PageEliot } from "../modele/types";
+import { compteurMorceaux, etenduesDesMots, RenduElement } from "../editeur/RenduElement";
+import type { ClipAudio, ElementPage, Format, PageEliot, SousTitre } from "../modele/types";
 import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
 
@@ -139,19 +139,27 @@ function toileSvg(contexte: ContexteSvg): SceneCanvas {
   return toile;
 }
 
-/** Enregistre un nœud Konva (et ce qu'il contient) dans son propre repère. */
-function enregistrer(noeud: Konva.Node, prefixe: string): { calques: Calque[]; totaux?: CalquesElement["totaux"] } {
+type LettreKonva = { char: string; index: number; lineIndex: number; x: number; y: number; width: number; context: Konva.Context };
+
+/**
+ * Enregistre un nœud Konva (et ce qu'il contient) dans son propre repère. Un texte par morceaux :
+ * chaque lettre devient un calque marqué de ses rangs. Un sous-titre dont le mot prononcé change
+ * de couleur (`actif`) est enregistré deux fois : ses lettres ordinaires, puis leur variante du
+ * mot prononcé ; le noyau dessine l'une ou l'autre selon l'instant.
+ */
+function enregistrer(noeud: Konva.Node, prefixe: string, actif?: SousTitre["actif"]): { calques: Calque[]; totaux?: CalquesElement["totaux"] } {
   const contexte = new ContexteSvg(sources, prefixe);
   let totaux: CalquesElement["totaux"];
-  // Un texte par morceaux : chaque lettre devient un calque marqué de ses rangs.
   const textes = noeud instanceof Konva.Container ? (noeud.find("Text") as Konva.Text[]) : [];
   const remis: [Konva.Text, unknown][] = [];
+  const parMorceaux: [Konva.Text, ReturnType<typeof compteurMorceaux>][] = [];
   for (const t of textes) {
     const avant = t.charRenderFunc();
     if (!avant) continue;
     const compter = compteurMorceaux(() => t.textArr);
     remis.push([t, avant]);
-    t.charRenderFunc((c: { char: string; index: number; lineIndex: number; x: number; y: number; width: number }) => {
+    parMorceaux.push([t, compter]);
+    t.charRenderFunc((c: LettreKonva) => {
       const r = compter(c);
       totaux = r.totaux;
       contexte.debutMorceau(r, c.x + c.width / 2, c.y - t.fontSize() * 0.35, t.fontSize());
@@ -161,6 +169,18 @@ function enregistrer(noeud: Konva.Node, prefixe: string): { calques: Calque[]; t
     const toile = toileSvg(contexte);
     if (noeud instanceof Konva.Container) noeud.drawScene(toile, noeud);
     else (noeud as Konva.Shape).drawScene(toile);
+    if (actif) {
+      for (const [t, compter] of parMorceaux) {
+        t.charRenderFunc((c: LettreKonva) => {
+          const r = compter(c);
+          const m = etenduesDesMots(t)[r.mot];
+          const my = c.y - t.fontSize() * 0.35;
+          c.context.setAttr("fillStyle", actif.couleur);
+          contexte.debutMorceau(r, c.x + c.width / 2, my, t.fontSize(), { mx: m ? (m.x0 + m.x1) / 2 : c.x + c.width / 2, my });
+        });
+        t.drawScene(toile, noeud as Konva.Container);
+      }
+    }
   } finally {
     for (const [t, f] of remis) t.charRenderFunc(f as never);
   }
@@ -225,7 +245,7 @@ export async function decrirePage(page: PageEliot, format: Format): Promise<Desc
         if (!el.visible) return;
         const groupe = (porteurs[i] as Konva.Group | undefined)?.getChildren()[0];
         if (!groupe) return;
-        const { calques, totaux } = enregistrer(groupe, `e${i}_`);
+        const { calques, totaux } = enregistrer(groupe, `e${i}_`, el.type === "texte" && el.sousTitre?.actif && el.temps ? el.sousTitre.actif : undefined);
         elements.push({ element: el, calques, ...(totaux ? { totaux } : {}) });
       });
       if (fond) fondCalques = enregistrer(fond, "f_").calques;

@@ -36,7 +36,8 @@ lourd. Détail : `BRIEF.md`.
   (personnages Open Peeps et Humaaans, composeur) livrés et vérifiés ; reste l'essai
   d'Alexandre (`PLAN.md`).
 - Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
-  Humaaans, lues par `npm run bibliotheque` ; voix de Piper dans `telechargements/voix/`, lot 6).
+  Humaaans, lues par `npm run bibliotheque` ; voix de Piper dans `telechargements/voix/`, lot 6 ;
+  modèle de Whisper dans `telechargements/whisper/`, lot 7).
 - Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
   recherche d'essai.
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
@@ -49,12 +50,15 @@ lourd. Détail : `BRIEF.md`.
   pont IA, 53 en tout), lot 4 (l'export en MP4 et en GIF par le noyau, réglages par
   plateforme, zones sûres), lot 5 (le son : onglet Audio, sons importés, Freesound, pistes
   des sons, musique qui baisse sous la voix, jingles du kit de marque, niveau à -14 LUFS,
-  version sans musique, quatre outils de plus pour le pont IA, 57 en tout) et lot 6 (la voix :
+  version sans musique, quatre outils de plus pour le pont IA, 57 en tout), lot 6 (la voix :
   prise au micro avec compte à rebours, « Voix nette » et nettoyage réglage par réglage, voix
-  de synthèse Piper, un outil de plus pour le pont IA, 58 en tout) livrés et vérifiés ; reste
-  l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13, puis 15 bis si
-  l'extension sert) : la liste de ses outils change. Pour la voix de synthèse, une fois :
-  commandes 16 et 17.
+  de synthèse Piper, un outil de plus pour le pont IA, 58 en tout) et lot 7 (les sous-titres :
+  coupe des blancs et des hésitations, transcription par Whisper sur le processeur,
+  sous-titres mot par mot avec le mot prononcé mis en valeur, une seule balise vidéo par
+  fichier dans la fenêtre, trois outils de plus pour le pont IA, 61 en tout) livrés et
+  vérifiés ; reste l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13,
+  puis 15 bis si l'extension sert) : la liste de ses outils change. Pour la voix de synthèse,
+  une fois : commandes 16 et 17 ; pour les sous-titres, une fois : commandes 18 et 19.
 
 Suite : `PLAN.md`.
 
@@ -242,10 +246,11 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 74 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
-comparaisons de Claude dans le conteneur). La première fois après le lot 6, `cargo` télécharge
-la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter un faux
-micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
+Vérifier : `test result: ok. 83 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
+conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
+télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
+un faux micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -253,7 +258,7 @@ micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  148 passed`.
+Vérifier : `Tests  170 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 
@@ -355,6 +360,45 @@ empreintes publiées dans `voices.json` du même dépôt, retrouvées dans le co
 le 2026-10-15). Puis rouvrir l'onglet Audio d'Eliot. Revenir en arrière : supprimer le dossier
 `telechargements/voix/`.
 
+### Les sous-titres (étape 4, lot 7)
+
+La coupe des blancs ne demande rien de plus : le noyau mesure le niveau de la voix. Les
+hésitations et les sous-titres demandent Whisper, qui écoute la voix et l'écrit mot par mot,
+sur le processeur (jamais la carte graphique : Eliot le lance avec `--device cpu` et sans
+carte visible). Deux choses, une fois.
+
+**18. Installer Whisper** (`whisper-ctranslate2`, licence MIT, qui fait tourner faster-whisper
+et CTranslate2 ; environ 400 Mo ; versions fixées, vérifiées dans le conteneur de Claude le
+2026-10-15) :
+
+```
+uv tool install whisper-ctranslate2==0.5.7 --with ctranslate2==4.8.2 --with faster-whisper==1.2.1 --with av==18.1.0
+```
+
+Vérifier : `whisper-ctranslate2 --version` affiche `0.5.7`. Si le programme est introuvable,
+taper `uv tool update-shell` et rouvrir le terminal (Eliot le cherche aussi dans
+`~/.local/bin`). Revenir en arrière : `uv tool uninstall whisper-ctranslate2`.
+
+**19. Télécharger le modèle** `faster-whisper-small` (485 Mo, licence MIT, conversion du
+modèle small d'OpenAI publiée par Systran sur Hugging Face, à la révision vérifiée) dans
+`telechargements/whisper/`, hors git :
+
+```
+d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/whisper/faster-whisper-small; mkdir -p $d && for f in README.md config.json model.bin tokenizer.json vocabulary.txt; do wget -nc -P $d "https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/$f"; done
+```
+
+Vérifier les empreintes :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/telechargements/whisper/faster-whisper-small && md5sum config.json model.bin tokenizer.json vocabulary.txt
+```
+
+Attendu : `6b09a90a9be263e3c2d3df31587c5554` (`config.json`), `4c1a36b9f6798403fedd8314e8bd074a`
+(`model.bin`), `10268c850d335f758d616c3465b8de48` (`tokenizer.json`) et
+`c1120a13c94a8cbb132489655cdd1854` (`vocabulary.txt`), relevées dans le conteneur de Claude le
+2026-10-15. Puis rouvrir l'onglet Texte d'Eliot : « Modèle : faster-whisper-small » s'affiche.
+Revenir en arrière : supprimer le dossier `telechargements/whisper/`.
+
 ## Arborescence
 
 ```
@@ -362,5 +406,5 @@ Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
 ├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
-└── telechargements/    archives et voix téléchargées à la main (personnages, voix de Piper), hors git
+└── telechargements/    archives, voix et modèle téléchargés à la main (personnages, voix de Piper, Whisper), hors git
 ```

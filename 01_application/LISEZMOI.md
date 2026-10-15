@@ -4,8 +4,9 @@ L'éditeur, étapes 1 à 3 du `BRIEF.md` et une bonne part de l'étape 4 : un ac
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
 d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
 marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
-leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, un
-enregistrement automatique, l'export en PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
+leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs
+et les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en
+PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -210,6 +211,32 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   choisie part dans « Crédits des sons ». Les auteurs de Piper le destinent à un usage
   personnel, ce qui convient à Eliot tant qu'il reste un outil d'apprentissage.
 
+**Les blancs et les sous-titres (étape 4, lot 7)**
+- « Blancs », dans la barre d'une vidéo ou d'un son : « Couper les blancs de plus de » 0,6 s
+  (de 0,3 à 2 s) et, avec Whisper, « Et les hésitations » (« euh », « hum »). La bulle dit
+  d'avance combien de blancs partent et le temps gagné. « Couper » fait du clip des morceaux qui
+  se suivent (la piste principale se resserre), en gardant 0,12 s de blanc contre la voix, avec
+  un fondu de 10 ms à chaque coupe pour qu'aucune ne claque. L'original n'est jamais touché :
+  tirer le bord d'un morceau rend ce qui a été coupé, et Ctrl+Z défait toute la coupe d'un
+  coup. Un son détaché de sa vidéo est coupé avec elle.
+- Les blancs se mesurent sans rien installer (le noyau écoute le niveau de la voix) ; les
+  hésitations et les sous-titres demandent Whisper, qui écoute et écrit la voix sur le
+  processeur (commandes 18 et 19 du `CLAUDE.md`, une fois). Une voix n'est transcrite qu'une
+  fois : la transcription reste dans le design.
+- Onglet Texte, « Sous-titres automatiques » (page vidéo) : choisir un style, la langue,
+  puis « Créer les sous-titres ». Whisper écrit ce que disent les vidéos qu'on entend et les
+  sons au rôle Voix ; les mots deviennent des sous-titres courts, posés sur une piste au-dessus
+  de tout, au milieu de la largeur, en 9:16 juste au-dessus de la zone où TikTok écrit. Quatre
+  styles : « Mot surligné » (trois mots au plus, le mot dit en jaune et un peu plus grand),
+  « Un mot à la fois », « Mot après mot » (les mots apparaissent quand ils sont dits),
+  « Classique » (une phrase sur une bande noire). Les « euh » ne s'écrivent pas, sauf si on le
+  demande.
+- Ensuite, pour tous les sous-titres à la fois : la taille, la hauteur dans la page, la
+  couleur du mot prononcé, les capitales, ou les retirer. Un mot mal compris se corrige comme un
+  texte (double-clic sur le sous-titre). Une coupe faite après refait les sous-titres de cette
+  voix, avec le même aspect.
+- Conseil : couper d'abord, sous-titrer ensuite.
+
 **L'export en MP4 et en GIF (étape 4, lot 4)**
 - Exporter, en haut à droite, sur une page vidéo : MP4 (vidéo avec le son) ou GIF (image
   animée, sans son). Le film entier de la page affichée, fait image par image par le noyau,
@@ -240,7 +267,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
   transitions, styles de texte pour la vidéo), importer, chercher (Freesound) et poser des
   sons, les régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher
-  le son d'une vidéo, se servir du kit de marque, dessiner à main
+  le son d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
+  sous-titres, se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
   capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo, avec la
   version sans musique). On la
@@ -278,12 +306,15 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   `document.json` (le document), `document.precedent.json` (la version d'avant, en secours),
   `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et miniatures des
   images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/` ; pour les sons,
-  `copies/` et `ondes/` ; pour les voix nettoyées, `traitees/`, refait au besoin). Le dossier
+  `copies/` et `ondes/` ; pour les voix nettoyées, `traitees/`, refait au besoin ; pour la
+  parole, `transcriptions/`, où l'on parle et ce qui est dit, quelques kilo-octets). Le dossier
   se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip (sans
   `traitees/`).
 - Les prises de voix : rangées dans le design comme les sons importés (`Prise 1`, `Prise 2`, et ainsi de suite).
 - Les voix de Piper : `Eliot/telechargements/voix/` (commande 17), hors git ; les textes dits,
   en cache dans `~/.cache/fr.alexandredo.eliot/piper/`.
+- Le modèle de Whisper : `Eliot/telechargements/whisper/faster-whisper-small/` (commande 19),
+  hors git.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
   plusieurs pages), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
@@ -295,7 +326,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -303,9 +334,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts) et le nettoyage de la voix (voix.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
-│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts)
+│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
 │   ├── export/       rendu d'une page hors écran, export en image ; export vidéo : la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), réglages par plateforme (plateformes.ts)

@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, freesound, images, marque, micro, montage, piper, pixabay, polices, projet, sons, videos, voix};
+use noyau::{export, fichiers, freesound, images, marque, micro, montage, parole, piper, pixabay, polices, projet, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -35,6 +35,14 @@ pub struct Freesound(Mutex<Option<Arc<freesound::ClientFreesound>>>);
 /// Le micro ouvert (étape 4, lot 6), un seul à la fois.
 #[derive(Default)]
 pub struct Micro(Mutex<Option<micro::Captation>>);
+
+/// Les transcriptions (étape 4, lot 7) : une à la fois (Whisper prend le processeur) ;
+/// `annule` arrête celle en cours.
+#[derive(Default)]
+pub struct Transcriptions {
+    en_cours: AtomicBool,
+    annule: AtomicBool,
+}
 
 /// `~/Documents/Eliot` (le dossier Documents de l'utilisateur, sinon le dossier personnel).
 fn racine(app: &AppHandle) -> Result<PathBuf, String> {
@@ -866,6 +874,100 @@ pub async fn piper_ajouter(app: AppHandle, rayon_nom: String, projet_id: String,
     })
     .await
     .map_err(|e| format!("synthèse interrompue : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// La parole (étape 4, lot 7) : où l'on parle, ce qui est dit (Whisper)
+// ----------------------------------------------------------------------------------------
+
+/// Où l'on parle dans un son ou une vidéo du design (analyse du niveau, gardée ensuite).
+#[tauri::command]
+pub async fn parole_analyser(app: AppHandle, rayon_nom: String, projet_id: String, id: String) -> Result<parole::Analyse, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || parole::analyser(&dossier, &id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("analyse interrompue : {e}"))?
+}
+
+/// Les dossiers des modèles de Whisper : `ELIOT_WHISPER_MODELES` pour les essais de
+/// développement, sinon `telechargements/whisper/` du dépôt (en développement) et `whisper/`
+/// dans les données d'Eliot.
+fn dossiers_whisper(app: &AppHandle) -> Vec<PathBuf> {
+    if cfg!(debug_assertions)
+        && let Some(d) = std::env::var_os("ELIOT_WHISPER_MODELES")
+    {
+        return vec![PathBuf::from(d)];
+    }
+    let donnees = app.path().app_data_dir().ok();
+    if cfg!(debug_assertions) {
+        parole::dossiers_de_modeles(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), donnees.as_deref())
+    } else {
+        donnees.map(|d| vec![d.join("whisper")]).unwrap_or_default()
+    }
+}
+
+/// Ce que la fenêtre doit savoir de Whisper : est-il installé, quel modèle servira, et où
+/// ranger un modèle.
+#[derive(Serialize)]
+pub struct EtatWhisper {
+    installe: bool,
+    modele: Option<String>,
+    dossier: String,
+}
+
+#[tauri::command]
+pub async fn whisper_etat(app: AppHandle) -> Result<EtatWhisper, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let depot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|d| d.join("telechargements").join("whisper"));
+        let dossier = match depot {
+            Some(d) if cfg!(debug_assertions) => Some(d),
+            _ => app.path().app_data_dir().ok().map(|c| c.join("whisper")),
+        };
+        EtatWhisper {
+            installe: parole::trouver_whisper().is_some(),
+            modele: parole::trouver_modele(&dossiers_whisper(&app)).and_then(|m| m.file_name().map(|n| n.to_string_lossy().into_owned())),
+            dossier: dossier.map(|f| f.to_string_lossy().into_owned()).unwrap_or_default(),
+        }
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+/// Ce qui est dit dans un son ou une vidéo du design, mot par mot (Whisper sur le processeur,
+/// fait une fois puis relu ; `forcer` le refait). L'avancement, de 0 à 1, part par `avancement`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn parole_transcrire(app: AppHandle, rayon_nom: String, projet_id: String, id: String, langue: String, forcer: bool, avancement: Channel<f32>) -> Result<parole::Analyse, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let programme = parole::trouver_whisper().ok_or_else(|| parole::ErreurParole::Absent.to_string())?;
+    let modele = parole::trouver_modele(&dossiers_whisper(&app)).ok_or_else(|| parole::ErreurParole::SansModele.to_string())?;
+    let etat = app.state::<Transcriptions>();
+    if etat.en_cours.swap(true, Ordering::SeqCst) {
+        return Err("une transcription est déjà en cours".into());
+    }
+    etat.annule.store(false, Ordering::SeqCst);
+    let app2 = app.clone();
+    let resultat = tauri::async_runtime::spawn_blocking(move || {
+        let etat = app.state::<Transcriptions>();
+        let mut derniere = -1.0_f32;
+        let mut rapport = |p: f32| {
+            if p - derniere >= 0.01 || p >= 1.0 {
+                derniere = p;
+                let _ = avancement.send(p);
+            }
+        };
+        parole::transcrire(&dossier, &id, &programme, &modele, &langue, forcer, &etat.annule, &mut rapport).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("transcription interrompue : {e}"));
+    app2.state::<Transcriptions>().en_cours.store(false, Ordering::SeqCst);
+    resultat?
+}
+
+/// Arrête la transcription en cours.
+#[tauri::command]
+pub fn parole_annuler(app: AppHandle) {
+    app.state::<Transcriptions>().annule.store(true, Ordering::SeqCst);
 }
 
 // ----------------------------------------------------------------------------------------

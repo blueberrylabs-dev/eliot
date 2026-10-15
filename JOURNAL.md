@@ -5,6 +5,112 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 7 : les sous-titres
+
+Accord d'Alexandre pour enchaîner (« Ok, tu peux enchaîner »). Choix de Claude, modifiables
+sur simple demande :
+
+- Whisper : le programme `whisper-ctranslate2` 0.5.7 (MIT), qui fait tourner faster-whisper
+  1.2.1 et CTranslate2 4.8.2 (MIT), installé par `uv tool install` comme Piper (commande 18 du
+  `CLAUDE.md`) ; Eliot le lance comme `ffmpeg`. Versions fixées : la 0.5.8 n'avait que dix
+  jours le 2026-10-15, et la 0.5.7 laisse `uv` prendre PyAV 19, qui refuse un argument de
+  faster-whisper (« unexpected keyword argument 'metadata_errors' ») ; PyAV 18.1.0 est donc
+  fixé avec elle. Écartés : whisper.cpp dans le noyau (bibliothèque `whisper-rs`), qui
+  demande `cmake` et `clang` pour compiler et allonge la compilation ; la voie de Piper était
+  déjà là.
+- Sur le processeur seulement (règle 9) : `--device cpu`, calcul en entiers 8 bits,
+  `CUDA_VISIBLE_DEVICES` vide (aucune carte visible pour le programme), `HF_HUB_OFFLINE=1`
+  (rien n'est cherché sur Internet), un fil de moins que les cœurs du poste, 8 au plus.
+  Vérifié dans Tauri en lisant la ligne de commande et l'environnement du programme pendant
+  qu'il tournait.
+- Le modèle : `faster-whisper-small` (conversion du modèle small d'OpenAI publiée par Systran,
+  MIT, 485 Mo), téléchargé une fois dans `telechargements/whisper/` à une révision fixée
+  (commande 19). Un modèle plus juste rangé à côté (medium, large-v3-turbo) serait pris
+  d'office. Mesuré dans le conteneur (deux cœurs) : 11,5 s de voix transcrites en 8 à 14 s,
+  chargement du modèle compris.
+- Les hésitations : Whisper les efface d'habitude. Une amorce de texte qui en contient
+  (« Euh, bon, alors, euh, hum, je pense que, ben, voilà. ») les lui fait écrire : sur la
+  phrase d'essai, l'« euh » passe d'un « E. » sans sens à « Euh, ». Reconnues : euh, heu, hum,
+  hmm, mmh (et um, uh, erm en anglais), quelle que soit l'écriture ; pas « eu », ni « ben ».
+- Où l'on parle, sans Whisper : le noyau mesure le niveau toutes les 10 ms ; on parle au-dessus
+  d'un seuil tiré du bruit de fond (le dixième le plus calme, plus 10 dB, sans descendre à plus
+  de 40 dB sous la voix). Un trou de moins de 150 ms reste dans la parole, un clic de moins de
+  60 ms n'en est pas, la parole déborde de 30 ms de chaque côté. Un son sans écart net (une
+  musique continue) est tout entier de la parole : rien n'y est coupé. 0,2 à 0,6 s pour 11,5 s
+  dans Tauri.
+- Les mots recalés : Whisper place les mots à 0,1 ou 0,3 s près. Un mot qui commence ou finit
+  dans un silence est ramené au bord de la voix, le premier et le dernier mot d'un passage
+  prennent ses bords (à moins de 400 ms), un mot à plus de 200 ms de toute voix est retiré
+  (Whisper en invente parfois dans les silences). Mesuré : « D'abord », placé par Whisper à
+  8,80 s, recalé à 9,19 s, où la voix commence.
+- La transcription est gardée dans `ressources/transcriptions/<empreinte>.json` (passages de
+  parole, mots, modèle, langue) et voyage dans l'archive `.eliot` : quelques kilo-octets. Une
+  voix n'est transcrite qu'une fois.
+- La coupe : le BRIEF range la coupe des silences et des hésitations dans le nettoyage de la
+  voix (un réglage du clip). Elle se fait plutôt comme dans CapCut : le clip devient des
+  morceaux qui se suivent dans la frise, chacun avec sa coupe en valeurs du document
+  (l'original n'est jamais touché, règle 13). Ainsi la coupe se voit, se défait morceau par
+  morceau (tirer un bord), et vaut aussi pour une vidéo. Le texte du BRIEF n'est pas changé :
+  à valider par Alexandre.
+- Réglages de la coupe : les blancs de plus de 0,6 s (de 0,3 à 2 s) sont raccourcis à 0,12 s
+  de chaque côté de la voix ; au début et à la fin du clip, tout le blanc part ; une hésitation
+  part avec le blanc qui l'entoure s'il est long, seule sinon ; un morceau gardé de moins de
+  0,1 s part aussi ; un fondu de 10 ms à chaque coupe évite les claquements. Sur la piste
+  principale, la suite se resserre ; un son détaché de sa vidéo (même fichier, même partie,
+  même moment) est coupé avec elle. L'entrée, la transition et le fondu d'entrée vont au
+  premier morceau, la sortie et le fondu de sortie au dernier, la boucle à tous ; les images
+  clés se partagent comme au Ctrl+B. Mesuré sur la phrase d'essai : 11,5 s ramenées à 7,6 s.
+- Les sous-titres : un texte de la frise par groupe de mots, qui garde le temps de chacun de
+  ses mots (`sousTitre`, champ facultatif : le document reste en version 4). Une phrase, une
+  virgule après deux mots au moins, un silence de plus de 0,6 s ou une autre voix ferment un
+  groupe ; un morceau de phrase trop long se partage en groupes de tailles voisines (six mots
+  par quatre : 3 et 3, pas 4 et 2). Un sous-titre reste 0,3 s après son dernier mot, ou jusqu'au
+  suivant s'il vient moins de 0,7 s après (pas de clignotement). Ils vont au milieu de la
+  largeur (84 %), sur une piste neuve au-dessus de tout ; en 9:16, leur milieu à 66 % de la
+  hauteur, juste au-dessus des 484 px du bas que TikTok recouvre ; ailleurs à 80 %.
+- Les styles : « Mot surligné » (Montserrat gras blanc, contour noir, trois mots et 22 lettres
+  au plus, le mot dit en jaune et 12 % plus grand), « Un mot à la fois » (Anton en capitales,
+  qui entre en grossissant), « Mot après mot » (Poppins, les mots apparaissent quand ils sont
+  dits, le dernier en vert), « Classique » (Inter gras sur une bande noire, neuf mots au plus).
+  Les « euh » ne s'écrivent pas d'office.
+- Le mot prononcé : le dernier mot commencé, jusqu'au suivant. Un texte retouché (un mot ajouté
+  ou retiré) partage également le temps de ses mots. Dans la fenêtre, le dessin lettre par
+  lettre de Konva (celui des textes par morceaux du lot 3) colore le mot et le grandit autour
+  de son milieu. À l'export, chaque lettre est enregistrée deux fois, ordinaire et mot
+  prononcé (avec le milieu de son mot) : le noyau dessine l'une ou l'autre selon l'instant. Les
+  deux formules existent en TypeScript et en Rust, contrôlées par un tableau commun de 264 cas.
+  Mesuré dans Tauri : le mot jaune est au même endroit dans la fenêtre et dans le film, à 0,1 %
+  de la largeur près.
+- Une coupe faite après les sous-titres les refait pour cette voix, avec l'aspect des anciens
+  (police, taille, couleurs, hauteur) ; les mots corrigés à la main sont alors perdus, d'où le
+  conseil du LISEZMOI : couper d'abord, sous-titrer ensuite.
+- Correction (lot 1) : la lecture des vidéos sur une page vidéo. Avant, une balise par clip,
+  créée d'office. Mesuré dans WebKitGTK : une seconde balise qui lit la même copie qu'une autre
+  au même moment échoue (« source non prise en charge ») ; la seconde moitié d'un Ctrl+B (lot
+  2) en souffrait déjà sans que les essais, qui regardaient les captures du noyau, le voient.
+  Maintenant, une seule balise par fichier, conduite par le clip que la tête montre (ou celui
+  qui commence dans moins de 3 s) : elle saute d'une coupe à l'autre sans s'arrêter, sans le
+  délai d'une balise relancée (jusqu'à 0,3 s, lot 5). Une balise qui échoue, ne charge rien en
+  4 s, ou dont la recherche ou la lecture reste bloquée 1,5 s est refaite (trois fois, puis 10 s
+  d'attente). Les pages fixes gardent une balise par élément.
+- Dans le conteneur (deux cœurs, sans carte graphique), WebKitGTK prend 160 % du processeur
+  pendant la lecture et cale encore à peu près une lecture sur deux au chargement de la copie ;
+  la balise refaite, les morceaux s'enchaînent : enregistrée, la voix de chaque morceau revient
+  0,07 à 0,13 s après son instant. Sur le poste, à voir à l'essai.
+- Pont IA : `transcrire` (le texte et les mots de chaque voix au temps de la page, hésitations
+  marquées), `sous_titres` (style, hauteur, réglages communs, retirer), `couper_blancs` (avec
+  aperçu) ; 61 outils.
+- Vérifié dans le conteneur : noyau 83 (dont 9 du lot 7 : passages de parole, sortie de
+  Whisper, recalage des mots, choix du modèle, analyse gardée et relue, vrai Whisper, tableau
+  commun, variantes des lettres, export d'un sous-titre), interface 170 (dont 22 du lot 7),
+  Chromium 44 vérifications (fausse parole : bulle, coupe, sous-titres, mot prononcé à
+  l'écran, page décrite pour l'export, outils de l'IA) et les suites d'avant, Tauri 17 (vrai
+  Whisper sur le processeur, coupe, sous-titres à l'écran et dans le film, lecture
+  enregistrée) et les suites de l'étape 4. L'essai du son du lot 5, enregistré dans WebKit, passe
+  une fois sur deux dans le conteneur : l'autre fois, le début de la musique se perd au
+  démarrage de la sortie du son (de 0,16 à 0,26 s), avec le code du lot 6 comme avec celui du
+  lot 7.
+
 ## 2026-10-15, étape 4, lot 6 : la voix
 
 Accord d'Alexandre pour enchaîner (« Ça me va, tu peux continuer »). Choix de Claude,

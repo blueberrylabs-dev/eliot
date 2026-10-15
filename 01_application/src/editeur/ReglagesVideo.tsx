@@ -7,6 +7,7 @@ import { useEditeur } from "../etat/editeur";
 import { dureeJouee } from "../modele/fabriques";
 import type { ElementPage, ElementVideo } from "../modele/types";
 import { Bulle } from "./Bulle";
+import { BulleBlancs } from "./BulleBlancs";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { dureeLisible, useLecture } from "./videos";
 import { useTemps } from "../etat/temps";
@@ -88,6 +89,7 @@ export function ReglagesVideo({ v }: { v: ElementVideo }) {
           </option>
         ))}
       </select>
+      {pageVideo && ressource?.video?.son && <BulleBlancs id={v.id} />}
       {duree > 0 && (
         <Bulle titre="Couper la vidéo" largeur={280} bouton={<><Scissors size={16} /><span className="ml-1 text-sm">Couper</span></>}>
           <Curseur libelle="Début" valeur={secondes(debut)} min={0} max={secondes(duree)} pas={0.1} unite=" s" surChange={(x) => couper(x * 1000, Math.max(fin, x * 1000 + 100))} />

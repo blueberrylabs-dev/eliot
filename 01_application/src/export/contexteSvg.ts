@@ -106,6 +106,11 @@ export interface UniteCalque {
   cy: number;
   /** La taille de police, dans le repère de base : le décalage se compte en tailles. */
   taille: number;
+  /** Sous-titre (lot 7) : la variante de la lettre pour son mot prononcé, et le milieu de son
+   *  mot (repère de base), autour duquel il grandit. */
+  actif?: boolean;
+  mx?: number;
+  my?: number;
 }
 
 interface Commun {
@@ -757,9 +762,10 @@ export class ContexteSvg {
 
   /** Une lettre d'un texte par morceaux commence : ce qui est dessiné jusqu'au `restore` qui
    *  referme son `save` en fait partie. `(cx, cy)` et `taille` sont dans le repère courant. */
-  debutMorceau(rangs: { lettre: number; mot: number; ligne: number }, cx: number, cy: number, taille: number) {
+  debutMorceau(rangs: { lettre: number; mot: number; ligne: number }, cx: number, cy: number, taille: number, actif?: { mx: number; my: number }) {
     const [x, y] = appliquer(this.etat.m, cx, cy);
-    this.morceau = { unite: { ...rangs, cx: x, cy: y, taille: taille * echelleDe(this.etat.m) }, profondeur: this.sauvegardes.length };
+    const mot = actif ? appliquer(this.etat.m, actif.mx, actif.my) : null;
+    this.morceau = { unite: { ...rangs, cx: x, cy: y, taille: taille * echelleDe(this.etat.m), ...(mot ? { actif: true, mx: mot[0], my: mot[1] } : {}) }, profondeur: this.sauvegardes.length };
   }
 
   // ---- Images ----
