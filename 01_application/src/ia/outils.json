@@ -1994,7 +1994,7 @@
   },
   {
     "name": "exporter",
-    "description": "Exporte en PNG ou JPEG dans le dossier Images/Eliot de l'utilisateur, la page affichée ou toutes les pages (une image par page). Renvoie les chemins écrits.",
+    "description": "Exporte la page affichée ou toutes les pages. PNG ou JPEG : dans le dossier Images/Eliot de l'utilisateur, une image par page. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre). Renvoie les chemins écrits.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2002,7 +2002,9 @@
           "type": "string",
           "enum": [
             "png",
-            "jpeg"
+            "jpeg",
+            "mp4",
+            "gif"
           ]
         },
         "pages": {
@@ -2010,17 +2012,55 @@
           "enum": [
             "courante",
             "toutes"
-          ]
+          ],
+          "description": "PNG ou JPEG seulement."
         },
         "ratio": {
           "type": "integer",
           "enum": [
             1,
             2
-          ]
+          ],
+          "description": "PNG ou JPEG seulement."
         },
         "transparent": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "PNG seulement."
+        },
+        "plateforme": {
+          "type": "string",
+          "enum": [
+            "youtube",
+            "shorts",
+            "tiktok",
+            "reels",
+            "libre"
+          ],
+          "description": "MP4 : réglages d'encodage de la plateforme (libre par défaut)."
+        },
+        "definition": {
+          "type": "integer",
+          "enum": [
+            1080,
+            720
+          ],
+          "description": "MP4 : petit côté du film, 1080 par défaut."
+        },
+        "imagesParSeconde": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 60,
+          "description": "30 par défaut en MP4, 15 en GIF."
+        },
+        "son": {
+          "type": "boolean",
+          "description": "MP4 : garder le son des vidéos (oui par défaut)."
+        },
+        "largeur": {
+          "type": "integer",
+          "minimum": 64,
+          "maximum": 1080,
+          "description": "GIF : largeur du film, 480 par défaut."
         }
       }
     }

@@ -117,10 +117,15 @@ const cheminsPoste = new Map<string, string[]>();
 /** Les fichiers d'une police du poste, à copier dans le design qui s'en sert. */
 export const fichiersDuPoste = (famille: string): string[] => cheminsPoste.get(famille) ?? [];
 
+/** Les mêmes sources, gardées pour l'export vidéo : le noyau compose le texte avec les mêmes
+ *  fichiers que la fenêtre. */
+const sourcesGardees = new Map<string, SourcePolice[]>();
+
 /** Déclare au moteur web une police lue en octets (poste ou design). */
 async function declarerPoliceExterne(famille: string): Promise<void> {
   const sources = sourcesExternes.get(famille);
   if (!sources) return;
+  sourcesGardees.set(famille, sources);
   sourcesExternes.delete(famille);
   await Promise.all(
     sources.map(async (s) => {
@@ -214,4 +219,64 @@ export async function assurerPolicesElements(elements: readonly { type: string; 
 
 export async function assurerPolicesDocument(document: { pages: { elements: readonly { type: string }[] }[] }): Promise<void> {
   await assurerPolicesElements(document.pages.flatMap((p) => p.elements));
+}
+
+// ---- Fichiers pour l'export vidéo (étape 4, lot 4) ----
+
+/** Un fichier de police tel que le moteur web le connaît : famille, style, poids (de `poidsMin`
+ *  à `poidsMax` pour une police variable) et octets. */
+export interface FichierPoliceExport {
+  famille: string;
+  style: "normal" | "italic";
+  poidsMin: number;
+  poidsMax: number;
+  octets: ArrayBuffer;
+}
+
+/** Les fichiers d'une famille : ceux de la bibliothèque (déclarés par `polices.css`), ou ceux
+ *  d'une police du poste ou du design. Rien pour une famille inconnue. */
+export async function fichiersDePolice(famille: string): Promise<FichierPoliceExport[]> {
+  const sortie: FichierPoliceExport[] = [];
+  const externes = sourcesGardees.get(famille) ?? sourcesExternes.get(famille);
+  if (externes) {
+    for (const s of externes) {
+      try {
+        sortie.push({ famille, style: s.style, poidsMin: s.poids, poidsMax: s.poids, octets: await s.lire() });
+      } catch {
+        // Fichier illisible : le noyau prendra une police de secours.
+      }
+    }
+    return sortie;
+  }
+  for (const feuille of Array.from(document.styleSheets)) {
+    if (!feuille.href?.includes("/bibliotheque/polices.css")) continue;
+    let regles: CSSRuleList;
+    try {
+      regles = feuille.cssRules;
+    } catch {
+      continue;
+    }
+    for (const regle of Array.from(regles)) {
+      if (!(regle instanceof CSSFontFaceRule)) continue;
+      const st = regle.style;
+      if (st.getPropertyValue("font-family").replace(/^["']|["']$/g, "") !== famille) continue;
+      const adresse = st.getPropertyValue("src").match(/url\(["']?([^"')]+)["']?\)/)?.[1];
+      if (!adresse) continue;
+      const poids = st.getPropertyValue("font-weight").trim().split(/\s+/).map((x) => (x === "bold" ? 700 : x === "normal" ? 400 : Number(x)));
+      try {
+        const reponse = await fetch(new URL(adresse, feuille.href).href);
+        if (!reponse.ok) continue;
+        sortie.push({
+          famille,
+          style: st.getPropertyValue("font-style").trim() === "italic" ? "italic" : "normal",
+          poidsMin: poids[0] || 400,
+          poidsMax: poids[1] || poids[0] || 400,
+          octets: await reponse.arrayBuffer(),
+        });
+      } catch {
+        // Idem : police de secours.
+      }
+    }
+  }
+  return sortie;
 }

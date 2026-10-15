@@ -7,6 +7,7 @@ import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
 import { exporter } from "../export/exporter";
+import { exporterVideo, type IdPlateforme } from "../export/video";
 import { rendrePage } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, urlSvg } from "../bibliotheque/bibliotheque";
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
@@ -1283,6 +1284,20 @@ const OUTILS: Record<string, Outil> = {
   async exporter(args) {
     designOuvert();
     await enregistrerMaintenant();
+    if (args.format === "mp4" || args.format === "gif") {
+      const gif = args.format === "gif";
+      const ips = nombre(args.imagesParSeconde, gif ? 15 : 30)!;
+      const id = ["youtube", "shorts", "tiktok", "reels", "libre"].includes(String(args.plateforme)) ? (String(args.plateforme) as IdPlateforme) : "libre";
+      const chemin = await exporterVideo({
+        format: args.format,
+        plateforme: id,
+        definition: args.definition === 720 ? 720 : 1080,
+        imagesParSeconde: Math.max(5, Math.min(60, Math.round(ips))),
+        son: booleen(args.son) ?? true,
+        largeurGif: Math.max(64, Math.min(1080, Math.round(nombre(args.largeur, 480)!))),
+      });
+      return { donnees: { chemins: [chemin] } };
+    }
     const chemins = await exporter({
       format: args.format === "jpeg" ? "jpeg" : "png",
       pages: args.pages === "toutes" ? "toutes" : "courante",

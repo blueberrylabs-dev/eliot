@@ -5,10 +5,12 @@
 //! (BRIEF, règles 4 à 8). Ce paquet ne dépend pas de Tauri : il se teste seul et resterait
 //! tel quel si l'enveloppe changeait.
 
+pub mod animation;
 pub mod export;
 pub mod fichiers;
 pub mod images;
 pub mod marque;
+pub mod montage;
 pub mod pixabay;
 pub mod polices;
 pub mod projet;

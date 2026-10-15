@@ -46,8 +46,10 @@ lourd. Détail : `BRIEF.md`.
   Vidéo, pistes, tête de lecture, gestes, scinder, trois outils de plus pour le pont IA) et
   lot 3 (l'animation : entrées, sorties, boucles, textes par morceaux, images clés,
   transitions, fondus du son, styles de texte pour la vidéo, trois outils de plus pour le
-  pont IA, 53 en tout) livrés et vérifiés ; reste l'essai d'Alexandre. Après cette
-  livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert).
+  pont IA, 53 en tout) et lot 4 (l'export en MP4 et en GIF par le noyau, réglages par
+  plateforme, zones sûres) livrés et vérifiés ; reste l'essai d'Alexandre. Après cette
+  livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert) : il attend
+  désormais jusqu'à 30 minutes la fin d'un film.
 
 Suite : `PLAN.md`.
 
@@ -223,8 +225,10 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run tauri dev
 ```
 
 Arrêter : fermer la fenêtre (le design en cours s'enregistre avant), ou `Ctrl+C` dans le
-terminal. Les designs sont dans `~/Documents/Eliot/Designs/`. Si la fenêtre reste blanche ou
-scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri dev`.
+terminal. Les designs sont dans `~/Documents/Eliot/Designs/`, les images exportées dans
+`~/Images/Eliot/`, les films (MP4, GIF) dans `~/Vidéos/Eliot/`. Si la fenêtre reste blanche ou
+scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri dev`. Un export
+en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 
 **11. Tests du noyau Rust** (processeur seulement, sans fenêtre) :
 
@@ -232,7 +236,8 @@ scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri 
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 42 passed`.
+Vérifier : `test result: ok. 50 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+comparaisons de Claude dans le conteneur).
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -240,7 +245,7 @@ Vérifier : `test result: ok. 42 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  103 passed`.
+Vérifier : `Tests  121 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

@@ -656,6 +656,58 @@ export async function dossierExport(): Promise<string> {
   return dansTauri ? invoke<string>("dossier_export") : "Téléchargements";
 }
 
+// ---- Export vidéo (étape 4, lot 4) ----
+
+/** Les réglages d'un film, tels que le noyau les attend (`noyau/src/montage.rs`). */
+export interface ReglagesFilm {
+  format: "mp4" | "gif";
+  largeur: number;
+  hauteur: number;
+  imagesParSeconde: number;
+  crf: number;
+  debitMaxKbps: number;
+  gopSecondes: number;
+  debitSonKbps: number;
+  son: boolean;
+}
+
+/** Où en est un export vidéo : `son`, `images` (image faite sur le total), `gif`, `fini`. */
+export interface AvancementFilm {
+  etape: "son" | "images" | "gif" | "fini";
+  image: number;
+  images: number;
+  part: number;
+}
+
+/** Fait le film d'une page décrite (`export/calques.ts`) ; renvoie le chemin écrit. Le noyau
+ *  écrit dans Vidéos/Eliot sous un nom libre, ou au chemin choisi. */
+export async function exporterFilm(ref: RefRessources, description: unknown, reglages: ReglagesFilm, nom: string, chemin: string | undefined, suivi: (a: AvancementFilm) => void): Promise<string> {
+  if (!dansTauri) throw new Error("l'export vidéo se fait dans l'application Eliot (Tauri)");
+  const canal = new Channel<AvancementFilm>();
+  canal.onmessage = suivi;
+  return invoke<string>("exporter_video", { rayonNom: ref.rayon, projetId: ref.id, description, reglages, nom, chemin: chemin ?? null, avancement: canal });
+}
+
+export async function annulerFilm(): Promise<void> {
+  if (dansTauri) await invoke("annuler_export_video");
+}
+
+export async function dossierExportVideo(): Promise<string> {
+  return dansTauri ? invoke<string>("dossier_export_video") : "Téléchargements";
+}
+
+/** « Enregistrer sous » pour un film : le chemin choisi, ou `null` si on annule. */
+export async function choisirEmplacementFilm(nom: string, format: "mp4" | "gif"): Promise<string | null> {
+  if (!dansTauri) return null;
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const dossier = await dossierExportVideo();
+  return save({
+    title: "Enregistrer la vidéo",
+    defaultPath: `${dossier}/${nom}.${format}`,
+    filters: [{ name: format === "mp4" ? "Vidéo MP4" : "Image animée GIF", extensions: [format] }],
+  });
+}
+
 /** « Enregistrer sous » : renvoie le chemin choisi, ou `null` si on annule. */
 export async function choisirEmplacement(nom: string, format: FormatExport): Promise<string | null> {
   if (!dansTauri) return nom;

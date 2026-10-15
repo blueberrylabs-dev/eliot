@@ -13,6 +13,7 @@ import { aimanter, bordsDesClips, deplacerClip, DUREE_MIN, pistesDe, PISTE_PRINC
 import type { ElementPage, PageEliot } from "../../modele/types";
 import { Clip } from "./Clip";
 import { BoutonTransition } from "./Transitions";
+import { ChoixZonesSures } from "../ZonesSures";
 import "./horloge";
 
 const ENTETE = 76;
@@ -137,6 +138,7 @@ function TempsTete({ duree }: { duree: number }) {
 }
 
 function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: number }) {
+  const format = useEditeur((s) => s.document.format);
   const joue = useTemps((s) => s.joue);
   const repliee = useTemps((s) => s.repliee);
   const pxParSeconde = useTemps((s) => s.pxParSeconde);
@@ -166,6 +168,8 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
       <span className="mx-1.5 h-5 w-px bg-white/15" />
       <BoutonsCles bouton={bouton} />
       <span className="flex-1" />
+      <ChoixZonesSures format={format} bouton={bouton} />
+      <span className="mx-1.5 h-5 w-px bg-white/15" />
       <button className={bouton} title="Dézoomer la frise (Ctrl + molette)" onClick={() => temps.definirZoom(zoomActuel / 1.5)}>
         <Minus size={16} />
       </button>

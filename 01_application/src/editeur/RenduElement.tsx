@@ -473,27 +473,25 @@ function CodeQr({ el }: { el: ElementQr }) {
 const segmenteur = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : null;
 const nombreDeLettres = (s: string) => (segmenteur ? Array.from(segmenteur.segment(s)).length : Array.from(s).length);
 
-/**
- * Le dessin lettre par lettre d'un texte qui entre ou sort par morceaux : Konva appelle cette
- * fonction pour chaque lettre, dans l'ordre ; elle règle l'opacité, le décalage et l'échelle de
- * la lettre d'après son morceau (lettre, mot ou ligne). Sans animation en cours, elle ne change
- * rien : le texte garde le même dessin (lettres posées une à une) avant, pendant et après.
- */
-function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObject<Unites | undefined>) {
+/** Les rangs d'une lettre dans un texte dessiné lettre par lettre : la lettre (rang de Konva,
+ *  espaces compris), le mot et la ligne, avec les totaux du texte. Konva appelle le dessin de
+ *  chaque lettre dans l'ordre ; le compteur suit les mots d'une lettre à l'autre. L'export
+ *  (calques du noyau) s'en sert aussi, pour que ses rangs soient ceux de l'écran. */
+export function compteurMorceaux(lignes: () => { text: string }[]) {
   let mot = -1;
   let blancAvant = true;
   let ligne = -1;
   let totaux = { lettres: 0, mots: 0, lignes: 0 };
-  return (c: { char: string; index: number; x: number; y: number; lineIndex: number; width: number; context: Konva.Context }) => {
+  return (c: { char: string; index: number; lineIndex: number }) => {
     if (c.index === 0) {
       mot = -1;
       blancAvant = true;
       ligne = -1;
-      const lignes = noeud.current?.textArr ?? [];
+      const l = lignes();
       totaux = {
-        lettres: lignes.reduce((n, l) => n + nombreDeLettres(l.text), 0),
-        mots: lignes.reduce((n, l) => n + l.text.split(/\s+/).filter(Boolean).length, 0),
-        lignes: lignes.length,
+        lettres: l.reduce((n, x) => n + nombreDeLettres(x.text), 0),
+        mots: l.reduce((n, x) => n + x.text.split(/\s+/).filter(Boolean).length, 0),
+        lignes: l.length,
       };
     }
     const blanc = /\s/.test(c.char);
@@ -503,9 +501,27 @@ function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObjec
     }
     if (!blanc && blancAvant) mot++;
     blancAvant = blanc;
+    return { lettre: c.index, mot: Math.max(0, mot), ligne: c.lineIndex, totaux };
+  };
+}
+
+/** Le rang d'une lettre et le total qui comptent pour un genre d'animation par morceaux. */
+export const rangEtTotal = (genre: Unites["genre"], r: ReturnType<ReturnType<typeof compteurMorceaux>>): [number, number] =>
+  genre === "lignes" ? [r.ligne, r.totaux.lignes] : genre === "mots" ? [r.mot, r.totaux.mots] : [r.lettre, r.totaux.lettres];
+
+/**
+ * Le dessin lettre par lettre d'un texte qui entre ou sort par morceaux : Konva appelle cette
+ * fonction pour chaque lettre, dans l'ordre ; elle règle l'opacité, le décalage et l'échelle de
+ * la lettre d'après son morceau (lettre, mot ou ligne). Sans animation en cours, elle ne change
+ * rien : le texte garde le même dessin (lettres posées une à une) avant, pendant et après.
+ */
+function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObject<Unites | undefined>) {
+  const compter = compteurMorceaux(() => noeud.current?.textArr ?? []);
+  return (c: { char: string; index: number; x: number; y: number; lineIndex: number; width: number; context: Konva.Context }) => {
+    const rangs = compter(c);
     const u = courant.current;
     if (!u) return;
-    const [i, n] = u.genre === "lignes" ? [c.lineIndex, totaux.lignes] : u.genre === "mots" ? [Math.max(0, mot), totaux.mots] : [c.index, totaux.lettres];
+    const [i, n] = rangEtTotal(u.genre, rangs);
     const e = etatUnite(u, i, n);
     // Une lettre invisible part très loin : WebKit dessine parfois l'ombre d'un texte
     // transparent.

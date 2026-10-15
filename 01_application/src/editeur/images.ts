@@ -38,10 +38,19 @@ export function chargerImage(url: string): Promise<HTMLImageElement> {
 const adresses = new Map<string, string>();
 const cle = (ref: RefProjet | null, id: string, genre: GenreImage) => `${ref?.rayon}/${ref?.id}/${id}/${genre}`;
 
+/** La ressource derrière chaque adresse d'aperçu : l'export pose l'original à sa place. */
+const ressourcesParAdresse = new Map<string, string>();
+
 async function imageDeRessource(ref: RefProjet | null, id: string, genre: GenreImage): Promise<HTMLImageElement> {
   const url = await urlRessource(ref ?? { rayon: "designs", id: "" }, id, genre);
   adresses.set(cle(ref, id, genre), url);
+  if (genre === "apercu") ressourcesParAdresse.set(url, id);
   return chargerImage(url);
+}
+
+/** La ressource du design qu'une image affichée représente (son aperçu), s'il y en a une. */
+export function ressourceDeImage(image: unknown): string | undefined {
+  return image instanceof HTMLImageElement ? ressourcesParAdresse.get(image.src) : undefined;
 }
 
 /** L'image décodée d'une ressource du design ouvert, ou `undefined` le temps qu'elle arrive. */

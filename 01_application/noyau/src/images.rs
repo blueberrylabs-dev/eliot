@@ -99,6 +99,14 @@ fn chemin_infos(dossier: &Path, id: &str) -> PathBuf {
     dossier.join("infos").join(format!("{id}.json"))
 }
 
+/// Les informations d'une ressource déjà importée (dimensions, vidéo).
+pub fn infos(dossier: &Path, id: &str) -> Result<Ressource, ErreurImage> {
+    if !identifiant_valide(id) {
+        return Err(ErreurImage::IdentifiantInvalide);
+    }
+    serde_json::from_slice(&fs::read(chemin_infos(dossier, id))?).map_err(|e| ErreurImage::Decodage(e.to_string()))
+}
+
 /// Chemin d'un fichier rangé, pour une ressource déjà importée.
 pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBuf, ErreurImage> {
     if !identifiant_valide(id) {
@@ -133,7 +141,7 @@ pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBu
 }
 
 /// Décode en appliquant l'orientation enregistrée par l'appareil photo (EXIF).
-fn decoder_redresse(octets: &[u8]) -> Result<DynamicImage, ErreurImage> {
+pub(crate) fn decoder_redresse(octets: &[u8]) -> Result<DynamicImage, ErreurImage> {
     let lecteur = ImageReader::new(Cursor::new(octets))
         .with_guessed_format()
         .map_err(ErreurImage::Lecture)?;

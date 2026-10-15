@@ -12,6 +12,7 @@ pub fn lancer() {
         .manage(commandes::VerrouProjets::default())
         .manage(commandes::PolicesPoste::default())
         .manage(commandes::Pixabay::default())
+        .manage(commandes::ExportVideo::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
             ia::au_demarrage(app.handle());
@@ -53,6 +54,9 @@ pub fn lancer() {
             commandes::marque_enregistrer,
             commandes::exporter_rendu,
             commandes::dossier_export,
+            commandes::dossier_export_video,
+            commandes::exporter_video,
+            commandes::annuler_export_video,
             commandes::autotest_demande,
             commandes::autotest_rapport,
             ia::ia_infos,

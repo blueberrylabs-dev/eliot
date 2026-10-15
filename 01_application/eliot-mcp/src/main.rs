@@ -25,6 +25,8 @@ use tokio::net::UnixStream;
 
 const OUTILS: &str = include_str!("../../src/ia/outils.json");
 const DELAI: Duration = Duration::from_secs(150);
+/// Un export en MP4 ou en GIF peut durer plusieurs minutes (Eliot attend 30 minutes au plus).
+const DELAI_FILM: Duration = Duration::from_secs(1830);
 
 const CONSIGNES: &str = "Eliot est l'éditeur graphique d'Alexandre (visuels et vidéos pour YouTube, TikTok, Instagram), ouvert sur son poste. \
 Tu travailles dans le design ouvert, sous ses yeux : chaque outil qui modifie passe par l'historique d'Eliot, Ctrl+Z le défait. \
@@ -103,11 +105,13 @@ Demande à Alexandre de l'ouvrir ; ce pont ne lance jamais Eliot. Fichiers de co
         )
     })?;
     let (lecture, mut ecriture) = flux.into_split();
+    let film = outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"));
+    let delai = if film { DELAI_FILM } else { DELAI };
     let mut ligne = json!({ "id": 1, "outil": outil, "arguments": arguments }).to_string();
     ligne.push('\n');
     ecriture.write_all(ligne.as_bytes()).await.map_err(|e| format!("envoi impossible : {e}"))?;
     let mut reponse = String::new();
-    tokio::time::timeout(DELAI, BufReader::new(lecture).read_line(&mut reponse))
+    tokio::time::timeout(delai, BufReader::new(lecture).read_line(&mut reponse))
         .await
         .map_err(|_| "Eliot n'a pas répondu à temps".to_string())?
         .map_err(|e| format!("lecture impossible : {e}"))?;

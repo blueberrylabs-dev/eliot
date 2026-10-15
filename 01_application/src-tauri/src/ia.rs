@@ -22,9 +22,19 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Manager};
 
-/// Délai laissé à l'interface pour exécuter un outil (une capture ou un export prennent
-/// quelques secondes au plus).
+/// Délai laissé à l'interface pour exécuter un outil (une capture ou un export en image
+/// prennent quelques secondes au plus).
 const DELAI_REPONSE: Duration = Duration::from_secs(120);
+
+/// Un export en MP4 ou en GIF fait le film image par image : plusieurs minutes pour une vidéo
+/// longue.
+const DELAI_FILM: Duration = Duration::from_secs(1800);
+
+/// Le délai d'un outil : celui d'un film pour un export en MP4 ou en GIF.
+pub fn delai_pour(outil: &str, arguments: &Value) -> Duration {
+    let film = outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"));
+    if film { DELAI_FILM } else { DELAI_REPONSE }
+}
 
 /// `eliot-mcp/src/main.rs` essaie ce chemin, et aussi `/run/user/<uid>` quand le client MCP
 /// le lance sans `XDG_RUNTIME_DIR` (cas de l'application Claude).
@@ -120,6 +130,7 @@ fn servir(app: AppHandle, flux: UnixStream, attentes: Attentes, compteur: Arc<At
                 let interne = compteur.fetch_add(1, Ordering::Relaxed);
                 let (envoi, reception) = mpsc::channel();
                 attentes.lock().unwrap_or_else(|e| e.into_inner()).insert(interne, envoi);
+                let delai = delai_pour(&demande.outil, &demande.arguments);
                 let appel = AppelIa { id: interne, outil: demande.outil, arguments: demande.arguments };
                 let resultat = if !attendre_interface(&prete) {
                     json!({ "ok": false, "erreur": "Eliot finit de démarrer : réessaie dans quelques secondes" })
@@ -127,7 +138,7 @@ fn servir(app: AppHandle, flux: UnixStream, attentes: Attentes, compteur: Arc<At
                     match app.emit("ia-appel", appel) {
                     Err(e) => json!({ "ok": false, "erreur": format!("interface injoignable : {e}") }),
                     Ok(()) => reception
-                        .recv_timeout(DELAI_REPONSE)
+                        .recv_timeout(delai)
                         .unwrap_or_else(|_| json!({ "ok": false, "erreur": "Eliot n'a pas répondu à temps" })),
                     }
                 };

@@ -30,6 +30,7 @@ import { deposerFichiers, deposerChemins } from "./depot";
 import { scene, signalerGeste } from "./scene";
 import { surDepotFichiers } from "../pont/tauri";
 import { useTemps } from "../etat/temps";
+import { CalqueZonesSures } from "./ZonesSures";
 
 /** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
  *  centrée ; plus grande, elle suit la position voulue sans quitter la zone. */
@@ -93,6 +94,7 @@ export function ZoneDeTravail() {
   const [taille, setTaille] = useState({ l: 900, h: 600 });
   const format = useEditeur((s) => s.document.format);
   const fond = useEditeur((s) => pageCourante(s).fond);
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const idPage = useEditeur((s) => s.pageActive);
   const elements = useEditeur(elementsCourants);
   const selection = useEditeur((s) => s.selection);
@@ -783,6 +785,11 @@ export function ZoneDeTravail() {
         <Layer ref={calqueGesteRef}>
           <Group ref={groupeGesteRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur} />
           <Group ref={reperesRef} {...transformationPage} listening={false} />
+          {pageVideo && (
+            <Group {...transformationPage} listening={false}>
+              <CalqueZonesSures format={format} />
+            </Group>
+          )}
         </Layer>
         <Layer ref={calqueInterfaceRef}>
           <Rect ref={survolRef} visible={false} stroke={ACCENT} strokeWidth={1.5} listening={false} />

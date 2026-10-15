@@ -6,7 +6,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
 import { exporter, nomDate } from "../export/exporter";
-import { afficherDansDossier, choisirEmplacement, dansTauri, dossierDesigns, dossierExport, type FormatExport } from "../pont/tauri";
+import { exporterVideo, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
+import { afficherDansDossier, choisirEmplacement, choisirEmplacementFilm, dansTauri, dossierDesigns, dossierExport, dossierExportVideo, type FormatExport } from "../pont/tauri";
+import { ReglagesDuFilm } from "./ExportVideo";
 import { Redimensionner } from "./Redimensionner";
 
 function useFermerDehors(fermer: () => void) {
@@ -24,25 +26,65 @@ function useFermerDehors(fermer: () => void) {
   return boite;
 }
 
+/** Les derniers réglages de film choisis, gardés le temps de la session. */
+let optionsFilmRetenues: OptionsFilm = OPTIONS_FILM_DEFAUT;
+
 function PanneauExport({ fermer }: { fermer: () => void }) {
   const format = useEditeur((s) => s.document.format);
   const nombrePages = useEditeur((s) => s.document.pages.length);
   const avecVideo = useEditeur((s) => s.document.pages.some((p) => p.elements.some((e) => e.type === "video")));
-  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
+  const dureePage = useEditeur((s) => pageCourante(s).duree);
+  const pageVideo = dureePage !== undefined;
   const notifier = useEditeur((s) => s.notifier);
-  const [type, setType] = useState<FormatExport>("png");
+  const [type, setType] = useState<FormatExport | "mp4" | "gif">(pageVideo && dansTauri ? optionsFilmRetenues.format : "png");
   const [ratio, setRatio] = useState(1);
   const [transparent, setTransparent] = useState(false);
   const [pages, setPages] = useState<"courante" | "toutes">("courante");
   const [occupe, setOccupe] = useState<string | null>(null);
   const [dossier, setDossier] = useState("");
+  const [dossierVideo, setDossierVideo] = useState("");
+  const [film, setFilm] = useState<OptionsFilm>(optionsFilmRetenues);
   const boite = useFermerDehors(fermer);
+  const estFilm = type === "mp4" || type === "gif";
 
   useEffect(() => {
     void dossierExport().then(setDossier);
+    void dossierExportVideo().then(setDossierVideo);
   }, []);
 
+  const changerFilm = (o: Partial<OptionsFilm>) => {
+    const suivant = { ...film, ...o };
+    // Un GIF tourne bien à 15 images par seconde, un MP4 à 30.
+    if (o.format === "gif" && film.format !== "gif") suivant.imagesParSeconde = 15;
+    if (o.format === "mp4" && film.format !== "mp4") suivant.imagesParSeconde = 30;
+    optionsFilmRetenues = suivant;
+    setFilm(suivant);
+  };
+
+  const choisirType = (t: FormatExport | "mp4" | "gif") => {
+    setType(t);
+    if (t === "mp4" || t === "gif") changerFilm({ format: t });
+  };
+
+  const lancerFilm = async (avecEmplacement: boolean) => {
+    let chemin: string | undefined;
+    if (avecEmplacement) {
+      const choisi = await choisirEmplacementFilm(nomDate(), film.format);
+      if (!choisi) return;
+      chemin = choisi;
+    }
+    fermer();
+    try {
+      const ecrit = await exporterVideo({ ...film, chemin });
+      notifier(`Vidéo exportée : ${ecrit}`, { chemin: ecrit });
+    } catch (erreur) {
+      const texte = String(erreur);
+      notifier(/annulé/.test(texte) ? "Export annulé : rien n'a été écrit." : `Export impossible : ${texte}`, { erreur: !/annulé/.test(texte) });
+    }
+  };
+
   const lancer = async (avecEmplacement: boolean) => {
+    if (estFilm) return lancerFilm(avecEmplacement);
     setOccupe("Export en cours…");
     try {
       let chemin: string | undefined;
@@ -64,65 +106,83 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   };
 
   const option = (choisi: boolean) => `flex-1 rounded-md border px-2 py-1.5 text-sm ${choisi ? "border-accent-600 bg-accent-50 text-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`;
+  const filmPossible = pageVideo && dansTauri;
 
   return (
     <div ref={boite} className="absolute top-12 right-3 z-30 w-80 rounded-xl border border-neutral-200 bg-white p-4 text-neutral-900 shadow-xl">
       <p className="mb-3 text-sm font-semibold text-neutral-800">Exporter</p>
       <p className="mb-1 text-xs font-medium text-neutral-500">Format</p>
-      <div className="mb-3 flex gap-2">
-        <button className={option(type === "png")} onClick={() => setType("png")}>
+      <div className="mb-3 grid grid-cols-2 gap-2">
+        <button className={option(type === "png")} onClick={() => choisirType("png")}>
           PNG <span className="block text-[11px] text-neutral-500">net, transparence possible</span>
         </button>
-        <button className={option(type === "jpeg")} onClick={() => setType("jpeg")}>
+        <button className={option(type === "jpeg")} onClick={() => choisirType("jpeg")}>
           JPEG <span className="block text-[11px] text-neutral-500">plus léger, pour les photos</span>
         </button>
+        <button className={`${option(type === "mp4")} disabled:opacity-50`} disabled={!filmPossible} onClick={() => choisirType("mp4")}>
+          MP4 <span className="block text-[11px] text-neutral-500">vidéo avec le son</span>
+        </button>
+        <button className={`${option(type === "gif")} disabled:opacity-50`} disabled={!filmPossible} onClick={() => choisirType("gif")}>
+          GIF <span className="block text-[11px] text-neutral-500">image animée, sans son</span>
+        </button>
       </div>
-      <p className="mb-1 text-xs font-medium text-neutral-500">Taille</p>
-      <div className="mb-3 flex gap-2">
-        {[1, 2].map((r) => (
-          <button key={r} className={option(ratio === r)} onClick={() => setRatio(r)}>
-            ×{r}{" "}
-            <span className="block text-[11px] text-neutral-500">
-              {format.largeur * r} × {format.hauteur * r}
-            </span>
-          </button>
-        ))}
-      </div>
-      {nombrePages > 1 && (
-        <>
-          <p className="mb-1 text-xs font-medium text-neutral-500">Pages</p>
-          <div className="mb-3 flex gap-2">
-            <button className={option(pages === "courante")} onClick={() => setPages("courante")}>
-              Cette page
-            </button>
-            <button className={option(pages === "toutes")} onClick={() => setPages("toutes")}>
-              Toutes ({nombrePages})<span className="block text-[11px] text-neutral-500">une image par page</span>
-            </button>
-          </div>
-        </>
-      )}
-      {(avecVideo || pageVideo) && (
-        <p className="mb-3 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-          {pageVideo
-            ? "Page vidéo : l'image exportée est celle de la tête de lecture (les autres pages : leur début). L'export en MP4 arrive bientôt."
-            : "Les vidéos d'une page fixe sortent ici en image fixe : leur couverture. L'export en MP4 arrive bientôt."}
+      {!filmPossible && (
+        <p className="mb-3 text-[11px] text-neutral-500">
+          {dansTauri ? "MP4 et GIF : passe la page en Vidéo (bouton Vidéo, en haut) pour en faire un film." : "MP4 et GIF se font dans l'application Eliot."}
         </p>
       )}
-      <label className={`mb-4 flex items-center gap-2 text-sm ${type === "png" ? "text-neutral-700" : "text-neutral-400"}`}>
-        <input type="checkbox" disabled={type !== "png"} checked={transparent && type === "png"} onChange={(e) => setTransparent(e.target.checked)} className="accent-accent-600" />
-        Fond transparent
-      </label>
+      {estFilm && dureePage !== undefined ? (
+        <ReglagesDuFilm options={film} changer={changerFilm} format={format} duree={dureePage} />
+      ) : (
+        <>
+          <p className="mb-1 text-xs font-medium text-neutral-500">Taille</p>
+          <div className="mb-3 flex gap-2">
+            {[1, 2].map((r) => (
+              <button key={r} className={option(ratio === r)} onClick={() => setRatio(r)}>
+                ×{r}{" "}
+                <span className="block text-[11px] text-neutral-500">
+                  {format.largeur * r} × {format.hauteur * r}
+                </span>
+              </button>
+            ))}
+          </div>
+          {nombrePages > 1 && (
+            <>
+              <p className="mb-1 text-xs font-medium text-neutral-500">Pages</p>
+              <div className="mb-3 flex gap-2">
+                <button className={option(pages === "courante")} onClick={() => setPages("courante")}>
+                  Cette page
+                </button>
+                <button className={option(pages === "toutes")} onClick={() => setPages("toutes")}>
+                  Toutes ({nombrePages})<span className="block text-[11px] text-neutral-500">une image par page</span>
+                </button>
+              </div>
+            </>
+          )}
+          {(avecVideo || pageVideo) && (
+            <p className="mb-3 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+              {pageVideo
+                ? "Page vidéo : l'image exportée est celle de la tête de lecture (les autres pages : leur début). Pour le film entier, choisis MP4 ou GIF."
+                : "Les vidéos d'une page fixe sortent ici en image fixe : leur couverture."}
+            </p>
+          )}
+          <label className={`mb-4 flex items-center gap-2 text-sm ${type === "png" ? "text-neutral-700" : "text-neutral-400"}`}>
+            <input type="checkbox" disabled={type !== "png"} checked={transparent && type === "png"} onChange={(e) => setTransparent(e.target.checked)} className="accent-accent-600" />
+            Fond transparent
+          </label>
+        </>
+      )}
       <button disabled={!!occupe} onClick={() => void lancer(false)} className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-60">
-        <Download size={16} /> {occupe ?? (dansTauri ? "Exporter dans Images/Eliot" : "Télécharger")}
+        <Download size={16} /> {occupe ?? (estFilm ? "Exporter dans Vidéos/Eliot" : dansTauri ? "Exporter dans Images/Eliot" : "Télécharger")}
       </button>
-      {dansTauri && pages === "courante" && (
+      {dansTauri && (pages === "courante" || estFilm) && (
         <button disabled={!!occupe} onClick={() => void lancer(true)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 py-2 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-60">
           <FolderOpen size={16} /> Enregistrer sous…
         </button>
       )}
-      {dossier && dansTauri && (
-        <p className="mt-2 truncate text-[11px] text-neutral-400" title={dossier}>
-          Dossier : {dossier}
+      {dansTauri && (estFilm ? dossierVideo : dossier) && (
+        <p className="mt-2 truncate text-[11px] text-neutral-400" title={estFilm ? dossierVideo : dossier}>
+          Dossier : {estFilm ? dossierVideo : dossier}
         </p>
       )}
     </div>

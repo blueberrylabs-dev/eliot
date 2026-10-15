@@ -247,9 +247,20 @@ Choix par défaut de Claude, modifiables sur simple demande :
       vitesse d'un clip était déjà là (lot 1). Vérifié : interface 103, Chromium (animation
       44, suites d'avant), Tauri par le pont (animation 16 dont la lecture à l'écran, suites
       d'avant). Reste l'essai d'Alexandre.
-- [ ] Lot 4 : l'export MP4 et GIF par le Rust (calques en SVG, `resvg`, `ffmpeg`), barre de
+- [x] Lot 4 : l'export MP4 et GIF par le Rust (calques en SVG, `resvg`, `ffmpeg`), barre de
       progression et annulation, réglages par plateforme (valeurs vérifiées le jour même),
       zones sûres TikTok, Reels et Shorts, comparaison au pixel entre l'écran et l'export.
+      Livré le 2026-10-15 : la page décrite en calques SVG par Konva lui-même
+      (`export/contexteSvg.ts`, `calques.ts`), rendue par `resvg` et composée image par image
+      par le noyau (`montage.rs`, formules d'`animation.rs` contrôlées par le tableau commun) ;
+      photos et vidéos depuis les originaux ; son mixé (volumes, fondus, transitions,
+      vitesse) ; H.264 et AAC, ou GIF à palette ; fenêtre de suivi avec Annuler ; réglages
+      YouTube, Shorts, TikTok, Reels (sources dans le JOURNAL) ; zones sûres dans la frise ;
+      `exporter` du pont IA en MP4 et GIF. Comparaison au pixel : écart moyen 0,4 sur 255
+      (noyau et écran), 0,9 à 1,9 (film H.264 et capture). Correction : les polices variables
+      (Inter…) se chargent enfin avec `npm run tauri dev`. Vérifié : noyau 50, interface 121,
+      Chromium (export 18, suites d'avant), Tauri (export 21, suites d'avant). Reste l'essai
+      d'Alexandre.
 - [ ] Lot 5 : le son : onglet Audio, sons importés, Freesound (CC0 et CC BY seulement, crédits
       gardés et liste à coller), musique et bruitages, volume et fondus, musique qui baisse
       sous la voix, musique répétée jusqu'à la fin, jingles du kit de marque, niveau sonore

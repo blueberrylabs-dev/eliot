@@ -5,6 +5,86 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 4 : l'export MP4 et GIF
+
+Choix de Claude, modifiables sur simple demande :
+
+- Le chemin du film. L'interface décrit la page : chaque élément est dessiné au repos par les
+  mêmes composants Konva qu'à l'écran, hors écran, dans un contexte de dessin qui écrit du
+  SVG au lieu de pixels (`src/export/contexteSvg.ts`, `calques.ts`). Les coupures de lignes,
+  la place de chaque lettre, les dégradés, les ombres sont donc ceux de l'écran. Le noyau
+  (`noyau/src/montage.rs`) rend ces calques avec `resvg` 0.48.1, puis compose chaque image du
+  film avec `tiny-skia` : pose et effets de l'instant par `noyau/src/animation.rs`, les mêmes
+  formules que l'interface (le tableau commun de 550 cas passe des deux côtés). Écarté :
+  enregistrer le film dans la fenêtre (MediaRecorder), lié à l'écran et à sa cadence ;
+  redessiner les éléments en Rust, deux écritures de chaque forme à tenir d'accord.
+- Une opération de peinture, un calque : Konva applique l'opacité d'un élément à chacune de
+  ses opérations (remplir, tracer, écrire), et le noyau fait de même ; un fondu donne ainsi la
+  même image qu'à l'écran, contour compris. L'ombre est un calque à part, que le noyau décale
+  dans le repère de la page : une ombre de canevas ne tourne pas avec la forme. Un texte qui
+  entre par morceaux donne un calque par lettre, avec ses rangs (lettre, mot, ligne) comptés
+  comme à l'écran.
+- Les photos et les vidéos ne passent pas par le SVG : le noyau les pose lui-même depuis les
+  originaux (règle 7), redressés comme à l'import, réduits à la taille utile, avec leurs
+  découpes (coins arrondis, forme d'un cadre, écran d'une maquette). Une vidéo est décodée
+  par `ffmpeg` à la cadence du film multipliée par sa vitesse, une image du film à la fois.
+- Netteté : un calque immobile d'une image à la suivante est rendu à sa place exacte, au
+  pixel près, comme à l'écran ; un calque qui bouge est posé depuis un rendu plus fin
+  (l'agrandissement le plus fort de l'élément, deux fois au plus) et rééchantillonné.
+- Polices : la fenêtre joint au film les fichiers de police qu'elle utilise (bibliothèque,
+  polices du poste ou du design), et le noyau les choisit par le nom que la fenêtre leur
+  donne. Une police variable prend son poids sur l'axe `wght` et sa taille optique, comme le
+  navigateur.
+- Le son : mixé par le noyau (48 kHz, stéréo), chaque vidéo à sa place, à sa vitesse (hauteur
+  gardée, `atempo`), avec son volume, ses fondus et les transitions. Le niveau sonore par
+  plateforme vient avec le lot 5.
+- Encodage, processeur seulement (règle 9) : H.264 High par `libx264` (qualité constante
+  CRF 18 plafonnée au débit de la plateforme, 2 images B, intervalle des images clés de la
+  plateforme), yuv420p marqué BT.709, AAC-LC 48 kHz stéréo, index en tête (`faststart`). GIF :
+  d'abord un film sans perte (FFV1), puis une palette calculée sur tout le film et le GIF en
+  boucle. Le film s'écrit sous un nom provisoire, renommé une fois fini ; Annuler arrête tout
+  et efface ce qui était commencé. Dossier : `~/Vidéos/Eliot/`, nom daté, ou « Enregistrer
+  sous ».
+- Réglages par plateforme, relevés le 2026-10-15 :
+  YouTube (support.google.com/youtube/answer/1722171, « Recommended upload encoding
+  settings ») : MP4, index en tête, H.264 High, CABAC, 2 images B, GOP fermé d'une
+  demi-cadence, débit variable, 1080p à 8 Mbit/s (24 à 30 images/s) ou 12 Mbit/s (48 à 60),
+  720p à 5 ou 7,5 Mbit/s, AAC-LC 48 kHz stéréo à 384 kbit/s, BT.709.
+  Shorts (support.google.com/youtube/answer/15424877) : vertical ou carré, 3 minutes au plus ;
+  encodage de YouTube.
+  TikTok (developers.tiktok.com, Content Posting API, « Media Transfer Guide ») : MP4 et
+  H.264 conseillés, 23 à 60 images/s, 360 à 4096 px de côté, 10 minutes et 4 Go au plus.
+  Reels (relevé par argil.ai le 2026-05-10, pas de page officielle trouvée) : 1080 × 1920, 23
+  à 60 images/s (30 par défaut), H.264 et AAC, 3 minutes au plus depuis l'application.
+  TikTok et Reels ne donnent pas de débit : 10 Mbit/s en 1080p (15 au-delà de 30 images/s),
+  choix de Claude.
+- Zones sûres (page 9:16 seulement, bouton de la frise, calque jamais exporté), en pixels
+  d'une vidéo 1080 × 1920 : TikTok 130 en haut, 484 en bas, 44 à gauche, 140 à droite
+  (modèles de TikTok Ads, relevés par cadenus.io le 2026-07-28) ; Reels 14 % en haut, 35 %
+  en bas, 6 % sur les côtés, la colonne des boutons sur le cinquième droit des 40 % du bas
+  (aide de Meta, relevée par hopperhq.com) ; Shorts 288 en haut, 672 en bas, 48 à gauche,
+  192 à droite (gabarit de Google, relevé par adkit.so le 2026-09-10). Des repères, pas des
+  règles exactes : ils bougent avec la longueur de la légende et les versions des
+  applications.
+- Comparaison au pixel, mesurée : rendu du noyau et rendu de l'écran (Konva) à cinq instants
+  d'une page animée et variée, écart moyen 0,4 sur 255 ; film MP4 et capture de l'écran,
+  vidéos et photos comprises, écart moyen de 0,9 à 1,9 sur 255 (compression H.264 comprise).
+  Seule différence connue : un contour de forme ne grandit pas à l'écran pendant une
+  animation de zoom (réglage de Konva), il grandit dans le film.
+- Correction en passant : les polices variables dont le fichier a une virgule dans son nom
+  (Inter, Roboto, Open Sans, DM Sans, Fraunces et cinq autres) ne se chargeaient pas avec
+  `npm run tauri dev` : le serveur de développement ne décodait pas `%2C`. La fenêtre prenait
+  une police de secours. Corrigé dans `vite.config.ts` (les virgules remises en clair avant la
+  recherche du fichier) et dans `outils/preparer_bibliotheque.mjs` (les virgules restent en
+  clair dans `polices.css`). Les textes en Inter changent donc un peu de dessin.
+- Pont IA : `exporter` sait faire MP4 et GIF (plateforme, définition, cadence, son, largeur
+  du GIF) ; un film peut prendre plusieurs minutes, le pont attend 30 minutes au plus.
+- Vérifié dans le conteneur : noyau 50 (6 essais de l'export, dont un film et un GIF faits
+  et relus par `ffprobe`), interface 121 (18 de plus : réglages, zones sûres, contexte SVG),
+  Chromium 18 vérifications sur l'export et toutes les suites d'avant, Tauri 21 dont un film
+  TikTok de 7 s (210 images en 22 s sur 2 cœurs), un GIF, une annulation par le bouton, et
+  toutes les suites d'avant.
+
 ## 2026-10-15, étape 4, lot 3 : l'animation
 
 Choix de Claude, modifiables sur simple demande :

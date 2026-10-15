@@ -212,7 +212,9 @@ async function polices(catalogue) {
     }
     for (const f of v.fichiers) {
       const [min, max] = f.poids;
-      regles.push(`@font-face{font-family:"${entree.famille}";src:url("./polices/${id}/${encodeURIComponent(f.fichier)}") format("truetype");font-style:${f.style};font-weight:${min === max ? min : `${min} ${max}`};font-display:block}`);
+      // Les virgules restent en clair (`Inter[opsz,wght].ttf`) : écrites `%2C`, le serveur de
+      // développement ne retrouvait pas le fichier.
+      regles.push(`@font-face{font-family:"${entree.famille}";src:url("./polices/${id}/${encodeURIComponent(f.fichier).replace(/%2C/gi, ",")}") format("truetype");font-style:${f.style};font-weight:${min === max ? min : `${min} ${max}`};font-display:block}`);
     }
     const couvre = (style, poids) => v.fichiers.some((f) => f.style === style && f.poids[0] <= poids && poids <= f.poids[1]);
     sortie.push({ ...entree, id, gras: couvre("normal", 700), italique: couvre("italic", 400), licence: v.licence });

@@ -4,6 +4,7 @@ import { Accueil } from "./accueil/Accueil";
 import { Editeur } from "./editeur/Editeur";
 import { Notification } from "./editeur/Notification";
 import { BandeImport } from "./editeur/SuiviImport";
+import { SuiviExportVideo } from "./editeur/ExportVideo";
 import { useEditeur } from "./etat/editeur";
 import { Reglages } from "./reglages/Reglages";
 
@@ -14,6 +15,7 @@ export function App() {
     <div className="relative h-full">
       {vue === "accueil" ? <Accueil /> : <Editeur />}
       <BandeImport />
+      <SuiviExportVideo />
       <Notification />
       {reglages && <Reglages />}
     </div>

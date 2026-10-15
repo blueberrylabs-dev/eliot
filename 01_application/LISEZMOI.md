@@ -1,10 +1,10 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 à 3 du `BRIEF.md` et début de l'étape 4 : un accueil qui range tes
+L'éditeur, étapes 1 à 3 du `BRIEF.md` et une bonne part de l'étape 4 : un accueil qui range tes
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
 d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
-marque, des modèles de départ, des vidéos posées dans la page, un enregistrement automatique
-et l'export en PNG ou en JPEG.
+marque, des modèles de départ, des vidéos montées et animées sur une frise, un enregistrement
+automatique, l'export en PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -103,8 +103,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Panneau Photos, bouton Vidéos : vidéos libres de Pixabay, cherchées en français ; le tri
   Paysage ou Portrait se fait sur les résultats. La vidéo choisie se télécharge en 1080p, se
   prépare comme une vidéo du poste et garde le nom de son auteur.
-- L'export en PNG ou en JPEG montre la couverture de chaque vidéo (une image prise vers la
-  première seconde) ; l'export en MP4 vient avec la frise (lots suivants de l'étape 4).
+- L'export en PNG ou en JPEG d'une page fixe montre la couverture de chaque vidéo (une image
+  prise vers la première seconde) ; une page vidéo s'exporte en film (MP4 ou GIF, plus bas).
 
 **La frise d'une page vidéo (étape 4, lot 2)**
 - La bascule Photo ou Vidéo, en haut, dit ce qu'est la page affichée. Vidéo : la frise
@@ -128,8 +128,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   supprimer. Ctrl+↑ et Ctrl+↓ font monter ou descendre un clip d'une piste.
 - La page montre l'instant de la tête : chaque élément n'apparaît que pendant son temps.
   L'export en image d'une page vidéo sort l'instant de la tête de lecture, avec l'image exacte
-  de chaque vidéo. Les pistes de son (musique, voix) et l'export en MP4 viennent dans les lots
-  suivants.
+  de chaque vidéo. Les pistes de son (musique, voix) viennent dans les lots suivants.
 
 **L'animation (étape 4, lot 3)**
 - Animer, dans la barre juste au-dessus de la page, pour les éléments choisis d'une page
@@ -154,6 +153,23 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   police, leurs couleurs et leurs animations, posés à la tête. Pour un texte déjà posé :
   Effets, en haut de la bulle.
 
+**L'export en MP4 et en GIF (étape 4, lot 4)**
+- Exporter, en haut à droite, sur une page vidéo : MP4 (vidéo avec le son) ou GIF (image
+  animée, sans son). Le film entier de la page affichée, fait image par image par le noyau,
+  depuis les originaux des photos et des vidéos ; une barre suit l'avancement, Annuler
+  l'arrête sans rien laisser sur le disque.
+- MP4 : « Pour » YouTube, Shorts, TikTok, Reels ou Autre règle l'encodage comme la plateforme
+  le recommande (H.264, son AAC 48 kHz, débit, images clés), avec la définition (1080p ou
+  720p) et la cadence (24 à 60 images par seconde). La fenêtre prévient si la page n'a pas les
+  proportions attendues (16:9 pour YouTube, 9:16 pour les autres) ou dure trop longtemps.
+- GIF : largeur (320, 480 ou 640 px) et cadence (10, 15 ou 20 images par seconde), en boucle.
+- Le film ressemble à l'écran au pixel près : les mêmes formules d'animation, les mêmes
+  polices, le même dessin des textes et des formes.
+- Zones sûres, dans la barre de la frise (page verticale 9:16) : TikTok, Reels ou Shorts
+  teintent en rouge les bandes où l'application pose ses boutons, le nom du compte et la
+  légende ; le cadre pointillé est la zone sûre pour les textes. Un calque d'aide seulement :
+  il ne passe jamais dans l'export.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -162,7 +178,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
   transitions, styles de texte pour la vidéo), se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
-  capture de la page et exporter. On la voit travailler dans la fenêtre,
+  capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo). On la
+  voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Raccourcis
@@ -198,14 +215,15 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
-  plusieurs pages), jamais d'écrasement.
+  plusieurs pages), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
+  (ou `.gif`), écrits sous un nom provisoire puis renommés une fois finis.
 - Un design supprimé part dans la corbeille d'Ubuntu.
 
 ## Plan du code
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), designs (projet.rs), exports, polices, Pixabay, kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -213,12 +231,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts, et le tableau de valeurs attendues commun avec le Rust), les styles de texte pour la vidéo
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts, et le tableau de valeurs attendues commun avec le Rust), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts), la frise (frise/)
-│   ├── export/       rendu d'une page hors écran, export
+│   ├── export/       rendu d'une page hors écran, export en image ; export vidéo : la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), réglages par plateforme (plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
 └── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé

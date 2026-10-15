@@ -5,6 +5,7 @@
 // suivre. L'horloge qui le fait avancer est dans `editeur/frise/horloge.ts`.
 
 import { create } from "zustand";
+import type { IdZones } from "../modele/zonesSures";
 
 export const PX_PAR_SECONDE_MIN = 8;
 export const PX_PAR_SECONDE_MAX = 600;
@@ -12,6 +13,15 @@ export const HAUTEUR_FRISE_MIN = 150;
 export const HAUTEUR_FRISE_DEFAUT = 260;
 
 const CLE_HAUTEUR = "eliot-hauteur-frise";
+const CLE_ZONES = "eliot-zones-sures";
+function zonesGardees(): IdZones | null {
+  try {
+    const z = localStorage.getItem(CLE_ZONES);
+    return z === "tiktok" || z === "reels" || z === "shorts" ? z : null;
+  } catch {
+    return null;
+  }
+}
 function hauteurGardee(): number {
   try {
     const n = Number(localStorage.getItem(CLE_HAUTEUR));
@@ -32,6 +42,9 @@ interface EtatTemps {
   repliee: boolean;
   /** La lecture s'arrête d'elle-même à cet instant (aperçu d'une transition). */
   arret: number | null;
+  /** Les zones sûres montrées sur une page verticale, ou aucune. */
+  zonesSures: IdZones | null;
+  choisirZonesSures: (z: IdZones | null) => void;
   allerA: (t: number) => void;
   /** Lit de `debut` à `fin`, puis s'arrête. */
   lireJusqua: (debut: number, fin: number) => void;
@@ -52,6 +65,16 @@ export const useTemps = create<EtatTemps>((set, get) => ({
   hauteurFrise: hauteurGardee(),
   repliee: false,
   arret: null,
+  zonesSures: zonesGardees(),
+  choisirZonesSures(zonesSures) {
+    set({ zonesSures });
+    try {
+      if (zonesSures) localStorage.setItem(CLE_ZONES, zonesSures);
+      else localStorage.removeItem(CLE_ZONES);
+    } catch {
+      // Stockage indisponible : le choix vaut le temps de la session.
+    }
+  },
   allerA(t) {
     const tete = Math.max(0, Math.round(t));
     if (tete !== get().tete) set({ tete });

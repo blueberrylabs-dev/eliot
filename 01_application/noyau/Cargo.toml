@@ -19,6 +19,11 @@ zip = { version = "9", default-features = false, features = ["deflate-flate2-zli
 fontdb = { version = "0.24", default-features = false, features = ["std", "fs"] }
 # Photos libres de Pixabay (étape 3) : client HTTPS simple, sans moteur asynchrone.
 ureq = "3"
+# Export vidéo (étape 4) : rendu des calques SVG décrits par la fenêtre, texte compris
+# (composition harfrust, polices variables), et composition des images du film.
+resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
+# Les polices de la fenêtre arrivent en base64 dans la description de la page.
+base64 = "0.22"
 
 # Le code générique des bibliothèques (réduction, encodage) est compilé dans ce paquet-ci :
 # sans optimisation, la réduction d'une photo 24 Mpx passe de 0,1 s à 6,5 s (mesuré le

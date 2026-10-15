@@ -3,9 +3,10 @@
 //! sur le disque part sur un fil à part (`spawn_blocking`).
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, images, marque, pixabay, polices, projet, videos};
+use noyau::{export, fichiers, images, marque, montage, pixabay, polices, projet, videos};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -585,6 +586,94 @@ pub async fn exporter_rendu(app: AppHandle, requete: Request<'_>) -> Result<Stri
 #[tauri::command]
 pub fn dossier_export(app: AppHandle) -> Result<String, String> {
     dossier_export_par_defaut(&app).map(|p| p.to_string_lossy().into_owned())
+}
+
+// ----------------------------------------------------------------------------------------
+// Export vidéo (étape 4, lot 4)
+// ----------------------------------------------------------------------------------------
+
+/// Un seul export vidéo à la fois (il prend tout le processeur) ; `annule` l'arrête.
+#[derive(Default)]
+pub struct ExportVideo {
+    en_cours: AtomicBool,
+    annule: Arc<AtomicBool>,
+}
+
+/// Le dossier Vidéos de l'utilisateur (`~/Vidéos` sur un Ubuntu en français), puis `Eliot/`.
+fn dossier_videos_par_defaut(app: &AppHandle) -> Result<PathBuf, String> {
+    let base = app
+        .path()
+        .video_dir()
+        .or_else(|_| app.path().home_dir())
+        .map_err(|e| format!("dossier Vidéos introuvable : {e}"))?;
+    Ok(base.join("Eliot"))
+}
+
+#[tauri::command]
+pub fn dossier_export_video(app: AppHandle) -> Result<String, String> {
+    dossier_videos_par_defaut(&app).map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Fait le film de la page décrite par la fenêtre (`src/export/calques.ts`) et l'écrit dans
+/// `~/Vidéos/Eliot/` sous un nom libre, ou au chemin choisi dans « Enregistrer sous ».
+/// L'avancement part par `avancement`, au plus une fois par demi-centième.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn exporter_video(
+    app: AppHandle,
+    rayon_nom: String,
+    projet_id: String,
+    description: montage::DescriptionPage,
+    reglages: montage::Reglages,
+    nom: String,
+    chemin: Option<String>,
+    avancement: Channel<montage::Avancement>,
+) -> Result<String, String> {
+    let ressources = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let extension = match reglages.format {
+        montage::FormatVideo::Mp4 => "mp4",
+        montage::FormatVideo::Gif => "gif",
+    };
+    let cible = match chemin.filter(|c| !c.is_empty()) {
+        Some(c) => {
+            let c = PathBuf::from(c);
+            let bonne = c.extension().is_some_and(|e| e.to_string_lossy().eq_ignore_ascii_case(extension));
+            if bonne { c } else { c.with_extension(extension) }
+        }
+        None => {
+            let dossier = dossier_videos_par_defaut(&app)?;
+            fichiers::chemin_libre(&dossier, &fichiers::nettoyer_nom(&nom), extension)
+        }
+    };
+    let etat = app.state::<ExportVideo>();
+    if etat.en_cours.swap(true, Ordering::SeqCst) {
+        return Err("un export vidéo est déjà en cours".into());
+    }
+    etat.annule.store(false, Ordering::SeqCst);
+    let annule = etat.annule.clone();
+    let app2 = app.clone();
+    let resultat = tauri::async_runtime::spawn_blocking(move || {
+        let mut derniere = (String::new(), -1.0_f32);
+        let mut rapport = |a: montage::Avancement| {
+            if a.etape != derniere.0 || a.part - derniere.1 >= 0.005 || a.part >= 1.0 {
+                derniere = (a.etape.to_string(), a.part);
+                let _ = avancement.send(a);
+            }
+        };
+        montage::exporter(&description, &reglages, &ressources, &cible, &mut rapport, &annule)
+            .map(|c| c.to_string_lossy().into_owned())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("export interrompu : {e}"));
+    app2.state::<ExportVideo>().en_cours.store(false, Ordering::SeqCst);
+    resultat?
+}
+
+/// Arrête l'export vidéo en cours (rien n'est laissé sur le disque).
+#[tauri::command]
+pub fn annuler_export_video(app: AppHandle) {
+    app.state::<ExportVideo>().annule.store(true, Ordering::SeqCst);
 }
 
 // ----------------------------------------------------------------------------------------
