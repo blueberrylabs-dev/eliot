@@ -28,7 +28,10 @@ import { cellulesValides, disposerTableau } from "../modele/tableaux";
 import { chercherPixabay, chercherVideosPixabay, estCheminVideo, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
-import { estPageVideo, pistesDe } from "../modele/frise";
+import { estPageVideo, pistesDe, PISTE_PRINCIPALE } from "../modele/frise";
+import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
+import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
+import type { Animations, CleAnimation } from "../modele/types";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
@@ -113,7 +116,17 @@ function resumerFrise() {
     pistes: pistesDe(page).map(({ piste, clips }) => ({
       piste,
       nom: piste === 0 ? "principale" : `superposition ${piste}`,
-      clips: clips.map((e) => ({ id: e.id, type: e.type, nom: e.nom ?? (e.type === "texte" ? e.texte.slice(0, 40) : e.type), debut: e.temps?.debut, fin: e.temps?.fin, ...(e.type === "video" ? { coupe: e.coupe ?? null, vitesse: e.vitesse ?? 1 } : {}) })),
+      clips: clips.map((e) => ({
+        id: e.id,
+        type: e.type,
+        nom: e.nom ?? (e.type === "texte" ? e.texte.slice(0, 40) : e.type),
+        debut: e.temps?.debut,
+        fin: e.temps?.fin,
+        ...(e.type === "video" ? { coupe: e.coupe ?? null, vitesse: e.vitesse ?? 1 } : {}),
+        ...(e.animations ? { animations: Object.fromEntries(Object.entries(e.animations).map(([g, a]) => [g, `${a.nom} (${a.duree} ms)`])) } : {}),
+        ...(e.cles?.length ? { imagesCles: e.cles.length } : {}),
+        ...(e.transition ? { transition: `${e.transition.nom} (${e.transition.duree} ms) depuis le clip précédent` } : {}),
+      })),
     })),
   };
 }
@@ -124,7 +137,7 @@ const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
   image: ["retourneH", "retourneV", "arrondi", "bordure"],
-  video: ["retourneH", "retourneV", "arrondi", "bordure", "coupe", "vitesse", "volume"],
+  video: ["retourneH", "retourneV", "arrondi", "bordure", "coupe", "vitesse", "volume", "fonduEntree", "fonduSortie"],
   icone: ["couleur", "trait"],
   emoji: [],
   personnage: ["posture", "pieces", "couleurs", "retourneH"],
@@ -273,6 +286,10 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
       }
     } else if (el.type === "video" && (cle === "coupe" || cle === "vitesse" || cle === "volume")) {
       Object.assign(propre, reglagesVideo(etat().ressources[el.ressource], { [cle]: valeur }));
+    } else if (cle === "fonduEntree" || cle === "fonduSortie") {
+      const v = valeur === null ? 0 : nombre(valeur);
+      exiger(v !== undefined && v >= 0 && v <= 10_000, `${cle} : durée du fondu du son en ms, de 0 à 10000 (null ou 0 : sans fondu)`);
+      propre[cle] = v > 0 ? Math.round(v) : undefined;
     } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
       exiger(valeur === null || etat().ressources[String(valeur)], `image inconnue dans ce design : ${String(valeur)}`);
       exiger(valeur === null || !etat().ressources[String(valeur)].video, "une vidéo ne va pas dans un cadre ni un écran : la poser avec ajouter_video");
@@ -558,14 +575,20 @@ const OUTILS: Record<string, Outil> = {
     const contenu = texte(args.texte);
     exiger(contenu?.trim(), "texte vide");
     const format = etat().document.format;
-    const police = texte(args.police);
+    const style = args.style === undefined ? undefined : styleVideo(String(args.style));
+    exiger(args.style === undefined || style, `style inconnu : ${String(args.style)} (${STYLES_VIDEO.map((x) => x.id).join(", ")})`);
+    const police = texte(args.police) ?? style?.police;
     if (police) exiger(polices().some((p) => p.famille === police), `police inconnue : ${police} (voir etat)`);
-    await assurerPolice(police ?? "Inter", booleen(args.gras) ?? false, booleen(args.italique) ?? false);
+    await assurerPolice(police ?? "Inter", booleen(args.gras) ?? true, booleen(args.italique) ?? false);
     if (police) await copierPoliceDansDesign(police);
+    const taille = nombre(args.taillePolice, style ? Math.round((style.taille * format.largeur) / 1080) : Math.round((56 * Math.max(format.largeur, format.hauteur)) / 1080))!;
     const base = creerTexte(format, {
       texte: contenu!,
-      taillePolice: nombre(args.taillePolice, Math.round((56 * Math.max(format.largeur, format.hauteur)) / 1080))!,
+      taillePolice: taille,
       gras: booleen(args.gras) ?? false,
+      // Un style vidéo donne police, couleurs et effets ; ce que l'IA précise passe devant.
+      ...(style ? style.effets(taille) : {}),
+      ...(booleen(args.gras) !== undefined ? { gras: booleen(args.gras) } : {}),
       ...(police ? { police } : {}),
       ...(args.couleur !== undefined ? { couleur: couleur(args.couleur, "couleur") } : {}),
       ...(booleen(args.italique) !== undefined ? { italique: booleen(args.italique) } : {}),
@@ -577,7 +600,118 @@ const OUTILS: Record<string, Outil> = {
     const largeur = nombre(args.largeur);
     const avecLargeur = largeur ? { ...base, largeur: Math.max(20, largeur) } : base;
     const el = placer({ ...avecLargeur, hauteur: mesurerHauteurTexte(avecLargeur) }, { ...args, hauteur: undefined, largeur: undefined });
-    return { donnees: ajouter(el) };
+    // Le style apporte aussi ses animations (prises en compte sur une page vidéo).
+    const anime = style && estPageVideo(pageCourante(etat())) ? { ...el, animations: animationsPour(style, el) } : el;
+    return { donnees: ajouter(anime) };
+  },
+
+  animer(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la page affichée est une image fixe : les animations vivent sur une page vidéo (page_video)");
+    const ids = listeIds(args.ids);
+    exiger(ids.length > 0, "ids : les éléments à animer");
+    const elements = ids.map((id) => page.elements.find((e) => e.id === id));
+    ids.forEach((id, i) => exiger(elements[i], `élément introuvable sur la page affichée : ${id}`));
+    const genres = (["entree", "sortie", "boucle"] as GenreAnimation[]).filter((g) => g in args);
+    exiger(genres.length > 0, "entree, sortie ou boucle : { nom, duree } (null en retire une)");
+    const modifs: Record<string, Partial<ElementPage>> = {};
+    for (const el of elements as ElementPage[]) {
+      const animations: Animations = { ...el.animations };
+      for (const g of genres) {
+        const v = args[g] as { nom?: unknown; duree?: unknown } | null;
+        if (v === null) {
+          delete animations[g];
+          continue;
+        }
+        exiger(v && typeof v === "object", `${g} : { nom, duree } ou null`);
+        const nom = texte(v.nom) ?? "";
+        const def = definitionAnimation(g, nom);
+        exiger(def, `${g}.nom inconnu : ${nom} (${CATALOGUE[g].map((d) => d.nom).join(", ")})`);
+        exiger(!def!.texte || el.type === "texte", `${g} ${nom} : seulement pour un texte (${el.id} est un élément ${el.type})`);
+        const duree = v.duree === undefined || v.duree === null ? undefined : nombre(v.duree);
+        exiger(v.duree === undefined || v.duree === null || (duree !== undefined && duree >= (g === "boucle" ? 0 : 100) && duree <= 20_000), `${g}.duree : de 100 à 20000 ms`);
+        animations[g] = { nom, duree: Math.round(duree ?? dureeConseillee(g, nom, el)) };
+      }
+      modifs[el.id] = { animations: Object.keys(animations).length ? animations : undefined };
+    }
+    etat().modifierElements(modifs);
+    const apres = pageCourante(etat());
+    return { donnees: ids.map((id) => {
+      const e = apres.elements.find((x) => x.id === id)!;
+      return { id, temps: e.temps, animations: e.animations ?? null };
+    }) };
+  },
+
+  images_cles(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la page affichée est une image fixe : les images clés vivent sur une page vidéo (page_video)");
+    const id = texte(args.id);
+    const el = page.elements.find((e) => e.id === id);
+    exiger(el?.temps, `élément introuvable sur la page affichée : ${String(args.id)}`);
+    const longueur = el!.temps!.fin - el!.temps!.debut;
+    if (args.cles === null) {
+      etat().modifierElements({ [el!.id]: { cles: undefined } });
+      return { donnees: { id: el!.id, cles: null } };
+    }
+    exiger(Array.isArray(args.cles) && args.cles.length > 0, "cles : liste de { t, x, y, echelle, rotation, opacite, courbe } (t en ms depuis le début du clip), ou null pour les retirer");
+    const cles = (args.cles as Record<string, unknown>[]).map((c, i) => {
+      exiger(c && typeof c === "object", `cles[${i}] : un objet { t, … }`);
+      const t = nombre(c.t);
+      exiger(t !== undefined && t >= 0 && t <= longueur, `cles[${i}].t : de 0 à ${longueur} ms, compté depuis le début du clip (il commence à ${el!.temps!.debut} ms de la page)`);
+      const cle: CleAnimation = { t: Math.round(t!) };
+      if (c.x !== undefined || c.y !== undefined) {
+        exiger(nombre(c.x) !== undefined && nombre(c.y) !== undefined, `cles[${i}] : x et y vont ensemble (coin haut gauche de l'élément)`);
+        cle.x = nombre(c.x)!;
+        cle.y = nombre(c.y)!;
+      }
+      if (c.echelle !== undefined) {
+        const e = nombre(c.echelle);
+        exiger(e !== undefined && e > 0 && e <= 20, `cles[${i}].echelle : un nombre de 0 (exclu) à 20, 1 pour la taille de l'élément`);
+        cle.echelle = e!;
+      }
+      if (c.rotation !== undefined) {
+        exiger(nombre(c.rotation) !== undefined, `cles[${i}].rotation : en degrés`);
+        cle.rotation = nombre(c.rotation)!;
+      }
+      if (c.opacite !== undefined) {
+        const o = nombre(c.opacite);
+        exiger(o !== undefined && o >= 0 && o <= 1, `cles[${i}].opacite : de 0 à 1`);
+        cle.opacite = o!;
+      }
+      if (c.courbe !== undefined) {
+        exiger(c.courbe === "douce" || c.courbe === "lineaire", `cles[${i}].courbe : douce ou lineaire`);
+        cle.courbe = c.courbe as "douce" | "lineaire";
+      }
+      exiger(Object.keys(cle).filter((k) => k !== "t" && k !== "courbe").length > 0, `cles[${i}] : au moins une valeur (x et y, echelle, rotation ou opacite)`);
+      return cle;
+    }).sort((a, b) => a.t - b.t);
+    exiger(cles.every((c, i) => i === 0 || c.t !== cles[i - 1].t), "cles : deux clés au même instant");
+    etat().modifierElements({ [el!.id]: { cles } });
+    const apres = pageCourante(etat()).elements.find((e) => e.id === el!.id)!;
+    const arrondir = (p: ReturnType<typeof poseA>) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+    return { donnees: { id: el!.id, temps: apres.temps, cles: apres.cles, poseAuDebut: arrondir(poseA(apres, 0)), poseALaFin: arrondir(poseA(apres, longueur)) } };
+  },
+
+  transition(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la page affichée est une image fixe (page_video pour en faire une vidéo)");
+    const el = page.elements.find((e) => e.id === texte(args.id));
+    exiger(el?.piste === PISTE_PRINCIPALE && el.temps, "id : un clip de la piste principale ; la transition le relie au clip d'avant");
+    const principale = page.elements.filter((e) => e.piste === PISTE_PRINCIPALE && e.temps).sort((a, b) => a.temps!.debut - b.temps!.debut);
+    exiger(principale.indexOf(el!) > 0, "ce clip est le premier de la piste principale : une transition se pose sur un clip qui en suit un autre");
+    if (args.nom === null) etat().definirTransition(el!.id, null);
+    else {
+      const nom = texte(args.nom) ?? "";
+      exiger(TRANSITIONS.some((d) => d.nom === nom), `nom inconnu : ${nom} (${TRANSITIONS.map((d) => d.nom).join(", ")}, ou null pour la retirer)`);
+      const duree = nombre(args.duree, DUREE_TRANSITION)!;
+      exiger(duree >= 100 && duree <= 5000, "duree : de 100 à 5000 ms (au plus la moitié du plus court des deux clips)");
+      etat().definirTransition(el!.id, { nom, duree });
+    }
+    const apres = pageCourante(etat()).elements.find((e) => e.id === el!.id)!;
+    return { donnees: { id: apres.id, transition: apres.transition ?? null, temps: apres.temps, duree: pageCourante(etat()).duree, frise: resumerFrise() } };
   },
 
   ajouter_forme(args) {

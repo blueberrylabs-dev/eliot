@@ -20,6 +20,9 @@ export interface OptionsRendu {
   qualite?: number;
   /** Page vidéo : l'instant montré, en ms (0 par défaut). */
   instant?: number;
+  /** Page vidéo : sans les effets d'animation, la pose seule (miniatures : un titre qui entre
+   *  en fondu au début se voit quand même). */
+  sansEffets?: boolean;
 }
 
 /** Les images exactes des vidéos qui se voient à l'instant `instant` d'une page vidéo, tirées
@@ -45,7 +48,7 @@ async function imagesDesVideos(page: PageEliot, instant: number): Promise<Map<st
   return images;
 }
 
-function Rendu({ page, format, instant, imagesVideo, pret }: { page: PageEliot; format: Format; instant?: number; imagesVideo: Map<string, CanvasImageSource>; pret: (g: Konva.Group) => void }) {
+function Rendu({ page, format, instant, imagesVideo, sansEffets, pret }: { page: PageEliot; format: Format; instant?: number; imagesVideo: Map<string, CanvasImageSource>; sansEffets?: boolean; pret: (g: Konva.Group) => void }) {
   const groupe = useRef<Konva.Group>(null);
   useEffect(() => {
     if (groupe.current) pret(groupe.current);
@@ -53,7 +56,7 @@ function Rendu({ page, format, instant, imagesVideo, pret }: { page: PageEliot; 
   return createElement(
     Stage,
     { width: 1, height: 1 },
-    createElement(Layer, null, createElement(Group, { ref: groupe }, createElement(PageStatique, { page, format, instant, imagesVideo }))),
+    createElement(Layer, null, createElement(Group, { ref: groupe }, createElement(PageStatique, { page, format, instant, imagesVideo, sansEffets }))),
   );
 }
 
@@ -63,7 +66,7 @@ export async function rendrePage(page: PageEliot, format: Format, options: Optio
   const support = document.createElement("div");
   const racine = createRoot(support);
   try {
-    const groupe = await new Promise<Konva.Group>((pret) => racine.render(createElement(Rendu, { page, format, instant, imagesVideo, pret })));
+    const groupe = await new Promise<Konva.Group>((pret) => racine.render(createElement(Rendu, { page, format, instant, imagesVideo, sansEffets: options.sansEffets, pret })));
     // Une image laisse au moteur le temps de finir ses décodages en cours.
     await new Promise((r) => requestAnimationFrame(() => r(null)));
     const fond = groupe.findOne(".fond-page");

@@ -10,6 +10,8 @@ import type { ElementTexte, Format } from "../../modele/types";
 import { assurerPolice, GENRES_POLICE, pilePolice, usePolices, type Police } from "../../polices";
 import { useApparu } from "../apparu";
 import { glisserDepuisPanneau } from "../glisser";
+import { pageCourante, useEditeur } from "../../etat/editeur";
+import { creerTexteStyle, STYLES_VIDEO, type StyleVideo } from "../../modele/stylesVideo";
 
 interface Association {
   titre: string;
@@ -66,8 +68,42 @@ function CarteAssociation({ association: a, surSurvol, surPointeur }: Proprietes
   );
 }
 
+/** Un style de texte pour la vidéo, montré sur fond sombre, dans sa police. */
+function CarteStyle({ style: s, surSurvol, surPointeur }: ProprietesCarte & { style: StyleVideo }) {
+  const [ref, apparu] = useApparu<HTMLButtonElement>();
+  const effets = s.effets(22);
+  const couleur = typeof effets.couleur === "string" ? effets.couleur : "#ffffff";
+  return (
+    <button ref={ref} data-style-video={s.id} className="flex h-16 cursor-grab flex-col items-center justify-center rounded-lg bg-neutral-800 px-1 hover:ring-2 hover:ring-accent-500" onPointerEnter={surSurvol} onPointerDown={surPointeur} title={`${s.libelle} : posé à la tête de lecture, avec son entrée et sa sortie`}>
+      <span
+        className="max-w-full truncate px-1 text-base leading-tight"
+        style={
+          apparu
+            ? {
+                fontFamily: pilePolice(s.police),
+                fontWeight: effets.gras ? 700 : 400,
+                fontStyle: effets.italique ? "italic" : undefined,
+                color: couleur,
+                textTransform: effets.majuscules ? "uppercase" : undefined,
+                background: effets.surlignage?.couleur,
+                padding: effets.surlignage ? "0 4px" : undefined,
+                borderRadius: effets.surlignage ? 3 : undefined,
+                WebkitTextStroke: effets.contour ? `1px ${effets.contour.couleur}` : undefined,
+                textShadow: effets.ombre ? `0 0 6px ${effets.ombre.couleur}` : undefined,
+              }
+            : undefined
+        }
+      >
+        {s.exemple}
+      </span>
+      <span className="mt-0.5 text-[10px] text-neutral-300">{s.libelle}</span>
+    </button>
+  );
+}
+
 export function PanneauTextes() {
   const polices = usePolices();
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const [requete, setRequete] = useState("");
   const filtrees = useMemo(() => {
     const q = normaliser(requete);
@@ -95,6 +131,18 @@ export function PanneauTextes() {
           <span className="text-sm text-neutral-700">Ajouter un paragraphe de texte</span>
         </button>
       </div>
+
+      {polices.length > 0 && pageVideo && (
+        <>
+          <p className="mb-1 text-sm font-semibold text-neutral-800">Styles pour la vidéo</p>
+          <p className="mb-2 text-xs text-neutral-500">Police, couleurs et animations prêtes, posées à la tête de lecture.</p>
+          <div data-styles-video className="mb-5 grid grid-cols-2 gap-1.5">
+            {STYLES_VIDEO.map((st) => (
+              <CarteStyle key={st.id} style={st} surSurvol={() => prechauffer([st.police])} surPointeur={(e) => glisserDepuisPanneau(e, poser([st.police], (f) => [creerTexteStyle(f, st)]))} />
+            ))}
+          </div>
+        </>
+      )}
 
       {polices.length > 0 && (
         <>

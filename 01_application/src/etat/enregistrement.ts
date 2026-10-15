@@ -62,7 +62,7 @@ export async function miniatureMaintenant(projet?: RefProjet, document?: Documen
   if (!ref) return;
   try {
     const { largeur, hauteur } = doc.format;
-    const blob = await rendrePage(doc.pages[0], doc.format, { pixelRatio: COTE_MINIATURE / Math.max(largeur, hauteur), type: "image/png" });
+    const blob = await rendrePage(doc.pages[0], doc.format, { pixelRatio: COTE_MINIATURE / Math.max(largeur, hauteur), type: "image/png", sansEffets: true });
     await enregistrerMiniature(ref, new Uint8Array(await blob.arrayBuffer()));
   } catch {
     // Une miniature manquée n'empêche rien : l'accueil affiche une vignette neutre.

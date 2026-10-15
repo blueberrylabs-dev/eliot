@@ -43,12 +43,18 @@ export function ReglagesVideo({ v }: { v: ElementVideo }) {
       </Bouton>
       {duree > 0 && <span className="shrink-0 px-1 text-xs text-neutral-500 tabular-nums">{dureeLisible(dureeJouee(v, duree))}</span>}
       {separateur}
-      <Bulle titre="Son" bouton={volume === 0 || !ressource?.video?.son ? <VolumeX size={16} /> : <Volume2 size={16} />}>
+      <Bulle titre="Son" largeur={260} bouton={volume === 0 || !ressource?.video?.son ? <VolumeX size={16} /> : <Volume2 size={16} />}>
         {ressource?.video?.son === false ? (
           <p className="text-xs text-neutral-500">Cette vidéo n'a pas de son.</p>
         ) : (
           <>
             <Curseur libelle="Volume" valeur={Math.round(volume * 100)} min={0} max={100} unite=" %" surChange={(x) => modifier({ volume: x / 100 }, "volume")} />
+            {v.temps && (
+              <>
+                <Curseur libelle="Fondu d'entrée du son" valeur={secondes(v.fonduEntree ?? 0)} min={0} max={Math.max(0.1, Math.min(5, secondes((v.temps.fin - v.temps.debut) / 2)))} pas={0.1} unite=" s" surChange={(x) => modifier({ fonduEntree: x > 0 ? Math.round(x * 1000) : undefined }, "fondu-entree")} />
+                <Curseur libelle="Fondu de sortie du son" valeur={secondes(v.fonduSortie ?? 0)} min={0} max={Math.max(0.1, Math.min(5, secondes((v.temps.fin - v.temps.debut) / 2)))} pas={0.1} unite=" s" surChange={(x) => modifier({ fonduSortie: x > 0 ? Math.round(x * 1000) : undefined }, "fondu-sortie")} />
+              </>
+            )}
             <button className="text-xs text-accent-700 hover:underline" onClick={() => modifier({ volume: volume === 0 ? 1 : 0 })}>
               {volume === 0 ? "Remettre le son" : "Couper le son"}
             </button>

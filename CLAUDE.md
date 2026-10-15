@@ -42,10 +42,12 @@ lourd. Détail : `BRIEF.md`.
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
   copies d'aperçu, passé sur le poste le 2026-10-15 (VP9 en 720 retenu, Tauri confirmé) ;
   lot 1 (la vidéo dans le design : import, copie d'aperçu, lecture, coupe, vitesse, son,
-  vidéos Pixabay, quatre outils pour le pont IA) et lot 2 (la frise : bascule Photo ou
-  Vidéo, pistes, tête de lecture, gestes, scinder, trois outils de plus pour le pont IA)
-  livrés et vérifiés ; reste l'essai d'Alexandre. Après cette livraison, recompiler le pont
-  (commande 13, puis 15 bis si l'extension sert).
+  vidéos Pixabay, quatre outils pour le pont IA), lot 2 (la frise : bascule Photo ou
+  Vidéo, pistes, tête de lecture, gestes, scinder, trois outils de plus pour le pont IA) et
+  lot 3 (l'animation : entrées, sorties, boucles, textes par morceaux, images clés,
+  transitions, fondus du son, styles de texte pour la vidéo, trois outils de plus pour le
+  pont IA, 53 en tout) livrés et vérifiés ; reste l'essai d'Alexandre. Après cette
+  livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert).
 
 Suite : `PLAN.md`.
 
@@ -238,7 +240,7 @@ Vérifier : `test result: ok. 42 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  84 passed`.
+Vérifier : `Tests  103 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

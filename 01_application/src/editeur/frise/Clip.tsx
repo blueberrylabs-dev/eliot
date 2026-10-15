@@ -1,9 +1,10 @@
 // Un clip de la frise : un rectangle de la longueur de son temps, à la couleur de son genre.
 // Une vidéo montre sa bande de vignettes et sa forme d'onde, à l'endroit de sa coupe.
 
-import { Film, Image as IconeImage, Shapes, Type } from "lucide-react";
+import { Film, Image as IconeImage, Repeat, Shapes, Type } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { useEditeur } from "../../etat/editeur";
+import { dureesEntreeSortie } from "../../modele/animation";
 import { nomElement } from "../../modele/fabriques";
 import type { ElementPage, ElementVideo, Ressource } from "../../modele/types";
 import { ondeVideo, type Onde } from "../../pont/tauri";
@@ -98,15 +99,25 @@ interface ProprietesClip {
   hauteur: number;
   choisi: boolean;
   ressource?: Ressource;
+  /** Piste principale : le clip chevauche le précédent pendant ces ms (transition). */
+  chevauchement?: number;
   surCorps: (e: React.PointerEvent<HTMLDivElement>, el: ElementPage) => void;
   surBord: (e: React.PointerEvent<HTMLDivElement>, el: ElementPage, cote: "debut" | "fin") => void;
+  /** Le bord de la zone d'une animation d'entrée ou de sortie, qu'on tire pour sa durée. */
+  surAnimation: (e: React.PointerEvent<HTMLDivElement>, el: ElementPage, genre: "entree" | "sortie") => void;
+  /** Une image clé (ms depuis le début du clip), qu'on clique ou qu'on glisse. */
+  surCle: (e: React.PointerEvent<HTMLDivElement>, el: ElementPage, t: number) => void;
 }
 
-export const Clip = memo(function Clip({ el, echelle, hauteur, choisi, ressource, surCorps, surBord }: ProprietesClip) {
+const HACHURES = "repeating-linear-gradient(135deg, rgba(255,255,255,0.4) 0 4px, rgba(255,255,255,0.05) 4px 8px)";
+
+export const Clip = memo(function Clip({ el, echelle, hauteur, choisi, ressource, chevauchement = 0, surCorps, surBord, surAnimation, surCle }: ProprietesClip) {
   if (!el.temps) return null;
   const gauche = el.temps.debut * echelle;
-  const largeur = Math.max(2, (el.temps.fin - el.temps.debut) * echelle);
-  const secondes = ((el.temps.fin - el.temps.debut) / 1000).toFixed(1).replace(".", ",");
+  const longueur = el.temps.fin - el.temps.debut;
+  const largeur = Math.max(2, longueur * echelle);
+  const secondes = (longueur / 1000).toFixed(1).replace(".", ",");
+  const { entree, sortie } = dureesEntreeSortie(el);
   return (
     <div
       data-clip={el.id}
@@ -117,9 +128,22 @@ export const Clip = memo(function Clip({ el, echelle, hauteur, choisi, ressource
     >
       {el.type === "video" && ressource?.video && <BandeVignettes el={el} ressource={ressource} largeur={largeur} hauteur={hauteur - 8} />}
       {el.type === "video" && ressource?.video && <FormeOnde el={el} ressource={ressource} largeur={largeur} />}
-      <span className="relative flex items-center gap-1 truncate px-1.5 pt-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+      {chevauchement > 0 && <div data-chevauchement className="pointer-events-none absolute top-0 left-0 h-full" style={{ width: chevauchement * echelle, background: HACHURES }} />}
+      {/* Les animations d'entrée et de sortie : une zone claire, dont le bord intérieur se tire. */}
+      {el.animations?.entree && entree > 0 && (
+        <div data-zone-animation="entree" className="pointer-events-none absolute top-0 left-0 h-full border-r border-dashed border-white/80 bg-white/25" style={{ width: entree * echelle }}>
+          {!el.verrouille && <div data-poignee-animation="entree" title="Tirer pour changer la durée de l'entrée" onPointerDown={(e) => surAnimation(e, el, "entree")} className="pointer-events-auto absolute top-0 -right-1.5 z-10 h-full w-3 cursor-ew-resize" />}
+        </div>
+      )}
+      {el.animations?.sortie && sortie > 0 && (
+        <div data-zone-animation="sortie" className="pointer-events-none absolute top-0 right-0 h-full border-l border-dashed border-white/80 bg-white/25" style={{ width: sortie * echelle }}>
+          {!el.verrouille && <div data-poignee-animation="sortie" title="Tirer pour changer la durée de la sortie" onPointerDown={(e) => surAnimation(e, el, "sortie")} className="pointer-events-auto absolute top-0 -left-1.5 z-10 h-full w-3 cursor-ew-resize" />}
+        </div>
+      )}
+      <span className="pointer-events-none relative flex items-center gap-1 truncate px-1.5 pt-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
         <Icone el={el} />
         <span className="truncate">{nomElement(el)}</span>
+        {el.animations?.boucle && <Repeat size={11} className="shrink-0" aria-label="Animation en boucle" />}
         {largeur > 90 && <span className="ml-auto shrink-0 text-white/75 tabular-nums">{secondes} s</span>}
       </span>
       {!el.verrouille && (
@@ -128,6 +152,19 @@ export const Clip = memo(function Clip({ el, echelle, hauteur, choisi, ressource
           <div data-bord="fin" onPointerDown={(e) => surBord(e, el, "fin")} className="absolute top-0 right-0 h-full w-2 cursor-ew-resize bg-white/0 hover:bg-white/40" />
         </>
       )}
+      {/* Les images clés, en losanges au bas du clip. */}
+      {el.cles
+        ?.filter((c) => c.t >= 0 && c.t <= longueur)
+        .map((c) => (
+          <div
+            key={c.t}
+            data-cle={c.t}
+            title={`Image clé à ${(c.t / 1000).toFixed(2).replace(".", ",")} s du début du clip`}
+            onPointerDown={(e) => surCle(e, el, c.t)}
+            className="absolute bottom-1 z-10 h-2.5 w-2.5 -translate-x-1/2 rotate-45 cursor-pointer rounded-[1px] border border-black/60 bg-amber-300 hover:bg-amber-100"
+            style={{ left: c.t * echelle }}
+          />
+        ))}
     </div>
   );
 });

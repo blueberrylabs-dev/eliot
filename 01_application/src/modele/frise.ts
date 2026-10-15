@@ -7,8 +7,9 @@
 // même piste. L'ordre d'empilement découle des pistes : le tableau `elements` est trié par
 // piste, une piste plus haute passe devant.
 
+import { couperCles, decalerCles } from "./animation";
 import { dureeJouee } from "./fabriques";
-import type { ElementPage, ElementVideo, PageEliot, Temps } from "./types";
+import type { Animations, ElementPage, ElementVideo, PageEliot, Temps } from "./types";
 
 export const PISTE_PRINCIPALE = 0;
 /** Durée d'un texte, d'une forme ou d'une photo posés sur la frise. */
@@ -79,14 +80,24 @@ export function normaliser(page: PageEliot, durees: Durees): PageEliot {
   const plusHaute = Math.max(0, ...clips.filter((c) => Number.isFinite(c.piste)).map((c) => c.piste));
   clips = clips.map((c) => (Number.isFinite(c.piste) ? c : { ...c, piste: plusHaute + 1 }));
 
-  // 2. La piste principale : bout à bout depuis 0, dans l'ordre de leurs débuts.
+  // 2. La piste principale : bout à bout depuis 0, dans l'ordre de leurs débuts. Un clip qui
+  //    entre par une transition chevauche le précédent pendant sa durée (la moitié du plus
+  //    court des deux au plus) : la page raccourcit d'autant, comme dans CapCut.
   const principale = clips.filter((c) => c.piste === PISTE_PRINCIPALE).sort((a, b) => a.debut - b.debut || a.rang - b.rang);
   let curseur = 0;
+  let precedent: (typeof clips)[number] | null = null;
+  const avecTransition = new Set<ElementPage>();
   for (const c of principale) {
     const longueur = c.fin - c.debut;
-    c.debut = curseur;
-    c.fin = curseur + longueur;
+    let chevauchement = 0;
+    if (precedent && c.e.transition) {
+      chevauchement = Math.max(0, Math.round(Math.min(c.e.transition.duree, longueur / 2, (precedent.fin - precedent.debut) / 2)));
+      if (chevauchement > 0) avecTransition.add(c.e);
+    }
+    c.debut = curseur - chevauchement;
+    c.fin = c.debut + longueur;
     curseur = c.fin;
+    precedent = c;
   }
 
   // 3. Les superpositions : un clip qui en chevauche un autre de sa piste monte d'un cran,
@@ -122,8 +133,14 @@ export function normaliser(page: PageEliot, durees: Durees): PageEliot {
 
   let change = duree !== page.duree;
   const elements = clips.map((c, i) => {
-    const e = c.e;
+    let e = c.e;
     if (page.elements[i] !== e) change = true;
+    // Une transition n'existe qu'entre deux clips de la piste principale.
+    if (e.transition && !avecTransition.has(e)) {
+      const { transition: _t, ...sans } = e;
+      e = sans as ElementPage;
+      change = true;
+    }
     if (e.piste === c.piste && e.temps?.debut === c.debut && e.temps?.fin === c.fin) return e;
     change = true;
     return { ...e, piste: c.piste, temps: { debut: c.debut, fin: c.fin } } as ElementPage;
@@ -160,10 +177,8 @@ export function versFixe(page: PageEliot): PageEliot {
   };
 }
 
-/** Les bords des clips de la piste principale, du début à la fin. */
-function bordsPrincipale(p: PageEliot): number[] {
-  return [0, ...p.elements.filter((e) => e.piste === PISTE_PRINCIPALE && e.temps).map((e) => e.temps!.fin)].sort((a, b) => a - b);
-}
+/** Les clips de la piste principale, dans l'ordre. */
+const clipsPrincipale = (p: PageEliot): ElementPage[] => p.elements.filter((e) => e.piste === PISTE_PRINCIPALE && e.temps).sort((a, b) => a.temps!.debut - b.temps!.debut);
 
 /**
  * Pose sur la frise des éléments neufs (sans `temps`), à la tête de lecture `tete` :
@@ -186,11 +201,12 @@ export function placer(page: PageEliot, nouveaux: ElementPage[], tete: number, d
     }
     const longueur = e.type === "video" ? dureeClip(e, durees) : DUREE_CLIP;
     if (e.type === "video" && (principaleOccupee() || pageSansRien)) {
-      // Le bord qui suit la tête (ou la fin) ; le clip passe juste avant ce bord.
-      const bords = bordsPrincipale({ ...page, elements });
-      const fin = bords[bords.length - 1];
-      const bord = tete > 0 && tete < fin ? bords.find((b) => b > tete)! : fin;
-      elements.push({ ...e, piste: PISTE_PRINCIPALE, temps: { debut: bord - 0.5, fin: bord - 0.5 + longueur } } as ElementPage);
+      // Juste après le clip sous la tête (le dernier qui a commencé), ou au bout de la suite.
+      const suite = clipsPrincipale({ ...page, elements });
+      const fin = Math.max(0, ...suite.map((x) => x.temps!.fin));
+      const sous = tete > 0 && tete < fin ? [...suite].reverse().find((x) => x.temps!.debut <= tete) : undefined;
+      const debut = sous ? sous.temps!.debut + 0.5 : 1e12;
+      elements.push({ ...e, piste: PISTE_PRINCIPALE, temps: { debut, fin: debut + longueur } } as ElementPage);
       // Les clips qui suivent glissent d'autant : la normalisation les remet bout à bout.
       elements = normaliser({ ...page, elements }, durees).elements;
       continue;
@@ -264,13 +280,16 @@ export function rogner(page: PageEliot, id: string, cote: "debut" | "fin", t: nu
       temps = { debut, fin: arrondi(debut + (nouvelle - coupeDebut) / v) };
     }
     const sansCoupe = coupe.debut === 0 && coupe.fin === undefined;
-    const elements = page.elements.map((x) => (x.id === id ? ({ ...x, coupe: sansCoupe ? undefined : coupe, temps } as ElementPage) : x));
+    // Les images clés restent sur le même moment de la vidéo.
+    const cles = cote === "debut" && e.cles ? { cles: decalerCles(e.cles, (coupe.debut - coupeDebut) / v) } : {};
+    const elements = page.elements.map((x) => (x.id === id ? ({ ...x, coupe: sansCoupe ? undefined : coupe, temps, ...cles } as ElementPage) : x));
     return normaliser({ ...page, elements }, durees);
   }
   const temps = cote === "debut" ? { debut: Math.min(cible, fin - DUREE_MIN), fin } : { debut, fin: Math.max(cible, debut + DUREE_MIN) };
   // Sur la piste principale, rogner le début raccourcit le clip (il garde sa place).
   const tempsFinal = e.piste === PISTE_PRINCIPALE && cote === "debut" ? { debut, fin: debut + (fin - temps.debut) } : temps;
-  const elements = page.elements.map((x) => (x.id === id ? ({ ...x, temps: tempsFinal } as ElementPage) : x));
+  const cles = cote === "debut" && e.cles ? { cles: decalerCles(e.cles, temps.debut - debut) } : {};
+  const elements = page.elements.map((x) => (x.id === id ? ({ ...x, temps: tempsFinal, ...cles } as ElementPage) : x));
   return normaliser({ ...page, elements }, durees);
 }
 
@@ -282,18 +301,31 @@ export function rogner(page: PageEliot, id: string, cote: "debut" | "fin", t: nu
 export function scinder(page: PageEliot, ids: string[], t: number, durees: Durees, nouvelId: () => string): { page: PageEliot; nouveaux: string[] } {
   const nouveaux: string[] = [];
   const instant = arrondi(t);
+  // Pendant une transition, deux clips de la piste principale se voient : on n'y coupe pas.
+  const enTransition = (e: ElementPage) => e.piste === PISTE_PRINCIPALE && page.elements.some((x) => x !== e && x.piste === PISTE_PRINCIPALE && visibleA(x, instant));
   const elements = page.elements.flatMap((e) => {
-    if (!ids.includes(e.id) || !e.temps || instant - e.temps.debut < DUREE_MIN || e.temps.fin - instant < DUREE_MIN) return [e];
+    if (!ids.includes(e.id) || !e.temps || instant - e.temps.debut < DUREE_MIN || e.temps.fin - instant < DUREE_MIN || enTransition(e)) return [e];
     const id = nouvelId();
     nouveaux.push(id);
-    const premier = { ...e, temps: { debut: e.temps.debut, fin: instant } } as ElementPage;
-    const second = { ...e, id, temps: { debut: instant, fin: e.temps.fin } } as ElementPage;
+    // La première moitié garde l'entrée et la transition, la seconde la sortie ; les deux
+    // gardent la boucle, et les images clés se partagent au bord.
+    const { avant, apres } = couperCles(e, instant - e.temps.debut);
+    const { animations, cles: _c, transition, ...reste } = e;
+    const garder = (a: Animations) => {
+      const propre = Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));
+      return Object.keys(propre).length ? { animations: propre as Animations } : {};
+    };
+    const premier = { ...reste, temps: { debut: e.temps.debut, fin: instant }, ...garder({ entree: animations?.entree, boucle: animations?.boucle }), ...(avant ? { cles: avant } : {}), ...(transition ? { transition } : {}) } as ElementPage;
+    const second = { ...reste, id, temps: { debut: instant, fin: e.temps.fin }, ...garder({ sortie: animations?.sortie, boucle: animations?.boucle }), ...(apres ? { cles: apres } : {}) } as ElementPage;
     if (e.type === "video") {
       const v = e.vitesse ?? 1;
       const coupeDebut = e.coupe?.debut ?? 0;
       const milieu = arrondi(coupeDebut + (instant - e.temps.debut) * v);
       (premier as ElementVideo).coupe = { debut: coupeDebut, fin: milieu };
       (second as ElementVideo).coupe = { debut: milieu, ...(e.coupe?.fin !== undefined ? { fin: e.coupe.fin } : {}) };
+      // Le son monte au début de la première moitié et baisse à la fin de la seconde.
+      delete (premier as ElementVideo).fonduSortie;
+      delete (second as ElementVideo).fonduEntree;
     }
     return [premier, second];
   });
@@ -315,7 +347,10 @@ export function dupliquerDansLeTemps(page: PageEliot, originaux: ElementPage[], 
       return;
     }
     const longueur = o.temps.fin - o.temps.debut;
-    const temps = { debut: o.piste === PISTE_PRINCIPALE ? o.temps.fin - 0.5 : o.temps.fin, fin: o.temps.fin + longueur };
+    // Sur la piste principale, la copie se range juste après l'original (même si le suivant le
+    // chevauche par une transition).
+    const debut = o.piste === PISTE_PRINCIPALE ? o.temps.debut + 0.5 : o.temps.fin;
+    const temps = { debut, fin: debut + longueur };
     let piste = o.piste ?? 1;
     if (piste > PISTE_PRINCIPALE && elements.some((x) => x.piste === piste && x.temps && chevauche(x.temps, temps))) piste += 0.5;
     elements.push({ ...c, x: o.x, y: o.y, piste, temps } as ElementPage);

@@ -235,8 +235,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       vidéo se voit dans son clip. Vérifié : noyau 42, interface 84, Chromium (frise 38, vidéo
       41, suites des étapes 2 et 3), Tauri par le pont (frise 21 dont la lecture et les
       vignettes à l'écran, vidéo 25, suites 3a à 3f). Reste l'essai d'Alexandre.
-- [ ] Lot 3 : l'animation : textes animés (entrée, sortie, boucle), styles de texte vidéo,
+- [x] Lot 3 : l'animation : textes animés (entrée, sortie, boucle), styles de texte vidéo,
       images clés, transitions entre clips, vitesse, fondus, texte qui entre par lignes.
+      Livré le 2026-10-15 : formules en fonctions pures (`modele/animation.ts`) et tableau de
+      valeurs attendues commun avec le Rust du lot 4 (`animation.attendus.json`, 550 cas) ;
+      bouton Animer (15 entrées, 15 sorties dont 4 par morceaux de texte, 8 boucles, aperçu au
+      survol) ; zones des animations dans la frise, dont on tire le bord ; images clés (losange
+      de la frise, gestes sur la page, clé précédente et suivante) ; transitions entre deux
+      clips de la piste principale (bouton entre les clips, chevauchement) ; fondus du son ;
+      8 styles de texte pour la vidéo ; trois outils de plus pour le pont IA (53 en tout). La
+      vitesse d'un clip était déjà là (lot 1). Vérifié : interface 103, Chromium (animation
+      44, suites d'avant), Tauri par le pont (animation 16 dont la lecture à l'écran, suites
+      d'avant). Reste l'essai d'Alexandre.
 - [ ] Lot 4 : l'export MP4 et GIF par le Rust (calques en SVG, `resvg`, `ffmpeg`), barre de
       progression et annulation, réglages par plateforme (valeurs vérifiées le jour même),
       zones sûres TikTok, Reels et Shorts, comparaison au pixel entre l'écran et l'export.

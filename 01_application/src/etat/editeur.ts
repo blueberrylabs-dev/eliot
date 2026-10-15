@@ -12,6 +12,8 @@ import { recalerPersonnage } from "../modele/personnages";
 import { catalogueConnu } from "../bibliotheque/personnages";
 import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
 import { deplacerClip, dupliquerDansLeTemps, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, rogner, scinder, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
+import { cleProche, deplacerCle, DUREE_TRANSITION, poseA, poserCle, retirerCle, type GenreAnimation, type Pose } from "../modele/animation";
+import type { Animation, Transition } from "../modele/types";
 import { useTemps } from "./temps";
 
 const LIMITE_HISTORIQUE = 100;
@@ -37,19 +39,19 @@ interface Instantane {
 
 /** Propriétés recopiées par « Copier le style », selon le type de l'objet source. */
 const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
-  texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre"],
-  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre"],
-  image: ["arrondi", "bordure", "opacite", "ombre"],
-  video: ["arrondi", "bordure", "opacite", "ombre"],
-  icone: ["couleur", "trait", "opacite", "ombre"],
-  emoji: ["opacite", "ombre"],
-  personnage: ["couleurs", "opacite", "ombre"],
-  qr: ["couleur", "fond", "opacite"],
-  cadre: ["forme", "bordure", "opacite", "ombre"],
-  maquette: ["couleur", "opacite", "ombre"],
-  dessin: ["couleur", "epaisseur", "opacite", "ombre"],
-  graphique: ["police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "opacite", "ombre"],
-  tableau: ["police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "opacite", "ombre"],
+  texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre", "animations"],
+  forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre", "animations"],
+  image: ["arrondi", "bordure", "opacite", "ombre", "animations"],
+  video: ["arrondi", "bordure", "opacite", "ombre", "animations"],
+  icone: ["couleur", "trait", "opacite", "ombre", "animations"],
+  emoji: ["opacite", "ombre", "animations"],
+  personnage: ["couleurs", "opacite", "ombre", "animations"],
+  qr: ["couleur", "fond", "opacite", "animations"],
+  cadre: ["forme", "bordure", "opacite", "ombre", "animations"],
+  maquette: ["couleur", "opacite", "ombre", "animations"],
+  dessin: ["couleur", "epaisseur", "opacite", "ombre", "animations"],
+  graphique: ["police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "opacite", "ombre", "animations"],
+  tableau: ["police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "opacite", "ombre", "animations"],
 };
 
 export interface StyleCopie {
@@ -159,6 +161,19 @@ interface EtatEditeur {
   rognerClip: (id: string, cote: "debut" | "fin", t: number) => void;
   /** Coupe à la tête de lecture les clips choisis (sinon celui de la piste principale). */
   scinderALaTete: () => void;
+  /** Les animations d'entrée, de sortie ou en boucle des éléments ; `null` en retire une. */
+  definirAnimations: (ids: string[], genre: GenreAnimation, animation: Animation | null) => void;
+  /** Change la pose des éléments à la tête de lecture : une image clé quand l'élément en a
+   *  (posée ou reprise à cet instant), sinon l'élément lui-même. */
+  modifierPose: (modifs: Record<string, Partial<Pose>>, etiquette?: string) => void;
+  /** Pose une image clé à la tête de lecture, ou retire celle qui y est déjà. */
+  basculerCle: (id: string) => void;
+  /** Déplace une image clé (ms depuis le début du clip). */
+  deplacerCle: (id: string, de: number, vers: number) => void;
+  /** Retire toutes les images clés d'un élément. */
+  effacerCles: (id: string) => void;
+  /** La transition par laquelle un clip de la piste principale entre ; `null` la retire. */
+  definirTransition: (id: string, transition: Transition | null) => void;
   notifier: (texte: string, options?: { erreur?: boolean; chemin?: string }) => void;
   fermerNotification: () => void;
   definirZoom: (zoom: number | null) => void;
@@ -177,6 +192,10 @@ export function pageDe(document: DocumentEliot, id: string): PageEliot {
 
 export const pageCourante = (etat: Pick<EtatEditeur, "document" | "pageActive">) => pageDe(etat.document, etat.pageActive);
 export const elementsCourants = (etat: Pick<EtatEditeur, "document" | "pageActive">) => pageCourante(etat).elements;
+
+/** L'élément a-t-il des images clés, et la tête de lecture est-elle sur son clip ? Ses gestes
+ *  posent alors des clés au lieu de le changer lui-même. */
+export const clesActives = (e: ElementPage, tete = useTemps.getState().tete): boolean => !!e.cles?.length && !!e.temps && visibleA(e, tete);
 
 /** Les éléments sélectionnés, dans l'ordre d'empilement. */
 export const elementsSelectionnes = (etat: Pick<EtatEditeur, "document" | "pageActive" | "selection">) =>
@@ -519,9 +538,15 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   deplacerSelection(dx, dy) {
-    const modifs: Record<string, Partial<ElementPage>> = {};
-    for (const e of elementsSelectionnes(get())) if (!e.verrouille) modifs[e.id] = { x: e.x + dx, y: e.y + dy };
-    get().modifierElements(modifs, "fleches");
+    const tete = useTemps.getState().tete;
+    const poses: Record<string, Partial<Pose>> = {};
+    for (const e of elementsSelectionnes(get())) {
+      if (e.verrouille) continue;
+      // Un élément à images clés bouge depuis sa pose de l'instant.
+      const p = clesActives(e, tete) ? poseA(e, tete - e.temps!.debut) : e;
+      poses[e.id] = { x: p.x + dx, y: p.y + dy };
+    }
+    get().modifierPose(poses, "fleches");
   },
 
   basculerVerrou() {
@@ -796,6 +821,67 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     });
     // La sélection passe sur les secondes moitiés, comme dans CapCut.
     if (nouveaux.length) set({ selection: nouveaux });
+  },
+
+  definirAnimations(ids, genre, animation) {
+    const choisis = new Set(ids);
+    get().appliquerPage((p) => {
+      let change = false;
+      const elements = p.elements.map((e) => {
+        if (!choisis.has(e.id) || !e.temps) return e;
+        const animations = { ...e.animations };
+        if (animation) animations[genre] = animation;
+        else delete animations[genre];
+        change = true;
+        const { animations: _a, ...sans } = e;
+        return (Object.keys(animations).length ? { ...e, animations } : sans) as ElementPage;
+      });
+      return change ? { ...p, elements } : p;
+    }, `animations:${genre}:${ids.join(",")}`);
+  },
+
+  modifierPose(modifs, etiquette) {
+    const tete = useTemps.getState().tete;
+    const elements = parId(elementsCourants(get()));
+    const directes: Record<string, Partial<ElementPage>> = {};
+    for (const [id, m] of Object.entries(modifs)) {
+      const e = elements.get(id);
+      if (!e) continue;
+      if (clesActives(e, tete)) directes[id] = { cles: poserCle(e, tete - e.temps!.debut, m) };
+      else {
+        const { echelle: _e, ...reste } = m;
+        directes[id] = reste;
+      }
+    }
+    get().modifierElements(directes, etiquette);
+  },
+
+  basculerCle(id) {
+    const e = parId(elementsCourants(get())).get(id);
+    const tete = useTemps.getState().tete;
+    if (!e?.temps || !visibleA(e, tete)) return;
+    const tr = tete - e.temps.debut;
+    get().modifierElements({ [id]: { cles: cleProche(e, tr) ? retirerCle(e, tr) : poserCle(e, tr) } });
+  },
+
+  deplacerCle(id, de, vers) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (!e?.cles) return;
+    get().modifierElements({ [id]: { cles: deplacerCle(e, de, vers) } });
+  },
+
+  effacerCles(id) {
+    get().modifierElements({ [id]: { cles: undefined } });
+  },
+
+  definirTransition(id, transition) {
+    // Au plus la moitié du plus court des deux clips (le chevauchement ne peut pas davantage).
+    const principale = elementsCourants(get()).filter((e) => e.piste === PISTE_PRINCIPALE && e.temps).sort((a, b) => a.temps!.debut - b.temps!.debut);
+    const i = principale.findIndex((e) => e.id === id);
+    const longueur = (e: ElementPage | undefined) => (e?.temps ? e.temps.fin - e.temps.debut : 0);
+    const max = Math.floor(Math.min(longueur(principale[i]), longueur(principale[i - 1])) / 2);
+    const duree = transition ? Math.max(100, Math.min(max, Math.round(transition.duree || DUREE_TRANSITION))) : 0;
+    get().modifierElements({ [id]: { transition: transition && i > 0 ? { nom: transition.nom, duree } : undefined } }, `transition:${id}`);
   },
 
   notifier(texte, options = {}) {

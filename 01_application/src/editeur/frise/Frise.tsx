@@ -4,13 +4,15 @@
 // la frise montre déjà le résultat (calculé par `modele/frise.ts`, comme au lâcher). Les bords
 // des clips et la tête aimantent.
 
-import { ChevronDown, ChevronUp, CopyPlus, Maximize2, Minus, Pause, Play, Plus, Scissors, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CopyPlus, Diamond, Maximize2, Minus, Pause, Play, Plus, Scissors, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PointeurReact } from "react";
-import { pageCourante, useEditeur } from "../../etat/editeur";
+import { elementsCourants, pageCourante, useEditeur } from "../../etat/editeur";
 import { HAUTEUR_FRISE_MIN, useTemps } from "../../etat/temps";
-import { aimanter, bordsDesClips, deplacerClip, pistesDe, PISTE_PRINCIPALE, rogner, tempsLisible, visibleA, type Durees } from "../../modele/frise";
+import { cleProche, deplacerCle, dureesEntreeSortie, TOLERANCE_CLE } from "../../modele/animation";
+import { aimanter, bordsDesClips, deplacerClip, DUREE_MIN, pistesDe, PISTE_PRINCIPALE, rogner, tempsLisible, visibleA, type Durees } from "../../modele/frise";
 import type { ElementPage, PageEliot } from "../../modele/types";
 import { Clip } from "./Clip";
+import { BoutonTransition } from "./Transitions";
 import "./horloge";
 
 const ENTETE = 76;
@@ -32,7 +34,70 @@ function debutAimante(brut: number, longueur: number, cibles: number[], seuil: n
 type Geste =
   | { genre: "deplacer"; id: string; x0: number; y0: number; debut0: number; piste0: number; actif: boolean }
   | { genre: "rogner"; id: string; cote: "debut" | "fin"; x0: number; bord0: number }
+  | { genre: "animation"; id: string; quoi: "entree" | "sortie"; x0: number; duree0: number }
+  | { genre: "cle"; id: string; x0: number; t0: number; actif: boolean }
   | { genre: "tete" };
+
+/** La durée d'une entrée ou d'une sortie tirée par le bord de sa zone : 0,1 s au moins, et
+ *  pas plus que ce que l'autre laisse du clip. */
+function dureeTiree(el: ElementPage, quoi: "entree" | "sortie", duree: number): number {
+  const longueur = el.temps!.fin - el.temps!.debut;
+  const autre = quoi === "entree" ? dureesEntreeSortie(el).sortie : dureesEntreeSortie(el).entree;
+  return Math.round(Math.max(DUREE_MIN, Math.min(longueur - autre, duree)));
+}
+
+/** La page avec une animation d'un élément changée (aperçu pendant le geste). */
+function avecAnimation(page: PageEliot, id: string, quoi: "entree" | "sortie", duree: number): PageEliot {
+  return { ...page, elements: page.elements.map((e) => (e.id === id && e.animations?.[quoi] ? ({ ...e, animations: { ...e.animations, [quoi]: { ...e.animations[quoi]!, duree } } } as ElementPage) : e)) };
+}
+
+/** Les boutons des images clés de l'élément choisi : précédente, poser ou retirer, suivante. */
+function BoutonsCles({ bouton }: { bouton: string }) {
+  const el = useEditeur((s) => (s.selection.length === 1 ? elementsCourants(s).find((e) => e.id === s.selection[0]) : undefined));
+  // Un seul texte décrit l'état : la barre ne se redessine que quand il change.
+  const etat = useTemps((s) => {
+    if (!el?.temps) return "aucun";
+    const absolues = (el.cles ?? []).map((c) => el.temps!.debut + c.t);
+    const precedente = absolues.some((t) => t < s.tete - TOLERANCE_CLE) ? "p" : "";
+    const suivante = absolues.some((t) => t > s.tete + TOLERANCE_CLE) ? "s" : "";
+    const ici = !visibleA(el, s.tete) ? "hors" : cleProche(el, s.tete - el.temps.debut) ? "sur" : "dans";
+    return `${ici}${precedente}${suivante}`;
+  });
+  const aller = (sens: 1 | -1) => {
+    if (!el?.temps) return;
+    const tete = useTemps.getState().tete;
+    const absolues = (el.cles ?? []).map((c) => el.temps!.debut + c.t).sort((a, b) => a - b);
+    const cible = sens < 0 ? [...absolues].reverse().find((t) => t < tete - TOLERANCE_CLE) : absolues.find((t) => t > tete + TOLERANCE_CLE);
+    if (cible === undefined) return;
+    useTemps.getState().pause();
+    useTemps.getState().allerA(Math.max(el.temps.debut, Math.min(el.temps.fin - 1, cible)));
+  };
+  const sur = etat.startsWith("sur");
+  const actif = el && !etat.startsWith("hors") && !etat.startsWith("aucun");
+  return (
+    <>
+      <button className={bouton} title="Image clé précédente" disabled={!etat.includes("p")} onClick={() => aller(-1)}>
+        <ChevronLeft size={15} />
+      </button>
+      <button
+        data-bouton-cle
+        className={`${bouton} ${sur ? "text-amber-300" : ""}`}
+        title={!actif ? "Images clés : choisis un élément et place la tête de lecture sur son clip" : sur ? "Retirer l'image clé de la tête de lecture" : "Poser une image clé à la tête de lecture (la position, la taille, la rotation et l'opacité de cet instant)"}
+        disabled={!actif}
+        onClick={() => {
+          if (!el) return;
+          useTemps.getState().pause();
+          useEditeur.getState().basculerCle(el.id);
+        }}
+      >
+        <Diamond size={15} fill={sur ? "currentColor" : "none"} />
+      </button>
+      <button className={bouton} title="Image clé suivante" disabled={!etat.includes("s")} onClick={() => aller(1)}>
+        <ChevronRight size={15} />
+      </button>
+    </>
+  );
+}
 
 /** Les pas de graduation possibles, en secondes ; on prend le premier qui laisse 64 px. */
 const PAS = [0.1, 0.2, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
@@ -98,6 +163,8 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
       <button className={bouton} title="Supprimer (Suppr)" disabled={selection.length === 0} onClick={() => etat.supprimerSelection()}>
         <Trash2 size={16} />
       </button>
+      <span className="mx-1.5 h-5 w-px bg-white/15" />
+      <BoutonsCles bouton={bouton} />
       <span className="flex-1" />
       <button className={bouton} title="Dézoomer la frise (Ctrl + molette)" onClick={() => temps.definirZoom(zoomActuel / 1.5)}>
         <Minus size={16} />
@@ -209,6 +276,23 @@ export function Frise() {
     }
     const el = actuelle.elements.find((x) => x.id === g.id);
     if (!el?.temps) return;
+    if (g.genre === "animation") {
+      const brute = g.duree0 + ((e.clientX - g.x0) / echelle) * (g.quoi === "entree" ? 1 : -1);
+      const duree = dureeTiree(el, g.quoi, brute);
+      setApercu(avecAnimation(actuelle, g.id, g.quoi, duree));
+      // La page montre la fin de l'entrée (ou le début de la sortie).
+      useTemps.getState().allerA(g.quoi === "entree" ? el.temps.debut + duree : el.temps.fin - duree);
+      return;
+    }
+    if (g.genre === "cle") {
+      if (!g.actif && Math.abs(e.clientX - g.x0) < SEUIL_GESTE_PX) return;
+      g.actif = true;
+      const longueur = el.temps.fin - el.temps.debut;
+      const t = Math.round(Math.max(0, Math.min(longueur, g.t0 + (e.clientX - g.x0) / echelle)));
+      setApercu({ ...actuelle, elements: actuelle.elements.map((x) => (x.id === g.id ? ({ ...x, cles: deplacerCle(x, g.t0, t) } as ElementPage) : x)) });
+      useTemps.getState().allerA(el.temps.debut + Math.min(t, longueur - 1));
+      return;
+    }
     const seuil = AIMANT_PX / echelle;
     const cibles = [...bordsDesClips(actuelle, g.id), useTemps.getState().tete];
     if (g.genre === "deplacer") {
@@ -238,6 +322,19 @@ export function Frise() {
     const actuelle = pageCourante(etat);
     const el = actuelle.elements.find((x) => x.id === g.id);
     if (!el?.temps) return;
+    if (g.genre === "animation") {
+      const brute = g.duree0 + ((e.clientX - g.x0) / echelle) * (g.quoi === "entree" ? 1 : -1);
+      const a = el.animations?.[g.quoi];
+      if (a) etat.definirAnimations([g.id], g.quoi, { nom: a.nom, duree: dureeTiree(el, g.quoi, brute) });
+      return;
+    }
+    if (g.genre === "cle") {
+      if (!g.actif) return;
+      const longueur = el.temps.fin - el.temps.debut;
+      const t = Math.round(Math.max(0, Math.min(longueur, g.t0 + (e.clientX - g.x0) / echelle)));
+      if (t !== g.t0) etat.deplacerCle(g.id, g.t0, t);
+      return;
+    }
     if (g.genre === "deplacer") {
       if (!g.actif) {
         // Un simple clic : si le clip ne se voit pas à la tête, la tête va à son début, pour
@@ -280,6 +377,26 @@ export function Frise() {
     useTemps.getState().pause();
     useEditeur.getState().selectionnerSeul(el.id);
     commencer({ genre: "rogner", id: el.id, cote, x0: e.clientX, bord0: cote === "debut" ? el.temps.debut : el.temps.fin });
+  };
+
+  const surAnimation = (e: PointeurReact<HTMLDivElement>, el: ElementPage, quoi: "entree" | "sortie") => {
+    if (e.button !== 0 || !el.temps) return;
+    e.preventDefault();
+    e.stopPropagation();
+    useTemps.getState().pause();
+    useEditeur.getState().selectionnerSeul(el.id);
+    commencer({ genre: "animation", id: el.id, quoi, x0: e.clientX, duree0: quoi === "entree" ? dureesEntreeSortie(el).entree : dureesEntreeSortie(el).sortie });
+  };
+
+  /** Un losange : la tête y va (l'élément montre la pose de la clé) ; glissé, il déplace la clé. */
+  const surCle = (e: PointeurReact<HTMLDivElement>, el: ElementPage, t: number) => {
+    if (e.button !== 0 || !el.temps) return;
+    e.preventDefault();
+    e.stopPropagation();
+    useTemps.getState().pause();
+    useEditeur.getState().selectionnerSeul(el.id);
+    useTemps.getState().allerA(el.temps.debut + Math.min(t, el.temps.fin - el.temps.debut - 1));
+    if (!el.verrouille) commencer({ genre: "cle", id: el.id, x0: e.clientX, t0: t, actif: false });
   };
 
   /** Clic sur la règle ou sur un endroit vide : la tête y va, et suit le pointeur. */
@@ -339,9 +456,23 @@ export function Frise() {
                   >
                     {piste === PISTE_PRINCIPALE && vide && <span className="absolute top-1/2 left-3 -translate-y-1/2 text-xs text-zinc-500">Importe une vidéo ou une photo : elle se pose ici, bout à bout avec les suivantes.</span>}
                     {piste === PISTE_PRINCIPALE && !vide && clips.length === 0 && <span className="absolute top-1/2 left-3 -translate-y-1/2 text-xs text-zinc-500">Piste principale : glisse ici une vidéo ou une photo.</span>}
-                    {clips.map((el) => (
-                      <Clip key={el.id} el={el} echelle={echelle} hauteur={hauteur} choisi={selection.includes(el.id)} ressource={el.type === "video" || el.type === "image" ? ressources[el.ressource] : undefined} surCorps={surCorps} surBord={surBord} />
+                    {clips.map((el, i) => (
+                      <Clip
+                        key={el.id}
+                        el={el}
+                        echelle={echelle}
+                        hauteur={hauteur}
+                        choisi={selection.includes(el.id)}
+                        ressource={el.type === "video" || el.type === "image" ? ressources[el.ressource] : undefined}
+                        chevauchement={piste === PISTE_PRINCIPALE && i > 0 && el.temps && clips[i - 1].temps ? Math.max(0, clips[i - 1].temps!.fin - el.temps.debut) : 0}
+                        surCorps={surCorps}
+                        surBord={surBord}
+                        surAnimation={surAnimation}
+                        surCle={surCle}
+                      />
                     ))}
+                    {/* Entre deux clips de la piste principale : la transition. */}
+                    {piste === PISTE_PRINCIPALE && !apercu && clips.slice(1).map((b, i) => <BoutonTransition key={`t-${b.id}`} a={clips[i]} b={b} echelle={echelle} />)}
                   </div>
                 </div>
               );

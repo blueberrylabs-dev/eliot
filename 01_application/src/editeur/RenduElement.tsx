@@ -3,7 +3,7 @@
 // Le même rendu sert à la zone de travail, aux vignettes des pages et aux exports.
 
 import type Konva from "konva";
-import { memo, useMemo, useRef } from "react";
+import { memo, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
 import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } from "react-konva";
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
@@ -18,12 +18,81 @@ import { Dessin, Graphique, Tableau } from "./RenduDonnees";
 import { useLecteurVideo, useLecture } from "./videos";
 import { useTemps } from "../etat/temps";
 import { visibleA } from "../modele/frise";
+import { aDesUnites, contextesTransitions, ecrireFenetre, estAnime, etatAnime, etatUnite, lireFenetre, type Effet, type EtatAnime, type Pose, type Unites } from "../modele/animation";
+import { useEditeur } from "../etat/editeur";
+import { useApercuAnimation } from "./apercuAnimation";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
 function useDansLeTemps(el: ElementPage, instant?: number): boolean {
   const vivant = useTemps((s) => instant !== undefined || !el.temps || visibleA(el, s.tete));
   return instant !== undefined ? visibleA(el, instant) : vivant;
+}
+
+/**
+ * La pose et l'effet d'un élément animé à l'instant voulu (étape 4, lot 3) ; `null` pour un
+ * élément qui ne bouge pas. L'instant est celui de la tête de lecture, ou `instant` pour un rendu
+ * figé, ou celui de l'aperçu d'une animation qu'on vient de choisir. L'élément choisi dans
+ * l'éditeur, à l'arrêt, montre sa pose seule : on le déplace et on le règle tel qu'il est posé,
+ * les effets reprennent à la lecture.
+ */
+function useEtatAnime(el: ElementPage, instant: number | undefined, statique: boolean, transEntree: string | undefined, transSortie: string | undefined, sansEffets: boolean): EtatAnime | null {
+  const format = useEditeur((s) => s.document.format);
+  const ctx = useMemo(() => ({ format, transitionEntree: lireFenetre(transEntree), transitionSortie: lireFenetre(transSortie) }), [format, transEntree, transSortie]);
+  const anime = estAnime(el, ctx);
+  const vivant = anime && instant === undefined;
+  const tete = useTemps((s) => (vivant ? s.tete : 0));
+  const joue = useTemps((s) => vivant && s.joue);
+  const apercu = useApercuAnimation((s) => (!statique && s.id === el.id ? s : null));
+  const choisi = useEditeur((s) => anime && !statique && s.selection.includes(el.id));
+  if (apercu?.essai && el.temps) {
+    // Une animation essayée : l'élément la joue seul, comme si elle était posée.
+    const animations = { ...el.animations };
+    if (apercu.essai.animation) animations[apercu.essai.genre] = apercu.essai.animation;
+    else delete animations[apercu.essai.genre];
+    return etatAnime({ ...el, animations }, apercu.t, ctx);
+  }
+  if (!anime) return null;
+  if (apercu) return etatAnime(el, apercu.t, ctx);
+  const t = instant ?? tete;
+  return etatAnime(el, t, ctx, sansEffets || (choisi && !joue));
+}
+
+/** Un décalage en pixels de la page, vu de l'intérieur de l'élément posé (tourné, agrandi). */
+function versLocal(dx: number, dy: number, pose: Pose) {
+  const a = (-pose.rotation * Math.PI) / 180;
+  return { x: (dx * Math.cos(a) - dy * Math.sin(a)) / pose.echelle, y: (dx * Math.sin(a) + dy * Math.cos(a)) / pose.echelle };
+}
+
+const LOIN = 1e5;
+
+/** Le tracé d'un volet, dans le repère de l'élément posé : une bande de la boîte (repère
+ *  « element ») ou de la page (repère « page »), ouverte en haut et en bas. */
+function traceVolet(effet: Effet, pose: Pose, l: number, h: number, format: { largeur: number; hauteur: number }) {
+  const v = effet.volet!;
+  if (v.repere === "element") {
+    const g = v.debut <= 0 ? -LOIN : v.debut * l;
+    const d = v.fin >= 1 ? LOIN : v.fin * l;
+    return (ctx: Konva.Context) => {
+      ctx.beginPath();
+      ctx.rect(g, -LOIN, Math.max(0, d - g), 2 * LOIN + h);
+      ctx.closePath();
+    };
+  }
+  const g = v.debut <= 0 ? -LOIN : v.debut * format.largeur;
+  const d = v.fin >= 1 ? LOIN : v.fin * format.largeur;
+  const coins = [
+    [g, -LOIN],
+    [d, -LOIN],
+    [d, LOIN],
+    [g, LOIN],
+  ].map(([x, y]) => versLocal(x - pose.x, y - pose.y, pose));
+  return (ctx: Konva.Context) => {
+    ctx.beginPath();
+    ctx.moveTo(coins[0].x, coins[0].y);
+    for (const c of coins.slice(1)) ctx.lineTo(c.x, c.y);
+    ctx.closePath();
+  };
 }
 
 /** Propriétés d'ombre Konva ; sans ombre, rien (Konva ne calcule alors aucune ombre). */
@@ -401,16 +470,84 @@ function CodeQr({ el }: { el: ElementQr }) {
   );
 }
 
-function Texte({ el, masque }: { el: ElementTexte; masque: boolean }) {
+const segmenteur = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter() : null;
+const nombreDeLettres = (s: string) => (segmenteur ? Array.from(segmenteur.segment(s)).length : Array.from(s).length);
+
+/**
+ * Le dessin lettre par lettre d'un texte qui entre ou sort par morceaux : Konva appelle cette
+ * fonction pour chaque lettre, dans l'ordre ; elle règle l'opacité, le décalage et l'échelle de
+ * la lettre d'après son morceau (lettre, mot ou ligne). Sans animation en cours, elle ne change
+ * rien : le texte garde le même dessin (lettres posées une à une) avant, pendant et après.
+ */
+function renduParMorceaux(noeud: RefObject<Konva.Text | null>, courant: RefObject<Unites | undefined>) {
+  let mot = -1;
+  let blancAvant = true;
+  let ligne = -1;
+  let totaux = { lettres: 0, mots: 0, lignes: 0 };
+  return (c: { char: string; index: number; x: number; y: number; lineIndex: number; width: number; context: Konva.Context }) => {
+    if (c.index === 0) {
+      mot = -1;
+      blancAvant = true;
+      ligne = -1;
+      const lignes = noeud.current?.textArr ?? [];
+      totaux = {
+        lettres: lignes.reduce((n, l) => n + nombreDeLettres(l.text), 0),
+        mots: lignes.reduce((n, l) => n + l.text.split(/\s+/).filter(Boolean).length, 0),
+        lignes: lignes.length,
+      };
+    }
+    const blanc = /\s/.test(c.char);
+    if (c.lineIndex !== ligne) {
+      ligne = c.lineIndex;
+      blancAvant = true;
+    }
+    if (!blanc && blancAvant) mot++;
+    blancAvant = blanc;
+    const u = courant.current;
+    if (!u) return;
+    const [i, n] = u.genre === "lignes" ? [c.lineIndex, totaux.lignes] : u.genre === "mots" ? [Math.max(0, mot), totaux.mots] : [c.index, totaux.lettres];
+    const e = etatUnite(u, i, n);
+    // Une lettre invisible part très loin : WebKit dessine parfois l'ombre d'un texte
+    // transparent.
+    if (e.opacite <= 0.001) {
+      c.context.translate(-LOIN, -LOIN);
+      return;
+    }
+    if (e.opacite < 1) c.context.setAttr("globalAlpha", (c.context as unknown as { _context: CanvasRenderingContext2D })._context.globalAlpha * e.opacite);
+    if (e.dyEm !== 0 || e.echelle !== 1) {
+      const taille = noeud.current?.fontSize() ?? 40;
+      const cx = c.x + c.width / 2;
+      const cy = c.y - taille * 0.35;
+      c.context.translate(cx, cy + e.dyEm * taille);
+      c.context.scale(e.echelle, e.echelle);
+      c.context.translate(-cx, -cy);
+    }
+  };
+}
+
+function Texte({ el, masque, unites }: { el: ElementTexte; masque: boolean; unites?: Unites }) {
   // Quand une police finit de se charger, le texte se recompose avec elle.
   const version = useVersionPolices();
   const decoration = [el.souligne ? "underline" : "", el.barre ? "line-through" : ""].filter(Boolean).join(" ");
   const s = el.surlignage;
+  const parMorceaux = aDesUnites(el);
+  const noeud = useRef<Konva.Text>(null);
+  const courant = useRef<Unites | undefined>(unites);
+  courant.current = unites;
+  const rendu = useMemo(() => (parMorceaux ? renduParMorceaux(noeud, courant) : undefined), [parMorceaux]);
+  // L'avancement change sans que Konva le sache : on redessine le calque.
+  useLayoutEffect(() => {
+    if (parMorceaux) noeud.current?.getLayer()?.batchDraw();
+  }, [parMorceaux, unites?.p, unites?.genre, unites?.sens]);
   return (
     <>
       {s && <Rect x={-s.marge} y={-s.marge} width={el.largeur + 2 * s.marge} height={el.hauteur + 2 * s.marge} cornerRadius={s.arrondi} fill={s.couleur} opacity={masque ? 0.4 : 1} perfectDrawEnabled={false} />}
       <Text
-        key={version}
+        ref={noeud}
+        // Dessiné lettre par lettre ou d'un bloc, un texte ne se mesure pas tout à fait pareil :
+        // il se recompose quand il gagne ou perd une animation par morceaux.
+        key={`${version}-${parMorceaux ? 1 : 0}`}
+        charRenderFunc={rendu}
         text={texteAffiche(el)}
         width={el.largeur}
         fontFamily={pilePolice(el.police)}
@@ -454,50 +591,106 @@ interface Proprietes {
   instant?: number;
   /** Rendu figé : l'image exacte d'une vidéo à cet instant, préparée par le rendu. */
   imageVideo?: CanvasImageSource;
+  /** Page vidéo, piste principale : la transition par laquelle le clip entre, et celle du
+   *  clip suivant, par laquelle il sort (écrites par `ecrireFenetre`). */
+  transEntree?: string;
+  transSortie?: string;
+  /** Rendu figé sans les effets d'animation, la pose seule (miniatures). */
+  sansEffets?: boolean;
 }
 
-export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null, anime = false, instant, imageVideo }: Proprietes) {
+export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null, anime = false, instant, imageVideo, transEntree, transSortie, sansEffets = false }: Proprietes) {
   const dansLeTemps = useDansLeTemps(el, instant);
+  const format = useEditeur((s) => s.document.format);
+  const etat = useEtatAnime(el, instant, statique, transEntree, transSortie, sansEffets);
+  const pose = etat?.pose;
+  const effet = etat?.effet;
+  const unites = el.type === "texte" ? effet?.unites : undefined;
+  // Le contenu ne se refait pas à chaque image d'une animation : seuls les groupes qui le
+  // portent bougent (un texte par morceaux suit son avancement).
+  const contenu = useMemo(
+    () => (
+      <>
+        {el.type === "texte" && <Texte el={el} masque={enEdition} unites={unites} />}
+        {el.type === "forme" && <Forme el={el} />}
+        {el.type === "image" && <Photo el={el} />}
+        {el.type === "video" && <Video el={el} statique={statique} anime={anime} image={imageVideo} />}
+        {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
+        {el.type === "personnage" && <Personnage el={el} />}
+        {el.type === "qr" && <CodeQr el={el} />}
+        {el.type === "cadre" && <Cadre el={el} statique={statique} ajustement={enAjustement} />}
+        {el.type === "maquette" && <Maquette el={el} statique={statique} ajustement={enAjustement} />}
+        {el.type === "dessin" && <Dessin el={el} />}
+        {el.type === "graphique" && <Graphique el={el} />}
+        {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
+      </>
+    ),
+    [el, enEdition, unites?.genre, unites?.sens, unites?.p, statique, anime, imageVideo, enAjustement, celluleMasquee],
+  );
+  // Sur une page vidéo, deux groupes de plus entre la boîte et le dessin : le volet (découpe)
+  // et l'effet (autour du centre). Ils sont toujours là, pour qu'une vidéo ne soit pas
+  // recréée quand une animation commence ou finit.
+  const l = el.largeur;
+  const h = el.hauteur;
+  const decalage = effet && pose ? versLocal(effet.dx, effet.dy, pose) : { x: 0, y: 0 };
+  const decoupe = effet?.volet && pose ? traceVolet(effet, pose, l, h, format) : undefined;
   return (
     <Group
       id={statique ? undefined : el.id}
       name={statique ? undefined : "element"}
-      x={el.x}
-      y={el.y}
-      rotation={el.rotation}
-      opacity={el.opacite}
+      x={pose?.x ?? el.x}
+      y={pose?.y ?? el.y}
+      rotation={pose?.rotation ?? el.rotation}
+      scaleX={pose?.echelle ?? 1}
+      scaleY={pose?.echelle ?? 1}
+      opacity={pose?.opacite ?? el.opacite}
       visible={el.visible && dansLeTemps}
       draggable={!statique && !fige && !el.verrouille && !enEdition && !enAjustement}
       listening={!statique}
       onDragEnd={statique ? undefined : rien}
     >
-      {el.type === "texte" && <Texte el={el} masque={enEdition} />}
-      {el.type === "forme" && <Forme el={el} />}
-      {el.type === "image" && <Photo el={el} />}
-      {el.type === "video" && <Video el={el} statique={statique} anime={anime} image={imageVideo} />}
-      {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
-      {el.type === "personnage" && <Personnage el={el} />}
-      {el.type === "qr" && <CodeQr el={el} />}
-      {el.type === "cadre" && <Cadre el={el} statique={statique} ajustement={enAjustement} />}
-      {el.type === "maquette" && <Maquette el={el} statique={statique} ajustement={enAjustement} />}
-      {el.type === "dessin" && <Dessin el={el} />}
-      {el.type === "graphique" && <Graphique el={el} />}
-      {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
+      {el.temps === undefined ? (
+        contenu
+      ) : (
+        <Group clipFunc={decoupe}>
+          <Group
+            x={l / 2 + decalage.x}
+            y={h / 2 + decalage.y}
+            offsetX={l / 2}
+            offsetY={h / 2}
+            scaleX={effet?.echelle ?? 1}
+            scaleY={effet?.echelle ?? 1}
+            rotation={effet?.rotation ?? 0}
+            opacity={effet?.opacite ?? 1}
+          >
+            {contenu}
+          </Group>
+        </Group>
+      )}
     </Group>
   );
 });
+
+/** Les transitions de la page, prêtes à passer à chaque élément. */
+export function useTransitions(elements: ElementPage[]): Map<string, { entree?: string; sortie?: string }> {
+  return useMemo(() => {
+    const brutes = contextesTransitions({ id: "", fond: "#000000", elements });
+    return new Map([...brutes].map(([id, c]) => [id, { entree: ecrireFenetre(c.entree), sortie: ecrireFenetre(c.sortie) }]));
+  }, [elements]);
+}
 
 /** Une page entière, figée, à sa taille native : fond puis éléments. `anime` : les vidéos
  *  jouent (aperçu plein écran ; sur une page vidéo, au rythme de la tête de lecture). Une
  *  page vidéo figée se montre à l'instant `instant` (0 par défaut), avec les images exactes
  *  de ses vidéos quand le rendu les a préparées (`imagesVideo`, par identifiant d'élément). */
-export const PageStatique = memo(function PageStatique({ page, format, anime = false, instant, imagesVideo }: { page: PageEliot; format: Format; anime?: boolean; instant?: number; imagesVideo?: Map<string, CanvasImageSource> }) {
+export const PageStatique = memo(function PageStatique({ page, format, anime = false, instant, imagesVideo, sansEffets = false }: { page: PageEliot; format: Format; anime?: boolean; instant?: number; imagesVideo?: Map<string, CanvasImageSource>; sansEffets?: boolean }) {
   const moment = anime || page.duree === undefined ? undefined : (instant ?? 0);
+  const transitions = useTransitions(page.elements);
   return (
     <>
       <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(page.fond, format.largeur, format.hauteur)} listening={false} />
       {page.elements.map((el) => (
-        <RenduElement key={el.id} el={el} statique anime={anime} instant={moment} imageVideo={imagesVideo?.get(el.id)} />
+        <RenduElement key={el.id} el={el} statique anime={anime} instant={moment} imageVideo={imagesVideo?.get(el.id)} transEntree={transitions.get(el.id)?.entree} transSortie={transitions.get(el.id)?.sortie} sansEffets={sansEffets} />
       ))}
     </>
   );

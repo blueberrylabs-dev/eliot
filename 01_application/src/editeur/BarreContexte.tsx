@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
+import { clesActives, elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
 import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
@@ -49,13 +49,17 @@ import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementG
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
-import { variantesPossibles } from "../polices";
+import { assurerPolice, variantesPossibles } from "../polices";
+import { modificationsStyle, STYLES_VIDEO } from "../modele/stylesVideo";
 import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 import { ReglagesPersonnage } from "./ReglagesPersonnage";
 import { ReglagesVideo } from "./ReglagesVideo";
+import { ReglagesAnimation } from "./ReglagesAnimation";
+import { useTemps } from "../etat/temps";
+import { poseA } from "../modele/animation";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -221,6 +225,18 @@ function EffetsTexte({ t, modifier }: { t: ElementTexte; modifier: (m: Partial<E
   ];
   return (
     <Bulle titre="Effets" largeur={280} bouton={<><Sparkles size={16} /><span className="text-sm">Effets</span></>}>
+      {t.temps && (
+        <>
+          <p className="mb-1 text-xs font-medium text-neutral-700">Styles pour la vidéo (police, couleurs, animations)</p>
+          <div className="mb-3 grid grid-cols-2 gap-1">
+            {STYLES_VIDEO.map((s) => (
+              <button key={s.id} data-appliquer-style={s.id} onClick={() => void assurerPolice(s.police, true, false).then(() => modifier(modificationsStyle(t, s)))} className="rounded-md border border-neutral-200 py-1.5 text-[11px] text-neutral-700 hover:border-accent-500 hover:bg-accent-50">
+                {s.libelle}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div className="mb-3 grid grid-cols-5 gap-1">
         {prereglages.map((p) => (
           <button key={p.nom} onClick={() => modifier(p.effet)} className="rounded-md border border-neutral-200 py-1.5 text-[11px] text-neutral-700 hover:border-accent-500 hover:bg-accent-50">
@@ -496,6 +512,32 @@ function ReglesBordure({ bordure, surChange }: { bordure: { couleur: string; epa
   );
 }
 
+/** L'opacité des éléments choisis ; un élément à images clés la change dans la clé de la tête
+ *  de lecture (et montre celle de cet instant). */
+function Opacite({ choisis }: { choisis: ElementPage[] }) {
+  const premier = choisis[0];
+  const tete = useTemps((s) => (premier.cles?.length ? s.tete : 0));
+  const valeur = clesActives(premier, tete) ? poseA(premier, tete - premier.temps!.debut).opacite : premier.opacite;
+  const etat = useEditeur.getState();
+  return (
+    <label className="block text-xs text-neutral-600">
+      <span className="mb-1 flex justify-between">
+        Opacité <span className="tabular-nums">{Math.round(valeur * 100)} %</span>
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.01}
+        value={valeur}
+        onChange={(e) => etat.modifierPose(Object.fromEntries(choisis.map((x) => [x.id, { opacite: Number(e.target.value) }])), `opacite:${choisis.map((x) => x.id).join(",")}`)}
+        className="w-full accent-accent-600"
+      />
+      {clesActives(premier, tete) && <span className="mt-1 block text-neutral-500">Image clé à la tête de lecture.</span>}
+    </label>
+  );
+}
+
 export function BarreContexte() {
   const choisis = useEditeur(useShallow(elementsSelectionnes));
   const etat = useEditeur.getState();
@@ -568,16 +610,14 @@ export function BarreContexte() {
       {choisis.length > 0 && (
         <>
           {separateur}
+          {choisis.every((e) => e.temps) && <ReglagesAnimation choisis={choisis} />}
           {textes.length === 0 && qrs.length === 0 && (
             <Bulle titre="Ombre" largeur={260} bouton={<span className="text-sm">Ombre</span>}>
               <ReglesOmbre ombre={choisis[0].ombre} etiquette="ombre" surChange={(o, e) => modifier({ ombre: o }, e)} />
             </Bulle>
           )}
           <Bulle titre="Transparence" bouton={<Blend size={16} />}>
-            <label className="block text-xs text-neutral-600">
-              <span className="mb-1 flex justify-between">Opacité <span className="tabular-nums">{Math.round(choisis[0].opacite * 100)} %</span></span>
-              <input type="range" min={0} max={1} step={0.01} value={choisis[0].opacite} onChange={(e) => modifier({ opacite: Number(e.target.value) }, "opacite")} className="w-full accent-accent-600" />
-            </label>
+            <Opacite choisis={choisis} />
           </Bulle>
           <ReglagePosition nombreBlocs={groupes.size} />
           {choisis.length > 1 && (

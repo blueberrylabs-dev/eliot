@@ -11,7 +11,7 @@ let depart = 0;
 let teteDepart = 0;
 let ecriture = false;
 
-function ecrire(etat: Partial<{ tete: number; joue: boolean }>) {
+function ecrire(etat: Partial<{ tete: number; joue: boolean; arret: number | null }>) {
   ecriture = true;
   useTemps.setState(etat);
   ecriture = false;
@@ -24,6 +24,12 @@ function boucle(maintenant: number) {
   }
   const duree = pageCourante(useEditeur.getState()).duree ?? 0;
   const t = teteDepart + (maintenant - depart);
+  const arret = useTemps.getState().arret;
+  if (arret !== null && t >= arret && arret < duree - 1) {
+    ecrire({ tete: arret, joue: false, arret: null });
+    image = 0;
+    return;
+  }
   if (t >= duree - 1) {
     // Arrêt sur la dernière image (au bout exact, plus rien ne se verrait).
     ecrire({ tete: Math.max(0, duree - 1), joue: false });

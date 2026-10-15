@@ -11,7 +11,8 @@
 import Konva from "konva";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Circle, Group, Layer, Rect, Stage, Transformer } from "react-konva";
-import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import { clesActives, elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
+import { poserCle } from "../modele/animation";
 import { estTrait, nouvelId } from "../modele/fabriques";
 import { deplacerRecadrage, ecranAppareil } from "../modele/cadres";
 import { creerTrait, distanceAuTrait, OUTILS_DESSIN } from "../modele/dessin";
@@ -23,7 +24,7 @@ import { EditeurCellule } from "./EditeurCellule";
 import { EditeurTexte } from "./EditeurTexte";
 import { MenuContextuel } from "./MenuContextuel";
 import { MiniBarre } from "./MiniBarre";
-import { RenduElement } from "./RenduElement";
+import { RenduElement, useTransitions } from "./RenduElement";
 import { aimanter, cibles, type Cibles } from "./reperes";
 import { deposerFichiers, deposerChemins } from "./depot";
 import { scene, signalerGeste } from "./scene";
@@ -139,6 +140,7 @@ export function ZoneDeTravail() {
     return () => observer.disconnect();
   }, []);
 
+  const transitions = useTransitions(elements);
   const { echelle, ox, oy, ajuste } = cadrer(taille, format, zoom, voulue);
   const transformationPage = { x: ox, y: oy, scaleX: echelle, scaleY: echelle };
   const cadrage = useRef({ echelle, ox, oy, ajuste });
@@ -274,9 +276,13 @@ export function ZoneDeTravail() {
   const verrou = selectionnes.some((e) => e.verrouille);
   // Un texte change de largeur par ses côtés ; une ligne ou une flèche ne s'étire qu'en
   // longueur ; une forme s'étire dans tous les sens ; le reste garde ses proportions.
+  // Un élément à images clés s'agrandit sans se déformer (son échelle va dans la clé).
+  const enCles = useTemps((s) => !!seul && clesActives(seul, s.tete));
   const poignees = verrou
     ? []
-    : seul?.type === "texte"
+    : enCles
+      ? COINS
+      : seul?.type === "texte"
       ? [...COINS, ...COTES_LATERAUX]
       : seul?.type === "forme"
         ? estTrait(seul.forme)
@@ -350,9 +356,17 @@ export function ZoneDeTravail() {
     const etat = useEditeur.getState();
     const parId = new Map(elementsCourants(etat).map((e) => [e.id, e]));
     const modifs: Record<string, Partial<ElementPage>> = {};
+    const tete = useTemps.getState().tete;
     for (const { n } of g.noeuds) {
       const el = parId.get(n.id());
       if (!el) continue;
+      // Un élément à images clés : le geste pose (ou reprend) la clé de cet instant. Le groupe
+      // garde son échelle, qui est celle de la clé.
+      if (clesActives(el, tete)) {
+        const pose = nature === "deplacer" ? { x: arrondir(n.x()), y: arrondir(n.y()) } : { x: arrondir(n.x()), y: arrondir(n.y()), rotation: arrondir(n.rotation()), echelle: Math.round(Math.abs(n.scaleX()) * 1000) / 1000 };
+        modifs[el.id] = { cles: poserCle(el, tete - el.temps!.debut, pose) };
+        continue;
+      }
       if (nature === "deplacer") {
         modifs[el.id] = { x: arrondir(n.x()), y: arrondir(n.y()) };
         continue;
@@ -435,7 +449,8 @@ export function ZoneDeTravail() {
       const parId = new Map(elementsCourants(useEditeur.getState()).map((el) => [el.id, el]));
       for (const n of tr.nodes() as Konva.Group[]) {
         const el = parId.get(n.id());
-        if (el?.type !== "texte" || ancre === "rotater") continue;
+        // Un texte à images clés s'agrandit d'un bloc : son échelle va dans la clé.
+        if (el?.type !== "texte" || ancre === "rotater" || clesActives(el)) continue;
         // Un texte ne se déforme pas : les côtés changent sa largeur (il se réenroule), les
         // coins changent sa taille de police.
         const t = n.findOne("Text") as Konva.Text;
@@ -752,7 +767,16 @@ export function ZoneDeTravail() {
           <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur}>
             <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(fond, format.largeur, format.hauteur)} />
             {elements.map((el) => (
-              <RenduElement key={el.id} el={el} enEdition={el.id === enEdition} enAjustement={el.id === enAjustement} fige={!!dessin} celluleMasquee={celluleEnEdition?.id === el.id ? celluleEnEdition : null} />
+              <RenduElement
+                key={el.id}
+                el={el}
+                enEdition={el.id === enEdition}
+                enAjustement={el.id === enAjustement}
+                fige={!!dessin}
+                celluleMasquee={celluleEnEdition?.id === el.id ? celluleEnEdition : null}
+                transEntree={transitions.get(el.id)?.entree}
+                transSortie={transitions.get(el.id)?.sortie}
+              />
             ))}
           </Group>
         </Layer>
@@ -766,7 +790,7 @@ export function ZoneDeTravail() {
             ref={transformerRef}
             enabledAnchors={poignees}
             rotateEnabled={!verrou}
-            keepRatio={seul?.type !== "forme" && seul?.type !== "cadre" && seul?.type !== "graphique" && seul?.type !== "tableau"}
+            keepRatio={enCles || (seul?.type !== "forme" && seul?.type !== "cadre" && seul?.type !== "graphique" && seul?.type !== "tableau")}
             rotationSnaps={PAS_ROTATION}
             rotationSnapTolerance={4}
             rotateAnchorAngle={180}

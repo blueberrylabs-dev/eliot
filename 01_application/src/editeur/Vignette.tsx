@@ -14,7 +14,7 @@ export const Vignette = memo(function Vignette({ page, format, largeur }: { page
       <Stage width={largeur} height={hauteur} listening={false}>
         <Layer listening={false}>
           <Group scaleX={echelle} scaleY={echelle}>
-            <PageStatique page={page} format={format} />
+            <PageStatique page={page} format={format} sansEffets />
           </Group>
         </Layer>
       </Stage>

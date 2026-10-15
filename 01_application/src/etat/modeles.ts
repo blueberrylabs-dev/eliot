@@ -45,7 +45,7 @@ export function vignetteModele(m: ModeleDepart, cote = 240): Promise<string> {
     promesse = (async () => {
       const f = formatDuModele(m);
       const page = { id: "vignette", ...(await instancier(m)) };
-      const blob = await rendrePage(page, f, { pixelRatio: cote / Math.max(f.largeur, f.hauteur), type: "image/png" });
+      const blob = await rendrePage(page, f, { pixelRatio: cote / Math.max(f.largeur, f.hauteur), type: "image/png", sansEffets: true });
       return URL.createObjectURL(blob);
     })();
     promesse.catch(() => vignettes.delete(cle));

@@ -30,7 +30,11 @@ interface EtatTemps {
   hauteurFrise: number;
   /** Frise repliée : seule sa barre reste. */
   repliee: boolean;
+  /** La lecture s'arrête d'elle-même à cet instant (aperçu d'une transition). */
+  arret: number | null;
   allerA: (t: number) => void;
+  /** Lit de `debut` à `fin`, puis s'arrête. */
+  lireJusqua: (debut: number, fin: number) => void;
   lire: () => void;
   pause: () => void;
   basculerLecture: () => void;
@@ -47,18 +51,24 @@ export const useTemps = create<EtatTemps>((set, get) => ({
   pxParSeconde: null,
   hauteurFrise: hauteurGardee(),
   repliee: false,
+  arret: null,
   allerA(t) {
     const tete = Math.max(0, Math.round(t));
     if (tete !== get().tete) set({ tete });
   },
+  lireJusqua(debut, fin) {
+    set({ joue: false, arret: null });
+    set({ tete: Math.max(0, Math.round(debut)) });
+    set({ joue: true, arret: Math.round(fin) });
+  },
   lire() {
-    if (!get().joue) set({ joue: true });
+    if (!get().joue) set({ joue: true, arret: null });
   },
   pause() {
-    if (get().joue) set({ joue: false });
+    if (get().joue) set({ joue: false, arret: null });
   },
   basculerLecture() {
-    set({ joue: !get().joue });
+    set({ joue: !get().joue, arret: null });
   },
   definirZoom(pxParSeconde) {
     set({ pxParSeconde: pxParSeconde === null ? null : Math.max(PX_PAR_SECONDE_MIN, Math.min(PX_PAR_SECONDE_MAX, pxParSeconde)) });
@@ -76,6 +86,6 @@ export const useTemps = create<EtatTemps>((set, get) => ({
     set({ repliee: !get().repliee });
   },
   remettre() {
-    set({ tete: 0, joue: false, pxParSeconde: null });
+    set({ tete: 0, joue: false, pxParSeconde: null, arret: null });
   },
 }));

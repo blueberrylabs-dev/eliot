@@ -24,7 +24,8 @@ export function EditeurTexte() {
     const groupe = noeudElement(enEdition);
     if (!el || !groupe) return;
     const position = groupe.getAbsolutePosition();
-    const s = scene.echelle;
+    // L'échelle à l'écran : celle de la page, et celle d'une image clé qui agrandit le texte.
+    const s = Math.abs(groupe.getAbsoluteScale().x) || scene.echelle;
     setValeur(el.texte);
     setStyle({
       left: position.x,

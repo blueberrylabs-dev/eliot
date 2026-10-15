@@ -6,7 +6,8 @@
 import type Konva from "konva";
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { useEditeur } from "../etat/editeur";
+import { pageCourante, useEditeur } from "../etat/editeur";
+import { contextesTransitions, gainSon } from "../modele/animation";
 import { useTemps } from "../etat/temps";
 import { tempsMedia, visibleA } from "../modele/frise";
 import type { ElementVideo } from "../modele/types";
@@ -225,9 +226,11 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
       const visible = visibleA(e, etat.tete);
       const cible = tempsMedia(e, etat.tete, dureeFichier) / 1000;
       video.playbackRate = Math.max(0.25, Math.min(4, e.vitesse ?? 1));
-      const volume = Math.max(0, Math.min(1, e.volume ?? 1));
+      // Le volume de l'instant : celui du clip, ses fondus, ceux d'une transition.
+      const transitions = contextesTransitions(pageCourante(useEditeur.getState())).get(e.id);
+      const volume = gainSon(e, etat.tete, { transitionEntree: transitions?.entree, transitionSortie: transitions?.sortie });
       video.volume = volume;
-      video.muted = !son || volume === 0;
+      video.muted = !son || (e.volume ?? 1) === 0;
       if (etat.joue && visible) {
         if (video.paused) {
           chercher(cible);

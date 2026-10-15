@@ -7,7 +7,8 @@
 // Version 4 (étape 4) : la vidéo. Une page qui a une `duree` est une vidéo ; ses éléments
 // portent `temps` et `piste`, ses sons vont dans `audio`. Un élément `video` peut aussi vivre
 // dans une page fixe (post animé). Tout est facultatif : un document de version 3 ne change
-// que de numéro (noyau/src/projet.rs).
+// que de numéro (noyau/src/projet.rs). Lot 3 : animations, images clés, transitions et fondus
+// du son, tous facultatifs eux aussi (même version 4).
 
 export const VERSION_DOCUMENT = 4 as const;
 
@@ -46,6 +47,43 @@ export interface Ombre {
   opacite: number;
 }
 
+/** Une animation d'entrée, de sortie ou en boucle (étape 4, lot 3) : son nom (catalogue dans
+ *  `modele/animation.ts`) et sa durée en ms ; pour une boucle, la durée d'un tour. */
+export interface Animation {
+  nom: string;
+  duree: number;
+}
+
+export interface Animations {
+  entree?: Animation;
+  sortie?: Animation;
+  boucle?: Animation;
+}
+
+/**
+ * Une image clé : la pose de l'élément à `t` ms du début de son clip. `x` et `y` vont ensemble
+ * (le coin haut gauche, comme ceux de l'élément), `echelle` agrandit autour de ce coin comme
+ * Konva ; entre deux clés, le centre de l'élément glisse en ligne droite. Un champ absent
+ * reprend les autres clés, ou l'élément lui-même.
+ */
+export interface CleAnimation {
+  t: number;
+  x?: number;
+  y?: number;
+  echelle?: number;
+  rotation?: number;
+  opacite?: number;
+  /** Le passage vers la clé suivante : « douce » (par défaut) ou « lineaire ». */
+  courbe?: "douce" | "lineaire";
+}
+
+/** Une transition vers ce clip depuis le précédent de la piste principale : les deux clips se
+ *  chevauchent pendant `duree` ms. */
+export interface Transition {
+  nom: string;
+  duree: number;
+}
+
 /** La boîte commune à tous les éléments, en pixels de la page, origine en haut à gauche ;
  *  la rotation (degrés) se fait autour de ce coin, comme dans Konva. */
 interface ElementBase {
@@ -67,6 +105,12 @@ interface ElementBase {
   temps?: Temps;
   /** Page vidéo : 0 pour la piste principale, plus pour celles du dessus. */
   piste?: number;
+  /** Page vidéo : animations d'entrée, de sortie, en boucle. */
+  animations?: Animations;
+  /** Page vidéo : images clés, triées par `t`. */
+  cles?: CleAnimation[];
+  /** Page vidéo, piste principale : transition depuis le clip précédent. */
+  transition?: Transition;
 }
 
 export interface ElementTexte extends ElementBase {
@@ -193,6 +237,10 @@ export interface ElementVideo extends ElementBase {
   vitesse?: number;
   /** De 0 (muet) à 1 ; 1 si absent. */
   volume?: number;
+  /** Page vidéo : le son monte pendant ces ms au début du clip, et baisse pendant celles-ci à
+   *  la fin. */
+  fonduEntree?: number;
+  fonduSortie?: number;
 }
 
 /**

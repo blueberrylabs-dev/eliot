@@ -5,6 +5,52 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 3 : l'animation
+
+Choix de Claude, modifiables sur simple demande :
+
+- Toutes les formules vivent dans `modele/animation.ts`, en fonctions pures. L'état d'un
+  élément à un instant se lit en deux parts : sa pose (position, échelle, rotation, opacité),
+  donnée par ses images clés, et un effet posé par-dessus, autour de son centre, donné par ses
+  animations et les transitions. Le Rust de l'export (lot 4) reprendra les mêmes formules ;
+  `modele/animation.attendus.json` (550 cas) donne les valeurs que les deux côtés doivent
+  retrouver à un millionième près.
+- Le catalogue : 15 entrées et 15 sorties (fondu, quatre glissements, deux zooms, rebond,
+  chute, tourbillon, volet, et pour un texte seulement : machine à écrire, lettre par lettre,
+  mot par mot, ligne par ligne), 8 boucles (pulsation, battement, flottement, balancement,
+  tremblement, clignotement, rotation, zoom lent). Un texte par morceaux se dessine lettre par
+  lettre (`charRenderFunc` de Konva 10), toujours, pour que sa mise en page ne bouge pas quand
+  l'animation finit. Entrée et sortie plus longues que le clip se partagent sa durée.
+- L'élément choisi, page à l'arrêt, montre sa pose seule, sans ses effets : on le déplace et
+  on le règle tel qu'il est posé, les effets reprennent à la lecture (et pour un élément non
+  choisi). Écarté : montrer l'effet sur l'élément choisi, parce qu'un geste pendant une entrée
+  aurait dû défaire l'effet pour retrouver la pose.
+- Images clés : `t` compte depuis le début du clip, pas depuis le début de la page, pour que
+  les clés suivent le clip quand on le déplace ou que la piste principale se resserre ; tirer
+  le début du clip les garde sur le même moment, scinder les partage (une clé au bord de chaque
+  moitié). L'exemple du § 6 du BRIEF montre des temps de page : à corriger à la prochaine
+  révision, avec l'accord d'Alexandre. Entre deux clés, c'est le centre de l'élément qui
+  avance en ligne droite : une clé d'échelle seule agrandit autour du centre. Comme dans
+  CapCut, dès qu'un élément a des clés, un geste à la tête de lecture pose ou reprend la clé de
+  cet instant (à 40 ms près), avec toute la pose ; les flèches et l'opacité aussi.
+- Transitions (fondu enchaîné, glissement, zoom, volet) : posées sur le clip qui entre, entre
+  deux clips de la piste principale ; les deux clips se chevauchent pendant la transition, la
+  page raccourcit d'autant (comme CapCut), la moitié du plus court des deux au plus. Le son
+  passe de l'un à l'autre. Pendant un chevauchement, scinder ne coupe pas.
+- Fondus du son d'une vidéo (`fonduEntree`, `fonduSortie`), dans la bulle Son. Les fondus de
+  l'image passent par les animations d'entrée et de sortie « fondu ».
+- Styles de texte pour la vidéo (8) : police, couleurs, effet, animations ; dans le panneau
+  Texte sur une page vidéo, et dans Effets pour un texte choisi.
+- Vitesse : déjà là depuis le lot 1 (vitesse d'un clip), la frise en tient compte depuis le
+  lot 2 ; rien de plus dans ce lot.
+- Pont IA : `animer`, `images_cles`, `transition` (53 outils) ; `ajouter_texte` prend un
+  `style` ; `modifier` accepte les fondus du son ; `etat` résume animations, clés et
+  transitions dans la frise.
+- Vérifié dans le conteneur : interface 103 (19 essais de l'animation, tableau commun
+  compris), Chromium 44 vérifications sur l'animation et toutes les suites d'avant, Tauri 16
+  dont la machine à écrire et un carré mené par deux clés, lus à l'écran de WebKit, et toutes
+  les suites d'avant.
+
 ## 2026-10-15, étape 4, lot 2 : la frise
 
 Choix de Claude, modifiables sur simple demande :

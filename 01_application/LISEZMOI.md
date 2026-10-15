@@ -131,12 +131,36 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   de chaque vidéo. Les pistes de son (musique, voix) et l'export en MP4 viennent dans les lots
   suivants.
 
+**L'animation (étape 4, lot 3)**
+- Animer, dans la barre juste au-dessus de la page, pour les éléments choisis d'une page
+  vidéo : une entrée, une sortie et une boucle. Survoler une animation la joue sur la page ;
+  un clic la pose. Un texte peut aussi entrer ou sortir par morceaux : machine à écrire,
+  lettre par lettre, mot par mot, ligne par ligne.
+- Dans la frise, une zone claire au début (ou au bout) du clip montre l'entrée (ou la
+  sortie) : tirer son bord change sa durée. Une boucle se signale par une petite icône.
+- L'élément choisi s'affiche tel qu'il est posé, sans ses effets, tant que la page ne joue
+  pas : on le règle tranquillement ; les effets se voient à la lecture.
+- Images clés : le losange de la barre de la frise pose une clé à la tête de lecture (la
+  position, la taille, la rotation et l'opacité de cet instant). Ensuite, déplacer, agrandir,
+  tourner l'élément ou changer son opacité à un autre instant pose une autre clé : l'élément
+  passe de l'une à l'autre. Les clés se voient en losanges jaunes au bas du clip (un clic y
+  mène, un glisser les déplace) ; les flèches à côté du losange vont à la précédente ou à la
+  suivante ; sur une clé, le losange la retire.
+- Transitions : entre deux clips de la piste principale, le petit bouton ajoute un fondu
+  enchaîné, un glissement, un zoom ou un volet, et montre le passage. Les deux clips se
+  chevauchent pendant la transition (hachures) : la vidéo raccourcit d'autant.
+- Son d'une vidéo : la bulle Son règle aussi un fondu d'entrée et un fondu de sortie.
+- Styles pour la vidéo, dans le panneau Texte (page vidéo) : huit textes prêts, avec leur
+  police, leurs couleurs et leurs animations, posés à la tête. Pour un texte déjà posé :
+  Effets, en haut de la bulle.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder,
-  tête de lecture, capture à un instant), se servir du kit de marque, dessiner à main
+  tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
+  transitions, styles de texte pour la vidéo), se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
   capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -189,7 +213,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts, et le tableau de valeurs attendues commun avec le Rust), les styles de texte pour la vidéo
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
