@@ -56,9 +56,12 @@ lourd. Détail : `BRIEF.md`.
   coupe des blancs et des hésitations, transcription par Whisper sur le processeur,
   sous-titres mot par mot avec le mot prononcé mis en valeur, une seule balise vidéo par
   fichier dans la fenêtre, trois outils de plus pour le pont IA, 61 en tout) livrés et
-  vérifiés ; reste l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13,
-  puis 15 bis si l'extension sert) : la liste de ses outils change. Pour la voix de synthèse,
-  une fois : commandes 16 et 17 ; pour les sous-titres, une fois : commandes 18 et 19.
+  vérifiés. Vérification de toute l'étape le 2026-10-15 (relecture contre le BRIEF, post animé
+  depuis une image fixe, montage complet par le pont dans Tauri) ; reste l'essai d'Alexandre,
+  parcours « Essayer la vidéo (étape 4) » du `01_application/LISEZMOI.md`. Après cette
+  livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert) : la description
+  de deux outils change. Pour la voix de synthèse, une fois : commandes 16 et 17 ; pour les
+  sous-titres, une fois : commandes 18 et 19.
 
 Suite : `PLAN.md`.
 
@@ -258,7 +261,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  170 passed`.
+Vérifier : `Tests  172 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

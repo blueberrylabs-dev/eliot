@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Tailwind ne cherche ses classes que dans src/ : un document modifié ailleurs (LISEZMOI, une
+   livraison de fichiers) ne recharge plus la fenêtre pendant `npm run tauri dev`. */
+@import "tailwindcss" source(".");
 
 /* Couleurs d'Eliot : un indigo pour l'action, une pointe de corail, des gris chauds. */
 @theme {

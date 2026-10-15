@@ -1,12 +1,12 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 à 3 du `BRIEF.md` et une bonne part de l'étape 4 : un accueil qui range tes
-designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
-d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
-marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
-leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs
-et les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en
-PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
+L'éditeur, étapes 1 à 4 du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
+compose à la souris comme dans Canva, une bibliothèque d'icônes, d'emojis, de personnages et
+de polices, des photos et des vidéos libres de Pixabay, un kit de marque, des modèles de
+départ, des vidéos montées et animées sur une frise, avec leur musique, leurs bruitages, ta
+voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et les « euh »
+coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG ou en JPEG
+et l'export des vidéos en MP4 ou en GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -133,9 +133,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   de chaque vidéo. Sous la principale, les pistes des sons (lot 5, plus bas).
 
 **L'animation (étape 4, lot 3)**
-- Animer, dans la barre juste au-dessus de la page, pour les éléments choisis d'une page
-  vidéo : une entrée, une sortie et une boucle. Survoler une animation la joue sur la page ;
-  un clic la pose. Un texte peut aussi entrer ou sortir par morceaux : machine à écrire,
+- Animer, dans la barre juste au-dessus de la page, pour les éléments choisis : une entrée,
+  une sortie et une boucle. Survoler une animation la joue sur la page ; un clic la pose. Sur
+  une image fixe, la première animation fait de la page une vidéo de 5 s (un post animé) et la
+  frise s'ouvre ; un seul Ctrl+Z revient à l'image fixe. Un texte peut aussi entrer ou sortir par morceaux : machine à écrire,
   lettre par lettre, mot par mot, ligne par ligne.
 - Dans la frise, une zone claire au début (ou au bout) du clip montre l'entrée (ou la
   sortie) : tirer son bord change sa durée. Une boucle se signale par une petite icône.
@@ -263,17 +264,50 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
-  (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder,
-  tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
-  transitions, styles de texte pour la vidéo), importer, chercher (Freesound) et poser des
-  sons, les régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher
-  le son d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
-  sous-titres, se servir du kit de marque, dessiner à main
-  levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
-  capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo, avec la
-  version sans musique). On la
-  voit travailler dans la fenêtre,
-  et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
+  (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
+  lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
+  styles de texte pour la vidéo), importer, chercher (Freesound) et poser des sons, les
+  régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
+  d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
+  sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
+  tableaux, partir d'un modèle de départ, regarder une capture de la page et exporter (en
+  image, ou en MP4 et en GIF pour une page vidéo, avec la version sans musique). On la voit
+  travailler dans la fenêtre, et Ctrl+Z défait chacune de ses actions. Mise en place :
+  commandes 13 à 15 bis du `CLAUDE.md`.
+
+## Essayer la vidéo (étape 4)
+
+Un parcours d'une vingtaine de minutes, dans l'ordre où l'on monte une vidéo. Avant, une fois :
+commandes 16 à 19 du `CLAUDE.md` (Piper, ses voix, Whisper, son modèle) ; puis Eliot lancé à la
+main, carte graphique libre (commande 10).
+
+1. Accueil, format Story (9:16). Importer une vidéo filmée au téléphone où tu parles : la
+   bande d'avancement, puis la frise s'ouvre. Espace : la lecture doit être fluide, le son
+   calé sur l'image.
+2. Importer une seconde vidéo : elle se met au bout. Le petit bouton entre les deux clips :
+   un fondu enchaîné. Rejouer le passage.
+3. La vidéo qui parle choisie, Son, « Détacher le son » : la voix passe sur sa piste (la
+   musique baissera sous elle). Puis Blancs : l'aperçu dit combien de secondes partent ;
+   cocher les hésitations, Couper. Rejouer : la voix s'enchaîne sans claquement. Tirer le bord
+   d'un morceau rend ce qui avait été coupé ; Ctrl+Z défait toute la coupe.
+4. Onglet Texte, Sous-titres automatiques, « Mot surligné », Créer. À noter : le temps de
+   Whisper, le mot jaune qui suit la voix, les mots mal compris (double-clic pour corriger).
+5. Un titre (un style pour la vidéo), Animer : une entrée, une boucle ; dans la frise, tirer
+   la zone claire pour changer la durée. Un emoji : le losange de la frise pose une image clé ;
+   avancer la tête de lecture puis déplacer l'emoji en pose une autre.
+6. Onglet Audio : une musique de Freesound, posée d'un clic ; elle couvre toute la vidéo et
+   baisse sous la voix. Un bruitage glissé dans la frise. Une phrase dite par la voix de
+   synthèse.
+7. Onglet Audio, « Ta voix », « Enregistrer au micro », puis « Enregistrer » : compte à
+   rebours, parler, Espace pour finir. « Voix nette » est déjà posée sur la prise.
+8. Exporter, MP4, TikTok, avec la version sans musique : le film dans `~/Vidéos/Eliot/`. Le
+   regarder en entier : le son, les sous-titres, la transition, le titre.
+9. Une nouvelle page, un texte, Animer : la page devient un post animé de 5 s ; l'exporter en
+   GIF.
+
+Ce qui m'aide le plus en retour : ce qui ne joue pas de façon fluide, un son en retard sur
+l'image, un geste de la frise qui ne fait pas ce que tu attends, et les temps relevés (import,
+Whisper, export).
 
 ## Raccourcis
 

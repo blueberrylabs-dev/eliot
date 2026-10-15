@@ -304,8 +304,21 @@ Choix par défaut de Claude, modifiables sur simple demande :
       interface 170, Chromium (sous-titres 44, suites d'avant), Tauri (sous-titres 17 dont
       le vrai Whisper, le film et la lecture enregistrée, suites de l'étape 4). Reste l'essai
       d'Alexandre (commandes 18 et 19 une fois, pour Whisper).
-- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.
-- [ ] Vérification de l'étape, livraison, essai par Alexandre.
+- [x] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : importer_video,
+      ajouter_video, chercher_videos, ajouter_video_pixabay ; lot 2 : page_video, aller_a,
+      scinder ; lot 3 : animer, images_cles, transition ; lot 4 : exporter en MP4 et GIF ;
+      lot 5 : importer_son, chercher_sons, ajouter_son, regler_son ; lot 6 : voix_de_synthese ;
+      lot 7 : transcrire, sous_titres, couper_blancs). Vérifié le 2026-10-15 par un montage
+      complet fait par le pont dans Tauri (JOURNAL).
+- [x] Vérification de l'étape (2026-10-15) : relecture contre le BRIEF, un manque comblé
+      (une animation posée sur une image fixe en fait un post animé, à la souris comme par le
+      pont), un défaut corrigé (un document modifié pendant `npm run tauri dev` rechargeait la
+      fenêtre), montage complet par le pont dans Tauri, suites touchées repassées, `npm run
+      build`. Détail au JOURNAL. Livrée sur le poste.
+- [ ] Essai par Alexandre : le parcours « Essayer la vidéo (étape 4) » du
+      `01_application/LISEZMOI.md` (avant, une fois : commandes 16 à 19 du `CLAUDE.md`).
+- [ ] Plus tard, si utile : l'original d'un son Freesound par la connexion au compte (OAuth2,
+      BRIEF § 6) ; d'ici là, Eliot prend l'extrait de bonne qualité (environ 192 kbit/s).
 
 ## Étape 5. Le labo photo et les exports de qualité
 

@@ -5,6 +5,62 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4 : vérification de l'étape
+
+Accord d'Alexandre pour continuer (« Fais la suite »). Ce que Claude a fait et décidé :
+
+- Relecture de l'étape contre le BRIEF (§ 6, « Ce que Eliot reprend de CapCut » et « Le son » ;
+  § 7 ; catalogue, ligne Vidéo) et le PLAN (« Claude peut tout faire par le pont ») : tout y
+  est, à quatre points près.
+  - Manque comblé : « ajouter une animation ouvre la frise d'office » et « un design sans vidéo
+    peut aussi devenir animé ». Le bouton Animer ne venait que sur une page vidéo. Il vient
+    aussi sur une image fixe : la première animation posée fait de la page une vidéo de 5 s et
+    ouvre la frise, en une seule étape d'annulation (pas d'aperçu au survol tant que la page
+    est fixe : rien ne bouge encore). Les outils `animer` et `images_cles` du pont font de même.
+  - Reporté : l'original d'un son Freesound par la connexion au compte (OAuth2). Il faut créer
+    une application sur Freesound avec le compte d'Alexandre ; l'extrait de bonne qualité
+    (environ 192 kbit/s) suffit à une vidéo pour les réseaux. Noté au PLAN.
+  - Déjà noté au lot 7, à valider par Alexandre : la coupe des silences en morceaux de la frise.
+  - Viennent avec d'autres étapes : les réglages du labo photo sur un clip (étape 5), le banc
+    du mini PC.
+- Défaut trouvé et corrigé : pendant `npm run tauri dev` (la façon de lancer Eliot, commande
+  10), modifier un fichier qui n'est pas du code dans `01_application/` (le LISEZMOI, une
+  livraison de Claude) rechargeait la fenêtre, revenue à l'accueil, et coupait ce qui était en
+  cours (une transcription, un export). Cause : le greffon de Tailwind cherchait des classes
+  dans tous les fichiers du dossier et rechargeait la page à chaque changement. Il ne cherche
+  plus que dans `src/` (`source(".")` dans `styles.css`). Vérifié dans Tauri, avec et sans la
+  correction ; la feuille de style produite perd seulement trois classes que rien n'utilisait
+  (`static`, `outline`, `lowercase`, tirées du texte des documents).
+- Montage complet par le pont, dans Tauri (le parcours qu'une IA ferait pour Alexandre) : deux
+  vidéos bout à bout et un fondu enchaîné ; le son de la vidéo qui parle détaché ; ses blancs
+  et ses « euh » coupés (trois morceaux, le son détaché coupé pareil, la transition gardée par
+  le premier, Ctrl+Z qui défait toute la coupe) ; un titre animé (lettres, pulsation, fondu) ;
+  un emoji déplacé par images clés ; une voix de synthèse nettoyée ; une musique jusqu'au bout ;
+  les sous-titres des deux voix ; un post animé sur une seconde page, exporté en GIF ; le MP4
+  TikTok et sa version sans musique ; le design fermé puis rouvert, identique. Mesuré dans le
+  film : H.264 1080 × 1920 à 30 images par seconde et AAC, 11,13 s pour une page de 11,12 s ;
+  -14,3 LUFS, crête -1,1 dBTP ; la musique passe de 0,303 à 0,090 sous la voix (30 %) ; plus de
+  musique du tout dans la version sans musique ; l'image mêle les deux vidéos au milieu de la
+  transition ; le mot prononcé est jaune ; la fenêtre et le film diffèrent de 2,1 sur 255 en
+  moyenne au même instant. Dans le conteneur (deux cœurs) : coupe 9 à 12 s Whisper compris,
+  sous-titres 7 s, export 25 à 27 s pour 11 s de film.
+- Vu en route, à décider par Alexandre :
+  - Une vidéo où l'on parle ne fait pas baisser la musique : seuls les sons au rôle Voix le
+    font (lot 5). Il faut détacher son son (bouton « Détacher le son »), ce que fait faire le
+    parcours d'essai du LISEZMOI. Proposition : compter aussi comme une voix une vidéo qu'on
+    entend, ou seulement celle où l'analyse du lot 7 trouve de la parole.
+  - Whisper small écrit mal les noms propres (« Eliot » devient « Kélio » sur la voix de
+    synthèse). Proposition : glisser le nom du kit de marque dans l'amorce donnée à Whisper,
+    celle qui lui fait déjà écrire les « euh ».
+- Parcours d'essai pour Alexandre : « Essayer la vidéo (étape 4) » dans
+  `01_application/LISEZMOI.md`, neuf étapes, une vingtaine de minutes.
+- Vérifié dans le conteneur : interface 172 (dont 2 du post animé), noyau 83, `npm run
+  build` ; Chromium : post animé 11, animation 44, sous-titres 44, vidéo 41 ; Tauri : montage
+  complet 25 sur 25 trois fois de suite (une exécution d'avant s'était arrêtée en route sur
+  une réponse inattendue du pont, au moment du post animé ; détail non gardé, pas revu
+  depuis), pont de l'étape 2 19, étape 3 (22, 14, 27, 17, 8, 13), animation 16, son 26,
+  sous-titres 17.
+
 ## 2026-10-15, étape 4, lot 7 : les sous-titres
 
 Accord d'Alexandre pour enchaîner (« Ok, tu peux enchaîner »). Choix de Claude, modifiables

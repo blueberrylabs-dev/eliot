@@ -1,11 +1,13 @@
 // Le bouton Animer de la barre de contexte, sur une page vidéo (étape 4, lot 3) : animations
 // d'entrée, de sortie et en boucle des éléments choisis, comme dans CapCut. Survoler une
 // animation la joue sur la page ; un clic la pose. La durée se règle ici, ou en tirant le bord
-// de la zone claire au début (ou à la fin) du clip, dans la frise.
+// de la zone claire au début (ou à la fin) du clip, dans la frise. Sur une image fixe, la
+// première animation posée en fait une page vidéo de 5 s (post animé) : la frise s'ouvre.
 
 import { Play, WandSparkles } from "lucide-react";
 import { useState } from "react";
-import { useEditeur } from "../etat/editeur";
+import { pageCourante, useEditeur } from "../etat/editeur";
+import { DUREE_PAGE_DEFAUT } from "../modele/frise";
 import { CATALOGUE, dureeConseillee, type DefinitionAnimation, type GenreAnimation } from "../modele/animation";
 import type { ElementPage } from "../modele/types";
 import { arreterApercu, montrerAnimation } from "./apercuAnimation";
@@ -32,14 +34,19 @@ export function ReglagesAnimation({ choisis }: { choisis: ElementPage[] }) {
   const [genre, setGenre] = useState<GenreAnimation>("entree");
   const etat = useEditeur.getState();
   const premier = choisis[0];
-  if (!premier?.temps) return null;
+  if (!premier) return null;
+  const fixe = !premier.temps;
   const ids = choisis.map((e) => e.id);
   const textes = choisis.every((e) => e.type === "texte");
   const actuelle = premier.animations?.[genre];
-  const longueur = premier.temps.fin - premier.temps.debut;
+  const longueur = premier.temps ? premier.temps.fin - premier.temps.debut : DUREE_PAGE_DEFAUT;
+  /** L'élément tel qu'il est maintenant (une page fixe vient peut-être de devenir vidéo). */
+  const frais = () => pageCourante(useEditeur.getState()).elements.find((e) => e.id === premier.id);
   const liste = CATALOGUE[genre].filter((d) => !d.texte || textes);
 
   const essayer = (d: DefinitionAnimation | null) => {
+    // Sur une image fixe, pas d'aperçu au survol : rien ne bouge avant que la page soit vidéo.
+    if (fixe) return;
     const animation = d ? { nom: d.nom, duree: dureeConseillee(genre, d.nom, premier) } : null;
     const [debut, fin] = fenetre(premier, genre, animation?.duree ?? 600);
     montrerAnimation(premier.id, debut, fin, { genre, animation });
@@ -47,13 +54,14 @@ export function ReglagesAnimation({ choisis }: { choisis: ElementPage[] }) {
   const poser = (d: DefinitionAnimation | null) => {
     const animation = d ? { nom: d.nom, duree: actuelle?.nom === d.nom ? actuelle.duree : dureeConseillee(genre, d.nom, premier) } : null;
     etat.definirAnimations(ids, genre, animation);
-    if (animation) {
-      const [debut, fin] = fenetre(premier, genre, animation.duree);
-      montrerAnimation(premier.id, debut, fin);
+    const el = frais();
+    if (animation && el?.temps) {
+      const [debut, fin] = fenetre(el, genre, animation.duree);
+      montrerAnimation(el.id, debut, fin);
     } else arreterApercu();
   };
   const revoir = () => {
-    if (!actuelle) return;
+    if (!actuelle || !premier.temps) return;
     const [debut, fin] = fenetre(premier, genre, actuelle.duree);
     montrerAnimation(premier.id, debut, fin);
   };
@@ -109,6 +117,7 @@ export function ReglagesAnimation({ choisis }: { choisis: ElementPage[] }) {
           <Play size={12} /> Revoir
         </button>
       )}
+      {fixe && <p className="mb-2 rounded-md bg-accent-50 px-2 py-1.5 text-xs text-accent-800">Sur une image fixe, la première animation fait de la page une vidéo de 5 s (un post animé) : la frise s'ouvre en bas.</p>}
       <p className="text-xs text-neutral-500">
         {genre === "boucle"
           ? "Se répète tout le long du clip, avec l'entrée et la sortie."

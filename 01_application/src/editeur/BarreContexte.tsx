@@ -612,7 +612,7 @@ export function BarreContexte() {
       {choisis.length > 0 && (
         <>
           {separateur}
-          {choisis.every((e) => e.temps) && <ReglagesAnimation choisis={choisis} />}
+          {(choisis.every((e) => e.temps) || choisis.every((e) => !e.temps)) && <ReglagesAnimation choisis={choisis} />}
           {textes.length === 0 && qrs.length === 0 && (
             <Bulle titre="Ombre" largeur={260} bouton={<span className="text-sm">Ombre</span>}>
               <ReglesOmbre ombre={choisis[0].ombre} etiquette="ombre" surChange={(o, e) => modifier({ ombre: o }, e)} />

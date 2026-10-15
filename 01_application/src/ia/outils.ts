@@ -37,7 +37,7 @@ import { cellulesValides, disposerTableau } from "../modele/tableaux";
 import { ajouterVoixDite, chercherFreesound, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
-import { estPageVideo, pistesDe, PISTE_PRINCIPALE } from "../modele/frise";
+import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
 import type { Animations, ClipAudio, CleAnimation, NettoyageVoix, RoleSon } from "../modele/types";
@@ -735,7 +735,6 @@ const OUTILS: Record<string, Outil> = {
   animer(args) {
     designOuvert();
     const page = pageCourante(etat());
-    exiger(estPageVideo(page), "la page affichée est une image fixe : les animations vivent sur une page vidéo (page_video)");
     const ids = listeIds(args.ids);
     exiger(ids.length > 0, "ids : les éléments à animer");
     const elements = ids.map((id) => page.elements.find((e) => e.id === id));
@@ -762,7 +761,21 @@ const OUTILS: Record<string, Outil> = {
       }
       modifs[el.id] = { animations: Object.keys(animations).length ? animations : undefined };
     }
-    etat().modifierElements(modifs);
+    // Sur une image fixe, la page devient d'abord une page vidéo (post animé), dans la même
+    // étape d'annulation, comme avec le bouton Animer.
+    const durees = dureesDe(etat().ressources);
+    etat().appliquerPage((avant) => {
+      const p = estPageVideo(avant) ? avant : versVideo(avant, durees);
+      return {
+        ...p,
+        elements: p.elements.map((e) => {
+          if (!(e.id in modifs)) return e;
+          const { animations: _a, ...sans } = e;
+          const a = modifs[e.id].animations;
+          return (a ? { ...e, animations: a } : sans) as ElementPage;
+        }),
+      };
+    });
     const apres = pageCourante(etat());
     return { donnees: ids.map((id) => {
       const e = apres.elements.find((x) => x.id === id)!;
@@ -772,9 +785,12 @@ const OUTILS: Record<string, Outil> = {
 
   images_cles(args) {
     designOuvert();
-    const page = pageCourante(etat());
-    exiger(estPageVideo(page), "la page affichée est une image fixe : les images clés vivent sur une page vidéo (page_video)");
     const id = texte(args.id);
+    exiger(pageCourante(etat()).elements.some((e) => e.id === id), `élément introuvable sur la page affichée : ${String(args.id)}`);
+    if (args.cles === null && !estPageVideo(pageCourante(etat()))) return { donnees: { id, cles: null } };
+    // Sur une image fixe, la page devient d'abord une page vidéo de 5 s (post animé).
+    if (!estPageVideo(pageCourante(etat())) && args.cles !== null) etat().basculerPageVideo(true);
+    const page = pageCourante(etat());
     const el = page.elements.find((e) => e.id === id);
     exiger(el?.temps, `élément introuvable sur la page affichée : ${String(args.id)}`);
     const longueur = el!.temps!.fin - el!.temps!.debut;

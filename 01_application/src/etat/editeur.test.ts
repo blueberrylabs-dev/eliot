@@ -238,3 +238,30 @@ describe("la voix (étape 4, lot 6)", () => {
   });
 });
 
+
+describe("post animé (vérification de l'étape 4)", () => {
+  it("une animation posée sur une image fixe en fait une page vidéo, en une seule étape d'annulation", () => {
+    etat().ajouterElements([forme("a"), forme("b", 100, 100)]);
+    expect(pageCourante(etat()).duree).toBeUndefined();
+    etat().definirAnimations(["a"], "entree", { nom: "fondu", duree: 500 });
+    const page = pageCourante(etat());
+    expect(page.duree).toBe(5000);
+    expect(page.elements.map((e) => [e.id, e.temps])).toEqual([
+      ["a", { debut: 0, fin: 5000 }],
+      ["b", { debut: 0, fin: 5000 }],
+    ]);
+    expect(page.elements[0].animations).toEqual({ entree: { nom: "fondu", duree: 500 } });
+    expect(page.elements[1].animations).toBeUndefined();
+    etat().annuler();
+    const avant = pageCourante(etat());
+    expect(avant.duree).toBeUndefined();
+    expect(avant.elements.every((e) => !e.temps && !e.animations)).toBe(true);
+  });
+
+  it("retirer une animation sur une image fixe ne change rien", () => {
+    etat().ajouterElements([forme("a")]);
+    const avant = pageCourante(etat());
+    etat().definirAnimations(["a"], "entree", null);
+    expect(pageCourante(etat())).toBe(avant);
+  });
+});

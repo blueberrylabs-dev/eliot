@@ -875,8 +875,12 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
 
   definirAnimations(ids, genre, animation) {
     const choisis = new Set(ids);
-    get().appliquerPage((p) => {
-      let change = false;
+    const durees = dureesDe(get().ressources);
+    // Une animation posée sur une image fixe en fait une page vidéo (la frise s'ouvre), en une
+    // seule étape d'annulation.
+    get().appliquerPage((avant) => {
+      const p = animation && !estPageVideo(avant) ? versVideo(avant, durees) : avant;
+      let change = p !== avant;
       const elements = p.elements.map((e) => {
         if (!choisis.has(e.id) || !e.temps) return e;
         const animations = { ...e.animations };
