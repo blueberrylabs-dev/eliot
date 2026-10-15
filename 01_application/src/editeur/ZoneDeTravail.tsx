@@ -28,6 +28,7 @@ import { aimanter, cibles, type Cibles } from "./reperes";
 import { deposerFichiers, deposerChemins } from "./depot";
 import { scene, signalerGeste } from "./scene";
 import { surDepotFichiers } from "../pont/tauri";
+import { useTemps } from "../etat/temps";
 
 /** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
  *  centrée ; plus grande, elle suit la position voulue sans quitter la zone. */
@@ -104,6 +105,7 @@ export function ZoneDeTravail() {
   const [voulue, setVoulue] = useState<{ x: number; y: number } | null>(null);
   const [depotFichiers, setDepotFichiers] = useState(false);
   const espace = useRef(false);
+  const espaceAGlisse = useRef(false);
   const vue = useRef<{ x0: number; y0: number; ox: number; oy: number } | null>(null);
 
   const stageRef = useRef<Konva.Stage>(null);
@@ -210,20 +212,24 @@ export function ZoneDeTravail() {
     };
   }, []);
 
-  // Barre d'espace maintenue : la vue se déplace à la souris, comme dans Canva.
+  // Barre d'espace maintenue : la vue se déplace à la souris, comme dans Canva. Sur une page
+  // vidéo, un appui bref (sans déplacer la vue) lance ou arrête la lecture, comme dans CapCut.
   useEffect(() => {
     const bas = (e: KeyboardEvent) => {
       if (e.code !== "Space" || e.repeat) return;
       const cible = e.target as HTMLElement;
       if (cible.isContentEditable || ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(cible.tagName)) return;
+      if (useEditeur.getState().enEdition || useEditeur.getState().apercu) return;
       espace.current = true;
+      espaceAGlisse.current = false;
       if (stageRef.current) stageRef.current.container().style.cursor = "grab";
       e.preventDefault();
     };
     const haut = (e: KeyboardEvent) => {
-      if (e.code !== "Space") return;
+      if (e.code !== "Space" || !espace.current) return;
       espace.current = false;
       if (stageRef.current) stageRef.current.container().style.cursor = "default";
+      if (!espaceAGlisse.current && pageCourante(useEditeur.getState()).duree !== undefined) useTemps.getState().basculerLecture();
     };
     window.addEventListener("keydown", bas);
     window.addEventListener("keyup", haut);
@@ -557,6 +563,7 @@ export function ZoneDeTravail() {
     // Déplacer la vue : barre d'espace maintenue, ou bouton du milieu.
     if (espace.current || e.evt.button === 1) {
       e.evt.preventDefault();
+      espaceAGlisse.current = true;
       const { ox: x, oy: y } = cadrage.current;
       vue.current = { x0: e.evt.clientX, y0: e.evt.clientY, ox: x, oy: y };
       stageRef.current!.container().style.cursor = "grabbing";

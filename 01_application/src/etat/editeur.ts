@@ -11,6 +11,8 @@ import { ajouterRangee, disposerTableau } from "../modele/tableaux";
 import { recalerPersonnage } from "../modele/personnages";
 import { catalogueConnu } from "../bibliotheque/personnages";
 import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
+import { deplacerClip, dupliquerDansLeTemps, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, rogner, scinder, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
+import { useTemps } from "./temps";
 
 const LIMITE_HISTORIQUE = 100;
 /** Deux modifications de même nature à moins de 700 ms forment une seule étape à annuler
@@ -99,7 +101,9 @@ interface EtatEditeur {
   annuler: () => void;
   retablir: () => void;
 
-  ajouterElements: (elements: ElementPage[]) => void;
+  /** Ajoute des éléments à la page affichée. Sur une page vidéo, une vidéo neuve de la piste
+   *  principale remplit la page, sauf `garderBoite` (position et taille voulues). */
+  ajouterElements: (elements: ElementPage[], options?: { garderBoite?: boolean }) => void;
   modifierElements: (modifs: Record<string, Partial<ElementPage>>, etiquette?: string) => void;
   supprimerSelection: () => void;
   dupliquerSelection: () => void;
@@ -145,6 +149,16 @@ interface EtatEditeur {
   retirerPhoto: (id: string) => void;
 
   ajouterRessources: (ressources: Ressource[]) => void;
+
+  // ---- Frise d'une page vidéo (étape 4) ----
+  /** Fait de la page affichée une vidéo (frise ouverte) ou une image fixe. */
+  basculerPageVideo: (video: boolean) => void;
+  /** Glisse un clip : nouveau début (ms) et piste voulue. */
+  deplacerClip: (id: string, debut: number, piste: number) => void;
+  /** Tire le bord d'un clip jusqu'à l'instant `t`. */
+  rognerClip: (id: string, cote: "debut" | "fin", t: number) => void;
+  /** Coupe à la tête de lecture les clips choisis (sinon celui de la piste principale). */
+  scinderALaTete: () => void;
   notifier: (texte: string, options?: { erreur?: boolean; chemin?: string }) => void;
   fermerNotification: () => void;
   definirZoom: (zoom: number | null) => void;
@@ -199,6 +213,35 @@ const avecPage = (d: DocumentEliot, id: string, recette: (p: PageEliot) => PageE
   return change ? { ...d, pages } : d;
 };
 
+/** La durée des fichiers vidéo du design, d'après les ressources connues. */
+const dureesDe = (ressources: Record<string, Ressource>): Durees => (id) => ressources[id]?.video?.duree;
+
+/** Remet d'aplomb les pages vidéo qu'une modification a touchées (voir `modele/frise.ts`). */
+function normaliserPages(suivant: DocumentEliot, avant: DocumentEliot, durees: Durees): DocumentEliot {
+  let change = false;
+  const pages = suivant.pages.map((p) => {
+    if (!estPageVideo(p) || avant.pages.includes(p)) return p;
+    const n = normaliser(p, durees);
+    if (n !== p) change = true;
+    return n;
+  });
+  return change ? { ...suivant, pages } : suivant;
+}
+
+/** Un élément agrandi ou réduit pour tenir en entier dans la page, centré. */
+function ajusterALaPage(e: ElementPage, format: Format): ElementPage {
+  const echelle = Math.min(format.largeur / e.largeur, format.hauteur / e.hauteur);
+  const largeur = Math.round(e.largeur * echelle * 100) / 100;
+  const hauteur = Math.round(e.hauteur * echelle * 100) / 100;
+  return { ...e, largeur, hauteur, x: Math.round(((format.largeur - largeur) / 2) * 100) / 100, y: Math.round(((format.hauteur - hauteur) / 2) * 100) / 100, rotation: 0 } as ElementPage;
+}
+
+/** Sans temps ni piste : des copies qui viennent d'ailleurs se posent à la tête de lecture. */
+const sansTemps = (e: ElementPage): ElementPage => {
+  const { temps: _t, piste: _p, ...reste } = e;
+  return reste as ElementPage;
+};
+
 const NOUVEAU = documentVide();
 
 export const useEditeur = create<EtatEditeur>()((set, get) => ({
@@ -229,6 +272,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   celluleEnEdition: null,
 
   chargerProjet(projet, document, ressources) {
+    useTemps.getState().remettre();
     set({
       vue: "editeur",
       projet,
@@ -276,8 +320,9 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
 
   appliquer(recette, etiquette) {
     const { document, passe, derniereEtiquette, dernierInstant, pageActive } = get();
-    const suivant = recette(document);
+    let suivant = recette(document);
     if (suivant === document) return;
+    suivant = normaliserPages(suivant, document, dureesDe(get().ressources));
     const maintenant = Date.now();
     const fusion = etiquette !== undefined && etiquette === derniereEtiquette && maintenant - dernierInstant < FENETRE_FUSION_MS;
     const page = pageDe(suivant, pageActive);
@@ -334,9 +379,25 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
 
   // ---- Éléments de la page affichée ----
 
-  ajouterElements(elements) {
+  ajouterElements(elements, options = {}) {
     if (elements.length === 0) return;
-    get().appliquerPage((p) => ({ ...p, elements: [...p.elements, ...elements] }));
+    const durees = dureesDe(get().ressources);
+    const page = pageCourante(get());
+    // Une vidéo posée sur une page fixe en fait une page vidéo (la frise s'ouvre) ; sur une
+    // page vidéo, les éléments neufs se posent à la tête de lecture.
+    if (estPageVideo(page) || elements.some((e) => e.type === "video")) {
+      const dureeVideos = Math.max(0, ...elements.map((e) => (e.type === "video" ? dureeClip(e, durees) : 0)));
+      const tete = estPageVideo(page) ? useTemps.getState().tete : 0;
+      const neufs = new Set(elements.filter((e) => !e.temps).map((e) => e.id));
+      const format = get().document.format;
+      get().appliquerPage((p) => {
+        const placee = placer(estPageVideo(p) ? p : versVideo(p, durees, dureeVideos), elements, tete, durees);
+        // Un média neuf de la piste principale remplit la page (en entier, sans rognure),
+        // comme dans CapCut.
+        const ajustes = placee.elements.map((e) => (!options.garderBoite && neufs.has(e.id) && e.piste === PISTE_PRINCIPALE ? ajusterALaPage(e, format) : e));
+        return ajustes.some((e, i) => e !== placee.elements[i]) ? { ...placee, elements: ajustes } : placee;
+      });
+    } else get().appliquerPage((p) => ({ ...p, elements: [...p.elements, ...elements] }));
     set({ selection: elements.map((e) => e.id) });
   },
 
@@ -385,7 +446,22 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   dupliquerSelection() {
-    get().ajouterElements(dupliquerTous(elementsSelectionnes(get())));
+    const originaux = elementsSelectionnes(get());
+    if (originaux.length === 0) return;
+    if (!estPageVideo(pageCourante(get()))) {
+      get().ajouterElements(dupliquerTous(originaux));
+      return;
+    }
+    // Sur une page vidéo, la copie suit l'original dans le temps, à la même place ; la tête
+    // va au début de la copie, pour qu'on la voie.
+    const copies = dupliquerTous(originaux);
+    get().appliquerPage((p) => dupliquerDansLeTemps(p, originaux, copies, dureesDe(get().ressources)));
+    set({ selection: copies.map((e) => e.id) });
+    const debuts = elementsCourants(get()).filter((e) => copies.some((c) => c.id === e.id) && e.temps).map((e) => e.temps!.debut);
+    if (debuts.length) {
+      useTemps.getState().pause();
+      useTemps.getState().allerA(Math.min(...debuts));
+    }
   },
 
   copierSelection() {
@@ -395,12 +471,32 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   coller() {
-    get().ajouterElements(dupliquerTous(get().pressePapiers.elements, 32));
+    const copies = dupliquerTous(get().pressePapiers.elements, 32);
+    get().ajouterElements(estPageVideo(pageCourante(get())) ? copies.map(sansTemps) : copies.map((e) => (e.temps || e.piste !== undefined ? sansTemps(e) : e)));
   },
 
   deplacerDansPile(sens) {
     const ids = new Set(get().selection);
     if (ids.size === 0) return;
+    // Sur une page vidéo, l'empilement, ce sont les pistes : un clip de superposition monte ou
+    // descend d'une piste (sur une piste neuve si la place est prise).
+    if (estPageVideo(pageCourante(get()))) {
+      get().appliquerPage((p) => {
+        const max = Math.max(0, ...p.elements.map((e) => e.piste ?? 0));
+        const libre = (e: ElementPage, piste: number) => !p.elements.some((x) => x.id !== e.id && x.piste === piste && x.temps && e.temps && x.temps.debut < e.temps.fin && e.temps.debut < x.temps.fin);
+        const elements = p.elements.map((e) => {
+          if (!ids.has(e.id) || e.piste === undefined || e.piste === PISTE_PRINCIPALE) return e;
+          let piste = e.piste;
+          if (sens === "premier") piste = max + 1;
+          else if (sens === "dernier") piste = 0.5;
+          else if (sens === "avant") piste = libre(e, e.piste + 1) ? e.piste + 1 : e.piste + 1.5;
+          else piste = e.piste === 1 ? 0.5 : libre(e, e.piste - 1) ? e.piste - 1 : e.piste - 0.5;
+          return piste === e.piste ? e : ({ ...e, piste } as ElementPage);
+        });
+        return elements.every((e, i) => e === p.elements[i]) ? p : { ...p, elements };
+      });
+      return;
+    }
     get().appliquerPage((p) => {
       const choisis = p.elements.filter((e) => ids.has(e.id));
       const autres = p.elements.filter((e) => !ids.has(e.id));
@@ -548,6 +644,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   allerALaPage(id) {
     if (get().pageActive === id || !get().document.pages.some((p) => p.id === id)) return;
     if (typeof window !== "undefined" && window.document.activeElement instanceof HTMLTextAreaElement) window.document.activeElement.blur();
+    useTemps.getState().remettre();
     set({ pageActive: id, selection: [], enEdition: null, enAjustement: null, celluleEnEdition: null });
   },
 
@@ -663,6 +760,42 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       ressources: { ...get().ressources, ...Object.fromEntries(ressources.map((r) => [r.id, r])) },
       ordreRessources: [...nouvelles.map((r) => r.id).reverse(), ...ordreRessources],
     });
+  },
+
+  // ---- Frise ----
+
+  basculerPageVideo(video) {
+    const durees = dureesDe(get().ressources);
+    useTemps.getState().pause();
+    get().appliquerPage((p) => (video ? versVideo(p, durees) : versFixe(p)));
+    if (!video) useTemps.getState().remettre();
+  },
+
+  deplacerClip(id, debut, piste) {
+    get().appliquerPage((p) => deplacerClip(p, id, debut, piste, dureesDe(get().ressources)));
+  },
+
+  rognerClip(id, cote, t) {
+    get().appliquerPage((p) => rogner(p, id, cote, t, dureesDe(get().ressources)));
+  },
+
+  scinderALaTete() {
+    const etat = get();
+    const page = pageCourante(etat);
+    if (!estPageVideo(page)) return;
+    const tete = useTemps.getState().tete;
+    const sous = page.elements.filter((e) => visibleA(e, tete) && !e.verrouille);
+    const choisis = sous.filter((e) => etat.selection.includes(e.id)).map((e) => e.id);
+    const ids = choisis.length ? choisis : sous.filter((e) => e.piste === PISTE_PRINCIPALE).map((e) => e.id);
+    if (ids.length === 0) return;
+    let nouveaux: string[] = [];
+    etat.appliquerPage((p) => {
+      const r = scinder(p, ids, tete, dureesDe(get().ressources), () => nouvelId());
+      nouveaux = r.nouveaux;
+      return r.page;
+    });
+    // La sélection passe sur les secondes moitiés, comme dans CapCut.
+    if (nouveaux.length) set({ selection: nouveaux });
   },
 
   notifier(texte, options = {}) {

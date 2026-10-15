@@ -122,7 +122,7 @@ function designMemoire(ref: RefProjet): DesignMemoire {
 
 // Images et vidéos du navigateur : préparées dans l'onglet, gardées le temps de la session.
 // Pour une vidéo, la « copie » est le fichier lui-même (il n'y a pas de Rust ici).
-const ressourcesNavigateur = new Map<string, { ressource: Ressource; urls: Record<GenreImage, string> & { copie?: string } }>();
+const ressourcesNavigateur = new Map<string, { ressource: Ressource; urls: Record<"apercu" | "miniature", string> & { copie?: string; vignettes?: string } }>();
 
 // ========================================================================================
 // Designs
@@ -252,7 +252,8 @@ export async function dossierDesigns(): Promise<string> {
 // Images d'un design
 // ========================================================================================
 
-export type GenreImage = "apercu" | "miniature";
+/** `vignettes` : la bande des vignettes d'une vidéo, pour sa frise. */
+export type GenreImage = "apercu" | "miniature" | "vignettes";
 
 const urls = new Map<string, Promise<string>>();
 const cleUrl = (ref: RefRessources, id: string, genre: GenreImage) => `${ref.rayon}/${ref.id}/${id}/${genre}`;
@@ -261,7 +262,10 @@ const cleUrl = (ref: RefRessources, id: string, genre: GenreImage) => `${ref.ray
  *  demande. Dans Tauri, le noyau lit le fichier et l'interface en fait une adresse locale. */
 export function urlRessource(ref: RefRessources, id: string, genre: GenreImage): Promise<string> {
   const navigateur = ressourcesNavigateur.get(id);
-  if (navigateur) return Promise.resolve(navigateur.urls[genre]);
+  if (navigateur) {
+    const url = navigateur.urls[genre];
+    return url ? Promise.resolve(url) : Promise.reject(new Error("pas de vignettes"));
+  }
   const cle = cleUrl(ref, id, genre);
   let promesse = urls.get(cle);
   if (!promesse) {
@@ -286,6 +290,57 @@ export function urlCopieVideo(ref: RefRessources, ressource: Ressource): Promise
     promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" }).then((octets) => URL.createObjectURL(new Blob([octets], { type })));
     promesse.catch(() => urls.delete(cle));
     urls.set(cle, promesse);
+  }
+  return promesse;
+}
+
+/** L'image d'une vidéo à l'instant `ms` de son fichier (JPEG), tirée de la copie d'aperçu par
+ *  le noyau ; dans le navigateur, par une balise vidéo. */
+export async function imageVideo(ref: RefRessources, ressource: Ressource, ms: number): Promise<Blob> {
+  if (dansTauri) {
+    const octets = await invoke<ArrayBuffer>("image_video", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, ms: Math.max(0, Math.round(ms)) });
+    return new Blob([octets], { type: "image/jpeg" });
+  }
+  const url = await urlCopieVideo(ref, ressource);
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "auto";
+  await new Promise<void>((ok, ko) => {
+    video.addEventListener("loadeddata", () => ok(), { once: true });
+    video.addEventListener("error", () => ko(new Error("vidéo illisible")), { once: true });
+    video.src = url;
+  });
+  await new Promise<void>((ok) => {
+    video.addEventListener("seeked", () => ok(), { once: true });
+    video.currentTime = Math.min(ms / 1000, Math.max(0, video.duration - 0.01));
+  });
+  const toile = document.createElement("canvas");
+  toile.width = video.videoWidth;
+  toile.height = video.videoHeight;
+  toile.getContext("2d")!.drawImage(video, 0, 0);
+  video.removeAttribute("src");
+  video.load();
+  return new Promise<Blob>((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error("image impossible"))), "image/jpeg", 0.9));
+}
+
+/** La forme d'onde d'une vidéo : le pic du son (0 à 100), `par_seconde` fois par seconde. */
+export interface Onde {
+  par_seconde: number;
+  pics: number[];
+}
+const ondes = new Map<string, Promise<Onde | null>>();
+
+/** La forme d'onde d'une vidéo du design, gardée en mémoire ; `null` si elle n'a pas de son. */
+export function ondeVideo(ref: RefRessources, id: string): Promise<Onde | null> {
+  if (!dansTauri) return Promise.resolve(null);
+  const cle = `${ref.rayon}/${ref.id}/${id}`;
+  let promesse = ondes.get(cle);
+  if (!promesse) {
+    promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id, genre: "onde" }).then(
+      (octets) => JSON.parse(new TextDecoder().decode(octets)) as Onde,
+      () => null,
+    );
+    ondes.set(cle, promesse);
   }
   return promesse;
 }
@@ -429,6 +484,27 @@ async function sonderVideoNavigateur(url: string): Promise<{ video: HTMLVideoEle
   return { video, couverture: await createImageBitmap(video) };
 }
 
+/** La bande des vignettes d'une vidéo du navigateur, comme celle du noyau : une image par
+ *  seconde (20 au plus ici), 90 px de haut, côte à côte. */
+async function vignettesNavigateur(video: HTMLVideoElement, duree: number): Promise<{ infos: InfosVideo["vignettes"]; url?: string }> {
+  const nombre = Math.max(1, Math.min(20, Math.ceil(duree / 1000)));
+  const hauteur = 90;
+  const largeur = Math.max(2, Math.round((hauteur * video.videoWidth) / video.videoHeight / 2) * 2);
+  const toile = document.createElement("canvas");
+  toile.width = largeur * nombre;
+  toile.height = hauteur;
+  const c = toile.getContext("2d")!;
+  for (let i = 0; i < nombre; i++) {
+    await new Promise<void>((ok) => {
+      video.addEventListener("seeked", () => ok(), { once: true });
+      video.currentTime = Math.min((i * duree) / nombre / 1000, Math.max(0, video.duration - 0.01));
+    });
+    c.drawImage(video, i * largeur, 0, largeur, hauteur);
+  }
+  const blob = await new Promise<Blob | null>((ok) => toile.toBlob(ok, "image/jpeg", 0.8));
+  return { infos: { nombre, intervalle: Math.round(duree / nombre), largeur, hauteur }, url: blob ? URL.createObjectURL(blob) : undefined };
+}
+
 async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport> {
   const ressources: Ressource[] = [];
   const erreurs: string[] = [];
@@ -445,15 +521,16 @@ async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport
         const copie = URL.createObjectURL(fichier);
         const { video, couverture } = await sonderVideoNavigateur(copie);
         const duree = Math.round(video.duration * 1000);
+        const vignettes = await vignettesNavigateur(video, duree);
         const ressource: Ressource = {
           id,
           nom: fichier.name || "vidéo",
           largeur: video.videoWidth,
           hauteur: video.videoHeight,
           transparence: false,
-          video: { duree, imagesParSeconde: 30, son: true, copie: fichier.type.includes("mp4") ? "mp4" : "webm", vignettes: { nombre: 0, intervalle: 1000, largeur: 0, hauteur: 0 } },
+          video: { duree, imagesParSeconde: 30, son: true, copie: fichier.type.includes("mp4") ? "mp4" : "webm", vignettes: vignettes.infos },
         };
-        ressourcesNavigateur.set(id, { ressource, urls: { apercu: await reduireNavigateur(couverture, 2560, false), miniature: await reduireNavigateur(couverture, 256, false), copie } });
+        ressourcesNavigateur.set(id, { ressource, urls: { apercu: await reduireNavigateur(couverture, 2560, false), miniature: await reduireNavigateur(couverture, 256, false), copie, vignettes: vignettes.url } });
         couverture.close();
         ressources.push(ressource);
         continue;

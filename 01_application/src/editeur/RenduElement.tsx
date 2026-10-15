@@ -16,6 +16,15 @@ import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
 import { Dessin, Graphique, Tableau } from "./RenduDonnees";
 import { useLecteurVideo, useLecture } from "./videos";
+import { useTemps } from "../etat/temps";
+import { visibleA } from "../modele/frise";
+
+/** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
+ *  figé) ? Le composant ne se redessine que quand la réponse change. */
+function useDansLeTemps(el: ElementPage, instant?: number): boolean {
+  const vivant = useTemps((s) => instant !== undefined || !el.temps || visibleA(el, s.tete));
+  return instant !== undefined ? visibleA(el, instant) : vivant;
+}
 
 /** Propriétés d'ombre Konva ; sans ombre, rien (Konva ne calcule alors aucune ombre). */
 export function ombreKonva(ombre: Ombre | undefined): Record<string, unknown> {
@@ -114,12 +123,13 @@ function Photo({ el }: { el: ElementImage }) {
  * travail, sa copie d'aperçu, qui joue quand on la lance ; dans l'aperçu plein écran, elle
  * joue toute seule, en boucle, avec le son.
  */
-function Video({ el, statique, anime }: { el: ElementVideo; statique: boolean; anime: boolean }) {
+function Video({ el, statique, anime, image }: { el: ElementVideo; statique: boolean; anime: boolean; image?: CanvasImageSource }) {
   const couverture = useImageRessource(el.ressource);
   const enLecture = useLecture((s) => !!s.enLecture[el.id]);
   const noeud = useRef<Konva.Image>(null);
-  const video = useLecteurVideo(el, anime || enLecture, true, noeud);
-  if (statique && !anime) return <Plaque el={el} image={couverture} />;
+  const video = useLecteurVideo(el, anime || enLecture, true, noeud, statique && !anime);
+  // Figée : l'image exacte de l'instant quand le rendu l'a préparée, sinon la couverture.
+  if (statique && !anime) return <Plaque el={el} image={image ?? couverture} />;
   return <Plaque el={el} image={video ?? couverture} noeud={noeud} />;
 }
 
@@ -440,9 +450,14 @@ interface Proprietes {
   celluleMasquee?: { ligne: number; colonne: number } | null;
   /** Aperçu plein écran : les vidéos jouent toutes seules. */
   anime?: boolean;
+  /** Rendu figé d'une page vidéo : l'instant montré (ms de la page). */
+  instant?: number;
+  /** Rendu figé : l'image exacte d'une vidéo à cet instant, préparée par le rendu. */
+  imageVideo?: CanvasImageSource;
 }
 
-export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null, anime = false }: Proprietes) {
+export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null, anime = false, instant, imageVideo }: Proprietes) {
+  const dansLeTemps = useDansLeTemps(el, instant);
   return (
     <Group
       id={statique ? undefined : el.id}
@@ -451,7 +466,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       y={el.y}
       rotation={el.rotation}
       opacity={el.opacite}
-      visible={el.visible}
+      visible={el.visible && dansLeTemps}
       draggable={!statique && !fige && !el.verrouille && !enEdition && !enAjustement}
       listening={!statique}
       onDragEnd={statique ? undefined : rien}
@@ -459,7 +474,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       {el.type === "texte" && <Texte el={el} masque={enEdition} />}
       {el.type === "forme" && <Forme el={el} />}
       {el.type === "image" && <Photo el={el} />}
-      {el.type === "video" && <Video el={el} statique={statique} anime={anime} />}
+      {el.type === "video" && <Video el={el} statique={statique} anime={anime} image={imageVideo} />}
       {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
       {el.type === "personnage" && <Personnage el={el} />}
       {el.type === "qr" && <CodeQr el={el} />}
@@ -473,13 +488,16 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
 });
 
 /** Une page entière, figée, à sa taille native : fond puis éléments. `anime` : les vidéos
- *  jouent (aperçu plein écran). */
-export const PageStatique = memo(function PageStatique({ page, format, anime = false }: { page: PageEliot; format: Format; anime?: boolean }) {
+ *  jouent (aperçu plein écran ; sur une page vidéo, au rythme de la tête de lecture). Une
+ *  page vidéo figée se montre à l'instant `instant` (0 par défaut), avec les images exactes
+ *  de ses vidéos quand le rendu les a préparées (`imagesVideo`, par identifiant d'élément). */
+export const PageStatique = memo(function PageStatique({ page, format, anime = false, instant, imagesVideo }: { page: PageEliot; format: Format; anime?: boolean; instant?: number; imagesVideo?: Map<string, CanvasImageSource> }) {
+  const moment = anime || page.duree === undefined ? undefined : (instant ?? 0);
   return (
     <>
       <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(page.fond, format.largeur, format.hauteur)} listening={false} />
       {page.elements.map((el) => (
-        <RenduElement key={el.id} el={el} statique anime={anime} />
+        <RenduElement key={el.id} el={el} statique anime={anime} instant={moment} imageVideo={imagesVideo?.get(el.id)} />
       ))}
     </>
   );

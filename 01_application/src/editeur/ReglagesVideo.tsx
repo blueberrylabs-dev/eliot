@@ -1,5 +1,6 @@
-// Réglages d'une vidéo dans la barre de contexte : lecture, son, vitesse, coupe. La frise du
-// lot 2 coupera à la souris ; ici, deux curseurs suffisent pour choisir la partie qui joue.
+// Réglages d'une vidéo dans la barre de contexte : lecture, son, vitesse, coupe. Sur une page
+// vidéo, Lire lance toute la page (comme Espace) et la coupe se règle aussi à la souris, en
+// tirant les bords du clip dans la frise ; ici, deux curseurs donnent la valeur exacte.
 
 import { Pause, Play, Scissors, Volume2, VolumeX } from "lucide-react";
 import { useEditeur } from "../etat/editeur";
@@ -8,6 +9,7 @@ import type { ElementPage, ElementVideo } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { dureeLisible, useLecture } from "./videos";
+import { useTemps } from "../etat/temps";
 
 export const VITESSES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
 
@@ -16,7 +18,10 @@ const secondes = (ms: number) => Math.round(ms / 100) / 10;
 export function ReglagesVideo({ v }: { v: ElementVideo }) {
   const etat = useEditeur.getState();
   const ressource = useEditeur((s) => s.ressources[v.ressource]);
-  const joue = useLecture((s) => !!s.enLecture[v.id]);
+  const pageVideo = v.temps !== undefined;
+  const joueSeule = useLecture((s) => !!s.enLecture[v.id]);
+  const jouePage = useTemps((s) => s.joue);
+  const joue = pageVideo ? jouePage : joueSeule;
   const duree = ressource?.video?.duree ?? 0;
   const modifier = (m: Partial<ElementVideo>, etiquette?: string) => etat.modifierElements({ [v.id]: m as Partial<ElementPage> }, etiquette ? `${etiquette}:${v.id}` : undefined);
   const volume = v.volume ?? 1;
@@ -32,7 +37,7 @@ export function ReglagesVideo({ v }: { v: ElementVideo }) {
 
   return (
     <>
-      <Bouton titre={joue ? "Pause" : "Lire la vidéo"} enfoncé={joue} surClic={() => useLecture.getState().basculer(v.id)}>
+      <Bouton titre={joue ? "Pause (Espace)" : pageVideo ? "Lire la page (Espace)" : "Lire la vidéo"} enfoncé={joue} surClic={() => (pageVideo ? useTemps.getState().basculerLecture() : useLecture.getState().basculer(v.id))}>
         {joue ? <Pause size={16} /> : <Play size={16} />}
         <span className="ml-1 text-sm">{joue ? "Pause" : "Lire"}</span>
       </Bouton>
@@ -67,7 +72,7 @@ export function ReglagesVideo({ v }: { v: ElementVideo }) {
           <Curseur libelle="Début" valeur={secondes(debut)} min={0} max={secondes(duree)} pas={0.1} unite=" s" surChange={(x) => couper(x * 1000, Math.max(fin, x * 1000 + 100))} />
           <Curseur libelle="Fin" valeur={secondes(fin)} min={0} max={secondes(duree)} pas={0.1} unite=" s" surChange={(x) => couper(Math.min(debut, x * 1000 - 100), x * 1000)} />
           <p className="mb-1 text-xs text-neutral-500">
-            Joue {dureeLisible(dureeJouee(v, duree))} sur {dureeLisible(duree)}, en boucle sur une page fixe.
+            Joue {dureeLisible(dureeJouee(v, duree))} sur {dureeLisible(duree)}{pageVideo ? "." : ", en boucle sur une page fixe."}
           </p>
           {v.coupe && (
             <button className="text-xs text-accent-700 hover:underline" onClick={() => modifier({ coupe: undefined })}>

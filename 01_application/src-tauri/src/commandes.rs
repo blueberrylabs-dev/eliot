@@ -341,6 +341,17 @@ pub async fn lire_ressource(app: AppHandle, rayon_nom: String, projet_id: String
     Ok(Response::new(octets))
 }
 
+/// L'image d'une vidéo à l'instant `ms` de son fichier, en JPEG, tirée de la copie d'aperçu
+/// (capture et vignettes d'une page vidéo).
+#[tauri::command]
+pub async fn image_video(app: AppHandle, rayon_nom: String, projet_id: String, id: String, ms: u64) -> Result<Response, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let octets = tauri::async_runtime::spawn_blocking(move || videos::image_de_copie(&dossier, &id, ms).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))??;
+    Ok(Response::new(octets))
+}
+
 // ----------------------------------------------------------------------------------------
 // Polices du poste et polices copiées dans un design (étape 3)
 // ----------------------------------------------------------------------------------------

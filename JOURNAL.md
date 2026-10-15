@@ -5,6 +5,44 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 2 : la frise
+
+Choix de Claude, modifiables sur simple demande :
+
+- La bascule Photo ou Vidéo dit ce qu'est la page affichée (le BRIEF : une page qui a une
+  durée est une vidéo). Vidéo : la frise s'ouvre, chaque élément sur sa propre piste de
+  superposition, dans son ordre d'empilement, visible tout du long (5 s, ou la plus longue
+  vidéo). Photo : la page redevient fixe, temps et pistes oubliés, annulable. Poser une vidéo
+  sur une page fixe en fait une page vidéo (« ouvre la frise d'office », BRIEF § 6).
+- Où se pose un élément neuf : une vidéo sur la piste principale quand elle a déjà des clips
+  ou que la page est vide (au bout, ou après le clip sous la tête si la tête est dedans), et
+  elle remplit alors la page ; tout le reste, photos comprises, au-dessus de ce qui se voit
+  à la tête, pour 3 s. Écarté : les photos sur la piste principale, comme dans CapCut, parce
+  qu'un logo ou un autocollant couvrirait la page ; une photo glissée sur la principale s'y
+  range quand même (diaporama).
+- Une seule fonction remet une page vidéo d'aplomb après toute modification (`normaliser`) :
+  vidéos à la durée de leur coupe et de leur vitesse, piste principale bout à bout depuis 0,
+  un clip qui en chevauche un autre de sa piste monte sur une piste neuve juste au-dessus,
+  pistes renumérotées sans trou, tableau trié par piste (l'empilement découle des pistes),
+  durée de la page jusqu'au dernier clip. Les gestes, l'IA et l'annulation passent tous par
+  elle ; pendant un geste, la frise montre déjà le résultat de cette même fonction.
+- La tête de lecture vit dans un petit store à part (`etat/temps.ts`), hors de l'historique
+  et du fichier ; une horloge la fait avancer en temps réel, les vidéos la suivent et se
+  recalent au-delà d'un quart de seconde d'écart. La lecture s'arrête sur la dernière image.
+- Espace : appui bref, lire ou mettre en pause ; maintenu, déplacer la vue comme avant.
+- Capture, export en image et miniature d'une page vidéo montrent un instant avec l'image
+  exacte de chaque vidéo, tirée de sa copie d'aperçu par le Rust (`image_de_copie`) ; les
+  vignettes de pages gardent la couverture, plus légère.
+- Pistes de son : avec les sons (lot 5). D'ici là, le son d'une vidéo se voit dans son clip
+  (forme d'onde, la plus forte crête à pleine hauteur).
+- Pont IA : `page_video`, `aller_a`, `scinder` (50 outils) ; `modifier` accepte `temps` et
+  `piste` ; `capture` prend un instant ; `etat` décrit la frise ; les outils qui posent un
+  élément le renvoient avec son temps et sa piste.
+- Vérifié dans le conteneur : 18 essais des règles de la frise, interface 84, Chromium 38
+  vérifications sur la frise (gestes à la souris compris), Tauri 21 dont les vignettes,
+  l'onde et la lecture à l'écran de WebKit, un rognage et un glisser à la souris dans WebKit,
+  et toutes les suites d'avant.
+
 ## 2026-10-15, étape 4, lot 1 : la vidéo dans le design
 
 - Import : le noyau (`videos.rs`) sonde le fichier (`ffprobe`), range l'original tel quel,

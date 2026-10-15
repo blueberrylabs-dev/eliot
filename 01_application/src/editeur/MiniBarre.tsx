@@ -1,10 +1,13 @@
 // La mini-barre flottante au-dessus de la sélection : dupliquer, verrouiller, supprimer, et
-// le menu « plus ». Elle s'efface pendant un geste.
+// le menu « plus ». Elle s'efface pendant un geste, pendant la lecture d'une page vidéo, et
+// quand rien de la sélection ne se voit à la tête de lecture.
 
 import { Copy, Group, Lock, LockOpen, MoreHorizontal, Trash2, Ungroup } from "lucide-react";
 import { useEffect, useState } from "react";
 import { elementsCourants, useEditeur } from "../etat/editeur";
 import { noeudElement, surGeste } from "./scene";
+import { useTemps } from "../etat/temps";
+import { visibleA } from "../modele/frise";
 
 interface Proprietes {
   taille: { l: number; h: number };
@@ -17,6 +20,8 @@ export function MiniBarre({ taille, ouvrirMenu }: Proprietes) {
   const enEdition = useEditeur((s) => s.enEdition);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const [enGeste, setEnGeste] = useState(false);
+  const joue = useTemps((s) => s.joue);
+  const visible = useTemps((t) => documentCourant.some((e) => selection.includes(e.id) && visibleA(e, t.tete)));
 
   useEffect(() => surGeste(setEnGeste), []);
 
@@ -34,9 +39,9 @@ export function MiniBarre({ taille, ouvrirMenu }: Proprietes) {
       setPosition({ x, y });
     });
     return () => cancelAnimationFrame(image);
-  }, [selection, documentCourant, taille]);
+  }, [selection, documentCourant, taille, visible]);
 
-  if (!position || enGeste || enEdition || selection.length === 0) return null;
+  if (!position || enGeste || enEdition || selection.length === 0 || joue || !visible) return null;
   const etat = useEditeur.getState();
   const choisis = elementsCourants(etat).filter((e) => selection.includes(e.id));
   const verrouille = choisis.some((e) => e.verrouille);

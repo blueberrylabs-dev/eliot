@@ -36,6 +36,7 @@ pub fn lancer() {
             commandes::ressources_lister,
             commandes::ressources_copier,
             commandes::lire_ressource,
+            commandes::image_video,
             commandes::polices_poste,
             commandes::police_poste_lire,
             commandes::police_vers_design,

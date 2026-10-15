@@ -1,9 +1,9 @@
 // La barre du haut : accueil, menu Fichier, Redimensionner, annuler et rétablir, nom du
 // design et état de l'enregistrement, export.
 
-import { AlertTriangle, Bot, Check, ChevronDown, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, LayoutTemplate, Loader2, Maximize2, Redo2, Settings, Trash2, Undo2 } from "lucide-react";
+import { AlertTriangle, Bot, Check, ChevronDown, Clapperboard, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, Image as IconeImage, LayoutTemplate, Loader2, Maximize2, Redo2, Settings, Trash2, Undo2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useEditeur } from "../etat/editeur";
+import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
 import { exporter, nomDate } from "../export/exporter";
 import { afficherDansDossier, choisirEmplacement, dansTauri, dossierDesigns, dossierExport, type FormatExport } from "../pont/tauri";
@@ -28,6 +28,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const format = useEditeur((s) => s.document.format);
   const nombrePages = useEditeur((s) => s.document.pages.length);
   const avecVideo = useEditeur((s) => s.document.pages.some((p) => p.elements.some((e) => e.type === "video")));
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const notifier = useEditeur((s) => s.notifier);
   const [type, setType] = useState<FormatExport>("png");
   const [ratio, setRatio] = useState(1);
@@ -100,9 +101,11 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
           </div>
         </>
       )}
-      {avecVideo && (
+      {(avecVideo || pageVideo) && (
         <p className="mb-3 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
-          Les vidéos sortent ici en image fixe : leur couverture. L'export en MP4 arrive avec la frise vidéo.
+          {pageVideo
+            ? "Page vidéo : l'image exportée est celle de la tête de lecture (les autres pages : leur début). L'export en MP4 arrive bientôt."
+            : "Les vidéos d'une page fixe sortent ici en image fixe : leur couverture. L'export en MP4 arrive bientôt."}
         </p>
       )}
       <label className={`mb-4 flex items-center gap-2 text-sm ${type === "png" ? "text-neutral-700" : "text-neutral-400"}`}>
@@ -225,6 +228,32 @@ function NomDesign() {
   );
 }
 
+/** La bascule Photo ou Vidéo de la page affichée : une page vidéo a sa frise en bas. */
+function BasculeVideo() {
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
+  const etat = useEditeur.getState();
+  const option = (actif: boolean) => `flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm ${actif ? "bg-white text-accent-700 shadow-sm" : "text-white/90 hover:bg-white/15"}`;
+  return (
+    <span className="flex items-center gap-0.5 rounded-lg bg-black/15 p-0.5" role="group" aria-label="Nature de la page">
+      <button
+        className={option(!pageVideo)}
+        aria-pressed={!pageVideo}
+        title="Page fixe : une image (la frise disparaît ; Ctrl+Z pour revenir)"
+        onClick={() => {
+          if (!pageVideo) return;
+          etat.basculerPageVideo(false);
+          etat.notifier("La page est redevenue une image fixe. Ctrl+Z pour revenir à la vidéo.");
+        }}
+      >
+        <IconeImage size={15} /> Photo
+      </button>
+      <button className={option(pageVideo)} aria-pressed={pageVideo} title="Page vidéo : la frise s'ouvre en bas, avec ses pistes" onClick={() => !pageVideo && etat.basculerPageVideo(true)}>
+        <Clapperboard size={15} /> Vidéo
+      </button>
+    </span>
+  );
+}
+
 export function BarreHaut() {
   const peutAnnuler = useEditeur((s) => s.passe.length > 0);
   const peutRetablir = useEditeur((s) => s.futur.length > 0);
@@ -254,6 +283,7 @@ export function BarreHaut() {
       <button className={texte} onClick={() => setRedimension(true)} title="Passer le design dans un autre format">
         <Maximize2 size={15} /> Redimensionner
       </button>
+      <BasculeVideo />
       <span className="mx-1 h-6 w-px bg-white/25" />
       <button className={icone} title="Annuler (Ctrl+Z)" disabled={!peutAnnuler} onClick={() => etat.annuler()}>
         <Undo2 size={18} />

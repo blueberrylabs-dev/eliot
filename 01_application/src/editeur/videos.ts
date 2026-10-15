@@ -7,6 +7,8 @@ import type Konva from "konva";
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
 import { useEditeur } from "../etat/editeur";
+import { useTemps } from "../etat/temps";
+import { tempsMedia, visibleA } from "../modele/frise";
 import type { ElementVideo } from "../modele/types";
 import { urlCopieVideo } from "../pont/tauri";
 
@@ -60,15 +62,22 @@ type VideoAvecImages = HTMLVideoElement & {
  * La balise `<video>` d'un élément, prête à être dessinée (sa première image est arrivée), ou
  * `undefined` en attendant. `joue` : en lecture ; `son` : le volume de l'élément s'entend.
  * `noeud` : l'image Konva à redessiner à chaque image de la vidéo.
+ *
+ * Sur une page vidéo (l'élément a un `temps`), la balise suit la tête de lecture de la frise :
+ * `joue` ne compte plus, c'est la lecture de la page qui décide. `inutile` : rendu figé, aucune
+ * balise n'est créée.
  */
-export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, noeud: React.RefObject<Konva.Image | null>): HTMLVideoElement | undefined {
-  const projet = useEditeur((s) => s.projet);
+export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, noeud: React.RefObject<Konva.Image | null>, inutile = false): HTMLVideoElement | undefined {
+  const projet = useEditeur((s) => (inutile ? null : s.projet));
   const ressource = useEditeur((s) => s.ressources[el.ressource]);
   const balise = useRef<VideoAvecImages | null>(null);
   const [prete, setPrete] = useState<HTMLVideoElement | undefined>(undefined);
   const { debut, fin } = bornes(el, ressource?.video?.duree);
   const limites = useRef({ debut, fin });
   limites.current = { debut, fin };
+  const temporel = el.temps !== undefined;
+  const elActuel = useRef(el);
+  elActuel.current = el;
 
   const redessiner = () => noeud.current?.getLayer()?.batchDraw();
 
@@ -91,8 +100,9 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
       surDonnees();
     }, { once: true });
     video.addEventListener("seeked", redessiner);
-    // Au bout du fichier (sans coupe de fin), on repart du début de la coupe.
+    // Au bout du fichier (sans coupe de fin), on repart du début de la coupe (page fixe).
     video.addEventListener("ended", () => {
+      if (elActuel.current.temps) return;
       video.currentTime = limites.current.debut;
       if (!video.paused || video.dataset.joue === "1") void video.play().catch(() => undefined);
     });
@@ -113,10 +123,10 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projet, ressource?.id, !!ressource?.video]);
 
-  // Lecture, pause, vitesse, volume.
+  // Page fixe : lecture, pause, vitesse, volume, boucle sur la coupe.
   useEffect(() => {
     const video = balise.current;
-    if (!video || !prete) return;
+    if (!video || !prete || temporel) return;
     video.playbackRate = Math.max(0.25, Math.min(4, el.vitesse ?? 1));
     const volume = Math.max(0, Math.min(1, el.volume ?? 1));
     video.volume = volume;
@@ -166,15 +176,85 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
       video.pause();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prete, joue, son, el.vitesse, el.volume]);
+  }, [prete, joue, son, el.vitesse, el.volume, temporel]);
 
-  // À l'arrêt, une nouvelle coupe montre sa première image.
+  // Page fixe, à l'arrêt : une nouvelle coupe montre sa première image.
   useEffect(() => {
     const video = balise.current;
-    if (!video || !prete || joue) return;
+    if (!video || !prete || joue || temporel) return;
     if (Math.abs(video.currentTime - debut) > 0.01) video.currentTime = debut;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prete, debut]);
+  }, [prete, debut, temporel]);
+
+  // Page vidéo : la balise suit la tête de lecture. En lecture, elle joue et se recale si
+  // elle s'écarte de plus d'un quart de seconde ; à l'arrêt, elle montre l'image de l'instant ;
+  // juste avant son entrée, elle se place sur sa première image pour apparaître sans attente.
+  useEffect(() => {
+    const video = balise.current;
+    if (!video || !prete || !temporel) return;
+    let attente: number | null = null;
+    const chercher = (s: number) => {
+      if (video.seeking) {
+        attente = s;
+        return;
+      }
+      if (Math.abs(video.currentTime - s) > 0.002) video.currentTime = s;
+    };
+    const surRecherche = () => {
+      if (attente === null) return;
+      const s = attente;
+      attente = null;
+      chercher(s);
+    };
+    // Une image peinte à chaque image de la vidéo pendant qu'elle joue.
+    let rappel = 0;
+    let image = 0;
+    const peindre = () => {
+      redessiner();
+      if (video.paused) return;
+      if (video.requestVideoFrameCallback) rappel = video.requestVideoFrameCallback(peindre);
+      else image = requestAnimationFrame(peindre);
+    };
+    const surLecture = () => peindre();
+    video.addEventListener("seeked", surRecherche);
+    video.addEventListener("play", surLecture);
+    const dureeFichier = ressource?.video?.duree;
+    const suivre = (etat: { tete: number; joue: boolean }) => {
+      const e = elActuel.current;
+      if (!e.temps) return;
+      const visible = visibleA(e, etat.tete);
+      const cible = tempsMedia(e, etat.tete, dureeFichier) / 1000;
+      video.playbackRate = Math.max(0.25, Math.min(4, e.vitesse ?? 1));
+      const volume = Math.max(0, Math.min(1, e.volume ?? 1));
+      video.volume = volume;
+      video.muted = !son || volume === 0;
+      if (etat.joue && visible) {
+        if (video.paused) {
+          chercher(cible);
+          void video.play().catch((err: unknown) => {
+            if ((err as { name?: string })?.name !== "NotAllowedError" || video.muted) return;
+            video.muted = true;
+            return video.play().catch(() => undefined);
+          });
+        } else if (Math.abs(video.currentTime - cible) > 0.25) chercher(cible);
+        return;
+      }
+      if (!video.paused) video.pause();
+      if (visible) chercher(cible);
+      else if (etat.tete < e.temps.debut && e.temps.debut - etat.tete < 1500) chercher((e.coupe?.debut ?? 0) / 1000);
+    };
+    suivre(useTemps.getState());
+    const fin = useTemps.subscribe(suivre);
+    return () => {
+      fin();
+      video.removeEventListener("seeked", surRecherche);
+      video.removeEventListener("play", surLecture);
+      if (rappel) video.cancelVideoFrameCallback?.(rappel);
+      if (image) cancelAnimationFrame(image);
+      video.pause();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prete, temporel, son, el.temps?.debut, el.temps?.fin, el.coupe?.debut, el.coupe?.fin, el.vitesse, el.volume]);
 
   return prete;
 }

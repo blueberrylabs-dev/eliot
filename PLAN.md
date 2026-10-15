@@ -224,9 +224,17 @@ Choix par défaut de Claude, modifiables sur simple demande :
       pont IA (47 en tout), archive `.eliot` écrite sans passer par la mémoire. Vérifié :
       noyau 42, interface 66, Chromium (vidéo 40, suites des étapes 2 et 3), Tauri par le pont
       (vidéo 25 dont la lecture à l'écran, suites 3a à 3f). Reste l'essai d'Alexandre.
-- [ ] Lot 2 : la frise : bascule Vidéo, règle, tête de lecture, lecture et pause, zoom, pistes
+- [x] Lot 2 : la frise : bascule Vidéo, règle, tête de lecture, lecture et pause, zoom, pistes
       (principale bout à bout, superpositions, son), clips avec vignettes et formes d'onde,
       couper, déplacer, changer de piste, scinder (Ctrl+B), dupliquer, supprimer, aimantation.
+      Livré le 2026-10-15 : règles de la frise en fonctions pures (`modele/frise.ts`, 18
+      essais), tête de lecture et horloge, page montrée à l'instant de la tête, vidéos
+      calées sur la tête, frise à pistes avec gestes à la souris, rendu et export d'un instant
+      avec l'image exacte des vidéos (tirée par le Rust), trois outils de plus pour le pont IA
+      (50 en tout). Les pistes de son viennent avec les sons (lot 5) ; d'ici là, le son d'une
+      vidéo se voit dans son clip. Vérifié : noyau 42, interface 84, Chromium (frise 38, vidéo
+      41, suites des étapes 2 et 3), Tauri par le pont (frise 21 dont la lecture et les
+      vignettes à l'écran, vidéo 25, suites 3a à 3f). Reste l'essai d'Alexandre.
 - [ ] Lot 3 : l'animation : textes animés (entrée, sortie, boucle), styles de texte vidéo,
       images clés, transitions entre clips, vitesse, fondus, texte qui entre par lignes.
 - [ ] Lot 4 : l'export MP4 et GIF par le Rust (calques en SVG, `resvg`, `ffmpeg`), barre de

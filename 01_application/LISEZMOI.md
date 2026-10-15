@@ -96,20 +96,47 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - La vidéo se pose comme une photo : déplacer, redimensionner, tourner, retourner, coins
   arrondis, bordure, ombre, transparence. Sa carte du panneau Importer montre sa durée.
 - Barre du haut : Lire et Pause, la durée qui joue, le son (volume, couper), la vitesse (de
-  0,25× à 4×) et Couper (début et fin, en secondes). Sur une page fixe, la vidéo joue en
-  boucle : c'est un post animé. L'aperçu plein écran (F11) fait jouer toutes les vidéos de la
-  page, avec le son.
+  0,25× à 4×) et Couper (début et fin, en secondes). Poser une vidéo fait de la page une page
+  vidéo, avec sa frise (plus bas). Revenue en photo (bascule Photo), la page garde ses vidéos,
+  qui jouent en boucle quand on les lance : un post animé. L'aperçu plein écran (F11) fait
+  jouer les vidéos avec le son ; une page vidéo s'y lit du début à la fin.
 - Panneau Photos, bouton Vidéos : vidéos libres de Pixabay, cherchées en français ; le tri
   Paysage ou Portrait se fait sur les résultats. La vidéo choisie se télécharge en 1080p, se
   prépare comme une vidéo du poste et garde le nom de son auteur.
 - L'export en PNG ou en JPEG montre la couverture de chaque vidéo (une image prise vers la
   première seconde) ; l'export en MP4 vient avec la frise (lots suivants de l'étape 4).
 
+**La frise d'une page vidéo (étape 4, lot 2)**
+- La bascule Photo ou Vidéo, en haut, dit ce qu'est la page affichée. Vidéo : la frise
+  s'ouvre en bas, chaque élément déjà posé sur sa piste (l'empilement gardé). Photo : la page
+  redevient une image fixe (Ctrl+Z pour revenir).
+- Les pistes : la principale en bas, où les vidéos se suivent bout à bout, sans trou
+  (supprimer un clip resserre la suite) ; au-dessus, les superpositions (textes, formes,
+  photos, vidéos en incrustation), la plus haute devant. Une vidéo importée va sur la
+  principale et remplit la page ; un texte, une forme ou une photo se pose à la tête de
+  lecture, pour 3 s, au-dessus de ce qui se voit.
+- Lire et Pause (Espace, appui bref ; maintenu, Espace déplace toujours la vue), la règle
+  (un clic y met la tête, un glisser fait défiler), le temps affiché, le zoom (boutons, ou
+  Ctrl + molette), « toute la vidéo dans la largeur », la hauteur de la frise (tirer son bord
+  du haut), la replier.
+- Les clips : une vidéo montre ses vignettes et la forme de son son. Glisser un clip le
+  déplace dans le temps ou sur une autre piste (lâché au-dessus de la plus haute : une piste
+  neuve ; sur une piste occupée à cet endroit : une piste neuve juste au-dessus) ; tirer un
+  bord coupe le début ou la fin (une vidéo garde la partie de son fichier qui suit), et la
+  page montre l'image du bord. Les bords des clips et la tête aimantent.
+- Scinder à la tête (Ctrl+B, ou le bouton Scinder), dupliquer (la copie suit l'original),
+  supprimer. Ctrl+↑ et Ctrl+↓ font monter ou descendre un clip d'une piste.
+- La page montre l'instant de la tête : chaque élément n'apparaît que pendant son temps.
+  L'export en image d'une page vidéo sort l'instant de la tête de lecture, avec l'image exacte
+  de chaque vidéo. Les pistes de son (musique, voix) et l'export en MP4 viennent dans les lots
+  suivants.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
-  (coupe, vitesse, volume), se servir du kit de marque, dessiner à main
+  (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder,
+  tête de lecture, capture à un instant), se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
   capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -131,6 +158,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 | Page préc., Page suiv. | page précédente, suivante |
 | Ctrl + molette, Ctrl+0, Ctrl+plus, Ctrl+moins | zoom |
 | Espace maintenu + glisser | déplacer la vue |
+| Espace (appui bref, page vidéo) | lire, mettre en pause |
+| Ctrl+B (page vidéo) | scinder à la tête de lecture |
+| ←, → sans sélection (Maj : d'une seconde), Début, Fin | tête de lecture d'une image, au début, à la fin |
 | F11 | aperçu en plein écran |
 | Maj+clic, rectangle tracé à la souris | sélection de plusieurs objets |
 | Alt+clic | un seul objet d'un groupe |
@@ -159,11 +189,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts), la frise (frise/)
 │   ├── export/       rendu d'une page hors écran, export
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

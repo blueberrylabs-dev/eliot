@@ -2,7 +2,8 @@
 // par les événements du presse-papiers (Editeur.tsx) : ces touches sont laissées au système.
 
 import { useEffect } from "react";
-import { elementsSelectionnes, useEditeur } from "../etat/editeur";
+import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
+import { useTemps } from "../etat/temps";
 import { scene } from "./scene";
 
 const PAS_ZOOM = 1.25;
@@ -23,6 +24,8 @@ export function useRaccourcis(): void {
       const pages = etat.document.pages;
       const rang = pages.findIndex((p) => p.id === etat.pageActive);
       const zoom = etat.zoom ?? scene.echelle;
+      const page = pageCourante(etat);
+      const pageVideo = page.duree !== undefined;
       let traite = true;
 
       if (ctrl && e.altKey && touche === "c") etat.copierStyle();
@@ -32,6 +35,17 @@ export function useRaccourcis(): void {
       } else if (ctrl && touche === "z" && !e.shiftKey) etat.annuler();
       else if (ctrl && ((touche === "z" && e.shiftKey) || touche === "y")) etat.retablir();
       else if (ctrl && touche === "d") etat.dupliquerSelection();
+      else if (ctrl && touche === "b" && pageVideo) etat.scinderALaTete();
+      else if (pageVideo && etat.selection.length === 0 && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        // Sans sélection, les flèches font avancer la tête d'une image (Maj : d'une seconde).
+        const pas = (e.shiftKey ? 1000 : 1000 / 30) * (e.key === "ArrowLeft" ? -1 : 1);
+        const temps = useTemps.getState();
+        temps.pause();
+        temps.allerA(Math.min(Math.max(0, (page.duree ?? 1) - 1), temps.tete + pas));
+      } else if (pageVideo && (e.key === "Home" || e.key === "End")) {
+        useTemps.getState().pause();
+        useTemps.getState().allerA(e.key === "Home" ? 0 : Math.max(0, (page.duree ?? 1) - 1));
+      }
       else if (ctrl && touche === "a") etat.toutSelectionner();
       else if (ctrl && touche === "g" && e.shiftKey) etat.degrouperSelection();
       else if (ctrl && touche === "g") etat.grouperSelection();

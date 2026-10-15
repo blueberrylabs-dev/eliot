@@ -2,6 +2,7 @@
 // (règle 7), puis le noyau Rust écrit le fichier.
 
 import { pageCourante, useEditeur } from "../etat/editeur";
+import { useTemps } from "../etat/temps";
 import { ecrireExport, type FormatExport } from "../pont/tauri";
 import { rendrePage } from "./rendu";
 
@@ -36,10 +37,12 @@ export async function exporter(options: OptionsExport, progression?: (fait: numb
   const ecrits: string[] = [];
   for (const [rang, page] of pages.entries()) {
     progression?.(rang, pages.length);
+    // Une page vidéo sort à l'instant de la tête de lecture (la page affichée), sinon au début.
     const blob = await rendrePage(page, doc.format, {
       pixelRatio: options.ratio,
       type: options.format === "png" ? "image/png" : "image/jpeg",
       transparent: options.transparent,
+      instant: page.id === etat.pageActive ? useTemps.getState().tete : 0,
     });
     const octets = new Uint8Array(await blob.arrayBuffer());
     const nom = pages.length > 1 ? `${base}_page-${deux(rang + 1)}` : base;

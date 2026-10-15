@@ -281,6 +281,21 @@ fn image_a(original: &Path, ms: u64) -> Result<image::DynamicImage, ErreurVideo>
     image::load_from_memory(&png).map_err(|e| ErreurVideo::Couverture(e.to_string()))
 }
 
+/// L'image de la copie d'aperçu à l'instant `ms` du fichier, en JPEG : ce que la fenêtre montre
+/// à cet instant, pour une capture ou une vignette de page vidéo. Rapide grâce aux images clés
+/// rapprochées de la copie.
+pub fn image_de_copie(dossier: &Path, id: &str, ms: u64) -> Result<Vec<u8>, ErreurVideo> {
+    let copie = images::chemin_ressource(dossier, id, images::Genre::Copie).map_err(|e| ErreurVideo::Lecture(io::Error::other(e.to_string())))?;
+    let mut arguments: Vec<String> = vec!["-hide_banner".into(), "-loglevel".into(), "error".into(), "-ss".into(), format!("{:.3}", ms as f64 / 1000.0), "-i".into()];
+    arguments.push(chemin_texte(&copie));
+    arguments.extend(["-frames:v", "1", "-f", "image2pipe", "-c:v", "mjpeg", "-q:v", "3", "pipe:1"].map(String::from));
+    let jpeg = lancer("ffmpeg", &arguments)?;
+    if jpeg.is_empty() {
+        return Err(ErreurVideo::Ffmpeg(format!("aucune image à {ms} ms")));
+    }
+    Ok(jpeg)
+}
+
 fn pair(v: f64) -> u32 {
     ((v / 2.0).round() as u32).max(1) * 2
 }
@@ -517,6 +532,11 @@ mod tests {
         assert!(images::chemin_ressource(&ressources, &r.id, images::Genre::Apercu).unwrap().exists());
         let original = images::chemin_ressource(&ressources, &r.id, images::Genre::Original).unwrap();
         assert_eq!(fs::read(&original).unwrap(), fs::read(&source).unwrap());
+        // L'image d'un instant, tirée de la copie : un JPEG à la taille de la copie.
+        let jpeg = image_de_copie(&ressources, &r.id, 1500).unwrap();
+        assert_eq!(&jpeg[..2], &[0xFF, 0xD8]);
+        assert_eq!(image::load_from_memory(&jpeg).unwrap().width(), 640);
+        assert!(image_de_copie(&ressources, "inconnue", 0).is_err());
         // Réimporter ne refait rien.
         let mut appels = 0;
         let encore = importer(&source, &ressources, &ReglageCopie::default(), &mut |_| appels += 1).unwrap();

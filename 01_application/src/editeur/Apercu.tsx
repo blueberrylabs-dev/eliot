@@ -1,6 +1,7 @@
 // L'aperçu en plein écran : la page seule, sans l'interface, pour juger le résultat comme le
 // verra le public. Flèches pour changer de page, Échap pour sortir. Les vidéos y jouent toutes
-// seules, en boucle, avec le son ; celles lancées dans la zone de travail s'arrêtent.
+// seules, avec le son : une page vidéo se lit du début à la fin ; sur une page fixe, chaque
+// vidéo boucle. Ce qui jouait dans la zone de travail s'arrête.
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,6 +10,7 @@ import { pageCourante, useEditeur } from "../etat/editeur";
 import { pleinEcran } from "../pont/tauri";
 import { PageStatique } from "./RenduElement";
 import { useLecture } from "./videos";
+import { useTemps } from "../etat/temps";
 
 export function Apercu() {
   const page = useEditeur(pageCourante);
@@ -28,6 +30,15 @@ export function Apercu() {
       void pleinEcran(false);
     };
   }, []);
+
+  // Une page vidéo se lit depuis le début, à chaque page affichée.
+  const pageVideo = page.duree !== undefined;
+  useEffect(() => {
+    if (!pageVideo) return;
+    useTemps.getState().allerA(0);
+    useTemps.getState().lire();
+    return () => useTemps.getState().pause();
+  }, [page.id, pageVideo]);
 
   useEffect(() => {
     const surTouche = (e: KeyboardEvent) => {

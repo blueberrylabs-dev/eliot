@@ -2,7 +2,7 @@
 // panneau, la barre contextuelle, la zone de travail (ou la vue en grille) et la barre du bas.
 
 import { useEffect } from "react";
-import { elementsSelectionnes, useEditeur } from "../etat/editeur";
+import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
 import { collerAvecImages } from "../etat/projets";
 import { Apercu } from "./Apercu";
 import { BarreBas } from "./BarreBas";
@@ -10,6 +10,7 @@ import { BarreContexte } from "./BarreContexte";
 import { BarreHaut } from "./BarreHaut";
 import { BarreLaterale } from "./BarreLaterale";
 import { deposerFichiers } from "./depot";
+import { Frise } from "./frise/Frise";
 import { useRaccourcis } from "./raccourcis";
 import { VueGrille } from "./VueGrille";
 import { ZoneDeTravail } from "./ZoneDeTravail";
@@ -64,6 +65,7 @@ export function Editeur() {
   usePressePapiers();
   const vueGrille = useEditeur((s) => s.vueGrille);
   const apercu = useEditeur((s) => s.apercu);
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   return (
     <div className="relative flex h-full flex-col">
       <BarreHaut />
@@ -72,6 +74,7 @@ export function Editeur() {
         <main className="flex min-w-0 flex-1 flex-col">
           <BarreContexte />
           {vueGrille ? <VueGrille /> : <ZoneDeTravail />}
+          {pageVideo && !vueGrille && <Frise />}
           <BarreBas />
         </main>
       </div>

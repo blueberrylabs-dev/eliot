@@ -27,6 +27,8 @@ import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
 import { chercherPixabay, chercherVideosPixabay, estCheminVideo, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers } from "../editeur/SuiviImport";
+import { useTemps } from "../etat/temps";
+import { estPageVideo, pistesDe } from "../modele/frise";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
@@ -97,11 +99,27 @@ function resumer() {
     annulable: s.passe.length,
     // Le kit de marque en bref ; tout le détail (logos compris) par l'outil marque.
     marque: { nom: useMarque.getState().kit.nom, couleurs: useMarque.getState().kit.couleurs.map((c) => c.valeur), polices: useMarque.getState().kit.polices },
+    // Page vidéo : sa frise en bref (le détail des clips est dans `elements`, champs temps et piste).
+    ...(estPageVideo(page) ? { frise: resumerFrise() } : {}),
+  };
+}
+
+/** La frise de la page vidéo affichée : durée, tête de lecture, pistes et clips (en ms). */
+function resumerFrise() {
+  const page = pageCourante(etat());
+  return {
+    duree: page.duree,
+    tete: useTemps.getState().tete,
+    pistes: pistesDe(page).map(({ piste, clips }) => ({
+      piste,
+      nom: piste === 0 ? "principale" : `superposition ${piste}`,
+      clips: clips.map((e) => ({ id: e.id, type: e.type, nom: e.nom ?? (e.type === "texte" ? e.texte.slice(0, 40) : e.type), debut: e.temps?.debut, fin: e.temps?.fin, ...(e.type === "video" ? { coupe: e.coupe ?? null, vitesse: e.vitesse ?? 1 } : {}) })),
+    })),
   };
 }
 
 /** Propriétés qu'une modification peut toucher, selon le type de l'élément. */
-const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "ombre"];
+const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "ombre", "temps", "piste"];
 const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
@@ -239,6 +257,20 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
     else if (cle === "retourneH" || cle === "retourneV") {
       exiger(typeof valeur === "boolean", `${cle} : vrai ou faux`);
       propre[cle] = valeur;
+    } else if (cle === "temps" || cle === "piste") {
+      exiger(el.temps !== undefined, `${cle} : seulement sur une page vidéo (page_video pour en faire une)`);
+      if (cle === "temps") {
+        const t = valeur as { debut?: unknown; fin?: unknown } | null;
+        exiger(t && typeof t === "object", "temps : { debut, fin } en millisecondes de la page");
+        const debut = Math.round(nombre(t!.debut, el.temps!.debut)!);
+        const fin = Math.round(nombre(t!.fin, el.type === "video" ? debut + (el.temps!.fin - el.temps!.debut) : el.temps!.fin)!);
+        exiger(debut >= 0 && fin - debut >= 100, "temps : debut ≥ 0 et fin au moins 100 ms après debut (une vidéo garde la durée de sa coupe : changer sa coupe ou sa vitesse)");
+        propre[cle] = { debut, fin };
+      } else {
+        const n = nombre(valeur);
+        exiger(n !== undefined && Number.isInteger(n) && n >= 0, "piste : 0 pour la principale (vidéos et photos), 1, 2, 3… pour les superpositions");
+        propre[cle] = n;
+      }
     } else if (el.type === "video" && (cle === "coupe" || cle === "vitesse" || cle === "volume")) {
       Object.assign(propre, reglagesVideo(etat().ressources[el.ressource], { [cle]: valeur }));
     } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
@@ -388,6 +420,13 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
 const plancheDePhotos = (photos: PhotoPixabay[]) => planche(photos.map((p) => () => urlApercuPixabay(p.id)), 240, 180, true);
 const plancheDeVideos = (videos: VideoPixabay[]) => planche(videos.map((v) => () => urlApercuVideoPixabay(v.id)), 240, 135, true);
 
+/** Pose un élément sur la page affichée et le renvoie tel que la page l'a rangé (sur une page
+ *  vidéo : avec son temps et sa piste). */
+function ajouter<T extends ElementPage>(el: T): T {
+  etat().ajouterElements([el]);
+  return (elementsCourants(etat()).find((e) => e.id === el.id) as T | undefined) ?? el;
+}
+
 /** Une vidéo posée par l'IA : boîte, puis coupe, vitesse et volume. */
 function poserVideo(ressource: Ressource, args: Arguments): ElementVideo {
   const base = creerVideo(etat().document.format, ressource);
@@ -397,8 +436,11 @@ function poserVideo(ressource: Ressource, args: Arguments): ElementVideo {
   const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
   const el = { ...placer(base, { ...args, ...dimensions }), ...reglagesVideo(ressource, args) };
   for (const cle of ["coupe", "vitesse", "volume"] as const) if (el[cle] === undefined) delete el[cle];
-  etat().ajouterElements([el]);
-  return el;
+  // Sans position ni taille demandées, une vidéo de la piste principale remplit la page.
+  const boiteVoulue = ["x", "y", "largeur", "hauteur"].some((k) => args[k] !== undefined);
+  etat().ajouterElements([el], { garderBoite: boiteVoulue });
+  // L'élément tel que la frise l'a posé (temps et piste).
+  return (elementsCourants(etat()).find((e) => e.id === el.id) as ElementVideo | undefined) ?? el;
 }
 
 /** Ce que l'IA voit du kit de marque. */
@@ -431,8 +473,48 @@ const OUTILS: Record<string, Outil> = {
     const page = s.document.pages[numero - 1];
     exiger(page, `page ${numero} introuvable (le design en a ${s.document.pages.length})`);
     const largeur = Math.max(100, Math.min(1600, nombre(args.largeur, 800)!));
-    const blob = await rendrePage(page, s.document.format, { pixelRatio: largeur / s.document.format.largeur, type: "image/png" });
-    return { donnees: { page: numero, largeur, format: s.document.format }, image: await base64(blob) };
+    // Page vidéo : l'instant demandé, sinon celui de la tête de lecture (page affichée).
+    const instant = estPageVideo(page) ? Math.max(0, Math.min((page.duree ?? 1) - 1, nombre(args.temps, page.id === s.pageActive ? useTemps.getState().tete : 0)!)) : undefined;
+    const blob = await rendrePage(page, s.document.format, { pixelRatio: largeur / s.document.format.largeur, type: "image/png", instant });
+    return { donnees: { page: numero, largeur, format: s.document.format, ...(instant !== undefined ? { temps: instant, duree: page.duree } : {}) }, image: await base64(blob) };
+  },
+
+  page_video(args) {
+    designOuvert();
+    exiger(typeof args.video === "boolean", "video : vrai pour une page vidéo (frise), faux pour une image fixe");
+    etat().basculerPageVideo(args.video as boolean);
+    const page = pageCourante(etat());
+    return { donnees: estPageVideo(page) ? { video: true, frise: resumerFrise() } : { video: false, elements: page.elements.length } };
+  },
+
+  aller_a(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la page affichée est une image fixe (page_video pour en faire une vidéo)");
+    const t = nombre(args.temps);
+    exiger(t !== undefined && t >= 0, "temps : un instant de la page, en millisecondes");
+    useTemps.getState().pause();
+    useTemps.getState().allerA(Math.min(t!, (page.duree ?? 1) - 1));
+    return { donnees: { tete: useTemps.getState().tete, duree: page.duree } };
+  },
+
+  scinder(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    exiger(estPageVideo(page), "la page affichée est une image fixe (page_video pour en faire une vidéo)");
+    const t = args.temps === undefined ? useTemps.getState().tete : nombre(args.temps);
+    exiger(t !== undefined && t >= 0, "temps : l'instant de la coupe, en millisecondes de la page");
+    const id = texte(args.id);
+    if (id) exiger(page.elements.some((e) => e.id === id), `élément introuvable sur la page affichée : ${id}`);
+    const avant = page.elements.length;
+    useTemps.getState().pause();
+    useTemps.getState().allerA(t!);
+    if (id) etat().selectionnerSeul(id);
+    else etat().deselectionner();
+    etat().scinderALaTete();
+    const apres = pageCourante(etat());
+    exiger(apres.elements.length > avant, "rien à couper à cet instant (il faut un clip qui dure au moins 100 ms de chaque côté)");
+    return { donnees: { nouveaux: etat().selection, frise: resumerFrise() } };
   },
 
   async lister_designs() {
@@ -495,8 +577,7 @@ const OUTILS: Record<string, Outil> = {
     const largeur = nombre(args.largeur);
     const avecLargeur = largeur ? { ...base, largeur: Math.max(20, largeur) } : base;
     const el = placer({ ...avecLargeur, hauteur: mesurerHauteurTexte(avecLargeur) }, { ...args, hauteur: undefined, largeur: undefined });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   ajouter_forme(args) {
@@ -518,8 +599,7 @@ const OUTILS: Record<string, Outil> = {
       },
       args,
     );
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async chercher_bibliotheque(args) {
@@ -547,8 +627,7 @@ const OUTILS: Record<string, Outil> = {
     exiger(nom && (await traces(id!))[nom] !== undefined, `icône inconnue dans ${id} : ${String(args.nom)}`);
     const base = creerIcone(etat().document.format, id!, nom!, (couleur(args.couleur ?? "#1f1f1d", "couleur") as string) ?? "#1f1f1d");
     const el = placer(base, { ...args, hauteur: args.hauteur ?? args.largeur, largeur: args.largeur ?? args.hauteur });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async ajouter_emoji(args) {
@@ -559,8 +638,7 @@ const OUTILS: Record<string, Outil> = {
     exiger(c && c.genre === "emoji", `collection d'emojis inconnue : ${String(args.collection)} (fluent ou openmoji)`);
     exiger(nom && (await traces(id!))[nom] !== undefined, `emoji inconnu dans ${id} : ${String(args.nom)} (voir chercher_bibliotheque)`);
     const el = placer(creerEmoji(etat().document.format, id!, nom!), { ...args, hauteur: args.hauteur ?? args.largeur, largeur: args.largeur ?? args.hauteur });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async lister_personnages(args) {
@@ -638,8 +716,7 @@ const OUTILS: Record<string, Outil> = {
     const largeur = nombre(args.largeur) ?? (nombre(args.hauteur) !== undefined ? Math.round(nombre(args.hauteur)! * ratio) : undefined);
     const hauteur = nombre(args.hauteur) ?? (largeur !== undefined ? Math.round(largeur / ratio) : undefined);
     const el = placer({ ...base, ...(booleen(args.retourneH) ? { retourneH: true } : {}) }, { ...args, largeur, hauteur });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   ajouter_qr(args) {
@@ -649,8 +726,7 @@ const OUTILS: Record<string, Outil> = {
     const base = creerQr(etat().document.format, contenu!, (couleur(args.couleur ?? "#1f1f1d", "couleur") as string) ?? "#1f1f1d");
     const fond = args.fond === null ? null : args.fond !== undefined ? (couleur(args.fond, "fond") as string) : base.fond;
     const el = placer({ ...base, fond }, { ...args, hauteur: args.largeur });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   ajouter_cadre(args) {
@@ -661,8 +737,7 @@ const OUTILS: Record<string, Outil> = {
     const ressource = texte(args.ressource);
     if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
     const el = placer(creerCadre(etat().document.format, forme, ressource), args);
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   ajouter_grille(args) {
@@ -687,8 +762,7 @@ const OUTILS: Record<string, Outil> = {
     const hauteur = nombre(args.hauteur);
     const dimensions = largeur ? { largeur, hauteur: largeur / proportion } : hauteur ? { largeur: hauteur * proportion, hauteur } : {};
     const el = placer(base, { ...args, ...dimensions });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   remplir_photo(args) {
@@ -787,8 +861,7 @@ const OUTILS: Record<string, Outil> = {
     const dimensions =
       largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
     const el = placer(base, { ...args, ...dimensions });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   dessiner(args) {
@@ -831,8 +904,7 @@ const OUTILS: Record<string, Outil> = {
       await copierPoliceDansDesign(propre.police);
     }
     const el = placer({ ...base, ...propre }, args);
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async ajouter_tableau(args) {
@@ -851,8 +923,7 @@ const OUTILS: Record<string, Outil> = {
     // La hauteur suit le contenu, à la largeur choisie.
     const el = { ...place, hauteur: Math.round(disposerTableau({ ...place, hauteur: 0 }, mesurePolice(place.police)).hauteurNaturelle) };
     if (nombre(args.y) === undefined) el.y = Math.round((etat().document.format.hauteur - el.hauteur) / 2);
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async lister_modeles_depart(args) {
@@ -919,8 +990,7 @@ const OUTILS: Record<string, Outil> = {
     const ratio = ressource.largeur / ressource.hauteur;
     const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
     const el = placer(base, { ...args, ...dimensions });
-    etat().ajouterElements([el]);
-    return { donnees: { element: el, ressource } };
+    return { donnees: { element: ajouter(el), ressource } };
   },
 
   marque() {
@@ -956,8 +1026,7 @@ const OUTILS: Record<string, Outil> = {
     const largeur = nombre(args.largeur);
     const dimensions = largeur ? { largeur, hauteur: (largeur * ressource.hauteur) / ressource.largeur } : {};
     const el = placer(base, { ...args, ...dimensions });
-    etat().ajouterElements([el]);
-    return { donnees: el };
+    return { donnees: ajouter(el) };
   },
 
   async modifier(args) {

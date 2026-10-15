@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), polices disponibles. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -9,7 +9,7 @@
   },
   {
     "name": "capture",
-    "description": "Image PNG d'une page du design, pour voir le résultat et juger la mise en page. Par défaut la page affichée, 800 px de large.",
+    "description": "Image PNG d'une page du design, pour voir le résultat et juger la mise en page. Par défaut la page affichée, 800 px de large. Page vidéo : l'image à un instant (temps, en ms ; par défaut celui de la tête de lecture), avec la vraie image des vidéos à cet instant.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -23,6 +23,11 @@
           "minimum": 100,
           "maximum": 1600,
           "description": "Largeur de l'image en pixels."
+        },
+        "temps": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Page vidéo : l'instant montré, en millisecondes."
         }
       }
     }
@@ -1189,7 +1194,7 @@
   },
   {
     "name": "ajouter_video",
-    "description": "Pose sur la page affichée une vidéo déjà importée (identifiant de ressource donné par etat ou importer_video). Avec seulement largeur ou seulement hauteur, les proportions sont gardées ; sans position, elle est centrée. Sur une page fixe, la vidéo joue en boucle (post animé) ; une capture ou un export en image montre sa couverture.",
+    "description": "Pose sur la page affichée une vidéo déjà importée (identifiant de ressource donné par etat ou importer_video). Une page fixe devient une page vidéo (frise). La vidéo va sur la piste principale, bout à bout avec les autres, quand celle-ci a déjà des clips ou que la page est vide ; elle remplit alors la page, sauf position ou taille données. Sinon elle se pose au-dessus de tout, à la tête de lecture (incrustation). Avec seulement largeur ou seulement hauteur, les proportions sont gardées. Une capture ou un export en image montre l'image de la vidéo à l'instant choisi.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1295,7 +1300,7 @@
   },
   {
     "name": "ajouter_video_pixabay",
-    "description": "Télécharge une vidéo trouvée par chercher_videos (1080p), la prépare comme une vidéo importée, la range dans le design avec le nom et le lien de son auteur, puis la pose sur la page (centrée par défaut).",
+    "description": "Télécharge une vidéo trouvée par chercher_videos (1080p), la prépare comme une vidéo importée, la range dans le design avec le nom et le lien de son auteur, puis la pose comme ajouter_video.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1362,6 +1367,53 @@
       "required": [
         "id"
       ]
+    }
+  },
+  {
+    "name": "page_video",
+    "description": "Fait de la page affichée une page vidéo (la frise s'ouvre : chaque élément sur sa piste, visible tout du long, la page dure 5 s ou autant que sa plus longue vidéo) ou la remet en image fixe (temps et pistes oubliés ; annulable). Poser une vidéo sur une page fixe en fait aussi une page vidéo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "video": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "video"
+      ]
+    }
+  },
+  {
+    "name": "aller_a",
+    "description": "Place la tête de lecture d'une page vidéo à un instant (ms). La fenêtre montre alors la page à cet instant ; un élément ajouté ensuite (texte, forme, photo…) s'y pose, pour 3 s.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "temps": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "temps"
+      ]
+    }
+  },
+  {
+    "name": "scinder",
+    "description": "Coupe en deux un clip d'une page vidéo à un instant (ms ; par défaut la tête de lecture), comme Ctrl+B dans la frise : sans id, le clip de la piste principale à cet instant. La seconde moitié reçoit un nouvel identifiant ; une vidéo garde la suite de son fichier. On supprime ensuite le morceau inutile avec supprimer (la piste principale se resserre).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "temps": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     }
   },
   {
@@ -1485,7 +1537,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place).",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; sur une page vidéo, temps ({ debut, fin } en ms : une vidéo garde la durée de sa coupe et de sa vitesse) et piste (0 : principale, où vidéos et photos se suivent bout à bout ; 1, 2, 3… : superpositions, la plus haute devant ; une piste occupée à cet endroit en fait naître une au-dessus) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place).",
     "inputSchema": {
       "type": "object",
       "properties": {

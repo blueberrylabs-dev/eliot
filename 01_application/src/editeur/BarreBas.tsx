@@ -4,7 +4,7 @@
 import { Copy, Grid2x2, Maximize, Plus, Rows3, Trash2 } from "lucide-react";
 import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useEditeur } from "../etat/editeur";
+import { pageCourante, useEditeur } from "../etat/editeur";
 import { glisserPourReordonner } from "./reordonner";
 import { Vignette } from "./Vignette";
 
@@ -93,7 +93,13 @@ export function BarreBas() {
   const rang = useEditeur((s) => s.document.pages.findIndex((p) => p.id === s.pageActive));
   const vueGrille = useEditeur((s) => s.vueGrille);
   const etat = useEditeur.getState();
-  const [bande, setBande] = useState(true);
+  // Sous la frise d'une page vidéo, la bande des pages est repliée d'office (place gardée
+  // pour la page) ; le bouton Pages la rouvre.
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
+  const [bandeFixe, setBandeFixe] = useState(true);
+  const [bandeVideo, setBandeVideo] = useState(false);
+  const bande = pageVideo ? bandeVideo : bandeFixe;
+  const setBande = pageVideo ? setBandeVideo : setBandeFixe;
   const zoomAjuste = useEditeur((s) => s.zoomAjuste);
   const zoomAffiche = zoom ?? zoomAjuste;
   const bouton = (actif = false) => `flex h-8 items-center gap-1.5 rounded-md px-2 text-sm ${actif ? "bg-accent-50 text-accent-700" : "text-neutral-700 hover:bg-neutral-100"}`;
