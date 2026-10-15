@@ -5,6 +5,82 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 5 : le son
+
+Choix de Claude, modifiables sur simple demande :
+
+- Les sons d'une page vont dans `audio` (champ prévu au § 6 du BRIEF) : un clip par son, avec
+  sa ressource, son temps, sa piste (0 juste sous la principale), sa coupe, son volume, ses
+  fondus, son rôle (musique, voix, bruitage), et pour une musique `jusquALaFin`, `boucle`,
+  `phase` et `sousLaVoix`. Les formules (instant du fichier joué, boucle, fondus, musique qui
+  baisse sous la voix) vivent dans `src/modele/son.ts` et, pour l'export, dans
+  `noyau/src/son.rs` ; `son.attendus.json` (60 cas) donne les valeurs que les deux côtés
+  retrouvent à un millionième près.
+- Import d'un son par le noyau (`noyau/src/sons.rs`) : l'original rangé une seule fois, une
+  copie d'écoute pour la fenêtre (Opus 128 kbit/s, stéréo, 48 kHz, en WebM : le format que le
+  banc du lot 0 a vu jouer dans Tauri), la forme d'onde (50 pics par seconde) et le niveau
+  sonore. Le niveau se mesure dans le Rust avec la bibliothèque `ebur128` 0.1.10 (MIT, déjà
+  notée au § 4 du BRIEF) plutôt qu'avec les filtres de `ffmpeg` que prévoyait le PLAN : le même
+  code mesure aussi le mixage de l'export. Un son mono passe sur les deux canaux à -3 dB
+  chacun (règle de `ffmpeg`), à l'écoute comme à l'export.
+- Un son de 20 s et plus se pose comme une musique : elle couvre la page jusqu'au bout,
+  répétée si elle est plus courte, avec un fondu de fin de 2 s ; un son plus court est un
+  bruitage. La page dure jusqu'au dernier clip ou au dernier son qui n'est pas une musique
+  « jusqu'à la fin » ; une page sans clip garde sa durée.
+- La musique baisse sous les clips au rôle voix : elle garde 30 % de son volume (environ
+  -10 dB), réglable musique par musique, en commençant 200 ms avant la voix et en remontant
+  en 400 ms après.
+- Lecture dans la fenêtre (`src/editeur/sons.ts`) par le Web Audio : la copie d'écoute de
+  chaque son est décodée une fois ; à chaque lecture, chaque son est programmé sur l'horloge du
+  son (départ, partie jouée, boucle) avec la courbe de son volume (50 points par seconde :
+  volume, fondus, baisse sous la voix). Écarté après mesure : une balise `<audio>` par son,
+  recalée sur la tête de lecture. Dans WebKit (sortie muette de PulseAudio, enregistrée), une
+  balise partait jusqu'à 0,3 s en retard quand la fenêtre était chargée (la tête n'avance
+  qu'à chaque image dessinée, quatre ou cinq par seconde dans le conteneur), et chaque
+  recalage s'entendait. Avec le Web Audio, mesuré : chaque son part à son instant à
+  l'échantillon près, d'une traite. L'horloge du son ne tourne que pendant la lecture (en
+  marche, elle calcule du silence et prend du processeur à la fenêtre) ; le décodage passe par
+  un contexte hors ligne. Mémoire : une musique de 3 minutes décodée occupe environ 70 Mo, le
+  temps que le design reste ouvert.
+- Détacher le son d'une vidéo (vitesse 1× seulement) : un clip de voix à la même place, avec
+  la même coupe, et la vidéo devient muette.
+- Freesound (`noyau/src/freesound.rs`) : recherche par `GET /apiv2/search/` (la documentation,
+  freesound.org/docs/api/resources_apiv2.html, lue le 2026-10-15, dit que l'ancienne adresse
+  `/search/text/` est dépréciée depuis novembre 2025), clé dans
+  l'en-tête `Authorization: Token …`, jamais dans une adresse ; filtre
+  `license:("Attribution" OR "Creative Commons 0")`, plus la durée pour les bruitages (30 s au
+  plus) et les musiques (20 s et plus). La licence se relit à la réponse (nom ou adresse de la
+  licence) : CC BY-NC et Sampling+ écartés une seconde fois. Écouter : l'extrait MP3 léger.
+  Ajouter : l'extrait OGG de bonne qualité (environ 192 kbit/s), que la clé suffit à obtenir ;
+  l'original demande la connexion au compte (OAuth2, BRIEF § 6), pas faite. Recherches et
+  extraits gardés 24 h en cache (2 000 demandes par jour au plus). Le crédit (auteur, lien,
+  licence, titre) est rangé avec le son ; « Crédits des sons » donne une ligne par son, au
+  format `« titre » par auteur (lien), licence CC BY 4.0, via Freesound`.
+- Jingles : deux sons du kit de marque, ouverture et fin ; posés au début, ou finissant avec la
+  page. Ils se posent au rôle musique (ils baissent sous la voix et partent de la version sans
+  musique) ; le rôle se change dans la barre.
+- Niveau à l'export : -14 LUFS intégrés pour toutes les plateformes, crête vraie plafonnée à
+  -1 dBTP, par un simple gain sur tout le mixage (ni limiteur, ni compresseur : si la crête
+  empêche d'atteindre -14, le film reste un peu moins fort). Sources : YouTube ramène les
+  vidéos plus fortes à -14 LUFS et conseille -1 dBTP ; TikTok et Instagram ne publient pas de
+  cible, les mesures tournent autour de -14 (forasoft.com, « LUFS for video platforms »,
+  2026-06-05). Coché d'office dans la fenêtre d'export, il se décoche.
+- Version sans musique : un second MP4 à côté du film, `…_sans-musique.mp4` (sous un nom
+  libre), les mêmes images recopiées sans réencodage, le son sans les clips au rôle musique,
+  avec le même gain que le film (la voix y sonne pareil). Sans aucune musique dans la page,
+  pas de seconde version ; avec seulement de la musique, la seconde version est muette.
+- Pont IA : `importer_son`, `chercher_sons`, `ajouter_son` (un son du design, de Freesound, un
+  jingle, ou le son détaché d'une vidéo), `regler_son` (57 outils) ; `etat` donne les sons
+  importés, les pistes des sons et les crédits ; `marque` les jingles ; `scinder` et
+  `supprimer` prennent aussi les sons ; `exporter` prend `niveau` et `sansMusique`.
+- Vérifié dans le conteneur : noyau 62 (dont 12 du son : formules du tableau commun, import,
+  niveau d'une sinusoïde connue, faux Freesound local, mixage avec boucle, baisse sous la voix,
+  calage à -14 LUFS et version sans musique relus par `ffmpeg`), interface 142, Chromium 44
+  vérifications sur le son (dont les réglages du son dans la fenêtre d'export) et toutes les
+  suites d'avant, Tauri 26 dont la lecture dans WebKit enregistrée et deux films relus
+  (niveau mesuré à -14,0 LUFS par le filtre `ebur128` de `ffmpeg`), et toutes les suites
+  d'avant.
+
 ## 2026-10-15, BRIEF : l'exemple des images clés corrigé
 
 Accord d'Alexandre (« tu as mon accord pour corriger l'exemple ») : dans le modèle de document

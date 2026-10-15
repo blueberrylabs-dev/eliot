@@ -8,10 +8,13 @@
 pub mod animation;
 pub mod export;
 pub mod fichiers;
+pub mod freesound;
 pub mod images;
 pub mod marque;
 pub mod montage;
 pub mod pixabay;
 pub mod polices;
 pub mod projet;
+pub mod son;
+pub mod sons;
 pub mod videos;

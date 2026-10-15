@@ -131,7 +131,7 @@ pub const HAUTEUR_VIGNETTE: u32 = 90;
 pub const VIGNETTES_MAX: u32 = 60;
 pub const PICS_PAR_SECONDE: u32 = 50;
 
-fn programme(nom: &str) -> Command {
+pub(crate) fn programme(nom: &str) -> Command {
     let mut commande = Command::new(nom);
     commande.stdin(Stdio::null());
     commande
@@ -148,7 +148,7 @@ fn lancer(nom: &str, arguments: &[String]) -> Result<Vec<u8>, ErreurVideo> {
     Ok(sortie.stdout)
 }
 
-fn chemin_texte(chemin: &Path) -> String {
+pub(crate) fn chemin_texte(chemin: &Path) -> String {
     chemin.to_string_lossy().into_owned()
 }
 
@@ -233,15 +233,23 @@ pub fn empreinte_fichier(chemin: &Path) -> io::Result<String> {
 
 /// Encode la copie d'aperçu en suivant l'avancement (`-progress`), de 0 à 1.
 fn fabriquer_copie(original: &Path, cible: &Path, reglage: &ReglageCopie, duree: u64, avancement: &mut dyn FnMut(f32)) -> Result<(), ErreurVideo> {
+    let mut arguments = vec!["-i".to_string(), chemin_texte(original)];
+    arguments.extend(reglage.arguments());
+    encoder_vers(&arguments, cible, reglage.extension(), duree, avancement)
+}
+
+/// Lance `ffmpeg` avec `arguments` (entrée et réglages, sans la sortie) vers un temporaire
+/// d'extension `extension`, renommé en `cible` à la fin. L'avancement (`-progress`) va de 0 à
+/// 1 d'après la durée attendue, en ms. Sert aussi aux sons (`sons.rs`).
+pub(crate) fn encoder_vers(arguments: &[String], cible: &Path, extension: &str, duree: u64, avancement: &mut dyn FnMut(f32)) -> Result<(), ErreurVideo> {
     let temporaire = chemin_temporaire(cible)?;
     // Le temporaire garde l'extension : ffmpeg en déduit le conteneur.
-    let temporaire = temporaire.with_extension(format!("{}.{}", temporaire.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default(), reglage.extension()));
-    let mut arguments: Vec<String> = ["-y", "-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1", "-i"].map(String::from).to_vec();
-    arguments.push(chemin_texte(original));
-    arguments.extend(reglage.arguments());
-    arguments.push(chemin_texte(&temporaire));
+    let temporaire = temporaire.with_extension(format!("{}.{extension}", temporaire.extension().map(|e| e.to_string_lossy().into_owned()).unwrap_or_default()));
+    let mut tous: Vec<String> = ["-y", "-hide_banner", "-loglevel", "error", "-nostats", "-progress", "pipe:1"].map(String::from).to_vec();
+    tous.extend_from_slice(arguments);
+    tous.push(chemin_texte(&temporaire));
     let mut processus = programme("ffmpeg")
-        .args(&arguments)
+        .args(&tous)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -338,7 +346,7 @@ fn fabriquer_onde(copie: &Path) -> Result<Onde, ErreurVideo> {
 }
 
 /// L'extension de l'original, nettoyée (elle sert à construire un chemin).
-fn extension_sure(chemin: &Path) -> String {
+pub(crate) fn extension_sure(chemin: &Path) -> String {
     let brute = chemin.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     if !brute.is_empty() && brute.len() <= 5 && brute.chars().all(|c| c.is_ascii_alphanumeric()) { brute } else { "video".into() }
 }
@@ -397,6 +405,7 @@ pub fn importer(chemin: &Path, dossier: &Path, reglage: &ReglageCopie, avancemen
         transparence: false,
         format_apercu: "jpg".into(),
         credit: None,
+        son: None,
         video: Some(InfosVideo {
             duree: sondage.duree,
             images_par_seconde: sondage.images_par_seconde,

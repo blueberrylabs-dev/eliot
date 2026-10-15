@@ -1,16 +1,20 @@
 // Le panneau Marque : le kit de marque, un seul, gardé d'un design à l'autre. Ses couleurs
 // s'appliquent d'un clic aux objets choisis (ou au fond de la page) ; ses polices servent aux
-// titres et aux textes posés d'ici ; ses logos se posent comme une image.
+// titres et aux textes posés d'ici ; ses logos se posent comme une image ; ses jingles
+// d'ouverture et de fin se posent au début ou à la fin d'une vidéo.
 
-import { ImagePlus, Plus, X } from "lucide-react";
+import { ImagePlus, Music, Pause, Play, Plus, X } from "lucide-react";
 import { useEffect, useState, type PointerEvent as PointeurReact } from "react";
 import { elementsSelectionnes, useEditeur } from "../../etat/editeur";
-import { logoDansDesign, useMarque } from "../../etat/marque";
+import { logoDansDesign, poserJingle, useMarque } from "../../etat/marque";
 import { copierPoliceDansDesign } from "../../etat/projets";
 import { creerImage, creerTexte } from "../../modele/fabriques";
-import { COULEURS_MAX, modifCouleur, ROLES_POLICE, type RolePolice } from "../../modele/marque";
+import { COULEURS_MAX, modifCouleur, ROLES_JINGLE, ROLES_POLICE, type RoleJingle, type RolePolice } from "../../modele/marque";
 import { REF_MARQUE, type Couleur, type ElementPage, type Format, type Ressource } from "../../modele/types";
-import { urlRessource } from "../../pont/tauri";
+import { urlCopie, urlRessource } from "../../pont/tauri";
+import { useEcoute } from "../ecoute";
+import { nomSon } from "../frise/ClipSon";
+import { dureeLisible } from "../videos";
 import { assurerPolice, pilePolice, POLICE_PAR_DEFAUT } from "../../polices";
 import { Bulle } from "../Bulle";
 import { glisserDepuisPanneau } from "../glisser";
@@ -103,6 +107,68 @@ function CarteLogo({ ressource }: { ressource: Ressource }) {
       <button title="Retirer du kit (le fichier reste dans le dossier du kit)" onClick={() => retirer(ressource.id)} className="absolute -top-1.5 -right-1.5 hidden rounded-full border border-neutral-300 bg-white p-0.5 text-neutral-600 shadow-sm group-hover:block hover:text-red-600">
         <X size={12} />
       </button>
+    </div>
+  );
+}
+
+/** Un jingle du kit : son nom, l'écoute, le poser dans la vidéo, le changer ou le retirer. */
+export function LigneJingle({ role, gerer = true }: { role: RoleJingle; gerer?: boolean }) {
+  const id = useMarque((s) => s.kit.jingles[role]);
+  const r = useMarque((s) => (id ? s.images[id] : undefined));
+  const importer = useMarque((s) => s.importerJingle);
+  const retirer = useMarque((s) => s.retirerJingle);
+  const ecoute = useEcoute((s) => s.enCours === `jingle-${role}`);
+  const [occupe, setOccupe] = useState(false);
+  const libelle = ROLES_JINGLE.find((x) => x.id === role)!;
+  const notifier = (texte: string) => useEditeur.getState().notifier(texte, { erreur: true });
+  if (!r?.son) {
+    if (!gerer) return null;
+    return (
+      <button
+        data-jingle-choisir={role}
+        disabled={occupe}
+        onClick={() => {
+          setOccupe(true);
+          importer(role)
+            .catch((e) => notifier(`Import impossible : ${String(e)}`))
+            .finally(() => setOccupe(false));
+        }}
+        className="mb-2 flex w-full items-center gap-2 rounded-lg border border-dashed border-neutral-300 px-3 py-2 text-left text-xs text-neutral-600 hover:border-accent-500 hover:bg-accent-50 disabled:opacity-60"
+      >
+        <Music size={14} /> {occupe ? "Import en cours…" : `${libelle.libelle} : choisir un son`}
+      </button>
+    );
+  }
+  return (
+    <div data-jingle={role} className="mb-2 flex items-center gap-1.5 rounded-lg border border-neutral-200 px-2 py-1.5">
+      <button title={ecoute ? "Arrêter" : "Écouter"} onClick={() => useEcoute.getState().basculer(`jingle-${role}`, () => urlCopie(REF_MARQUE, r))} className="rounded-full p-1 text-accent-700 hover:bg-accent-50">
+        {ecoute ? <Pause size={14} /> : <Play size={14} />}
+      </button>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[11px] text-neutral-500">{libelle.libelle}</span>
+        <span className="block truncate text-xs text-neutral-800" title={r.nom}>
+          {nomSon(r)} <span className="text-neutral-400 tabular-nums">{dureeLisible(r.son.duree)}</span>
+        </span>
+      </span>
+      <button
+        data-jingle-poser={role}
+        disabled={occupe}
+        title={`${libelle.poser} de la vidéo`}
+        onClick={() => {
+          setOccupe(true);
+          poserJingle(role)
+            .catch((e) => notifier(`Jingle non posé : ${String(e)}`))
+            .finally(() => setOccupe(false));
+        }}
+        className="shrink-0 rounded-md bg-accent-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-accent-700 disabled:opacity-60"
+      >
+        {libelle.poser}
+      </button>
+      {gerer && (
+        <button title="Retirer du kit (le fichier reste dans le dossier du kit)" onClick={() => retirer(role)} className="rounded-full p-0.5 text-neutral-400 hover:text-red-600">
+          <X size={12} />
+        </button>
+      )}
     </div>
   );
 }
@@ -209,6 +275,12 @@ export function PanneauMarque() {
       ) : (
         <p className="text-xs text-neutral-500">PNG avec transparence de préférence. Le kit est rangé dans Documents, Eliot, Marque ; il sert à tous les designs.</p>
       )}
+
+      <p className="mt-5 mb-2 text-sm font-semibold text-neutral-800">Jingles</p>
+      {ROLES_JINGLE.map((j) => (
+        <LigneJingle key={j.id} role={j.id} />
+      ))}
+      <p className="text-xs text-neutral-500">Quelques secondes de son qui signent tes vidéos : posées d'un clic au début ou à la fin (onglet Audio aussi).</p>
     </div>
   );
 }

@@ -23,6 +23,10 @@ export const useSuiviImport = create<EtatSuivi>((set) => ({
 export const suiviFichiers: SuiviImport = (fichier, part, total) =>
   useSuiviImport.getState().montrer(total > 1 ? `Préparation de la vidéo ${fichier + 1} sur ${total}` : "Préparation de la vidéo", part);
 
+/** Le même, pour des sons (lot 5). */
+export const suiviSons: SuiviImport = (fichier, part, total) =>
+  useSuiviImport.getState().montrer(total > 1 ? `Préparation du son ${fichier + 1} sur ${total}` : "Préparation du son", part);
+
 /** Lance `travail` en montrant son avancement, et range la bande à la fin, même en cas d'échec. */
 export async function avecSuivi<T>(travail: () => Promise<T>): Promise<T> {
   try {

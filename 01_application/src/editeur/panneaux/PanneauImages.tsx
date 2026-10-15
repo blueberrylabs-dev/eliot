@@ -1,5 +1,6 @@
 import { Film, ImagePlus } from "lucide-react";
 import { useState } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { useEditeur } from "../../etat/editeur";
 import { creerImage, creerVideo } from "../../modele/fabriques";
 import type { Ressource } from "../../modele/types";
@@ -32,7 +33,8 @@ function CarteImage({ ressource }: { ressource: Ressource }) {
 
 export function PanneauImages() {
   const ressources = useEditeur((s) => s.ressources);
-  const ordre = useEditeur((s) => s.ordreRessources);
+  // Les sons ont leur onglet (Audio).
+  const ordre = useEditeur(useShallow((s) => s.ordreRessources.filter((id) => !s.ressources[id]?.son)));
   const [occupe, setOccupe] = useState(false);
 
   const importer = async () => {
@@ -47,7 +49,8 @@ export function PanneauImages() {
       // Une seule image ou vidéo importée : elle va directement sur la page, comme dans Canva.
       if (bilan.ressources.length === 1) {
         const r = bilan.ressources[0];
-        etat.ajouterElements([r.video ? creerVideo(etat.document.format, r) : creerImage(etat.document.format, r)]);
+        if (r.son) etat.ajouterSon(r);
+        else etat.ajouterElements([r.video ? creerVideo(etat.document.format, r) : creerImage(etat.document.format, r)]);
       }
       if (bilan.erreurs.length) etat.notifier(`Non importé : ${bilan.erreurs.join(" ; ")}`, { erreur: true });
     } catch (erreur) {

@@ -16,7 +16,10 @@ import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
 import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
 import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
-import { logoDansDesign, useMarque } from "../etat/marque";
+import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
+import { telechargerSonFreesound } from "../etat/sons";
+import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
+import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
 import { normaliser } from "../bibliotheque/recherche";
@@ -26,13 +29,14 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { chercherPixabay, chercherVideosPixabay, estCheminVideo, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
-import { avecSuivi, suiviFichiers } from "../editeur/SuiviImport";
+import { chercherFreesound, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
-import type { Animations, CleAnimation } from "../modele/types";
+import type { Animations, ClipAudio, CleAnimation, RoleSon } from "../modele/types";
+import { nomSon } from "../editeur/frise/ClipSon";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
@@ -96,7 +100,9 @@ function resumer() {
     fond: page.fond,
     elements: page.elements,
     selection: s.selection,
-    images: s.ordreRessources.map((id) => s.ressources[id]).filter(Boolean),
+    images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son),
+    // Les sons importés dans le design (lot 5) : durée en ms, niveau sonore, crédit.
+    sons: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.son),
     // Les polices de la bibliothèque ; celles du poste (souvent des dizaines) par lister_polices.
     polices: polices().filter((p) => p.genre !== "poste").map((p) => p.famille),
     policesDuPoste: `${polices().filter((p) => p.genre === "poste").length} (voir lister_polices, genre poste)`,
@@ -108,12 +114,36 @@ function resumer() {
   };
 }
 
-/** La frise de la page vidéo affichée : durée, tête de lecture, pistes et clips (en ms). */
+/** Un son de la frise, tel que l'IA le lit. */
+function resumerSon(c: ClipAudio) {
+  return {
+    id: c.id,
+    ressource: c.ressource,
+    nom: nomSon(etat().ressources[c.ressource]),
+    role: c.role,
+    piste: c.piste,
+    debut: c.temps.debut,
+    fin: c.temps.fin,
+    ...(c.coupe ? { coupe: c.coupe } : {}),
+    volume: c.volume ?? 1,
+    ...(c.fonduEntree ? { fonduEntree: c.fonduEntree } : {}),
+    ...(c.fonduSortie ? { fonduSortie: c.fonduSortie } : {}),
+    ...(c.boucle ? { boucle: true } : {}),
+    ...(c.jusquALaFin ? { jusquALaFin: true } : {}),
+    ...(c.role === "musique" ? { sousLaVoix: c.sousLaVoix ?? 0.3 } : {}),
+  };
+}
+
+/** La frise de la page vidéo affichée : durée, tête de lecture, pistes et clips (en ms), pistes
+ *  des sons et crédits à coller. */
 function resumerFrise() {
   const page = pageCourante(etat());
+  const credits = creditsDesSons(page, etat().ressources);
   return {
     duree: page.duree,
     tete: useTemps.getState().tete,
+    pistesSons: pistesAudio(page).map(({ piste, sons }) => ({ piste, sons: sons.map(resumerSon) })),
+    ...(credits.length ? { creditsSons: credits } : {}),
     pistes: pistesDe(page).map(({ piste, clips }) => ({
       piste,
       nom: piste === 0 ? "principale" : `superposition ${piste}`,
@@ -469,7 +499,62 @@ function resumerMarque(kit: KitMarque) {
     couleurs: kit.couleurs,
     polices: kit.polices,
     logos: kit.logos.map((id) => images[id]).filter(Boolean).map((r) => ({ id: r.id, nom: r.nom, largeur: r.largeur, hauteur: r.hauteur, transparence: r.transparence })),
+    // Les jingles (sons), à poser avec ajouter_son et jingle : ouverture ou fin.
+    jingles: Object.fromEntries(
+      ROLES_JINGLE.flatMap((j) => {
+        const r = kit.jingles[j.id] ? images[kit.jingles[j.id]!] : undefined;
+        return r?.son ? [[j.id, { nom: r.nom, duree: r.son.duree }]] : [];
+      }),
+    ),
   };
+}
+
+const ROLES = ROLES_SON.map((r) => r.id);
+
+/** Les réglages d'un son donnés par l'IA, vérifiés : ce qu'il faut passer à modifierSons. */
+function reglagesSon(args: Arguments, longueur: number): Partial<ClipAudio> {
+  const m: Partial<ClipAudio> = {};
+  if (args.role !== undefined) {
+    exiger(ROLES.includes(args.role as RoleSon), "role : musique, voix ou bruitage");
+    m.role = args.role as RoleSon;
+  }
+  const volume = nombre(args.volume);
+  if (args.volume !== undefined) {
+    exiger(volume !== undefined && volume >= 0 && volume <= 1, "volume : de 0 (muet) à 1");
+    m.volume = volume === 1 ? undefined : volume;
+  }
+  for (const cle of ["fonduEntree", "fonduSortie"] as const) {
+    if (args[cle] === undefined) continue;
+    const v = nombre(args[cle]);
+    exiger(v !== undefined && v >= 0 && v <= Math.max(100, longueur), `${cle} : de 0 à la longueur du son, en ms`);
+    m[cle] = v ? Math.round(v) : undefined;
+  }
+  if (args.sousLaVoix !== undefined) {
+    const v = nombre(args.sousLaVoix);
+    exiger(v !== undefined && v >= 0 && v <= 1, "sousLaVoix : la part du volume gardée sous une voix, de 0 à 1 (0,3 par défaut)");
+    m.sousLaVoix = v;
+  }
+  if (args.jusquALaFin !== undefined) {
+    exiger(typeof args.jusquALaFin === "boolean", "jusquALaFin : vrai ou faux");
+    m.jusquALaFin = args.jusquALaFin ? true : undefined;
+    if (args.jusquALaFin) m.boucle = undefined;
+  }
+  if (args.boucle !== undefined) {
+    exiger(typeof args.boucle === "boolean", "boucle : vrai ou faux");
+    m.boucle = args.boucle ? true : undefined;
+    if (!args.boucle) m.jusquALaFin = undefined;
+  }
+  if (args.coupe !== undefined) {
+    const c = args.coupe as { debut?: unknown; fin?: unknown } | null;
+    if (c === null) m.coupe = undefined;
+    else {
+      const debut = nombre(c?.debut, 0)!;
+      const fin = nombre(c?.fin);
+      exiger(debut >= 0 && (fin === undefined || fin > debut + 50), "coupe : { debut, fin? } en ms du fichier, fin après debut");
+      m.coupe = { debut: Math.round(debut), ...(fin !== undefined ? { fin: Math.round(fin) } : {}) };
+    }
+  }
+  return m;
 }
 
 async function base64(blob: Blob): Promise<string> {
@@ -523,16 +608,18 @@ const OUTILS: Record<string, Outil> = {
     const t = args.temps === undefined ? useTemps.getState().tete : nombre(args.temps);
     exiger(t !== undefined && t >= 0, "temps : l'instant de la coupe, en millisecondes de la page");
     const id = texte(args.id);
-    if (id) exiger(page.elements.some((e) => e.id === id), `élément introuvable sur la page affichée : ${id}`);
-    const avant = page.elements.length;
+    const son = !!id && !!page.audio?.some((c) => c.id === id);
+    if (id) exiger(son || page.elements.some((e) => e.id === id), `élément ou son introuvable sur la page affichée : ${id}`);
+    const avant = page.elements.length + (page.audio?.length ?? 0);
     useTemps.getState().pause();
     useTemps.getState().allerA(t!);
-    if (id) etat().selectionnerSeul(id);
+    if (son) etat().selectionnerSons([id!]);
+    else if (id) etat().selectionnerSeul(id);
     else etat().deselectionner();
     etat().scinderALaTete();
     const apres = pageCourante(etat());
-    exiger(apres.elements.length > avant, "rien à couper à cet instant (il faut un clip qui dure au moins 100 ms de chaque côté)");
-    return { donnees: { nouveaux: etat().selection, frise: resumerFrise() } };
+    exiger(apres.elements.length + (apres.audio?.length ?? 0) > avant, "rien à couper à cet instant (il faut un clip ou un son qui dure au moins 100 ms de chaque côté)");
+    return { donnees: { nouveaux: son ? etat().selectionAudio : etat().selection, frise: resumerFrise() } };
   },
 
   async lister_designs() {
@@ -984,6 +1071,111 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: { element: poserVideo(ressource, args), ressource } };
   },
 
+  async importer_son(args) {
+    designOuvert();
+    const chemin = texte(args.chemin);
+    exiger(chemin?.startsWith("/"), "chemin absolu attendu");
+    exiger(estCheminSon(chemin!), "fichier son attendu : .mp3, .wav, .ogg, .oga, .opus, .m4a, .aac, .flac, .aif, .aiff ou .wma");
+    const projet = etat().projet!;
+    const bilan = await avecSuivi(() => importerChemins(projet, [chemin!], suiviFichiers, suiviSons));
+    exiger(bilan.ressources.length, bilan.erreurs.join(" ; ") || "import impossible");
+    etat().ajouterRessources(bilan.ressources);
+    return { donnees: bilan.ressources[0] };
+  },
+
+  async chercher_sons(args) {
+    const requete = texte(args.requete)?.trim();
+    exiger(requete, "requete : quelques mots, en anglais de préférence (rain, whoosh, lofi)");
+    const genre = (args.genre ?? "tout") as GenreFreesound;
+    exiger(["bruitages", "musiques", "tout"].includes(genre), "genre : bruitages (30 s au plus), musiques (20 s et plus) ou tout");
+    const etatCle = await etatFreesound();
+    exiger(etatCle, "les sons de Freesound ne s'ouvrent que dans la fenêtre Eliot");
+    exiger(etatCle.cle, `pas de clé Freesound : Alexandre doit ajouter FREESOUND_API_KEY dans ${etatCle.fichier}`);
+    const page = Math.max(1, Math.min(20, Math.round(nombre(args.page, 1)!)));
+    const resultat = await chercherFreesound(requete!, page, genre);
+    const n = Math.max(1, Math.min(30, Math.round(nombre(args.nombre, 15)!)));
+    return {
+      donnees: {
+        total: resultat.total,
+        page,
+        sons: resultat.sons.slice(0, n).map((x) => ({ id: x.id, nom: x.nom, auteur: x.auteur, licence: x.licence, duree_s: x.duree, mots: x.mots, lien: x.lien })),
+        conseil: "ajouter_son avec freesound : l'id choisi ; CC BY demande de citer l'auteur (Eliot garde le crédit, la liste à coller est dans etat, frise.creditsSons)",
+      },
+    };
+  },
+
+  async ajouter_son(args) {
+    designOuvert();
+    const sources = ["ressource", "freesound", "jingle", "video"].filter((k) => args[k] !== undefined);
+    exiger(sources.length === 1, "une source et une seule : ressource (un son du design), freesound (id donné par chercher_sons), jingle (ouverture ou fin du kit) ou video (id d'un élément vidéo dont on détache le son)");
+    if (args.role !== undefined) exiger(ROLES.includes(args.role as RoleSon), "role : musique, voix ou bruitage");
+    const debut = nombre(args.debut);
+    if (args.debut !== undefined) exiger(debut !== undefined && debut >= 0, "debut : un instant de la page, en ms");
+    const piste = nombre(args.piste);
+    if (args.piste !== undefined) exiger(piste !== undefined && Number.isInteger(piste) && piste >= 0, "piste : 0 pour la première piste des sons, 1 pour la suivante…");
+    useTemps.getState().pause();
+    const options = { ...(args.role ? { role: args.role as RoleSon } : {}), ...(debut !== undefined ? { debut } : {}), ...(piste !== undefined ? { piste } : {}) };
+    let id: string | null;
+    if (args.jingle !== undefined) {
+      exiger(args.jingle === "ouverture" || args.jingle === "fin", "jingle : ouverture ou fin (voir marque)");
+      id = await poserJingle(args.jingle as "ouverture" | "fin");
+    } else if (args.video !== undefined) {
+      const v = elementsCourants(etat()).find((e) => e.id === String(args.video));
+      exiger(v?.type === "video" && v.temps, `vidéo introuvable sur la page vidéo affichée : ${String(args.video)}`);
+      exiger((v.vitesse ?? 1) === 1, "le son ne se détache qu'à vitesse normale (vitesse 1)");
+      exiger(etat().ressources[v.ressource]?.video?.son, "cette vidéo n'a pas de son");
+      exiger((v.volume ?? 1) > 0, "cette vidéo est muette (volume 0) : son son est peut-être déjà détaché");
+      id = etat().detacherSon(v.id);
+    } else {
+      let r = args.ressource !== undefined ? etat().ressources[String(args.ressource)] : undefined;
+      if (args.freesound !== undefined) {
+        const fs = nombre(args.freesound);
+        exiger(fs !== undefined && Number.isInteger(fs) && fs > 0, "freesound : l'identifiant d'un son trouvé par chercher_sons");
+        r = await telechargerSonFreesound(fs!);
+      }
+      exiger(r?.son, `son inconnu dans ce design : ${String(args.ressource)} (voir etat, sons, ou importer_son)`);
+      id = etat().ajouterSon(r!, options);
+    }
+    exiger(id, "son non posé");
+    // Les réglages donnés en plus (volume, fondus…) : une seconde étape d'annulation.
+    const c = pageCourante(etat()).audio!.find((x) => x.id === id)!;
+    // Le rôle d'un son du design ou de Freesound est déjà posé ; celui d'un jingle ou d'un son
+    // détaché se change ici.
+    const m = reglagesSon(args.jingle !== undefined || args.video !== undefined ? args : { ...args, role: undefined }, c.temps.fin - c.temps.debut);
+    if (Object.keys(m).length) etat().modifierSons({ [id!]: m });
+    const apres = pageCourante(etat()).audio!.find((x) => x.id === id)!;
+    return { donnees: { son: resumerSon(apres), frise: resumerFrise() } };
+  },
+
+  regler_son(args) {
+    designOuvert();
+    const page = pageCourante(etat());
+    const id = texte(args.id);
+    const c = page.audio?.find((x) => x.id === id);
+    exiger(c, `son introuvable sur la page affichée : ${String(args.id)} (voir etat, frise.pistesSons)`);
+    if (args.supprimer === true) {
+      etat().selectionnerSons([c.id]);
+      etat().supprimerSelection();
+      return { donnees: { supprime: c.id, frise: resumerFrise() } };
+    }
+    const m = reglagesSon(args, c.temps.fin - c.temps.debut);
+    if (Object.keys(m).length) etat().modifierSons({ [c.id]: m });
+    const debut = nombre(args.debut);
+    const piste = nombre(args.piste);
+    if (args.debut !== undefined || args.piste !== undefined) {
+      exiger((debut === undefined || debut >= 0) && (piste === undefined || (Number.isInteger(piste) && piste >= 0)), "debut en ms (0 ou plus), piste entière (0 ou plus)");
+      const actuel = pageCourante(etat()).audio!.find((x) => x.id === c.id)!;
+      etat().deplacerSon(c.id, debut ?? actuel.temps.debut, piste ?? actuel.piste);
+    }
+    if (args.fin !== undefined) {
+      const fin = nombre(args.fin);
+      exiger(fin !== undefined && fin > 0, "fin : l'instant de la page où le son s'arrête, en ms");
+      etat().rognerSon(c.id, "fin", fin!);
+    }
+    const apres = pageCourante(etat()).audio!.find((x) => x.id === c.id)!;
+    return { donnees: { son: resumerSon(apres), frise: resumerFrise() } };
+  },
+
   ajouter_image(args) {
     designOuvert();
     const r = etat().ressources[String(args.ressource)];
@@ -1189,9 +1381,16 @@ const OUTILS: Record<string, Outil> = {
 
   supprimer(args) {
     designOuvert();
-    useEditeur.setState({ selection: listeIds(args.ids) });
+    const ids = listeIds(args.ids);
+    const sons = new Set((pageCourante(etat()).audio ?? []).map((c) => c.id));
+    const idsSons = ids.filter((id) => sons.has(id));
+    if (idsSons.length) {
+      useEditeur.setState({ selection: [], selectionAudio: idsSons });
+      etat().supprimerSelection();
+    }
+    useEditeur.setState({ selection: ids.filter((id) => !sons.has(id)), selectionAudio: [] });
     etat().supprimerSelection();
-    return { donnees: { restants: elementsCourants(etat()).length } };
+    return { donnees: { restants: elementsCourants(etat()).length, sons: pageCourante(etat()).audio?.length ?? 0 } };
   },
 
   ordre(args) {
@@ -1288,15 +1487,17 @@ const OUTILS: Record<string, Outil> = {
       const gif = args.format === "gif";
       const ips = nombre(args.imagesParSeconde, gif ? 15 : 30)!;
       const id = ["youtube", "shorts", "tiktok", "reels", "libre"].includes(String(args.plateforme)) ? (String(args.plateforme) as IdPlateforme) : "libre";
-      const chemin = await exporterVideo({
+      const film = await exporterVideo({
         format: args.format,
         plateforme: id,
         definition: args.definition === 720 ? 720 : 1080,
         imagesParSeconde: Math.max(5, Math.min(60, Math.round(ips))),
         son: booleen(args.son) ?? true,
+        niveau: booleen(args.niveau) ?? true,
+        sansMusique: booleen(args.sansMusique) ?? false,
         largeurGif: Math.max(64, Math.min(1080, Math.round(nombre(args.largeur, 480)!))),
       });
-      return { donnees: { chemins: [chemin] } };
+      return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}) } };
     }
     const chemins = await exporter({
       format: args.format === "jpeg" ? "jpeg" : "png",

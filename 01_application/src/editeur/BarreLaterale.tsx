@@ -1,8 +1,9 @@
 // Le rail d'onglets à gauche et son panneau, comme dans Canva. Un clic sur l'onglet actif
 // replie le panneau.
 
-import { Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Palette, Shapes, Type } from "lucide-react";
+import { Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { PanneauAudio } from "./panneaux/PanneauAudio";
 import { PanneauCalques } from "./panneaux/PanneauCalques";
 import { PanneauDessin } from "./panneaux/PanneauDessin";
 import { PanneauElements } from "./panneaux/PanneauElements";
@@ -12,7 +13,7 @@ import { PanneauModeles } from "./panneaux/PanneauModeles";
 import { PanneauPhotos } from "./panneaux/PanneauPhotos";
 import { PanneauTextes } from "./panneaux/PanneauTextes";
 
-type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "marque" | "dessin" | "calques";
+type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "audio" | "marque" | "dessin" | "calques";
 
 const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
   { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} /> },
@@ -20,6 +21,7 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
   { id: "textes", libelle: "Texte", icone: <Type size={22} /> },
   { id: "photos", libelle: "Photos", icone: <IconeImage size={22} /> },
   { id: "images", libelle: "Importer", icone: <CloudUpload size={22} /> },
+  { id: "audio", libelle: "Audio", icone: <Music size={22} /> },
   { id: "marque", libelle: "Marque", icone: <Palette size={22} /> },
   { id: "dessin", libelle: "Dessin", icone: <Brush size={22} /> },
   { id: "calques", libelle: "Calques", icone: <Layers size={22} /> },
@@ -50,6 +52,7 @@ export function BarreLaterale() {
           {onglet === "textes" && <PanneauTextes />}
           {onglet === "photos" && <PanneauPhotos />}
           {onglet === "images" && <PanneauImages />}
+          {onglet === "audio" && <PanneauAudio />}
           {onglet === "marque" && <PanneauMarque />}
           {onglet === "dessin" && <PanneauDessin />}
           {onglet === "calques" && <PanneauCalques />}

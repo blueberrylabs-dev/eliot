@@ -57,6 +57,7 @@ import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 import { ReglagesPersonnage } from "./ReglagesPersonnage";
 import { ReglagesVideo } from "./ReglagesVideo";
+import { ReglagesSon } from "./ReglagesSon";
 import { ReglagesAnimation } from "./ReglagesAnimation";
 import { useTemps } from "../etat/temps";
 import { poseA } from "../modele/animation";
@@ -540,6 +541,7 @@ function Opacite({ choisis }: { choisis: ElementPage[] }) {
 
 export function BarreContexte() {
   const choisis = useEditeur(useShallow(elementsSelectionnes));
+  const sonsChoisis = useEditeur((s) => s.selectionAudio.length > 0);
   const etat = useEditeur.getState();
 
   const modifier = (modif: Partial<ElementPage>, etiquette?: string) =>
@@ -567,7 +569,7 @@ export function BarreContexte() {
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 overflow-x-auto border-b border-neutral-200 bg-white px-3 defilement-fin">
-      {choisis.length === 0 && <ReglagePage />}
+      {choisis.length === 0 && (sonsChoisis ? <ReglagesSon /> : <ReglagePage />)}
       {choisis.length > 0 && textes.length === choisis.length && <ReglagesTexte textes={textes} modifier={modifier} />}
       {choisis.length > 0 && formes.length === choisis.length && <ReglagesForme formes={formes} modifier={modifier} />}
       {choisis.length === 1 && videos.length === 1 && (

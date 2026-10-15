@@ -13,7 +13,7 @@ import { Group, Layer, Rect, Stage } from "react-konva";
 import { remplissageKonva } from "../editeur/couleurs";
 import { prechargerPage, ressourceDeImage } from "../editeur/images";
 import { compteurMorceaux, RenduElement } from "../editeur/RenduElement";
-import type { ElementPage, Format, PageEliot } from "../modele/types";
+import type { ClipAudio, ElementPage, Format, PageEliot } from "../modele/types";
 import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
 
@@ -43,6 +43,8 @@ export interface DescriptionPage {
   fond: Calque[];
   elements: CalquesElement[];
   polices: PoliceCalques[];
+  /** Les sons de la page (lot 5), tels que le document les garde : le noyau les mixe. */
+  sons: ClipAudio[];
 }
 
 /** L'image d'une vidéo pendant l'enregistrement : un petit canevas vide (Konva peut le dessiner
@@ -235,7 +237,7 @@ export async function decrirePage(page: PageEliot, format: Format): Promise<Desc
     for (const famille of familles) {
       for (const f of await fichiersDePolice(famille)) polices.push({ famille: f.famille, style: f.style, poidsMin: f.poidsMin, poidsMax: f.poidsMax, donnees: enBase64(f.octets) });
     }
-    return { largeur: format.largeur, hauteur: format.hauteur, duree: page.duree ?? 0, fond: fondCalques, elements, polices };
+    return { largeur: format.largeur, hauteur: format.hauteur, duree: page.duree ?? 0, fond: fondCalques, elements, polices, sons: page.audio ?? [] };
   } finally {
     racine.unmount();
   }

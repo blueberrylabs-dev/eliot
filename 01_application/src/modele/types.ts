@@ -8,7 +8,8 @@
 // portent `temps` et `piste`, ses sons vont dans `audio`. Un élément `video` peut aussi vivre
 // dans une page fixe (post animé). Tout est facultatif : un document de version 3 ne change
 // que de numéro (noyau/src/projet.rs). Lot 3 : animations, images clés, transitions et fondus
-// du son, tous facultatifs eux aussi (même version 4).
+// du son, tous facultatifs eux aussi (même version 4). Lot 5 : les sons de la page (`audio`),
+// facultatifs eux aussi (même version 4).
 
 export const VERSION_DOCUMENT = 4 as const;
 
@@ -354,17 +355,36 @@ export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVi
 export type ElementAPhoto = ElementCadre | ElementMaquette;
 export const recoitPhoto = (e: ElementPage): e is ElementAPhoto => e.type === "cadre" || e.type === "maquette";
 
-/** Un son posé sur une page vidéo (musique, voix, bruitage). Rempli à partir du lot 5. */
+/** Le rôle d'un son : la musique baisse toute seule sous la voix. */
+export type RoleSon = "musique" | "voix" | "bruitage";
+
+/**
+ * Un son posé sur une page vidéo (étape 4, lot 5) : musique, voix ou bruitage, sur une piste
+ * audio (0 juste sous la piste principale, puis 1, 2… vers le bas). Sa ressource est un son
+ * importé, ou une vidéo dont on a détaché le son.
+ */
 export interface ClipAudio {
   id: string;
   ressource: string;
   temps: Temps;
+  piste: number;
   /** La partie du fichier qui joue, en millisecondes du fichier. */
   coupe?: { debut: number; fin?: number };
+  /** De 0 à 1 ; 1 si absent. */
   volume?: number;
+  /** Le son monte pendant ces ms au début du clip, et baisse pendant celles-ci à la fin. */
   fonduEntree?: number;
   fonduSortie?: number;
-  role?: "musique" | "voix" | "bruitage";
+  role: RoleSon;
+  /** La partie jouée recommence quand elle finit, tant que le clip dure. */
+  boucle?: boolean;
+  /** Le clip s'étend jusqu'au bout de la page (une musique de fond) ; il boucle au besoin. */
+  jusquALaFin?: boolean;
+  /** Boucle : où en est la partie jouée au début du clip, en ms (la seconde moitié d'un clip
+   *  coupé en deux reprend où la première s'arrête). */
+  phase?: number;
+  /** Musique : la part du volume gardée quand une voix parle (0,3 par défaut). */
+  sousLaVoix?: number;
 }
 
 export interface PageEliot {
@@ -404,6 +424,18 @@ export interface InfosVideo {
   vignettes: { nombre: number; intervalle: number; largeur: number; hauteur: number };
 }
 
+/** Ce que l'interface sait d'un son importé (étape 4, lot 5). */
+export interface InfosSon {
+  /** Millisecondes. */
+  duree: number;
+  /** Format de la copie d'écoute. */
+  copie: "webm";
+  /** Niveau sonore intégré (EBU R128), en LUFS ; absent pour un son muet. */
+  lufs?: number;
+  /** Crête vraie, en dBTP. */
+  crete?: number;
+}
+
 /** Une image ou une vidéo importée, telle que l'interface la connaît : jamais l'original.
  *  L'aperçu, la miniature et la copie d'une vidéo se demandent au pont, qui les garde en
  *  mémoire (`pont/tauri.ts`). */
@@ -417,6 +449,8 @@ export interface Ressource {
   credit?: Credit;
   /** Présent pour une vidéo ; l'aperçu et la miniature sont alors sa couverture. */
   video?: InfosVideo;
+  /** Présent pour un son (ni aperçu, ni miniature, ni dimensions). */
+  son?: InfosSon;
 }
 
 /** Le crédit d'une photo venue d'une banque d'images : rangé avec l'image dans le design. */
@@ -425,6 +459,9 @@ export interface Credit {
   auteur: string;
   /** La page de la photo sur le site d'origine. */
   lien: string;
+  /** Un son de Freesound : sa licence (« CC0 1.0 », « CC BY 4.0 ») et son titre. */
+  licence?: string;
+  titre?: string;
 }
 
 /** Où vit un design : son rayon (`designs` ou `modeles`) et son dossier. */

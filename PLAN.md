@@ -261,10 +261,20 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (Inter…) se chargent enfin avec `npm run tauri dev`. Vérifié : noyau 50, interface 121,
       Chromium (export 18, suites d'avant), Tauri (export 21, suites d'avant). Reste l'essai
       d'Alexandre.
-- [ ] Lot 5 : le son : onglet Audio, sons importés, Freesound (CC0 et CC BY seulement, crédits
+- [x] Lot 5 : le son : onglet Audio, sons importés, Freesound (CC0 et CC BY seulement, crédits
       gardés et liste à coller), musique et bruitages, volume et fondus, musique qui baisse
       sous la voix, musique répétée jusqu'à la fin, jingles du kit de marque, niveau sonore
       par plateforme, export sans musique.
+      Livré le 2026-10-15 : sons importés par le noyau (`sons.rs` : copie d'écoute Opus,
+      forme d'onde, niveau EBU R128), formules du son en TypeScript et en Rust contrôlées par
+      un tableau commun (`son.attendus.json`, 60 cas), pistes des sons dans la frise (gestes,
+      Ctrl+B, Ctrl+D, Suppr), barre de réglages d'un son, lecture qui suit la tête, musique
+      qui baisse sous la voix, détacher le son d'une vidéo, onglet Audio (sons du design,
+      Freesound par le Rust, jingles, crédits à copier), jingles d'ouverture et de fin dans le
+      kit de marque, export calé sur -14 LUFS (crête -1 dBTP) et version sans musique, quatre
+      outils de plus pour le pont IA (57 en tout). Vérifié : noyau 62, interface 142, Chromium
+      (son 44, suites d'avant), Tauri (son 26 dont la lecture dans WebKit enregistrée, suites
+      d'avant). Reste l'essai d'Alexandre.
 - [ ] Lot 6 : la voix : enregistrement au micro par prises, nettoyage (« Voix nette »), voix
       de synthèse Piper.
 - [ ] Lot 7 : les sous-titres : Whisper, sous-titres mot par mot (le mot prononcé mis en

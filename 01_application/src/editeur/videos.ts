@@ -11,7 +11,7 @@ import { contextesTransitions, gainSon } from "../modele/animation";
 import { useTemps } from "../etat/temps";
 import { tempsMedia, visibleA } from "../modele/frise";
 import type { ElementVideo } from "../modele/types";
-import { urlCopieVideo } from "../pont/tauri";
+import { urlCopie } from "../pont/tauri";
 
 interface EtatLecture {
   /** Les éléments vidéo qui jouent, par identifiant. */
@@ -107,7 +107,7 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
       video.currentTime = limites.current.debut;
       if (!video.paused || video.dataset.joue === "1") void video.play().catch(() => undefined);
     });
-    void urlCopieVideo(projet, ressource).then(
+    void urlCopie(projet, ressource).then(
       (url) => {
         if (actif) video.src = url;
       },

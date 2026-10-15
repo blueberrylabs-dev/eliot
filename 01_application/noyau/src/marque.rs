@@ -1,7 +1,8 @@
 //! Le kit de marque (étape 3) : un seul kit, rangé comme un design dans
 //! `~/Documents/Eliot/Marque/kit/`. Le fichier `marque.json` garde le nom, les couleurs et les
 //! polices ; les logos sont des images du dossier `ressources/`, importées comme celles d'un
-//! design et copiées dans chaque design qui s'en sert.
+//! design et copiées dans chaque design qui s'en sert. Les jingles d'ouverture et de fin (étape
+//! 4, lot 5) sont des sons du même dossier.
 
 use std::fs;
 use std::io;
@@ -28,7 +29,7 @@ pub enum ErreurMarque {
 
 /// Le kit d'un compte neuf : rien à part un nom.
 pub fn kit_vide() -> Value {
-    json!({ "version": 1, "nom": "Ma marque", "couleurs": [], "polices": {}, "logos": [] })
+    json!({ "version": 1, "nom": "Ma marque", "couleurs": [], "polices": {}, "logos": [], "jingles": {} })
 }
 
 /// Le dossier des logos du kit (créé au besoin), rangé comme celui d'un design.

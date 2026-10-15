@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { documentVide } from "../modele/fabriques";
 import type { ElementForme } from "../modele/types";
 import { elementsCourants, pageCourante, useEditeur } from "./editeur";
+import { useTemps } from "./temps";
 
 const forme = (id: string, x = 0, y = 0): ElementForme => ({
   id, type: "forme", forme: "rectangle", x, y, largeur: 100, hauteur: 100, rotation: 0, opacite: 1, visible: true, verrouille: false,
@@ -107,5 +108,89 @@ describe("store", () => {
     etat().definirNom("Pub sneakers");
     etat().annuler();
     expect(etat().document.nom).toBe("Pub sneakers");
+  });
+});
+
+describe("sons d'une page vidéo (étape 4, lot 5)", () => {
+  const H = "a".repeat(64);
+  const musique = { id: H, nom: "musique.mp3", largeur: 0, hauteur: 0, transparence: false, son: { duree: 30_000, copie: "webm" as const } };
+  const bip = { id: "b".repeat(64), nom: "bip.wav", largeur: 0, hauteur: 0, transparence: false, son: { duree: 800, copie: "webm" as const } };
+  const film = { id: "c".repeat(64), nom: "film.mp4", largeur: 1920, hauteur: 1080, transparence: false, video: { duree: 4000, imagesParSeconde: 30, son: true, copie: "webm" as const, vignettes: { nombre: 4, intervalle: 1000, largeur: 160, hauteur: 90 } } };
+  const sons = () => pageCourante(etat()).audio ?? [];
+
+  beforeEach(() => etat().ajouterRessources([musique, bip, film]));
+
+  it("une musique posée sur une page fixe en fait une vidéo et va jusqu'au bout, avec un fondu de fin", () => {
+    etat().ajouterElements([forme("a")]);
+    const id = etat().ajouterSon(musique)!;
+    const p = pageCourante(etat());
+    expect(p.duree).toBe(5000);
+    expect(sons()).toEqual([{ id, ressource: H, role: "musique", jusquALaFin: true, fonduSortie: 2000, piste: 0, temps: { debut: 0, fin: 5000 } }]);
+    expect(etat().selectionAudio).toEqual([id]);
+    expect(etat().selection).toEqual([]);
+    // Un bruitage se pose à la tête de lecture, sur une autre piste s'il croise la musique.
+    const b = etat().ajouterSon(bip, { debut: 1200 })!;
+    expect(sons().find((c) => c.id === b)).toMatchObject({ role: "bruitage", piste: 1, temps: { debut: 1200, fin: 2000 } });
+    // Annuler retire le bruitage et la sélection suit.
+    etat().annuler();
+    expect(sons().map((c) => c.id)).toEqual([id]);
+    expect(etat().selectionAudio).toEqual([]);
+  });
+
+  it("choisir un élément vide la sélection des sons, et l'inverse", () => {
+    etat().ajouterElements([forme("a")]);
+    const id = etat().ajouterSon(bip)!;
+    etat().selectionnerSeul("a");
+    expect(etat().selectionAudio).toEqual([]);
+    etat().selectionnerSons([id]);
+    expect([etat().selection, etat().selectionAudio]).toEqual([[], [id]]);
+    etat().deselectionner();
+    expect(etat().selectionAudio).toEqual([]);
+  });
+
+  it("supprimer, dupliquer et scinder visent les sons choisis", () => {
+    etat().basculerPageVideo(true);
+    const id = etat().ajouterSon(musique, { role: "bruitage" })!;
+    expect(sons()[0].temps).toEqual({ debut: 0, fin: 30_000 });
+    etat().dupliquerSelection();
+    expect(sons()).toHaveLength(2);
+    const copie = etat().selectionAudio[0];
+    expect(sons().find((c) => c.id === copie)!.temps).toEqual({ debut: 30_000, fin: 60_000 });
+    // Scinder à la tête de lecture : la seconde moitié reprend le fichier.
+    etat().selectionnerSons([id]);
+    useTemps.getState().allerA(10_000);
+    etat().scinderALaTete();
+    const moitie = etat().selectionAudio[0];
+    expect(sons().find((c) => c.id === id)).toMatchObject({ coupe: { debut: 0, fin: 10_000 }, temps: { debut: 0, fin: 10_000 } });
+    expect(sons().find((c) => c.id === moitie)).toMatchObject({ coupe: { debut: 10_000 }, temps: { debut: 10_000, fin: 30_000 } });
+    etat().selectionnerSons([id, moitie]);
+    etat().supprimerSelection();
+    expect(sons().map((c) => c.id)).toEqual([copie]);
+  });
+
+  it("le son d'une vidéo se détache sur une piste de sons, la vidéo devient muette", () => {
+    etat().ajouterElements([{ id: "v", type: "video", ressource: film.id, x: 0, y: 0, largeur: 1080, hauteur: 608, rotation: 0, opacite: 1, visible: true, verrouille: false, retourneH: false, retourneV: false, coupe: { debut: 500, fin: 3500 }, fonduEntree: 200 }]);
+    const v = elementsCourants(etat())[0];
+    expect(v.temps).toEqual({ debut: 0, fin: 3000 });
+    const id = etat().detacherSon("v")!;
+    expect(sons()).toEqual([{ id, ressource: film.id, role: "voix", coupe: { debut: 500, fin: 3500 }, fonduEntree: 200, piste: 0, temps: { debut: 0, fin: 3000 } }]);
+    expect(elementsCourants(etat())[0]).toMatchObject({ volume: 0 });
+    // Déjà muette : rien à détacher ; à une autre vitesse non plus.
+    expect(etat().detacherSon("v")).toBeNull();
+    etat().annuler();
+    etat().modifierElements({ v: { vitesse: 2 } });
+    expect(etat().detacherSon("v")).toBeNull();
+  });
+
+  it("un jingle de fin finit avec la page, et un son lâché sur une piste y va", () => {
+    etat().ajouterElements([{ id: "v", type: "video", ressource: film.id, x: 0, y: 0, largeur: 1080, hauteur: 608, rotation: 0, opacite: 1, visible: true, verrouille: false, retourneH: false, retourneV: false }]);
+    const fin = etat().ajouterSon(bip, { jingle: "fin" })!;
+    expect(sons().find((c) => c.id === fin)).toMatchObject({ role: "musique", temps: { debut: 3200, fin: 4000 } });
+    expect(sons().find((c) => c.id === fin)!.jusquALaFin).toBeUndefined();
+    const debut = etat().ajouterSon(bip, { jingle: "ouverture" })!;
+    expect(sons().find((c) => c.id === debut)!.temps).toEqual({ debut: 0, fin: 800 });
+    const autre = etat().ajouterSon(bip, { debut: 1000, piste: 2 })!;
+    expect(sons().find((c) => c.id === autre)!.piste).toBe(1);
+    expect(pageCourante(etat()).duree).toBe(4000);
   });
 });

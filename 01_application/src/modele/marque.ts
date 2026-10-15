@@ -1,6 +1,7 @@
-// Le kit de marque : un nom, des couleurs, trois polices (titre, sous-titre, texte) et des
-// logos. Rangé par le Rust dans `~/Documents/Eliot/Marque/kit/marque.json` ; les logos sont
-// des images du dossier du kit, copiées dans chaque design qui s'en sert.
+// Le kit de marque : un nom, des couleurs, trois polices (titre, sous-titre, texte), des logos
+// et deux jingles (ouverture et fin, étape 4, lot 5). Rangé par le Rust dans
+// `~/Documents/Eliot/Marque/kit/marque.json` ; les logos et les jingles sont des images et des
+// sons du dossier du kit, copiés dans chaque design qui s'en sert.
 
 import type { ElementPage } from "./types";
 
@@ -16,6 +17,14 @@ export interface PoliceMarque {
 
 export type RolePolice = "titre" | "sousTitre" | "texte";
 
+/** Un jingle se pose au début de la vidéo (ouverture) ou à sa fin. */
+export type RoleJingle = "ouverture" | "fin";
+
+export const ROLES_JINGLE: { id: RoleJingle; libelle: string; poser: string }[] = [
+  { id: "ouverture", libelle: "Jingle d'ouverture", poser: "Poser au début" },
+  { id: "fin", libelle: "Jingle de fin", poser: "Poser à la fin" },
+];
+
 export interface KitMarque {
   version: 1;
   nom: string;
@@ -23,6 +32,8 @@ export interface KitMarque {
   polices: Partial<Record<RolePolice, PoliceMarque>>;
   /** Identifiants des logos (images du dossier du kit), dans l'ordre du panneau. */
   logos: string[];
+  /** Identifiants des jingles (sons du dossier du kit). */
+  jingles: Partial<Record<RoleJingle, string>>;
 }
 
 export const ROLES_POLICE: { id: RolePolice; libelle: string; taille: number; gras: boolean }[] = [
@@ -36,7 +47,7 @@ export const LOGOS_MAX = 24;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-export const kitVide = (): KitMarque => ({ version: 1, nom: "Ma marque", couleurs: [], polices: {}, logos: [] });
+export const kitVide = (): KitMarque => ({ version: 1, nom: "Ma marque", couleurs: [], polices: {}, logos: [], jingles: {} });
 
 /** Remet d'aplomb un kit lu sur le disque : ce qui n'a pas la bonne forme est écarté. */
 export function kitValide(brut: unknown): KitMarque {
@@ -62,6 +73,12 @@ export function kitValide(brut: unknown): KitMarque {
     }
   }
   if (Array.isArray(b.logos)) kit.logos = [...new Set(b.logos.filter((l): l is string => typeof l === "string" && /^[0-9a-f]{64}$/.test(l)))].slice(0, LOGOS_MAX);
+  if (b.jingles && typeof b.jingles === "object") {
+    for (const { id } of ROLES_JINGLE) {
+      const j = (b.jingles as Record<string, unknown>)[id];
+      if (typeof j === "string" && /^[0-9a-f]{64}$/.test(j)) kit.jingles[id] = j;
+    }
+  }
   return kit;
 }
 

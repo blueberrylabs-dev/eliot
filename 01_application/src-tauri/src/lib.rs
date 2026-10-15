@@ -12,6 +12,7 @@ pub fn lancer() {
         .manage(commandes::VerrouProjets::default())
         .manage(commandes::PolicesPoste::default())
         .manage(commandes::Pixabay::default())
+        .manage(commandes::Freesound::default())
         .manage(commandes::ExportVideo::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
@@ -34,6 +35,7 @@ pub fn lancer() {
             commandes::importer_images,
             commandes::importer_image_octets,
             commandes::importer_videos,
+            commandes::importer_sons,
             commandes::ressources_lister,
             commandes::ressources_copier,
             commandes::lire_ressource,
@@ -50,6 +52,10 @@ pub fn lancer() {
             commandes::pixabay_chercher_videos,
             commandes::pixabay_apercu_video,
             commandes::pixabay_importer_video,
+            commandes::freesound_etat,
+            commandes::freesound_chercher,
+            commandes::freesound_extrait,
+            commandes::freesound_importer,
             commandes::marque_lire,
             commandes::marque_enregistrer,
             commandes::exporter_rendu,

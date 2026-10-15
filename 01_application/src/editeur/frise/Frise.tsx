@@ -1,17 +1,20 @@
 // La frise d'une page vidéo, en bas de l'écran, façon CapCut (étape 4, lot 2) : barre de
-// lecture, règle graduée, tête de lecture, pistes et clips. Glisser un clip le déplace dans le
-// temps ou sur une autre piste, tirer un bord le raccourcit ou le rallonge ; pendant le geste,
-// la frise montre déjà le résultat (calculé par `modele/frise.ts`, comme au lâcher). Les bords
-// des clips et la tête aimantent.
+// lecture, règle graduée, tête de lecture, pistes et clips ; sous la piste principale, les
+// pistes des sons (lot 5). Glisser un clip ou un son le déplace dans le temps ou sur une autre
+// piste, tirer un bord le raccourcit ou le rallonge ; pendant le geste, la frise montre déjà le
+// résultat (calculé par `modele/frise.ts`, comme au lâcher). Les bords des clips et des sons et
+// la tête aimantent.
 
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, CopyPlus, Diamond, Maximize2, Minus, Pause, Play, Plus, Scissors, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as PointeurReact } from "react";
 import { elementsCourants, pageCourante, useEditeur } from "../../etat/editeur";
 import { HAUTEUR_FRISE_MIN, useTemps } from "../../etat/temps";
 import { cleProche, deplacerCle, dureesEntreeSortie, TOLERANCE_CLE } from "../../modele/animation";
-import { aimanter, bordsDesClips, deplacerClip, DUREE_MIN, pistesDe, PISTE_PRINCIPALE, rogner, tempsLisible, visibleA, type Durees } from "../../modele/frise";
-import type { ElementPage, PageEliot } from "../../modele/types";
+import { aimanter, bordsDesClips, deplacerClip, deplacerSon, DUREE_MIN, pistesDe, PISTE_PRINCIPALE, rogner, rognerSon, tempsLisible, visibleA, type Durees } from "../../modele/frise";
+import { pistesAudio } from "../../modele/son";
+import type { ClipAudio, ElementPage, PageEliot } from "../../modele/types";
 import { Clip } from "./Clip";
+import { ClipSon } from "./ClipSon";
 import { BoutonTransition } from "./Transitions";
 import { ChoixZonesSures } from "../ZonesSures";
 import "./horloge";
@@ -20,6 +23,7 @@ const ENTETE = 76;
 const REGLE = 24;
 const HAUTEUR_PRINCIPALE = 62;
 const HAUTEUR_PISTE = 34;
+const HAUTEUR_SON = 40;
 /** Distance d'aimantation, en pixels d'écran. */
 const AIMANT_PX = 8;
 const SEUIL_GESTE_PX = 3;
@@ -37,7 +41,13 @@ type Geste =
   | { genre: "rogner"; id: string; cote: "debut" | "fin"; x0: number; bord0: number }
   | { genre: "animation"; id: string; quoi: "entree" | "sortie"; x0: number; duree0: number }
   | { genre: "cle"; id: string; x0: number; t0: number; actif: boolean }
+  | { genre: "deplacerSon"; id: string; x0: number; y0: number; debut0: number; actif: boolean }
+  | { genre: "rognerSon"; id: string; cote: "debut" | "fin"; x0: number; bord0: number }
   | { genre: "tete" };
+
+/** La frise affichée, pour poser un son glissé depuis l'onglet Audio : l'instant et la piste
+ *  audio sous le pointeur, ou `null` hors des pistes de sons. */
+export const friseSons: { cible: ((clientX: number, clientY: number) => { debut: number; piste: number } | null) | null } = { cible: null };
 
 /** La durée d'une entrée ou d'une sortie tirée par le bord de sa zone : 0,1 s au moins, et
  *  pas plus que ce que l'autre laisse du clip. */
@@ -143,6 +153,8 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
   const repliee = useTemps((s) => s.repliee);
   const pxParSeconde = useTemps((s) => s.pxParSeconde);
   const selection = useEditeur((s) => s.selection);
+  const selectionAudio = useEditeur((s) => s.selectionAudio);
+  const choix = selection.length + selectionAudio.length;
   const etat = useEditeur.getState();
   const temps = useTemps.getState();
   const duree = page.duree ?? 0;
@@ -159,10 +171,10 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
       <button className={bouton} title="Scinder à la tête de lecture (Ctrl+B)" onClick={() => etat.scinderALaTete()}>
         <Scissors size={16} /> <span className="text-sm">Scinder</span>
       </button>
-      <button className={bouton} title="Dupliquer (Ctrl+D) : la copie suit l'original" disabled={selection.length === 0} onClick={() => etat.dupliquerSelection()}>
+      <button className={bouton} title="Dupliquer (Ctrl+D) : la copie suit l'original" disabled={choix === 0} onClick={() => etat.dupliquerSelection()}>
         <CopyPlus size={16} />
       </button>
-      <button className={bouton} title="Supprimer (Suppr)" disabled={selection.length === 0} onClick={() => etat.supprimerSelection()}>
+      <button className={bouton} title="Supprimer (Suppr)" disabled={choix === 0} onClick={() => etat.supprimerSelection()}>
         <Trash2 size={16} />
       </button>
       <span className="mx-1.5 h-5 w-px bg-white/15" />
@@ -189,6 +201,7 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
 export function Frise() {
   const page = useEditeur(pageCourante);
   const selection = useEditeur((s) => s.selection);
+  const selectionAudio = useEditeur((s) => s.selectionAudio);
   const ressources = useEditeur((s) => s.ressources);
   const hauteurFrise = useTemps((s) => s.hauteurFrise);
   const repliee = useTemps((s) => s.repliee);
@@ -196,16 +209,20 @@ export function Frise() {
   const zone = useRef<HTMLDivElement>(null);
   const tete = useRef<HTMLDivElement>(null);
   const lignes = useRef(new Map<number, HTMLDivElement>());
+  const lignesSons = useRef(new Map<number, HTMLDivElement>());
+  const zoneSons = useRef<HTMLDivElement>(null);
   const [largeurZone, setLargeurZone] = useState(1000);
   const [apercu, setApercu] = useState<PageEliot | null>(null);
   const geste = useRef<Geste | null>(null);
-  const durees: Durees = useCallback((id: string) => ressources[id]?.video?.duree, [ressources]);
+  const durees: Durees = useCallback((id: string) => ressources[id]?.video?.duree ?? ressources[id]?.son?.duree, [ressources]);
 
   const duree = page.duree ?? 0;
   const pxS = pxParSeconde ?? Math.max(8, ((largeurZone - ENTETE - 32) / Math.max(1000, duree)) * 1000);
   const echelle = pxS / 1000;
   const affichee = apercu ?? page;
   const pistes = useMemo(() => pistesDe(affichee), [affichee]);
+  const pistesSons = useMemo(() => pistesAudio(affichee), [affichee]);
+  const sons = affichee.audio ?? [];
   const largeurContenu = Math.max(largeurZone - ENTETE, (Math.max(duree, affichee.duree ?? 0) + 4000) * echelle);
 
   // Largeur de la zone, pour le zoom « tout dans la largeur ».
@@ -269,6 +286,65 @@ export function Frise() {
     return clientY < haut ? max + 1 : PISTE_PRINCIPALE;
   };
 
+  /** La piste audio sous le pointeur ; au-dessus de la première : la première ; sous la
+   *  dernière : une piste neuve. */
+  const pisteSonSous = (clientY: number): number => {
+    const max = Math.max(-1, ...pistesSons.map((p) => p.piste));
+    for (const [piste, ligne] of lignesSons.current) {
+      const r = ligne.getBoundingClientRect();
+      if (clientY >= r.top && clientY < r.bottom) return piste;
+    }
+    const haut = lignesSons.current.get(0)?.getBoundingClientRect().top ?? Number.POSITIVE_INFINITY;
+    return clientY < haut ? 0 : max + 1;
+  };
+
+  // Un son glissé depuis l'onglet Audio se pose sous le pointeur.
+  friseSons.cible = (clientX, clientY) => {
+    const r = zoneSons.current?.getBoundingClientRect();
+    const z = zone.current?.getBoundingClientRect();
+    if (!r || !z || clientX < z.left + ENTETE || clientX > z.right || clientY < r.top - 4 || clientY > Math.max(r.bottom, z.bottom)) return null;
+    return { debut: Math.max(0, Math.round(instantSous(clientX))), piste: pisteSonSous(clientY) };
+  };
+  useEffect(
+    () => () => {
+      friseSons.cible = null;
+    },
+    [],
+  );
+
+  const suivreSon = (e: PointerEvent, g: Extract<Geste, { genre: "deplacerSon" | "rognerSon" }>, actuelle: PageEliot) => {
+    const c = actuelle.audio?.find((x) => x.id === g.id);
+    if (!c) return;
+    const seuil = AIMANT_PX / echelle;
+    const cibles = [...bordsDesClips(actuelle, g.id), useTemps.getState().tete];
+    if (g.genre === "deplacerSon") {
+      if (!g.actif && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) < SEUIL_GESTE_PX) return;
+      g.actif = true;
+      const debut = debutAimante(g.debut0 + (e.clientX - g.x0) / echelle, c.temps.fin - c.temps.debut, cibles, seuil);
+      setApercu(deplacerSon(actuelle, g.id, debut, pisteSonSous(e.clientY), durees));
+      return;
+    }
+    const t = aimanter(g.bord0 + (e.clientX - g.x0) / echelle, cibles, seuil);
+    setApercu(rognerSon(actuelle, g.id, g.cote, t, durees));
+  };
+
+  const lacherSon = (e: PointerEvent, g: Extract<Geste, { genre: "deplacerSon" | "rognerSon" }>, actuelle: PageEliot) => {
+    const c = actuelle.audio?.find((x) => x.id === g.id);
+    if (!c) return;
+    const etat = useEditeur.getState();
+    const seuil = AIMANT_PX / echelle;
+    const cibles = [...bordsDesClips(actuelle, g.id), useTemps.getState().tete];
+    if (g.genre === "deplacerSon") {
+      if (!g.actif) {
+        if (useTemps.getState().tete < c.temps.debut || useTemps.getState().tete >= c.temps.fin) useTemps.getState().allerA(c.temps.debut);
+        return;
+      }
+      etat.deplacerSon(g.id, debutAimante(g.debut0 + (e.clientX - g.x0) / echelle, c.temps.fin - c.temps.debut, cibles, seuil), pisteSonSous(e.clientY));
+      return;
+    }
+    etat.rognerSon(g.id, g.cote, aimanter(g.bord0 + (e.clientX - g.x0) / echelle, cibles, seuil));
+  };
+
   const suivre = (e: PointerEvent) => {
     const g = geste.current;
     if (!g) return;
@@ -276,6 +352,10 @@ export function Frise() {
     const actuelle = pageCourante(etat);
     if (g.genre === "tete") {
       useTemps.getState().allerA(borner(instantSous(e.clientX)));
+      return;
+    }
+    if (g.genre === "deplacerSon" || g.genre === "rognerSon") {
+      suivreSon(e, g, actuelle);
       return;
     }
     const el = actuelle.elements.find((x) => x.id === g.id);
@@ -324,6 +404,10 @@ export function Frise() {
     if (!g || g.genre === "tete") return;
     const etat = useEditeur.getState();
     const actuelle = pageCourante(etat);
+    if (g.genre === "deplacerSon" || g.genre === "rognerSon") {
+      lacherSon(e, g, actuelle);
+      return;
+    }
     const el = actuelle.elements.find((x) => x.id === g.id);
     if (!el?.temps) return;
     if (g.genre === "animation") {
@@ -401,6 +485,25 @@ export function Frise() {
     useEditeur.getState().selectionnerSeul(el.id);
     useTemps.getState().allerA(el.temps.debut + Math.min(t, el.temps.fin - el.temps.debut - 1));
     if (!el.verrouille) commencer({ genre: "cle", id: el.id, x0: e.clientX, t0: t, actif: false });
+  };
+
+  const surCorpsSon = (e: PointeurReact<HTMLDivElement>, c: ClipAudio) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const etat = useEditeur.getState();
+    if (e.shiftKey) etat.selectionnerSons(etat.selectionAudio.includes(c.id) ? etat.selectionAudio.filter((i) => i !== c.id) : [...etat.selectionAudio, c.id]);
+    else if (!etat.selectionAudio.includes(c.id) || etat.selectionAudio.length > 1) etat.selectionnerSons([c.id]);
+    commencer({ genre: "deplacerSon", id: c.id, x0: e.clientX, y0: e.clientY, debut0: c.temps.debut, actif: false });
+  };
+
+  const surBordSon = (e: PointeurReact<HTMLDivElement>, c: ClipAudio, cote: "debut" | "fin") => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    useTemps.getState().pause();
+    useEditeur.getState().selectionnerSons([c.id]);
+    commencer({ genre: "rognerSon", id: c.id, cote, x0: e.clientX, bord0: cote === "debut" ? c.temps.debut : c.temps.fin });
   };
 
   /** Clic sur la règle ou sur un endroit vide : la tête y va, et suit le pointeur. */
@@ -481,6 +584,39 @@ export function Frise() {
                 </div>
               );
             })}
+            {/* Les pistes des sons, sous la principale. */}
+            <div ref={zoneSons} data-zone-sons>
+              {pistesSons.length === 0 && (
+                <div className="flex" style={{ height: HAUTEUR_SON }}>
+                  <div className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-white/10 bg-zinc-900 px-2 text-[11px] text-zinc-400" style={{ width: ENTETE }}>
+                    Son
+                  </div>
+                  <div className="relative flex-1 border-b border-white/5 bg-zinc-800/30" onPointerDown={(e) => surFond(e, true)}>
+                    <span className="absolute top-1/2 left-3 -translate-y-1/2 text-xs text-zinc-500">Musique, voix, bruitages : onglet Audio. Un son se pose ici, à la tête de lecture.</span>
+                  </div>
+                </div>
+              )}
+              {pistesSons.map(({ piste, sons: surPiste }) => (
+                <div key={`son-${piste}`} className="flex" style={{ height: HAUTEUR_SON }}>
+                  <div className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-white/10 bg-zinc-900 px-2 text-[11px] text-zinc-400" style={{ width: ENTETE }}>
+                    Son {piste + 1}
+                  </div>
+                  <div
+                    ref={(n) => {
+                      if (n) lignesSons.current.set(piste, n);
+                      else lignesSons.current.delete(piste);
+                    }}
+                    data-piste-son={piste}
+                    className="relative flex-1 border-b border-white/5 bg-zinc-800/30"
+                    onPointerDown={(e) => surFond(e, true)}
+                  >
+                    {surPiste.map((c) => (
+                      <ClipSon key={c.id} clip={c} sons={sons} ressource={ressources[c.ressource]} echelle={echelle} hauteur={HAUTEUR_SON} choisi={selectionAudio.includes(c.id)} surCorps={surCorpsSon} surBord={surBordSon} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
             {/* La tête de lecture : un trait sur toute la hauteur, avec sa poignée sur la règle. */}
             <div ref={tete} data-tete className="pointer-events-none absolute top-0 left-0 z-20 h-full" style={{ width: 0 }}>
               <div className="absolute top-0 h-full w-0.5 -translate-x-1/2 bg-white" />

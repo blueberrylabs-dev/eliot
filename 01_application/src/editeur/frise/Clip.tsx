@@ -7,7 +7,7 @@ import { useEditeur } from "../../etat/editeur";
 import { dureesEntreeSortie } from "../../modele/animation";
 import { nomElement } from "../../modele/fabriques";
 import type { ElementPage, ElementVideo, Ressource } from "../../modele/types";
-import { ondeVideo, type Onde } from "../../pont/tauri";
+import { ondeRessource, type Onde } from "../../pont/tauri";
 import { useUrlRessource } from "../images";
 
 /** Au plus autant de vignettes par clip : au-delà, la frise est trop zoomée pour les voir. */
@@ -50,7 +50,7 @@ function FormeOnde({ el, ressource, largeur }: { el: ElementVideo; ressource: Re
   useEffect(() => {
     if (!projet || !ressource.video?.son) return;
     let actif = true;
-    void ondeVideo(projet, el.ressource).then((o) => actif && setOnde(o));
+    void ondeRessource(projet, el.ressource).then((o) => actif && setOnde(o));
     return () => {
       actif = false;
     };

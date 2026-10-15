@@ -3,7 +3,7 @@
 // (sources dans le JOURNAL et ci-dessous).
 
 import type { Format } from "../modele/types";
-import type { ReglagesFilm } from "../pont/tauri";
+import type { ReglagesFilm, ResultatFilm } from "../pont/tauri";
 
 export type IdPlateforme = "youtube" | "shorts" | "tiktok" | "reels" | "libre";
 
@@ -19,11 +19,18 @@ export interface Plateforme {
   /** Une image clé toutes les… (secondes). */
   gopSecondes: number;
   debitSon: number;
+  /** Le niveau sonore visé (LUFS intégrés, EBU R128), crête vraie plafonnée à -1 dBTP. */
+  niveauLufs: number;
   /** Ce qu'il faut savoir, en une phrase. */
   conseil: string;
 }
 
 const MINUTE = 60_000;
+
+/** Le niveau sonore : YouTube ramène les vidéos plus fortes à -14 LUFS (et conseille une crête
+ *  vraie sous -1 dBTP) ; TikTok et Instagram ne publient pas de cible, les mesures tournent
+ *  autour de -14 aussi (forasoft.com, « LUFS for video platforms », 2026-06-05). */
+const NIVEAU_LUFS = -14;
 
 /** YouTube : « Recommended upload encoding settings » (support.google.com/youtube/answer/1722171)
  *  : H.264, AAC-LC 48 kHz stéréo à 384 kbit/s, GOP fermé d'une demi-cadence, 1080p à 8 Mbit/s
@@ -38,6 +45,7 @@ export const PLATEFORMES: Plateforme[] = [
     debit: debitYoutube,
     gopSecondes: 0.5,
     debitSon: 384,
+    niveauLufs: NIVEAU_LUFS,
     conseil: "16:9, H.264 et son AAC 48 kHz, réglages recommandés par YouTube.",
   },
   {
@@ -52,6 +60,7 @@ export const PLATEFORMES: Plateforme[] = [
     debit: debitYoutube,
     gopSecondes: 0.5,
     debitSon: 384,
+    niveauLufs: NIVEAU_LUFS,
     conseil: "Vertical (9:16) ou carré, 3 minutes au plus ; mêmes réglages d'encodage que YouTube.",
   },
   {
@@ -64,6 +73,7 @@ export const PLATEFORMES: Plateforme[] = [
     debit: (ips, cote) => (cote >= 1080 ? (ips > 30 ? 15_000 : 10_000) : ips > 30 ? 9_000 : 6_000),
     gopSecondes: 1,
     debitSon: 192,
+    niveauLufs: NIVEAU_LUFS,
     conseil: "Vertical 9:16 (1080 × 1920), 23 à 60 images/s, 10 minutes au plus.",
   },
   {
@@ -76,6 +86,7 @@ export const PLATEFORMES: Plateforme[] = [
     debit: (ips, cote) => (cote >= 1080 ? (ips > 30 ? 15_000 : 10_000) : ips > 30 ? 9_000 : 6_000),
     gopSecondes: 1,
     debitSon: 192,
+    niveauLufs: NIVEAU_LUFS,
     conseil: "Vertical 9:16 (1080 × 1920), 30 images/s, 3 minutes au plus.",
   },
   {
@@ -85,6 +96,7 @@ export const PLATEFORMES: Plateforme[] = [
     debit: (ips, cote) => (cote >= 1080 ? (ips > 30 ? 16_000 : 12_000) : ips > 30 ? 10_000 : 7_500),
     gopSecondes: 1,
     debitSon: 320,
+    niveauLufs: NIVEAU_LUFS,
     conseil: "Les proportions de la page, très bonne qualité.",
   },
 ];
@@ -97,15 +109,19 @@ export interface OptionsFilm {
   /** MP4 : le petit côté du film (1080 ou 720). */
   definition: 1080 | 720;
   imagesParSeconde: number;
-  /** MP4 : garder le son des vidéos. */
+  /** MP4 : garder le son (celui des vidéos et les sons de la page). */
   son: boolean;
+  /** MP4 : caler le niveau sonore sur la cible de la plateforme. */
+  niveau: boolean;
+  /** MP4 : faire aussi une version sans musique (voix et bruitages gardés). */
+  sansMusique: boolean;
   /** GIF : la largeur du film. */
   largeurGif: number;
   /** Chemin choisi dans « Enregistrer sous ». */
   chemin?: string;
 }
 
-export const OPTIONS_FILM_DEFAUT: OptionsFilm = { format: "mp4", plateforme: "libre", definition: 1080, imagesParSeconde: 30, son: true, largeurGif: 480 };
+export const OPTIONS_FILM_DEFAUT: OptionsFilm = { format: "mp4", plateforme: "libre", definition: 1080, imagesParSeconde: 30, son: true, niveau: true, sansMusique: false, largeurGif: 480 };
 
 const pair = (v: number) => Math.max(2, Math.round(v / 2) * 2);
 
@@ -114,12 +130,12 @@ export function reglagesFilm(o: OptionsFilm, format: Format): ReglagesFilm {
   const p = plateforme(o.plateforme);
   if (o.format === "gif") {
     const largeur = Math.min(Math.round(o.largeurGif), Math.round(format.largeur));
-    return { format: "gif", largeur, hauteur: Math.max(16, Math.round((largeur * format.hauteur) / format.largeur)), imagesParSeconde: o.imagesParSeconde, crf: 18, debitMaxKbps: 8_000, gopSecondes: 1, debitSonKbps: 128, son: false };
+    return { format: "gif", largeur, hauteur: Math.max(16, Math.round((largeur * format.hauteur) / format.largeur)), imagesParSeconde: o.imagesParSeconde, crf: 18, debitMaxKbps: 8_000, gopSecondes: 1, debitSonKbps: 128, son: false, niveauLufs: null, sansMusique: false };
   }
   const echelle = o.definition / Math.min(format.largeur, format.hauteur);
   const largeur = pair(format.largeur * echelle);
   const hauteur = pair(format.hauteur * echelle);
-  return { format: "mp4", largeur, hauteur, imagesParSeconde: o.imagesParSeconde, crf: 18, debitMaxKbps: p.debit(o.imagesParSeconde, o.definition), gopSecondes: p.gopSecondes, debitSonKbps: p.debitSon, son: o.son };
+  return { format: "mp4", largeur, hauteur, imagesParSeconde: o.imagesParSeconde, crf: 18, debitMaxKbps: p.debit(o.imagesParSeconde, o.definition), gopSecondes: p.gopSecondes, debitSonKbps: p.debitSon, son: o.son, niveauLufs: o.son && o.niveau ? p.niveauLufs : null, sansMusique: o.son && o.sansMusique };
 }
 
 /** Ce qui ne va pas pour la plateforme choisie : proportions, durée. */
@@ -134,4 +150,15 @@ export function remarquesFilm(o: OptionsFilm, format: Format, duree: number): st
   if (p.dureeMax && duree > p.dureeMax) remarques.push(`${p.nom} accepte ${Math.round(p.dureeMax / MINUTE)} minutes au plus : la page dure plus longtemps.`);
   if ((o.plateforme === "tiktok" || o.plateforme === "reels") && o.imagesParSeconde < 23) remarques.push(`${p.nom} demande 23 images par seconde au moins.`);
   return remarques;
+}
+
+const nombre = (v: number) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(1).replace(".", ",");
+
+/** Ce que dit la notification à la fin d'un export vidéo. */
+export function messageFilm(r: ResultatFilm): string {
+  const morceaux = [`Vidéo exportée : ${r.chemin}`];
+  const n = r.niveau;
+  if (n && n.lufs !== null) morceaux.push(`son à ${nombre(n.lufs)} LUFS${n.crete !== null ? `, crête à ${nombre(n.crete)} dBTP` : ""}${n.gain ? ` (${n.gain > 0 ? "+" : ""}${nombre(n.gain)} dB)` : ""}`);
+  if (r.sansMusique) morceaux.push(`version sans musique : ${r.sansMusique.split("/").pop()}`);
+  return morceaux.join(" ; ");
 }

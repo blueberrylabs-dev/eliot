@@ -4,7 +4,7 @@
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
-import type { Credit, DocumentEliot, InfoProjet, InfosVideo, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, RefProjet, RefRessources, Ressource } from "../modele/types";
 
 export const dansTauri = isTauri();
 
@@ -12,17 +12,22 @@ const EXTENSIONS_IMAGES = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "t
 /** Les mêmes que le noyau (`videos::EXTENSIONS`). */
 export const EXTENSIONS_VIDEOS = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mpg", "mpeg"];
 const extension = (chemin: string) => chemin.toLowerCase().split(".").pop() ?? "";
+/** Les mêmes que le noyau (`sons::EXTENSIONS`). */
+export const EXTENSIONS_SONS = ["mp3", "wav", "ogg", "oga", "opus", "m4a", "aac", "flac", "aif", "aiff", "wma"];
 export const estCheminVideo = (chemin: string) => EXTENSIONS_VIDEOS.includes(extension(chemin));
 export const estCheminImage = (chemin: string) => EXTENSIONS_IMAGES.includes(extension(chemin));
+export const estCheminSon = (chemin: string) => EXTENSIONS_SONS.includes(extension(chemin));
+export const estFichierSon = (f: File) => f.type.startsWith("audio/") || estCheminSon(f.name);
 
-/** Ce que renvoie le noyau pour une image ou une vidéo. */
+/** Ce que renvoie le noyau pour une image, une vidéo ou un son. */
 interface RessourceNoyau {
   id: string;
   nom: string;
   largeur: number;
   hauteur: number;
   transparence: boolean;
-  credit?: Credit | null;
+  credit?: (Omit<Credit, "licence" | "titre"> & { licence?: string | null; titre?: string | null }) | null;
+  son?: { duree: number; copie: string; lufs?: number | null; crete?: number | null } | null;
   video?: {
     duree: number;
     images_par_seconde: number;
@@ -52,7 +57,27 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
   largeur: r.largeur,
   hauteur: r.hauteur,
   transparence: r.transparence,
-  ...(r.credit ? { credit: { source: r.credit.source, auteur: r.credit.auteur, lien: r.credit.lien } } : {}),
+  ...(r.credit
+    ? {
+        credit: {
+          source: r.credit.source,
+          auteur: r.credit.auteur,
+          lien: r.credit.lien,
+          ...(r.credit.licence ? { licence: r.credit.licence } : {}),
+          ...(r.credit.titre ? { titre: r.credit.titre } : {}),
+        },
+      }
+    : {}),
+  ...(r.son
+    ? {
+        son: {
+          duree: r.son.duree,
+          copie: "webm",
+          ...(typeof r.son.lufs === "number" ? { lufs: r.son.lufs } : {}),
+          ...(typeof r.son.crete === "number" ? { crete: r.son.crete } : {}),
+        } satisfies InfosSon,
+      }
+    : {}),
   ...(r.video
     ? {
         video: {
@@ -278,15 +303,16 @@ export function urlRessource(ref: RefRessources, id: string, genre: GenreImage):
   return promesse;
 }
 
-/** Adresse de la copie d'aperçu d'une vidéo, pour une balise `<video>`. Le noyau lit le
- *  fichier, la fenêtre en fait une adresse locale ; jamais l'original (règle 5). */
-export function urlCopieVideo(ref: RefRessources, ressource: Ressource): Promise<string> {
+/** Adresse de la copie d'aperçu d'une vidéo, pour une balise `<video>`, ou de la copie
+ *  d'écoute d'un son, pour une balise `<audio>`. Le noyau lit le fichier, la fenêtre en fait
+ *  une adresse locale ; jamais l'original (règle 5). */
+export function urlCopie(ref: RefRessources, ressource: Ressource): Promise<string> {
   const navigateur = ressourcesNavigateur.get(ressource.id);
   if (navigateur?.urls.copie) return Promise.resolve(navigateur.urls.copie);
   const cle = `${ref.rayon}/${ref.id}/${ressource.id}/copie`;
   let promesse = urls.get(cle);
   if (!promesse) {
-    const type = ressource.video?.copie === "mp4" ? "video/mp4" : "video/webm";
+    const type = ressource.son ? "audio/webm" : ressource.video?.copie === "mp4" ? "video/mp4" : "video/webm";
     promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" }).then((octets) => URL.createObjectURL(new Blob([octets], { type })));
     promesse.catch(() => urls.delete(cle));
     urls.set(cle, promesse);
@@ -301,7 +327,7 @@ export async function imageVideo(ref: RefRessources, ressource: Ressource, ms: n
     const octets = await invoke<ArrayBuffer>("image_video", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, ms: Math.max(0, Math.round(ms)) });
     return new Blob([octets], { type: "image/jpeg" });
   }
-  const url = await urlCopieVideo(ref, ressource);
+  const url = await urlCopie(ref, ressource);
   const video = document.createElement("video");
   video.muted = true;
   video.preload = "auto";
@@ -330,9 +356,10 @@ export interface Onde {
 }
 const ondes = new Map<string, Promise<Onde | null>>();
 
-/** La forme d'onde d'une vidéo du design, gardée en mémoire ; `null` si elle n'a pas de son. */
-export function ondeVideo(ref: RefRessources, id: string): Promise<Onde | null> {
-  if (!dansTauri) return Promise.resolve(null);
+/** La forme d'onde d'une vidéo ou d'un son du design, gardée en mémoire ; `null` si elle n'a
+ *  pas de son. */
+export function ondeRessource(ref: RefRessources, id: string): Promise<Onde | null> {
+  if (!dansTauri) return Promise.resolve(ondesNavigateur.get(id) ?? null);
   const cle = `${ref.rayon}/${ref.id}/${id}`;
   let promesse = ondes.get(cle);
   if (!promesse) {
@@ -374,9 +401,10 @@ function bilanDe(resultats: ResultatImport[], bilan: BilanImport = { ressources:
  *  prépare tout, dans le dossier du design. Les vidéos passent après les images, l'une après
  *  l'autre (copie d'aperçu, vignettes, forme d'onde) ; `suivi` dit où en est chacune. Un
  *  fichier qui n'est ni une image ni une vidéo connue est tenté comme une image. */
-export async function importerChemins(ref: RefRessources, chemins: string[], suivi?: SuiviImport): Promise<BilanImport> {
+export async function importerChemins(ref: RefRessources, chemins: string[], suivi?: SuiviImport, suiviSons?: SuiviImport): Promise<BilanImport> {
   const videos = chemins.filter(estCheminVideo);
-  const images = chemins.filter((c) => !estCheminVideo(c));
+  const sons = chemins.filter(estCheminSon);
+  const images = chemins.filter((c) => !estCheminVideo(c) && !estCheminSon(c));
   const bilan: BilanImport = { ressources: [], erreurs: [] };
   if (images.length) bilanDe(await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins: images }), bilan);
   if (videos.length) {
@@ -385,7 +413,29 @@ export async function importerChemins(ref: RefRessources, chemins: string[], sui
     suivi?.(0, 0, videos.length);
     bilanDe(await invoke<ResultatImport[]>("importer_videos", { rayonNom: ref.rayon, projetId: ref.id, chemins: videos, avancement: canal }), bilan);
   }
+  if (sons.length) {
+    const s = suiviSons ?? suivi;
+    const canal = new Channel<{ fichier: number; part: number }>();
+    canal.onmessage = (a) => s?.(a.fichier, a.part, sons.length);
+    s?.(0, 0, sons.length);
+    bilanDe(await invoke<ResultatImport[]>("importer_sons", { rayonNom: ref.rayon, projetId: ref.id, chemins: sons, avancement: canal }), bilan);
+  }
   return bilan;
+}
+
+/** Ouvre le sélecteur de fichiers et importe les sons choisis (lot 5) : le noyau range
+ *  l'original, prépare la copie d'écoute et la forme d'onde, mesure le niveau. `null` si on
+ *  annule. */
+export async function choisirEtImporterSons(ref: RefRessources, suivi?: SuiviImport): Promise<BilanImport | null> {
+  if (dansTauri) {
+    const { open } = await import("@tauri-apps/plugin-dialog");
+    const choix = await open({ multiple: true, directory: false, title: "Importer des sons", filters: [{ name: "Sons", extensions: EXTENSIONS_SONS }] });
+    if (!choix || (Array.isArray(choix) && choix.length === 0)) return null;
+    return importerChemins(ref, Array.isArray(choix) ? choix : [choix], undefined, suivi);
+  }
+  const fichiers = await choisirFichiersNavigateur(false, true);
+  if (fichiers.length === 0) return null;
+  return importerFichiersNavigateur(fichiers);
 }
 
 /** Ouvre le sélecteur de fichiers et importe les images et les vidéos choisies. `null` si on
@@ -438,12 +488,12 @@ export async function copierRessources(source: RefRessources, cible: RefRessourc
 
 // ---- Équivalents navigateur ----
 
-function choisirFichiersNavigateur(videos = false): Promise<File[]> {
+function choisirFichiersNavigateur(videos = false, sons = false): Promise<File[]> {
   return new Promise((resoudre) => {
     const champ = document.createElement("input");
     champ.type = "file";
     champ.multiple = true;
-    champ.accept = videos ? "image/*,video/*" : "image/*";
+    champ.accept = sons ? "audio/*" : videos ? "image/*,video/*" : "image/*";
     champ.addEventListener("change", () => resoudre(Array.from(champ.files ?? [])));
     champ.click();
   });
@@ -505,6 +555,23 @@ async function vignettesNavigateur(video: HTMLVideoElement, duree: number): Prom
   return { infos: { nombre, intervalle: Math.round(duree / nombre), largeur, hauteur }, url: blob ? URL.createObjectURL(blob) : undefined };
 }
 
+const ondesNavigateur = new Map<string, Onde>();
+
+/** Un son du navigateur : sa durée et sa forme d'onde (50 pics par seconde), comme le noyau. */
+async function sonderSonNavigateur(octets: ArrayBuffer): Promise<{ duree: number; onde: Onde }> {
+  const contexte = new OfflineAudioContext(1, 1, 8000);
+  const tampon = await contexte.decodeAudioData(octets.slice(0));
+  const parPic = Math.max(1, Math.round(tampon.sampleRate / 50));
+  const canaux = Array.from({ length: tampon.numberOfChannels }, (_, i) => tampon.getChannelData(i));
+  const pics: number[] = [];
+  for (let debut = 0; debut < tampon.length; debut += parPic) {
+    let max = 0;
+    for (const c of canaux) for (let i = debut; i < Math.min(tampon.length, debut + parPic); i++) max = Math.max(max, Math.abs(c[i]));
+    pics.push(Math.min(100, Math.round(max * 100)));
+  }
+  return { duree: Math.round(tampon.duration * 1000), onde: { par_seconde: 50, pics } };
+}
+
 async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport> {
   const ressources: Ressource[] = [];
   const erreurs: string[] = [];
@@ -515,6 +582,14 @@ async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport
       const deja = ressourcesNavigateur.get(id);
       if (deja) {
         ressources.push(deja.ressource);
+        continue;
+      }
+      if (estFichierSon(fichier)) {
+        const { duree, onde } = await sonderSonNavigateur(octets);
+        const ressource: Ressource = { id, nom: fichier.name || "son", largeur: 0, hauteur: 0, transparence: false, son: { duree, copie: "webm" } };
+        ressourcesNavigateur.set(id, { ressource, urls: { apercu: "", miniature: "", copie: URL.createObjectURL(fichier) } });
+        ondesNavigateur.set(id, onde);
+        ressources.push(ressource);
         continue;
       }
       if (fichier.type.startsWith("video/") || estCheminVideo(fichier.name)) {
@@ -669,23 +744,36 @@ export interface ReglagesFilm {
   gopSecondes: number;
   debitSonKbps: number;
   son: boolean;
+  /** Le niveau visé, en LUFS (crête vraie plafonnée à -1 dBTP) ; `null` : tel que mixé. */
+  niveauLufs: number | null;
+  /** Aussi une version sans les musiques, à côté du film. */
+  sansMusique: boolean;
 }
 
-/** Où en est un export vidéo : `son`, `images` (image faite sur le total), `gif`, `fini`. */
+/** Ce que l'export a écrit : le film, la version sans musique, le niveau final du son. */
+export interface ResultatFilm {
+  chemin: string;
+  sansMusique: string | null;
+  niveau: { lufs: number | null; crete: number | null; gain: number } | null;
+}
+
+/** Où en est un export vidéo : `son`, `images` (image faite sur le total), `gif`,
+ *  `sans-musique`, `fini`. */
 export interface AvancementFilm {
-  etape: "son" | "images" | "gif" | "fini";
+  etape: "son" | "images" | "gif" | "sans-musique" | "fini";
   image: number;
   images: number;
   part: number;
 }
 
-/** Fait le film d'une page décrite (`export/calques.ts`) ; renvoie le chemin écrit. Le noyau
- *  écrit dans Vidéos/Eliot sous un nom libre, ou au chemin choisi. */
-export async function exporterFilm(ref: RefRessources, description: unknown, reglages: ReglagesFilm, nom: string, chemin: string | undefined, suivi: (a: AvancementFilm) => void): Promise<string> {
+/** Fait le film d'une page décrite (`export/calques.ts`) ; renvoie ce qui a été écrit. Le
+ *  noyau écrit dans Vidéos/Eliot sous un nom libre, ou au chemin choisi. */
+export async function exporterFilm(ref: RefRessources, description: unknown, reglages: ReglagesFilm, nom: string, chemin: string | undefined, suivi: (a: AvancementFilm) => void): Promise<ResultatFilm> {
   if (!dansTauri) throw new Error("l'export vidéo se fait dans l'application Eliot (Tauri)");
   const canal = new Channel<AvancementFilm>();
   canal.onmessage = suivi;
-  return invoke<string>("exporter_video", { rayonNom: ref.rayon, projetId: ref.id, description, reglages, nom, chemin: chemin ?? null, avancement: canal });
+  const r = await invoke<{ chemin: string; sans_musique: string | null; niveau: ResultatFilm["niveau"] }>("exporter_video", { rayonNom: ref.rayon, projetId: ref.id, description, reglages, nom, chemin: chemin ?? null, avancement: canal });
+  return { chemin: r.chemin, sansMusique: r.sans_musique ?? null, niveau: r.niveau ?? null };
 }
 
 export async function annulerFilm(): Promise<void> {
@@ -953,6 +1041,93 @@ export async function importerVideoPixabay(ref: RefRessources, id: number, suivi
   if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
   const ressource = bilan.ressources[0];
   ressource.credit = credit;
+  return ressource;
+}
+
+// ========================================================================================
+// Sons de Freesound (étape 4, lot 5) : même chemin, par le Rust, qui seul connaît la clé
+// ========================================================================================
+
+export type GenreFreesound = "bruitages" | "musiques" | "tout";
+
+export interface SonFreesound {
+  id: number;
+  nom: string;
+  auteur: string;
+  /** `CC0 1.0`, `CC BY 4.0`… */
+  licence: string;
+  /** Secondes. */
+  duree: number;
+  /** Page du son sur Freesound. */
+  lien: string;
+  mots: string;
+}
+
+export interface PageSonsFreesound {
+  total: number;
+  sons: SonFreesound[];
+}
+
+/** Les essais de l'interface dans un navigateur posent un faux Freesound dans
+ *  `window.__freesoundEssai` (développement seulement). */
+interface FreesoundEssai {
+  etat(): Promise<EtatPixabay>;
+  chercher(requete: string, page: number, genre: GenreFreesound): Promise<PageSonsFreesound>;
+  extrait(id: number): Promise<Blob>;
+  importer(id: number): Promise<{ fichier: File; credit: Credit }>;
+}
+const freesoundEssai = (): FreesoundEssai | undefined =>
+  !dansTauri && import.meta.env.DEV ? (window as unknown as { __freesoundEssai?: FreesoundEssai }).__freesoundEssai : undefined;
+
+export async function etatFreesound(): Promise<EtatPixabay | null> {
+  if (dansTauri) return invoke<EtatPixabay>("freesound_etat");
+  return (await freesoundEssai()?.etat()) ?? null;
+}
+
+export async function chercherFreesound(requete: string, page: number, genre: GenreFreesound): Promise<PageSonsFreesound> {
+  if (dansTauri) return invoke<PageSonsFreesound>("freesound_chercher", { requete, page, genre });
+  const essai = freesoundEssai();
+  if (!essai) throw new Error("les sons de Freesound ne s'ouvrent que dans la fenêtre Eliot");
+  return essai.chercher(requete, page, genre);
+}
+
+const urlsExtraits = new Map<number, Promise<string>>();
+
+/** Adresse locale de l'extrait d'un son (MP3 léger), gardée le temps de la session. */
+export function urlExtraitFreesound(id: number): Promise<string> {
+  let promesse = urlsExtraits.get(id);
+  if (!promesse) {
+    promesse = (async () => {
+      if (dansTauri) {
+        const octets = await invoke<ArrayBuffer>("freesound_extrait", { id });
+        return URL.createObjectURL(new Blob([octets], { type: "audio/mpeg" }));
+      }
+      const essai = freesoundEssai();
+      if (!essai) throw new Error("indisponible");
+      return URL.createObjectURL(await essai.extrait(id));
+    })();
+    promesse.catch(() => urlsExtraits.delete(id));
+    urlsExtraits.set(id, promesse);
+  }
+  return promesse;
+}
+
+/** Télécharge le son choisi et l'importe dans le design (ou le kit), avec son crédit et sa
+ *  licence. `suivi` reçoit la part faite, téléchargement puis préparation. */
+export async function importerFreesound(ref: RefRessources, id: number, suivi?: (part: number) => void): Promise<Ressource> {
+  if (dansTauri) {
+    const canal = new Channel<{ fichier: number; part: number }>();
+    canal.onmessage = (a) => suivi?.(a.part);
+    suivi?.(0);
+    return versRessource(await invoke<RessourceNoyau>("freesound_importer", { rayonNom: ref.rayon, projetId: ref.id, id, avancement: canal }));
+  }
+  const essai = freesoundEssai();
+  if (!essai) throw new Error("les sons de Freesound ne s'ouvrent que dans la fenêtre Eliot");
+  const { fichier, credit } = await essai.importer(id);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource = { ...bilan.ressources[0], nom: credit.titre ?? bilan.ressources[0].nom, credit };
+  ressourcesNavigateur.get(ressource.id)!.ressource = ressource;
   return ressource;
 }
 

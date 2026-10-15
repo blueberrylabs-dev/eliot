@@ -10,8 +10,9 @@ import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
 import { recalerPersonnage } from "../modele/personnages";
 import { catalogueConnu } from "../bibliotheque/personnages";
-import { recoitPhoto, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource } from "../modele/types";
-import { deplacerClip, dupliquerDansLeTemps, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, rogner, scinder, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
+import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
+import { deplacerClip, deplacerSon, dupliquerDansLeTemps, dupliquerSon, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, placerSon, rogner, rognerSon, scinder, scinderSons, supprimerSons, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
+import { FONDU_FIN_MUSIQUE } from "../modele/son";
 import { cleProche, deplacerCle, DUREE_TRANSITION, poseA, poserCle, retirerCle, type GenreAnimation, type Pose } from "../modele/animation";
 import type { Animation, Transition } from "../modele/types";
 import { useTemps } from "./temps";
@@ -67,6 +68,8 @@ interface EtatEditeur {
   ressources: Record<string, Ressource>;
   ordreRessources: string[];
   selection: string[];
+  /** Les sons choisis dans la frise (lot 5), à part des éléments : choisir l'un vide l'autre. */
+  selectionAudio: string[];
   enEdition: string | null;
   /** Cadre ou maquette dont on déplace la photo à l'intérieur (double-clic). */
   enAjustement: string | null;
@@ -174,6 +177,19 @@ interface EtatEditeur {
   effacerCles: (id: string) => void;
   /** La transition par laquelle un clip de la piste principale entre ; `null` la retire. */
   definirTransition: (id: string, transition: Transition | null) => void;
+
+  // ---- Sons d'une page vidéo (étape 4, lot 5) ----
+  /** Pose un son du design à la tête de lecture (ou à `debut`), sur la piste audio qui
+   *  convient ; une page fixe devient une vidéo. Une musique va jusqu'au bout de la page, avec
+   *  un fondu de fin. Un jingle se pose au début ou à la fin. Renvoie l'identifiant du clip. */
+  ajouterSon: (ressource: Ressource, options?: { role?: RoleSon; debut?: number; piste?: number; jingle?: "ouverture" | "fin" }) => string | null;
+  deplacerSon: (id: string, debut: number, piste: number) => void;
+  rognerSon: (id: string, cote: "debut" | "fin", t: number) => void;
+  modifierSons: (modifs: Record<string, Partial<ClipAudio>>, etiquette?: string) => void;
+  selectionnerSons: (ids: string[], ajout?: boolean) => void;
+  /** Détache le son d'une vidéo (vitesse normale) : un clip de voix sur une piste audio, à la
+   *  même place, et la vidéo devient muette. Renvoie l'identifiant du clip. */
+  detacherSon: (id: string) => string | null;
   notifier: (texte: string, options?: { erreur?: boolean; chemin?: string }) => void;
   fermerNotification: () => void;
   definirZoom: (zoom: number | null) => void;
@@ -232,8 +248,8 @@ const avecPage = (d: DocumentEliot, id: string, recette: (p: PageEliot) => PageE
   return change ? { ...d, pages } : d;
 };
 
-/** La durée des fichiers vidéo du design, d'après les ressources connues. */
-const dureesDe = (ressources: Record<string, Ressource>): Durees => (id) => ressources[id]?.video?.duree;
+/** La durée des fichiers vidéo et des sons du design, d'après les ressources connues. */
+export const dureesDe = (ressources: Record<string, Ressource>): Durees => (id) => ressources[id]?.video?.duree ?? ressources[id]?.son?.duree;
 
 /** Remet d'aplomb les pages vidéo qu'une modification a touchées (voir `modele/frise.ts`). */
 function normaliserPages(suivant: DocumentEliot, avant: DocumentEliot, durees: Durees): DocumentEliot {
@@ -271,6 +287,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   ressources: {},
   ordreRessources: [],
   selection: [],
+  selectionAudio: [],
   enEdition: null,
   enAjustement: null,
   passe: [],
@@ -300,6 +317,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       ressources: Object.fromEntries(ressources.map((r) => [r.id, r])),
       ordreRessources: ressources.map((r) => r.id),
       selection: [],
+      selectionAudio: [],
       enEdition: null,
       enAjustement: null,
       celluleEnEdition: null,
@@ -315,7 +333,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   allerALAccueil() {
-    set({ vue: "accueil", selection: [], enEdition: null, enAjustement: null, celluleEnEdition: null, dessin: null, apercu: false, vueGrille: false, styleCopie: null });
+    set({ vue: "accueil", selection: [], selectionAudio: [], enEdition: null, enAjustement: null, celluleEnEdition: null, dessin: null, apercu: false, vueGrille: false, styleCopie: null });
   },
 
   definirProjet(projet) {
@@ -346,6 +364,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const fusion = etiquette !== undefined && etiquette === derniereEtiquette && maintenant - dernierInstant < FENETRE_FUSION_MS;
     const page = pageDe(suivant, pageActive);
     const ids = new Set(page.elements.map((e) => e.id));
+    const sons = new Set((page.audio ?? []).map((c) => c.id));
     set({
       document: suivant,
       pageActive: page.id,
@@ -354,6 +373,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       derniereEtiquette: etiquette ?? null,
       dernierInstant: maintenant,
       selection: get().selection.filter((id) => ids.has(id)),
+      selectionAudio: get().selectionAudio.filter((id) => sons.has(id)),
     });
   },
 
@@ -368,12 +388,14 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     if (!precedent) return;
     const page = pageDe(precedent.document, precedent.page);
     const ids = new Set(page.elements.map((e) => e.id));
+    const sons = new Set((page.audio ?? []).map((c) => c.id));
     set({
       document: precedent.document,
       pageActive: page.id,
       passe: passe.slice(0, -1),
       futur: [{ document, page: pageActive }, ...futur],
       selection: get().selection.filter((id) => ids.has(id)),
+      selectionAudio: get().selectionAudio.filter((id) => sons.has(id)),
       enEdition: null,
       derniereEtiquette: null,
     });
@@ -385,12 +407,14 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     if (!suivant) return;
     const page = pageDe(suivant.document, suivant.page);
     const ids = new Set(page.elements.map((e) => e.id));
+    const sons = new Set((page.audio ?? []).map((c) => c.id));
     set({
       document: suivant.document,
       pageActive: page.id,
       passe: [...passe, { document, page: pageActive }],
       futur: futur.slice(1),
       selection: get().selection.filter((id) => ids.has(id)),
+      selectionAudio: get().selectionAudio.filter((id) => sons.has(id)),
       enEdition: null,
       derniereEtiquette: null,
     });
@@ -417,7 +441,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
         return ajustes.some((e, i) => e !== placee.elements[i]) ? { ...placee, elements: ajustes } : placee;
       });
     } else get().appliquerPage((p) => ({ ...p, elements: [...p.elements, ...elements] }));
-    set({ selection: elements.map((e) => e.id) });
+    set({ selection: elements.map((e) => e.id), selectionAudio: [] });
   },
 
   modifierElements(modifs, etiquette) {
@@ -457,6 +481,12 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
 
   supprimerSelection() {
     const etat = get();
+    if (etat.selectionAudio.length) {
+      const ids = etat.selectionAudio;
+      etat.appliquerPage((p) => supprimerSons(p, ids, dureesDe(get().ressources)));
+      set({ selectionAudio: [] });
+      return;
+    }
     const elements = parId(elementsCourants(etat));
     const aSupprimer = new Set(etat.selection.filter((id) => !elements.get(id)?.verrouille));
     if (aSupprimer.size === 0) return;
@@ -465,6 +495,13 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   dupliquerSelection() {
+    const sons = get().selectionAudio;
+    if (sons.length) {
+      const copies = sons.map(() => nouvelId("s"));
+      get().appliquerPage((p) => sons.reduce((q, id, i) => dupliquerSon(q, id, copies[i], dureesDe(get().ressources)), p));
+      set({ selectionAudio: copies.filter((id) => pageCourante(get()).audio?.some((c) => c.id === id)) });
+      return;
+    }
     const originaux = elementsSelectionnes(get());
     if (originaux.length === 0) return;
     if (!estPageVideo(pageCourante(get()))) {
@@ -670,7 +707,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     if (get().pageActive === id || !get().document.pages.some((p) => p.id === id)) return;
     if (typeof window !== "undefined" && window.document.activeElement instanceof HTMLTextAreaElement) window.document.activeElement.blur();
     useTemps.getState().remettre();
-    set({ pageActive: id, selection: [], enEdition: null, enAjustement: null, celluleEnEdition: null });
+    set({ pageActive: id, selection: [], selectionAudio: [], enEdition: null, enAjustement: null, celluleEnEdition: null });
   },
 
   // ---- Sélection ----
@@ -680,25 +717,25 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const actuelle = get().selection;
     const selection = ajout ? [...new Set([...actuelle, ...complets])] : complets;
     const enAjustement = get().enAjustement && selection.length === 1 && selection[0] === get().enAjustement ? get().enAjustement : null;
-    set({ selection, enAjustement });
+    set({ selection, enAjustement, ...(selection.length ? { selectionAudio: [] } : {}) });
   },
 
   selectionnerSeul(id) {
-    set({ selection: [id] });
+    set({ selection: [id], selectionAudio: [] });
   },
 
   basculerDansSelection(id) {
     const membres = avecGroupes([id], elementsCourants(get()));
     const actuelle = get().selection;
-    set({ selection: actuelle.includes(id) ? actuelle.filter((i) => !membres.includes(i)) : [...new Set([...actuelle, ...membres])] });
+    set({ selection: actuelle.includes(id) ? actuelle.filter((i) => !membres.includes(i)) : [...new Set([...actuelle, ...membres])], selectionAudio: [] });
   },
 
   toutSelectionner() {
-    set({ selection: elementsCourants(get()).filter((e) => e.visible).map((e) => e.id) });
+    set({ selection: elementsCourants(get()).filter((e) => e.visible).map((e) => e.id), selectionAudio: [] });
   },
 
   deselectionner() {
-    if (get().selection.length || get().enAjustement) set({ selection: [], enAjustement: null });
+    if (get().selection.length || get().selectionAudio.length || get().enAjustement) set({ selection: [], selectionAudio: [], enAjustement: null });
   },
 
   commencerEdition(id) {
@@ -809,6 +846,16 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const page = pageCourante(etat);
     if (!estPageVideo(page)) return;
     const tete = useTemps.getState().tete;
+    if (etat.selectionAudio.length) {
+      let nouveauxSons: string[] = [];
+      etat.appliquerPage((p) => {
+        const r = scinderSons(p, etat.selectionAudio, tete, dureesDe(get().ressources), () => nouvelId("s"));
+        nouveauxSons = r.nouveaux;
+        return r.page;
+      });
+      if (nouveauxSons.length) set({ selectionAudio: nouveauxSons });
+      return;
+    }
     const sous = page.elements.filter((e) => visibleA(e, tete) && !e.verrouille);
     const choisis = sous.filter((e) => etat.selection.includes(e.id)).map((e) => e.id);
     const ids = choisis.length ? choisis : sous.filter((e) => e.piste === PISTE_PRINCIPALE).map((e) => e.id);
@@ -882,6 +929,76 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const max = Math.floor(Math.min(longueur(principale[i]), longueur(principale[i - 1])) / 2);
     const duree = transition ? Math.max(100, Math.min(max, Math.round(transition.duree || DUREE_TRANSITION))) : 0;
     get().modifierElements({ [id]: { transition: transition && i > 0 ? { nom: transition.nom, duree } : undefined } }, `transition:${id}`);
+  },
+
+  // ---- Sons ----
+
+  ajouterSon(ressource, options = {}) {
+    const dureeFichier = ressource.son?.duree ?? (ressource.video?.son ? ressource.video.duree : undefined);
+    if (dureeFichier === undefined) return null;
+    const role: RoleSon = options.role ?? (options.jingle ? "musique" : dureeFichier >= 20_000 ? "musique" : "bruitage");
+    const id = nouvelId("s");
+    const durees = dureesDe({ ...get().ressources, [ressource.id]: ressource });
+    // Une musique (pas un jingle) couvre la page jusqu'au bout, avec un fondu de fin.
+    const fond = role === "musique" && !options.jingle;
+    const son = { id, ressource: ressource.id, role, ...(fond ? { jusquALaFin: true, fonduSortie: FONDU_FIN_MUSIQUE } : {}) } as Omit<ClipAudio, "temps" | "piste">;
+    const etaitVideo = estPageVideo(pageCourante(get()));
+    const tete = etaitVideo ? useTemps.getState().tete : 0;
+    get().appliquerPage((p) => {
+      const v = estPageVideo(p) ? p : versVideo(p, durees, fond ? 0 : dureeFichier);
+      let debut = options.debut ?? tete;
+      if (options.jingle === "ouverture") debut = 0;
+      if (options.jingle === "fin") debut = Math.max(0, (v.duree ?? 0) - dureeFichier);
+      const posee = placerSon(v, son, debut, durees);
+      // Lâché sur une piste précise de la frise : il y va (ou juste dessous si elle est prise).
+      const c = posee.audio?.find((x) => x.id === id);
+      return c && options.piste !== undefined && options.piste !== c.piste ? deplacerSon(posee, id, c.temps.debut, options.piste, durees) : posee;
+    });
+    if (!pageCourante(get()).audio?.some((c) => c.id === id)) return null;
+    set({ selection: [], selectionAudio: [id] });
+    return id;
+  },
+
+  deplacerSon(id, debut, piste) {
+    get().appliquerPage((p) => deplacerSon(p, id, debut, piste, dureesDe(get().ressources)));
+  },
+
+  rognerSon(id, cote, t) {
+    get().appliquerPage((p) => rognerSon(p, id, cote, t, dureesDe(get().ressources)));
+  },
+
+  modifierSons(modifs, etiquette) {
+    get().appliquerPage((p) => {
+      if (!p.audio?.some((c) => modifs[c.id])) return p;
+      return { ...p, audio: p.audio.map((c) => (modifs[c.id] ? ({ ...c, ...modifs[c.id] } as ClipAudio) : c)) };
+    }, etiquette);
+  },
+
+  selectionnerSons(ids, ajout = false) {
+    const existants = new Set((pageCourante(get()).audio ?? []).map((c) => c.id));
+    const choisis = ids.filter((id) => existants.has(id));
+    const selectionAudio = ajout ? [...new Set([...get().selectionAudio, ...choisis])] : choisis;
+    set({ selectionAudio, ...(selectionAudio.length ? { selection: [], enAjustement: null } : {}) });
+  },
+
+  detacherSon(id) {
+    const e = parId(elementsCourants(get())).get(id);
+    if (e?.type !== "video" || !e.temps || (e.vitesse ?? 1) !== 1 || (e.volume ?? 1) === 0) return null;
+    if (!get().ressources[e.ressource]?.video?.son) return null;
+    const sonId = nouvelId("s");
+    const son = {
+      id: sonId,
+      ressource: e.ressource,
+      role: "voix",
+      ...(e.coupe ? { coupe: { ...e.coupe } } : {}),
+      ...(e.volume !== undefined && e.volume !== 1 ? { volume: e.volume } : {}),
+      ...(e.fonduEntree ? { fonduEntree: e.fonduEntree } : {}),
+      ...(e.fonduSortie ? { fonduSortie: e.fonduSortie } : {}),
+    } as Omit<ClipAudio, "temps" | "piste">;
+    const debut = e.temps.debut;
+    get().appliquerPage((p) => placerSon({ ...p, elements: p.elements.map((x) => (x.id === id ? ({ ...x, volume: 0 } as ElementPage) : x)) }, son, debut, dureesDe(get().ressources)));
+    set({ selection: [], selectionAudio: [sonId] });
+    return sonId;
   },
 
   notifier(texte, options = {}) {

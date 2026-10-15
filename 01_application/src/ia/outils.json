@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -1383,6 +1383,235 @@
     }
   },
   {
+    "name": "importer_son",
+    "description": "Importe un son du poste (chemin absolu d'un fichier MP3, WAV, OGG, OPUS, M4A, AAC, FLAC, AIFF ou WMA) dans le design ouvert : une musique téléchargée sur Pixabay Musique, YouTube Audio Library ou Free Music Archive (la licence de chaque titre est à vérifier sur son site), une voix enregistrée, un bruitage. Eliot range l'original sans le modifier, prépare une copie d'écoute et la forme d'onde, et mesure le niveau (LUFS). Renvoie la ressource (durée en ms), à passer à ajouter_son.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "chemin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chemin"
+      ]
+    }
+  },
+  {
+    "name": "chercher_sons",
+    "description": "Cherche des sons libres sur Freesound : seulement CC0 (libres) et CC BY (citer l'auteur ; Eliot garde le crédit avec le son et prépare la liste à coller) ; les sons qui interdisent l'usage commercial sont écartés. Freesound se cherche surtout en anglais. Renvoie les sons trouvés (nom, auteur, licence, durée en secondes, mots). Les recherches restent 24 h en cache.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots, en anglais de préférence : « rain », « whoosh », « lofi piano »."
+        },
+        "genre": {
+          "type": "string",
+          "enum": [
+            "bruitages",
+            "musiques",
+            "tout"
+          ],
+          "description": "bruitages : 30 s au plus ; musiques : 20 s et plus ; tout par défaut."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Page de résultats (30 sons par page)."
+        },
+        "nombre": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30,
+          "description": "Sons renvoyés, 15 par défaut."
+        }
+      },
+      "required": [
+        "requete"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_son",
+    "description": "Pose un son dans la frise de la page affichée (une page fixe devient une page vidéo), à la tête de lecture ou à debut, sur la piste des sons qui convient (piste pour en choisir une). Une source et une seule : ressource (un son du design, voir etat, sons), freesound (id donné par chercher_sons : le son est téléchargé, préparé et rangé avec son crédit), jingle (ouverture : au début ; fin : finit avec la page ; voir marque) ou video (id d'un élément vidéo de la page : son son est détaché sur une piste des sons, au rôle voix, et la vidéo devient muette). Sans rôle donné, un son de 20 s et plus est une musique (jusqu'au bout de la page, répétée au besoin, fondu de fin de 2 s), un plus court un bruitage. La musique baisse toute seule sous les sons au rôle voix.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ressource": {
+          "type": "string"
+        },
+        "freesound": {
+          "type": "integer"
+        },
+        "jingle": {
+          "type": "string",
+          "enum": [
+            "ouverture",
+            "fin"
+          ]
+        },
+        "video": {
+          "type": "string"
+        },
+        "debut": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Instant de la page, en ms ; la tête de lecture par défaut."
+        },
+        "piste": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0 : la première piste des sons, sous la principale."
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "musique",
+            "voix",
+            "bruitage"
+          ],
+          "description": "Une musique baisse toute seule quand un son au rôle voix parle."
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 : muet ; 1 par défaut."
+        },
+        "fonduEntree": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Le son monte pendant ces ms au début."
+        },
+        "fonduSortie": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Le son baisse pendant ces ms à la fin."
+        },
+        "sousLaVoix": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Musique : la part du volume gardée sous une voix (0,3 par défaut)."
+        },
+        "jusquALaFin": {
+          "type": "boolean",
+          "description": "Le son couvre la page jusqu'au bout, répété au besoin (une musique de fond)."
+        },
+        "boucle": {
+          "type": "boolean",
+          "description": "La partie jouée recommence quand elle finit, tant que le son dure (régler sa fin avec regler_son, fin)."
+        },
+        "coupe": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "La partie du fichier qui joue, en ms du fichier : { debut, fin } (fin absente : jusqu'au bout) ; null : tout le fichier.",
+          "properties": {
+            "debut": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fin": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "regler_son",
+    "description": "Change un son de la frise (identifiant donné par etat, frise.pistesSons) : rôle, volume, fondus, part gardée sous la voix, jusqu'au bout de la page, boucle, coupe, place (debut, piste), fin (l'instant de la page où il s'arrête ; pour un son qui boucle, sa durée), ou le supprime.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "musique",
+            "voix",
+            "bruitage"
+          ],
+          "description": "Une musique baisse toute seule quand un son au rôle voix parle."
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 : muet ; 1 par défaut."
+        },
+        "fonduEntree": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Le son monte pendant ces ms au début."
+        },
+        "fonduSortie": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Le son baisse pendant ces ms à la fin."
+        },
+        "sousLaVoix": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Musique : la part du volume gardée sous une voix (0,3 par défaut)."
+        },
+        "jusquALaFin": {
+          "type": "boolean",
+          "description": "Le son couvre la page jusqu'au bout, répété au besoin (une musique de fond)."
+        },
+        "boucle": {
+          "type": "boolean",
+          "description": "La partie jouée recommence quand elle finit, tant que le son dure (régler sa fin avec regler_son, fin)."
+        },
+        "coupe": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "La partie du fichier qui joue, en ms du fichier : { debut, fin } (fin absente : jusqu'au bout) ; null : tout le fichier.",
+          "properties": {
+            "debut": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fin": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "debut": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "piste": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "supprimer": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "page_video",
     "description": "Fait de la page affichée une page vidéo (la frise s'ouvre : chaque élément sur sa piste, visible tout du long, la page dure 5 s ou autant que sa plus longue vidéo) ou la remet en image fixe (temps et pistes oubliés ; annulable). Poser une vidéo sur une page fixe en fait aussi une page vidéo.",
     "inputSchema": {
@@ -1415,7 +1644,7 @@
   },
   {
     "name": "scinder",
-    "description": "Coupe en deux un clip d'une page vidéo à un instant (ms ; par défaut la tête de lecture), comme Ctrl+B dans la frise : sans id, le clip de la piste principale à cet instant. La seconde moitié reçoit un nouvel identifiant ; une vidéo garde la suite de son fichier. On supprime ensuite le morceau inutile avec supprimer (la piste principale se resserre).",
+    "description": "Coupe en deux un clip ou un son d'une page vidéo à un instant (ms ; par défaut la tête de lecture), comme Ctrl+B dans la frise : sans id, le clip de la piste principale à cet instant. La seconde moitié reçoit un nouvel identifiant ; une vidéo ou un son garde la suite de son fichier. On supprime ensuite le morceau inutile avec supprimer (la piste principale se resserre).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1622,7 +1851,7 @@
   },
   {
     "name": "marque",
-    "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo). À lire avant de composer un design pour sa marque.",
+    "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo), jingles d'ouverture et de fin (à poser avec ajouter_son, jingle). À lire avant de composer un design pour sa marque.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -1769,7 +1998,7 @@
   },
   {
     "name": "supprimer",
-    "description": "Supprime des éléments de la page affichée (un élément verrouillé est gardé).",
+    "description": "Supprime des éléments ou des sons de la page affichée (un élément verrouillé est gardé).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1994,7 +2223,7 @@
   },
   {
     "name": "exporter",
-    "description": "Exporte la page affichée ou toutes les pages. PNG ou JPEG : dans le dossier Images/Eliot de l'utilisateur, une image par page. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre). Renvoie les chemins écrits.",
+    "description": "Exporte la page affichée ou toutes les pages. PNG ou JPEG : dans le dossier Images/Eliot de l'utilisateur, une image par page. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Renvoie les chemins écrits et le niveau final du son.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2054,13 +2283,21 @@
         },
         "son": {
           "type": "boolean",
-          "description": "MP4 : garder le son des vidéos (oui par défaut)."
+          "description": "MP4 : garder le son, celui des vidéos et les sons de la page (oui par défaut)."
         },
         "largeur": {
           "type": "integer",
           "minimum": 64,
           "maximum": 1080,
           "description": "GIF : largeur du film, 480 par défaut."
+        },
+        "niveau": {
+          "type": "boolean",
+          "description": "MP4 : caler le niveau sonore sur la cible de la plateforme, -14 LUFS (oui par défaut)."
+        },
+        "sansMusique": {
+          "type": "boolean",
+          "description": "MP4 : faire aussi une version sans musique, à côté du film (non par défaut ; seulement si la page a une musique)."
         }
       }
     }

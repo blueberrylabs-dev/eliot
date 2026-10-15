@@ -58,6 +58,21 @@ export function ReglagesVideo({ v }: { v: ElementVideo }) {
             <button className="text-xs text-accent-700 hover:underline" onClick={() => modifier({ volume: volume === 0 ? 1 : 0 })}>
               {volume === 0 ? "Remettre le son" : "Couper le son"}
             </button>
+            {v.temps && volume > 0 && (
+              <div className="mt-2 border-t border-neutral-100 pt-2">
+                <button
+                  data-detacher-son
+                  disabled={(v.vitesse ?? 1) !== 1}
+                  className="text-xs text-accent-700 hover:underline disabled:text-neutral-400 disabled:no-underline"
+                  onClick={() => etat.detacherSon(v.id)}
+                >
+                  Détacher le son
+                </button>
+                <p className="text-[11px] text-neutral-500">
+                  {(v.vitesse ?? 1) !== 1 ? "Remets la vitesse à 1× pour détacher le son." : "Le son passe sur une piste audio, comme une voix : la musique baissera dessous. La vidéo devient muette."}
+                </p>
+              </div>
+            )}
           </>
         )}
       </Bulle>

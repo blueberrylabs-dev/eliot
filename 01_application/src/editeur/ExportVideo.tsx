@@ -13,7 +13,7 @@ const secondes = (ms: number) => {
   return s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${String(s).replace(".", ",")} s`;
 };
 
-export function ReglagesDuFilm({ options, changer, format, duree }: { options: OptionsFilm; changer: (o: Partial<OptionsFilm>) => void; format: Format; duree: number }) {
+export function ReglagesDuFilm({ options, changer, format, duree, musique = false }: { options: OptionsFilm; changer: (o: Partial<OptionsFilm>) => void; format: Format; duree: number; musique?: boolean }) {
   const reglages = reglagesFilm(options, format);
   const remarques = remarquesFilm(options, format, duree);
   if (options.format === "gif") {
@@ -80,9 +80,20 @@ export function ReglagesDuFilm({ options, changer, format, duree }: { options: O
           </select>
         </div>
       </div>
-      <label className="mb-2 flex items-center gap-2 text-sm text-neutral-700">
+      <label className="mb-1.5 flex items-center gap-2 text-sm text-neutral-700">
         <input type="checkbox" checked={options.son} onChange={(e) => changer({ son: e.target.checked })} className="accent-accent-600" />
-        Garder le son des vidéos
+        Garder le son
+      </label>
+      <label className={`mb-1.5 flex items-center gap-2 text-sm ${options.son ? "text-neutral-700" : "text-neutral-400"}`} title="Le son monte ou baisse pour sonner aussi fort que les autres vidéos de la plateforme (norme EBU R128), sans dépasser -1 dBTP en crête.">
+        <input type="checkbox" disabled={!options.son} checked={options.niveau} onChange={(e) => changer({ niveau: e.target.checked })} className="accent-accent-600" />
+        Caler le niveau sonore ({String(p.niveauLufs).replace("-", "−")} LUFS)
+      </label>
+      <label
+        className={`mb-2 flex items-center gap-2 text-sm ${options.son && musique ? "text-neutral-700" : "text-neutral-400"}`}
+        title={musique ? "Un second film, à côté, avec la voix et les bruitages mais sans les musiques : pour ajouter le son tendance de TikTok ou d'Instagram au moment de publier." : "La page n'a pas de musique (onglet Audio)."}
+      >
+        <input type="checkbox" disabled={!options.son || !musique} checked={options.sansMusique && musique} onChange={(e) => changer({ sansMusique: e.target.checked })} className="accent-accent-600" />
+        Aussi une version sans musique
       </label>
       <p className="text-[11px] text-neutral-500">
         {reglages.largeur} × {reglages.hauteur}, {reglages.imagesParSeconde} images/s, {secondes(duree)}, H.264 jusqu'à {Math.round(reglages.debitMaxKbps / 100) / 10} Mbit/s, son AAC {reglages.debitSonKbps} kbit/s.
@@ -96,7 +107,7 @@ export function ReglagesDuFilm({ options, changer, format, duree }: { options: O
   );
 }
 
-const ETAPES: Record<string, string> = { son: "Mixage du son", images: "Images du film", gif: "Palette du GIF", fini: "Fini" };
+const ETAPES: Record<string, string> = { son: "Mixage du son", images: "Images du film", gif: "Palette du GIF", "sans-musique": "Version sans musique", fini: "Fini" };
 
 /** La fenêtre qui suit l'export, par-dessus tout ; Annuler arrête le noyau. */
 export function SuiviExportVideo() {

@@ -97,6 +97,35 @@ pub fn copier_atomiquement(source: &Path, cible: &Path) -> io::Result<()> {
     resultat
 }
 
+/// Cherche une clé d'API dans des fichiers `.env` (une ligne `NOM=valeur`), dans l'ordre. La
+/// valeur ne sort d'ici que vers le client qui s'en sert (règle 12 : jamais dans l'interface).
+pub fn lire_cle(fichiers: &[PathBuf], nom: &str) -> Option<String> {
+    for fichier in fichiers {
+        let Ok(texte) = fs::read_to_string(fichier) else { continue };
+        for ligne in texte.lines() {
+            let ligne = ligne.trim().trim_start_matches("export ").trim();
+            let Some((n, valeur)) = ligne.split_once('=') else { continue };
+            if n.trim() == nom {
+                let valeur = valeur.trim().trim_matches(['"', '\'']).trim();
+                if !valeur.is_empty() {
+                    return Some(valeur.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Les `.env` possibles : en remontant depuis un dossier de départ (le dépôt, en
+/// développement), puis le fichier du dossier de configuration (version installée).
+pub fn fichiers_de_cle(depart: &Path, configuration: Option<&Path>) -> Vec<PathBuf> {
+    let mut fichiers: Vec<PathBuf> = depart.ancestors().take(6).map(|d| d.join(".env")).collect();
+    if let Some(c) = configuration {
+        fichiers.push(c.join("cles.env"));
+    }
+    fichiers
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

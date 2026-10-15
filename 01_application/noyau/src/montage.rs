@@ -6,8 +6,10 @@
 //! Ici, chaque calque SVG est rendu par `resvg` avec les fichiers de police de la fenêtre ; puis,
 //! pour chaque image du film, chaque élément est posé avec sa pose et ses effets à cet instant
 //! (`animation.rs`, les mêmes formules que l'écran), ses photos depuis les originaux et ses
-//! vidéos décodées depuis les originaux par `ffmpeg`. Le son des vidéos est mixé ici, avec les
-//! volumes, les fondus et les transitions, puis `ffmpeg` encode.
+//! vidéos décodées depuis les originaux par `ffmpeg`. Le son des vidéos et les sons de la page
+//! (lot 5 : musiques, voix, bruitages, `son.rs`) sont mixés ici, avec les volumes, les fondus,
+//! les transitions et la musique qui baisse sous la voix ; le niveau se cale au besoin sur la
+//! cible de la plateforme (EBU R128), puis `ffmpeg` encode. Une version sans musique peut suivre.
 //!
 //! Un calque qui ne bouge pas d'une image à l'autre est rendu à sa place exacte, au pixel près,
 //! comme à l'écran ; un calque qui bouge est posé depuis un rendu plus fin, rééchantillonné.
@@ -29,8 +31,10 @@ use serde_json::Value;
 use thiserror::Error;
 
 use crate::animation::{self, Contexte, ElementAnime, Format, GenreUnites, Repere};
-use crate::fichiers::chemin_temporaire;
+use crate::fichiers::{chemin_libre, chemin_temporaire};
 use crate::images::{self, Genre};
+use crate::son::{self, ClipAudio};
+use crate::sons::{self, Niveau};
 
 // ----------------------------------------------------------------------------------------
 // Ce que l'interface envoie
@@ -134,6 +138,9 @@ pub struct DescriptionPage {
     pub fond: Vec<Calque>,
     pub elements: Vec<CalquesElement>,
     pub polices: Vec<PoliceCalques>,
+    /// Les sons de la page (lot 5), tels que le document les garde.
+    #[serde(default)]
+    pub sons: Vec<ClipAudio>,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -158,8 +165,39 @@ pub struct Reglages {
     /// MP4 : une image clé toutes les `gop_secondes` (YouTube : une demi-seconde).
     pub gop_secondes: f64,
     pub debit_son_kbps: u32,
-    /// MP4 : garder le son des vidéos.
+    /// MP4 : garder le son (celui des vidéos et les sons de la page).
     pub son: bool,
+    /// MP4 : caler le niveau du son sur cette cible, en LUFS (EBU R128), crête vraie plafonnée
+    /// à `CRETE_MAX` ; `None` : le son reste tel que mixé.
+    #[serde(default)]
+    pub niveau_lufs: Option<f64>,
+    /// MP4 : faire aussi une version sans les musiques (voix et bruitages gardés), pour ajouter
+    /// le son tendance d'une application au moment de publier.
+    #[serde(default)]
+    pub sans_musique: bool,
+}
+
+/// La crête vraie la plus haute permise quand le niveau est calé (dBTP) : la valeur que
+/// recommande YouTube.
+pub const CRETE_MAX: f64 = -1.0;
+
+/// Ce que l'export a écrit.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Film {
+    pub chemin: PathBuf,
+    /// La version sans musique, si elle a été demandée et que la page a une musique.
+    pub sans_musique: Option<PathBuf>,
+    /// Le niveau final du son du film (`None` sans son).
+    pub niveau: Option<NiveauFilm>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, PartialEq)]
+pub struct NiveauFilm {
+    /// LUFS intégrés et crête vraie (dBTP) du mixage tel qu'il part dans le film.
+    pub lufs: Option<f64>,
+    pub crete: Option<f64>,
+    /// Le gain appliqué pour caler le niveau, en dB (0 si rien n'a été calé).
+    pub gain: f64,
 }
 
 impl Reglages {
@@ -179,6 +217,9 @@ impl Reglages {
         }
         if !(0.1..=10.0).contains(&self.gop_secondes) {
             return mauvais("intervalle des images clés hors de 0,1 à 10 s");
+        }
+        if self.niveau_lufs.is_some_and(|n| !(-40.0..=-5.0).contains(&n)) {
+            return mauvais("niveau sonore visé hors de -40 à -5 LUFS");
         }
         Ok(())
     }
@@ -210,8 +251,8 @@ pub enum ErreurMontage {
     Ecriture(#[from] io::Error),
 }
 
-/// Où en est l'export : `etape` (`son`, `images`, `gif`), images faites sur le total, part
-/// faite de 0 à 1.
+/// Où en est l'export : `etape` (`son`, `images`, `gif`, `sans-musique`), images faites sur le
+/// total, part faite de 0 à 1.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Avancement {
     pub etape: &'static str,
@@ -997,13 +1038,58 @@ fn masque_de_volet(v: (Repere, f64, f64), etat: &Etat, el: &ElementEnPlace, form
 
 pub const FREQUENCE: u32 = 48_000;
 
-/// Mixe le son des vidéos de la page : chaque clip à sa place, à sa vitesse (hauteur gardée),
-/// avec son volume, ses fondus et ceux des transitions. Stéréo, 48 kHz, nombres flottants.
-/// `None` si aucune vidéo n'a de son.
-fn mixer_son(scene: &Scene, duree: f64, annule: &AtomicBool) -> Result<Option<Vec<f32>>, ErreurMontage> {
+/// Le son mixé d'une page, en deux parts : les musiques à part, tout le reste (son des vidéos,
+/// voix, bruitages) ensemble. Stéréo, 48 kHz, nombres flottants ; `None` : part muette.
+#[derive(Default)]
+struct Mixage {
+    reste: Option<Vec<f32>>,
+    musique: Option<Vec<f32>>,
+}
+
+impl Mixage {
+    /// Le film entier : les deux parts additionnées.
+    fn tout(&self) -> Option<Vec<f32>> {
+        match (&self.reste, &self.musique) {
+            (None, None) => None,
+            (Some(a), None) | (None, Some(a)) => Some(a.clone()),
+            (Some(a), Some(b)) => Some(a.iter().zip(b).map(|(x, y)| x + y).collect()),
+        }
+    }
+}
+
+/// Décode une partie du son d'un fichier (son ou vidéo), en stéréo à 48 kHz : `longueur` ms à
+/// partir de `debut` ms (`None` : jusqu'au bout), à la vitesse `vitesse` (hauteur gardée).
+fn decoder_son(chemin: &Path, debut: f64, longueur: Option<f64>, vitesse: f64) -> Result<Vec<f32>, ErreurMontage> {
+    let mut a: Vec<String> = ["-hide_banner", "-loglevel", "error", "-nostdin", "-ss"].map(String::from).to_vec();
+    a.push(format!("{:.3}", debut / 1000.0));
+    if let Some(l) = longueur {
+        a.push("-t".into());
+        a.push(format!("{:.3}", l / 1000.0));
+    }
+    a.push("-i".into());
+    a.push(chemin.to_string_lossy().into_owned());
+    a.extend(["-map", "0:a:0", "-vn", "-sn"].map(String::from));
+    if (vitesse - 1.0).abs() > 1e-6 {
+        a.push("-af".into());
+        a.push(atempo(vitesse).join(","));
+    }
+    a.extend(["-ac", "2", "-ar"].map(String::from));
+    a.push(FREQUENCE.to_string());
+    a.extend(["-f", "f32le", "pipe:1"].map(String::from));
+    let sortie = programme("ffmpeg").args(&a).output().map_err(lancer_erreur)?;
+    if !sortie.status.success() {
+        return Err(ErreurMontage::Ffmpeg(derniere_ligne(&String::from_utf8_lossy(&sortie.stderr))));
+    }
+    Ok(sortie.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect())
+}
+
+/// Mixe le son de la page : chaque vidéo à sa place, à sa vitesse, avec son volume, ses fondus
+/// et ceux des transitions ; puis chaque son de la page (`son.rs`) avec son volume, ses fondus,
+/// sa boucle et, pour une musique, la baisse sous les voix.
+fn mixer_son(scene: &Scene, sons_page: &[ClipAudio], duree: f64, annule: &AtomicBool) -> Result<Mixage, ErreurMontage> {
     let par_ms = FREQUENCE as f64 / 1000.0;
     let total = (duree * par_ms).ceil() as usize;
-    let mut mix: Option<Vec<f32>> = None;
+    let mut mix = Mixage::default();
     for el in &scene.elements {
         if annule.load(Ordering::Relaxed) {
             return Err(ErreurMontage::Annule);
@@ -1024,23 +1110,8 @@ fn mixer_son(scene: &Scene, duree: f64, annule: &AtomicBool) -> Result<Option<Ve
             continue;
         }
         let original = images::chemin_ressource(&scene.dossier, id, Genre::Original).map_err(|e| ErreurMontage::Video(e.to_string()))?;
-        let mut a: Vec<String> = ["-hide_banner", "-loglevel", "error", "-nostdin", "-ss"].map(String::from).to_vec();
-        a.push(format!("{:.3}", debut_media / 1000.0));
-        a.push("-t".into());
-        a.push(format!("{:.3}", longueur_media / 1000.0));
-        a.push("-i".into());
-        a.push(original.to_string_lossy().into_owned());
-        a.extend(["-vn", "-sn", "-af"].map(String::from));
-        a.push(atempo(vitesse).join(","));
-        a.extend(["-ac", "2", "-ar"].map(String::from));
-        a.push(FREQUENCE.to_string());
-        a.extend(["-f", "f32le", "pipe:1"].map(String::from));
-        let sortie = programme("ffmpeg").args(&a).output().map_err(lancer_erreur)?;
-        if !sortie.status.success() {
-            return Err(ErreurMontage::Ffmpeg(derniere_ligne(&String::from_utf8_lossy(&sortie.stderr))));
-        }
-        let echantillons: Vec<f32> = sortie.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect();
-        let tampon = mix.get_or_insert_with(|| vec![0.0; total * 2]);
+        let echantillons = decoder_son(&original, debut_media, Some(longueur_media), vitesse)?;
+        let tampon = mix.reste.get_or_insert_with(|| vec![0.0; total * 2]);
         let premier = (temps.debut * par_ms).round() as usize;
         let dernier = ((temps.fin.min(duree)) * par_ms).round() as usize;
         // Le gain se recalcule à chaque milliseconde.
@@ -1057,12 +1128,74 @@ fn mixer_son(scene: &Scene, duree: f64, annule: &AtomicBool) -> Result<Option<Ve
             tampon[2 * k + 1] += paire[1] * gain;
         }
     }
-    if let Some(m) = &mut mix {
-        for v in m.iter_mut() {
-            *v = v.clamp(-1.0, 1.0);
+    for c in sons_page {
+        if annule.load(Ordering::Relaxed) {
+            return Err(ErreurMontage::Annule);
+        }
+        if c.volume.unwrap_or(1.0) <= 0.0 || c.temps.fin <= c.temps.debut {
+            continue;
+        }
+        // Un son importé, ou le son détaché d'une vidéo.
+        let Ok(infos) = images::infos(&scene.dossier, &c.ressource) else { continue };
+        let duree_fichier = match (&infos.son, &infos.video) {
+            (Some(s), _) => s.duree as f64,
+            (None, Some(v)) if v.son => v.duree as f64,
+            _ => continue,
+        };
+        let (debut, fin) = c.partie_jouee(Some(duree_fichier));
+        let partie = fin - debut;
+        if partie <= 0.0 {
+            continue;
+        }
+        let original = images::chemin_ressource(&scene.dossier, &c.ressource, Genre::Original).map_err(|e| ErreurMontage::Video(e.to_string()))?;
+        // Sans boucle, seule la longueur du clip sert ; en boucle, toute la partie jouée.
+        let longueur = if c.boucle() { partie } else { partie.min(c.temps.fin - c.temps.debut) };
+        let echantillons = decoder_son(&original, debut, Some(longueur), 1.0)?;
+        let trames = echantillons.len() / 2;
+        if trames == 0 {
+            continue;
+        }
+        let tampon = if c.est_musique() { &mut mix.musique } else { &mut mix.reste }.get_or_insert_with(|| vec![0.0; total * 2]);
+        let premier = (c.temps.debut * par_ms).round() as usize;
+        let dernier = ((c.temps.fin.min(duree)) * par_ms).round().min(total as f64) as usize;
+        let phase = (c.phase.unwrap_or(0.0) * par_ms).round().max(0.0) as usize;
+        let mut gain = 0.0_f32;
+        for k in premier..dernier {
+            let j = k - premier;
+            let i = if c.boucle() {
+                (j + phase) % trames
+            } else if j < trames {
+                j
+            } else {
+                break;
+            };
+            if j % 48 == 0 {
+                gain = son::gain_clip_son(c, k as f64 / par_ms, sons_page) as f32;
+            }
+            tampon[2 * k] += echantillons[2 * i] * gain;
+            tampon[2 * k + 1] += echantillons[2 * i + 1] * gain;
         }
     }
     Ok(mix)
+}
+
+/// Le gain (linéaire) qui cale `niveau` sur `cible` LUFS sans que la crête vraie dépasse
+/// `CRETE_MAX` ; 1 pour un silence.
+fn gain_de_niveau(niveau: &Niveau, cible: f64) -> f64 {
+    let Some(lufs) = niveau.lufs else { return 1.0 };
+    let mut gain_db = cible - lufs;
+    if let Some(crete) = niveau.crete {
+        gain_db = gain_db.min(CRETE_MAX - crete);
+    }
+    10f64.powf(gain_db / 20.0)
+}
+
+fn ecrire_son(chemin: &Path, echantillons: &[f32], gain: f32) -> io::Result<()> {
+    let mut f = BufWriter::new(File::create(chemin)?);
+    for v in echantillons {
+        f.write_all(&(v * gain).clamp(-1.0, 1.0).to_le_bytes())?;
+    }
+    f.flush()
 }
 
 // ----------------------------------------------------------------------------------------
@@ -1102,8 +1235,9 @@ impl Drop for Partiel {
 }
 
 /// Fait le film d'une page vidéo et l'écrit à `cible` (écrasée si elle existe : le dialogue
-/// « Enregistrer sous » l'a confirmé, sinon l'appelant a choisi un nom libre). Renvoie le
-/// chemin écrit. `annule` arrête tout au plus tôt ; rien n'est laissé derrière.
+/// « Enregistrer sous » l'a confirmé, sinon l'appelant a choisi un nom libre), avec, si elle est
+/// demandée, la version sans musique à côté (`<nom>_sans-musique.mp4`, sous un nom libre).
+/// `annule` arrête tout au plus tôt ; rien n'est laissé derrière.
 pub fn exporter(
     description: &DescriptionPage,
     reglages: &Reglages,
@@ -1111,7 +1245,7 @@ pub fn exporter(
     cible: &Path,
     avancement: &mut dyn FnMut(Avancement),
     annule: &AtomicBool,
-) -> Result<PathBuf, ErreurMontage> {
+) -> Result<Film, ErreurMontage> {
     reglages.verifier()?;
     if description.duree <= 0.0 || description.largeur <= 0.0 || description.hauteur <= 0.0 {
         return Err(ErreurMontage::PageVide);
@@ -1130,22 +1264,35 @@ pub fn exporter(
         avancement(Avancement { etape, image: image as u32, images: images as u32, part: part.clamp(0.0, 1.0) as f32 })
     };
 
-    // 1. Le son (MP4 seulement).
+    // 1. Le son (MP4 seulement), calé au besoin sur le niveau visé ; la version sans musique
+    // garde le même gain, pour que la voix y sonne pareil.
     rapport(avancement, "son", 0, 0.0);
-    let son = if reglages.format == FormatVideo::Mp4 && reglages.son { mixer_son(&scene, description.duree, annule)? } else { None };
-    let fichier_son = match &son {
+    let mixage = if reglages.format == FormatVideo::Mp4 && reglages.son { mixer_son(&scene, &description.sons, description.duree, annule)? } else { Mixage::default() };
+    let tout = mixage.tout();
+    let mut niveau_film = None;
+    let fichier_son = match &tout {
         Some(echantillons) => {
+            let mesure = sons::mesurer(echantillons);
+            let gain = reglages.niveau_lufs.map_or(1.0, |cible| gain_de_niveau(&mesure, cible));
             let chemin = travail.0.join("son.f32");
-            let mut f = BufWriter::new(File::create(&chemin)?);
-            for v in echantillons {
-                f.write_all(&v.to_le_bytes())?;
-            }
-            f.flush()?;
+            ecrire_son(&chemin, echantillons, gain as f32)?;
+            let apres = if (gain - 1.0).abs() > 1e-9 { sons::mesurer(&echantillons.iter().map(|v| (v * gain as f32).clamp(-1.0, 1.0)).collect::<Vec<f32>>()) } else { mesure };
+            niveau_film = Some((NiveauFilm { lufs: apres.lufs, crete: apres.crete, gain: (20.0 * gain.log10() * 10.0).round() / 10.0 }, gain));
             Some(chemin)
         }
         None => None,
     };
-    let part_images = if reglages.format == FormatVideo::Gif { 0.85 } else { 0.97 };
+    // La version sans musique : seulement si la page a une musique.
+    let veut_sans_musique = reglages.format == FormatVideo::Mp4 && reglages.sans_musique && mixage.musique.is_some();
+    let fichier_sans_musique = match (&mixage.reste, veut_sans_musique) {
+        (Some(reste), true) => {
+            let chemin = travail.0.join("sans-musique.f32");
+            ecrire_son(&chemin, reste, niveau_film.map_or(1.0, |n| n.1) as f32)?;
+            Some(chemin)
+        }
+        _ => None,
+    };
+    let part_images = if reglages.format == FormatVideo::Gif { 0.85 } else if veut_sans_musique { 0.93 } else { 0.97 };
     rapport(avancement, "images", 0, 0.03);
 
     // 2. Les images, envoyées à l'encodeur au fil de l'eau.
@@ -1255,14 +1402,56 @@ pub fn exporter(
             return Err(ErreurMontage::Ffmpeg(derniere_ligne(&String::from_utf8_lossy(&s.stderr))));
         }
     }
+    // 4. La version sans musique : les mêmes images, recopiées telles quelles, et le son sans
+    // les musiques (aucun son si la page n'avait que de la musique).
+    let mut partiel_sans_musique = None;
+    if veut_sans_musique {
+        if annule.load(Ordering::Relaxed) {
+            return Err(ErreurMontage::Annule);
+        }
+        rapport(avancement, "sans-musique", images, 0.95);
+        let dossier = cible.parent().map(Path::to_path_buf).unwrap_or_default();
+        let base = format!("{}_sans-musique", cible.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "film".into()));
+        let chemin = chemin_libre(&dossier, &base, "mp4");
+        let p = Partiel { chemin: chemin_temporaire(&chemin)?, garde: false };
+        let mut a: Vec<String> = ["-y", "-hide_banner", "-loglevel", "error", "-nostdin", "-i"].map(String::from).to_vec();
+        a.push(partiel.chemin.to_string_lossy().into_owned());
+        match &fichier_sans_musique {
+            Some(f) => {
+                a.extend(["-f", "f32le", "-ar"].map(String::from));
+                a.push(FREQUENCE.to_string());
+                a.extend(["-ac", "2", "-i"].map(String::from));
+                a.push(f.to_string_lossy().into_owned());
+                a.extend(["-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a"].map(String::from));
+                a.push(format!("{}k", reglages.debit_son_kbps));
+                a.extend(["-ar", "48000", "-ac", "2"].map(String::from));
+            }
+            None => a.extend(["-map", "0:v", "-c:v", "copy", "-an"].map(String::from)),
+        }
+        a.extend(["-movflags", "+faststart", "-f", "mp4"].map(String::from));
+        a.push(p.chemin.to_string_lossy().into_owned());
+        let s = programme("ffmpeg").args(&a).output().map_err(lancer_erreur)?;
+        if !s.status.success() {
+            return Err(ErreurMontage::Ffmpeg(derniere_ligne(&String::from_utf8_lossy(&s.stderr))));
+        }
+        partiel_sans_musique = Some((p, chemin));
+    }
     if annule.load(Ordering::Relaxed) {
         return Err(ErreurMontage::Annule);
     }
     let mut partiel = partiel;
     fs::rename(&partiel.chemin, cible)?;
     partiel.garde = true;
+    let sans_musique = match partiel_sans_musique {
+        Some((mut p, chemin)) => {
+            fs::rename(&p.chemin, &chemin)?;
+            p.garde = true;
+            Some(chemin)
+        }
+        None => None,
+    };
     rapport(avancement, "fini", images, 1.0);
-    Ok(cible.to_path_buf())
+    Ok(Film { chemin: cible.to_path_buf(), sans_musique, niveau: niveau_film.map(|n| n.0) })
 }
 
 /// Une image du film, en PNG, sans encoder de film : pour comparer l'export à l'écran.
@@ -1342,7 +1531,7 @@ mod tests {
     }
 
     fn reglages(format: FormatVideo, largeur: u32, hauteur: u32, ips: u32) -> Reglages {
-        Reglages { format, largeur, hauteur, images_par_seconde: ips, crf: 18, debit_max_kbps: 4000, gop_secondes: 0.5, debit_son_kbps: 192, son: true }
+        Reglages { format, largeur, hauteur, images_par_seconde: ips, crf: 18, debit_max_kbps: 4000, gop_secondes: 0.5, debit_son_kbps: 192, son: true, niveau_lufs: None, sans_musique: false }
     }
 
     /// L'image du film à `secondes`, décodée.
@@ -1392,7 +1581,8 @@ mod tests {
         let mut avancements = Vec::new();
         let annule = AtomicBool::new(false);
         let ecrit = exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |a| avancements.push(a), &annule).unwrap();
-        assert_eq!(ecrit, cible);
+        assert_eq!(ecrit, Film { chemin: cible.clone(), sans_musique: None, niveau: ecrit.niveau });
+        assert!(ecrit.niveau.is_some_and(|n| n.gain == 0.0 && n.lufs.is_some()), "{:?}", ecrit.niveau);
         assert!(avancements.windows(2).all(|p| p[1].part >= p[0].part), "l'avancement ne recule jamais");
         assert_eq!(avancements.last().unwrap().etape, "fini");
         assert_eq!(avancements.last().unwrap().images, 50);
@@ -1426,6 +1616,103 @@ mod tests {
         // Rien ne traîne à côté du film.
         let restes: Vec<_> = fs::read_dir(cible.parent().unwrap()).unwrap().flatten().map(|e| e.file_name()).collect();
         assert_eq!(restes.len(), 1, "{restes:?}");
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Le niveau moyen du son du film entre deux instants (s), autour d'une fréquence (Hz).
+    fn niveau_a(film: &Path, debut: f64, fin: f64, frequence: u32) -> f32 {
+        let s = Command::new("ffmpeg")
+            .args(["-hide_banner", "-loglevel", "error", "-ss", &format!("{debut}"), "-t", &format!("{}", fin - debut), "-i"])
+            .arg(film)
+            .args(["-vn", "-af", &format!("bandpass=f={frequence}:width_type=h:w=60,bandpass=f={frequence}:width_type=h:w=60"), "-ac", "1", "-ar", "48000", "-f", "f32le", "pipe:1"])
+            .output()
+            .unwrap();
+        let v: Vec<f32> = s.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect();
+        (v.iter().map(|x| x * x).sum::<f32>() / v.len().max(1) as f32).sqrt()
+    }
+
+    /// Un son synthétique : une sinusoïde d'amplitude 1/8, en WAV mono.
+    fn sinus_wav(dossier: &Path, nom: &str, frequence: u32, secondes: f64) -> PathBuf {
+        let chemin = dossier.join(nom);
+        let s = Command::new("ffmpeg")
+            .args(["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", &format!("sine=frequency={frequence}:sample_rate=48000:duration={secondes}")])
+            .arg(&chemin)
+            .output()
+            .unwrap();
+        assert!(s.status.success());
+        chemin
+    }
+
+    /// Le niveau intégré d'un film, mesuré sur son son décodé.
+    fn lufs_du_film(film: &Path) -> f64 {
+        let s = Command::new("ffmpeg").args(["-hide_banner", "-loglevel", "error", "-i"]).arg(film).args(["-vn", "-ac", "2", "-ar", "48000", "-f", "f32le", "pipe:1"]).output().unwrap();
+        let v: Vec<f32> = s.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect();
+        sons::mesurer(&v).lufs.unwrap()
+    }
+
+    #[test]
+    fn la_musique_boucle_baisse_sous_la_voix_se_cale_et_s_enleve() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("sons");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let video = videos::importer(&video_rouge_puis_bleue(&dossier), &ressources, &videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        // Une musique d'une demi-seconde (440 Hz), répétée jusqu'au bout ; une voix (1 000 Hz)
+        // de 1 à 1,6 s ; la vidéo, muette.
+        let musique = sons::importer(&sinus_wav(&dossier, "musique.wav", 440, 0.5), &ressources, &mut |_| {}).unwrap();
+        let voix = sons::importer(&sinus_wav(&dossier, "voix.wav", 1000, 0.6), &ressources, &mut |_| {}).unwrap();
+        let mut page = page_de_test(&video.id);
+        page.elements[0].element["volume"] = json!(0);
+        page.sons = serde_json::from_value(json!([
+            { "id": "m", "ressource": musique.id, "temps": { "debut": 0, "fin": 2000 }, "piste": 0, "role": "musique", "jusquALaFin": true },
+            { "id": "v", "ressource": voix.id, "temps": { "debut": 1000, "fin": 1600 }, "piste": 1, "role": "voix" }
+        ]))
+        .unwrap();
+        let annule = AtomicBool::new(false);
+        let cible = dossier.join("sortie").join("film.mp4");
+        let film = exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |_| {}, &annule).unwrap();
+        assert_eq!(film.sans_musique, None);
+        // La musique passe la fin de son fichier sans s'arrêter (0,5 s), puis baisse à 30 % sous
+        // la voix, et remonte après.
+        let (avant, sous, apres) = (niveau_a(&cible, 0.2, 0.9, 440), niveau_a(&cible, 1.15, 1.5, 440), niveau_a(&cible, 0.55, 0.75, 440));
+        assert!(avant > 0.02, "{avant}");
+        assert!((apres / avant - 1.0).abs() < 0.15, "la boucle ne laisse pas de trou : {avant} puis {apres}");
+        assert!((sous / avant - 0.3).abs() < 0.08, "sous la voix : {sous} pour {avant}");
+        let voix_seule = niveau_a(&cible, 1.15, 1.5, 1000);
+        assert!(voix_seule > 0.02 && niveau_a(&cible, 0.2, 0.9, 1000) < voix_seule * 0.1, "{voix_seule}");
+
+        // Calé sur -14 LUFS, avec la version sans musique : même gain, plus de 440 Hz.
+        let mut r = reglages(FormatVideo::Mp4, 320, 180, 25);
+        r.niveau_lufs = Some(-14.0);
+        r.sans_musique = true;
+        let cible2 = dossier.join("sortie").join("cale.mp4");
+        let film = exporter(&page, &r, &ressources, &cible2, &mut |_| {}, &annule).unwrap();
+        let n = film.niveau.unwrap();
+        assert!((n.lufs.unwrap() + 14.0).abs() < 0.3 && n.gain > 5.0 && n.crete.unwrap() <= CRETE_MAX + 0.05, "{n:?}");
+        assert!((lufs_du_film(&cible2) + 14.0).abs() < 1.0, "{}", lufs_du_film(&cible2));
+        let variante = film.sans_musique.clone().unwrap();
+        assert_eq!(variante, dossier.join("sortie").join("cale_sans-musique.mp4"));
+        let (v1, v2) = (sonder(&cible2), sonder(&variante));
+        let images = |j: &Value| j["streams"].as_array().unwrap().iter().find(|f| f["codec_type"] == "video").unwrap()["nb_read_frames"].clone();
+        assert_eq!(images(&v1), images(&v2), "les images sont recopiées telles quelles");
+        let gain = 10f32.powf(n.gain as f32 / 20.0);
+        assert!(niveau_a(&variante, 0.2, 0.9, 440) < 0.01, "plus de musique : {}", niveau_a(&variante, 0.2, 0.9, 440));
+        let voix_calee = niveau_a(&variante, 1.15, 1.5, 1000);
+        assert!((voix_calee / (voix_seule * gain) - 1.0).abs() < 0.15, "la voix garde le niveau du film calé : {voix_calee} pour {}", voix_seule * gain);
+
+        // Une page sans voix ni bruitage : la version sans musique n'a pas de son ; une page sans
+        // musique n'en a pas besoin.
+        page.sons.truncate(1);
+        let cible3 = dossier.join("sortie").join("musique.mp4");
+        let film = exporter(&page, &r, &ressources, &cible3, &mut |_| {}, &annule).unwrap();
+        let v3 = sonder(&film.sans_musique.unwrap());
+        assert!(v3["streams"].as_array().unwrap().iter().all(|f| f["codec_type"] != "audio"), "{v3}");
+        page.sons[0].role = "bruitage".into();
+        let film = exporter(&page, &r, &ressources, &dossier.join("sortie").join("bruitage.mp4"), &mut |_| {}, &annule).unwrap();
+        assert_eq!(film.sans_musique, None);
         let _ = fs::remove_dir_all(&dossier);
     }
 
@@ -1491,6 +1778,23 @@ mod tests {
         assert!(reglages(FormatVideo::Gif, 481, 853, 15).verifier().is_ok());
         assert!(reglages(FormatVideo::Mp4, 1080, 1920, 120).verifier().is_err());
         assert!(reglages(FormatVideo::Mp4, 8, 8, 30).verifier().is_err());
+        let mut r = reglages(FormatVideo::Mp4, 1080, 1920, 30);
+        r.niveau_lufs = Some(-14.0);
+        assert!(r.verifier().is_ok());
+        r.niveau_lufs = Some(3.0);
+        assert!(r.verifier().is_err());
+        // Les réglages d'avant le lot 5 se lisent encore (niveau et version sans musique absents).
+        let ancien: Reglages = serde_json::from_value(json!({ "format": "mp4", "largeur": 1080, "hauteur": 1920, "imagesParSeconde": 30, "crf": 18, "debitMaxKbps": 8000, "gopSecondes": 0.5, "debitSonKbps": 192, "son": true })).unwrap();
+        assert_eq!((ancien.niveau_lufs, ancien.sans_musique), (None, false));
+    }
+
+    #[test]
+    fn le_gain_cale_le_niveau_sans_depasser_la_crete() {
+        let g = |lufs: f64, crete: f64, cible: f64| 20.0 * gain_de_niveau(&Niveau { lufs: Some(lufs), crete: Some(crete) }, cible).log10();
+        assert!((g(-20.0, -10.0, -14.0) - 6.0).abs() < 1e-9, "6 dB de plus");
+        assert!((g(-20.0, -3.0, -14.0) - 2.0).abs() < 1e-9, "la crête arrête à -1 dBTP");
+        assert!((g(-8.0, -0.5, -14.0) + 6.0).abs() < 1e-9, "trop fort : on baisse");
+        assert_eq!(gain_de_niveau(&Niveau::default(), -14.0), 1.0, "un silence reste un silence");
     }
 
     #[test]
@@ -1530,6 +1834,8 @@ mod tests {
             gop_secondes: 0.5,
             debit_son_kbps: 384,
             son: false,
+            niveau_lufs: None,
+            sans_musique: false,
         };
         let debut = std::time::Instant::now();
         let png = image_du_film(&description, &reglages, &ressources, rang).unwrap();

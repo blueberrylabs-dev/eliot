@@ -12,6 +12,7 @@ import { BarreLaterale } from "./BarreLaterale";
 import { deposerFichiers } from "./depot";
 import { Frise } from "./frise/Frise";
 import { useRaccourcis } from "./raccourcis";
+import { useLecteurSons } from "./sons";
 import { VueGrille } from "./VueGrille";
 import { ZoneDeTravail } from "./ZoneDeTravail";
 
@@ -63,6 +64,7 @@ function usePressePapiers() {
 export function Editeur() {
   useRaccourcis();
   usePressePapiers();
+  useLecteurSons();
   const vueGrille = useEditeur((s) => s.vueGrille);
   const apercu = useEditeur((s) => s.apercu);
   const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);

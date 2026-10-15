@@ -3,8 +3,9 @@
 L'éditeur, étapes 1 à 3 du `BRIEF.md` et une bonne part de l'étape 4 : un accueil qui range tes
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
 d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
-marque, des modèles de départ, des vidéos montées et animées sur une frise, un enregistrement
-automatique, l'export en PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
+marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
+leurs voix et leurs bruitages, un enregistrement automatique, l'export en PNG ou en JPEG et
+l'export des vidéos en MP4 ou en GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -84,8 +85,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   ajouter une rangée après la dernière), rangées, colonnes, en-tête, rayures, couleurs.
 - Panneau Marque : un kit de marque commun à tous les designs (`~/Documents/Eliot/Marque/`) :
   couleurs (un clic les donne aux objets choisis, ou au fond de la page), polices du titre, du
-  sous-titre et du texte, logos. Les couleurs et les polices de la marque viennent en tête des
-  sélecteurs.
+  sous-titre et du texte, logos, jingles d'ouverture et de fin. Les couleurs et les polices de
+  la marque viennent en tête des sélecteurs.
 
 **Vidéos dans le design (étape 4, lot 1)**
 - Importer une vidéo (MP4, MOV, M4V, WebM, MKV, AVI, MPG) par le bouton du panneau Importer
@@ -128,7 +129,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   supprimer. Ctrl+↑ et Ctrl+↓ font monter ou descendre un clip d'une piste.
 - La page montre l'instant de la tête : chaque élément n'apparaît que pendant son temps.
   L'export en image d'une page vidéo sort l'instant de la tête de lecture, avec l'image exacte
-  de chaque vidéo. Les pistes de son (musique, voix) viennent dans les lots suivants.
+  de chaque vidéo. Sous la principale, les pistes des sons (lot 5, plus bas).
 
 **L'animation (étape 4, lot 3)**
 - Animer, dans la barre juste au-dessus de la page, pour les éléments choisis d'une page
@@ -153,6 +154,37 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   police, leurs couleurs et leurs animations, posés à la tête. Pour un texte déjà posé :
   Effets, en haut de la bulle.
 
+**Le son (étape 4, lot 5)**
+- Onglet Audio : « Importer un son » (MP3, WAV, OGG, OPUS, M4A, AAC, FLAC, AIFF, WMA), ou un
+  son déposé sur la fenêtre. Eliot range l'original sans y toucher, prépare une copie
+  d'écoute légère et la forme d'onde, et mesure le niveau sonore (LUFS). Les sons du design
+  sont listés là : un clic pose le son à la tête de lecture, sur la piste des sons qui
+  convient ; un glisser le pose où l'on veut dans la frise ; le bouton rond l'écoute. Une page
+  fixe devient une page vidéo.
+- Un son de 20 s et plus se pose comme une musique : il couvre la page jusqu'au bout, répété
+  s'il est trop court, avec un fondu de fin de 2 s. Un son plus court est un bruitage.
+- Dans la frise, sous la principale : une piste par ligne de sons, la musique en vert, la voix
+  en orange, les bruitages en indigo, avec leur forme d'onde (elle montre aussi le volume, les
+  fondus et la musique qui baisse). Glisser, tirer un bord, Ctrl+B, Ctrl+D et Suppr comme pour
+  les clips.
+- Un son choisi : la barre du haut règle son rôle (musique, voix, bruitage), son volume, ses
+  fondus, « Jusqu'à la fin » pour une musique, « Répéter » pour un bruitage (tirer ensuite son
+  bord droit pour la durée voulue), et montre son crédit.
+- La musique baisse toute seule quand un son au rôle Voix parle : elle garde 30 % de son
+  volume (réglable), en commençant un peu avant la voix et en remontant un peu après.
+- Le son d'une vidéo se détache (bulle Son, « Détacher le son », vitesse 1×) : il devient une
+  voix sur une piste des sons, et la vidéo devient muette.
+- Freesound, dans l'onglet Audio : bruitages (30 s au plus), musiques (20 s et plus) ou tout,
+  cherchés en anglais de préférence. Seulement les sons CC0 (libres) et CC BY (citer
+  l'auteur). Écouter un extrait, puis un clic télécharge le son, le range avec son crédit et
+  sa licence et le pose. « Crédits des sons » prépare la liste à coller dans la description
+  de la vidéo. Il faut la clé Freesound dans le `.env` (`FREESOUND_API_KEY=…`), lue côté Rust,
+  jamais affichée.
+- Jingles : rangés dans l'onglet Marque (ouverture et fin), posés d'un clic au début ou à la
+  fin de la vidéo, depuis l'onglet Marque ou l'onglet Audio.
+- Pixabay Musique, YouTube Audio Library, Free Music Archive : à télécharger sur leur site,
+  puis « Importer un son » ; la licence de chaque titre est à vérifier.
+
 **L'export en MP4 et en GIF (étape 4, lot 4)**
 - Exporter, en haut à droite, sur une page vidéo : MP4 (vidéo avec le son) ou GIF (image
   animée, sans son). Le film entier de la page affichée, fait image par image par le noyau,
@@ -162,6 +194,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   le recommande (H.264, son AAC 48 kHz, débit, images clés), avec la définition (1080p ou
   720p) et la cadence (24 à 60 images par seconde). La fenêtre prévient si la page n'a pas les
   proportions attendues (16:9 pour YouTube, 9:16 pour les autres) ou dure trop longtemps.
+- Le son du MP4 : les vidéos et les sons de la page, mixés par le noyau. « Caler le niveau
+  sonore » (coché d'office) le monte ou le baisse jusqu'à -14 LUFS, le niveau des plateformes,
+  sans dépasser -1 dBTP en crête. « Aussi une version sans musique » écrit à côté un second
+  film, `…_sans-musique.mp4`, avec la voix et les bruitages : pour ajouter le son tendance de
+  TikTok ou d'Instagram au moment de publier.
 - GIF : largeur (320, 480 ou 640 px) et cadence (10, 15 ou 20 images par seconde), en boucle.
 - Le film ressemble à l'écran au pixel près : les mêmes formules d'animation, les mêmes
   polices, le même dessin des textes et des formes.
@@ -176,9 +213,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder,
   tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
-  transitions, styles de texte pour la vidéo), se servir du kit de marque, dessiner à main
+  transitions, styles de texte pour la vidéo), importer, chercher (Freesound) et poser des
+  sons, les régler, détacher le son d'une vidéo, se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
-  capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo). On la
+  capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo, avec la
+  version sans musique). On la
   voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
@@ -211,19 +250,21 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Designs : `~/Documents/Eliot/Designs/<nom du design>/`, un dossier par design :
   `document.json` (le document), `document.precedent.json` (la version d'avant, en secours),
   `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et miniatures des
-  images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/`). Le dossier se copie
+  images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/` ; pour les sons,
+  `copies/` et `ondes/`). Le dossier se copie
   tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
   plusieurs pages), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
-  (ou `.gif`), écrits sous un nom provisoire puis renommés une fois finis.
+  (ou `.gif`), écrits sous un nom provisoire puis renommés une fois finis ; la version sans
+  musique à côté, `…_sans-musique.mp4`.
 - Un design supprimé part dans la corbeille d'Ubuntu.
 
 ## Plan du code
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -231,11 +272,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts, et le tableau de valeurs attendues commun avec le Rust), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts) et les sons (son.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts), la frise (frise/)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
 │   ├── export/       rendu d'une page hors écran, export en image ; export vidéo : la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), réglages par plateforme (plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

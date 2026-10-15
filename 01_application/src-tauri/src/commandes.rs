@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, images, marque, montage, pixabay, polices, projet, videos};
+use noyau::{export, fichiers, freesound, images, marque, montage, pixabay, polices, projet, sons, videos};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -27,6 +27,10 @@ pub struct PolicesPoste(Mutex<Option<Vec<polices::PoliceInstallee>>>);
 /// le Rust, et ne quitte jamais ce fichier (BRIEF, règle 12).
 #[derive(Default)]
 pub struct Pixabay(Mutex<Option<Arc<pixabay::ClientPixabay>>>);
+
+/// Le client Freesound (étape 4, lot 5), créé de même à la première demande qui trouve une clé.
+#[derive(Default)]
+pub struct Freesound(Mutex<Option<Arc<freesound::ClientFreesound>>>);
 
 /// `~/Documents/Eliot` (le dossier Documents de l'utilisateur, sinon le dossier personnel).
 fn racine(app: &AppHandle) -> Result<PathBuf, String> {
@@ -290,6 +294,28 @@ pub async fn importer_videos(app: AppHandle, rayon_nom: String, projet_id: Strin
     .map_err(|e| format!("import interrompu : {e}"))
 }
 
+/// Importe des sons (chemins choisis ou déposés), l'un après l'autre : le noyau range
+/// l'original, fabrique la copie d'écoute et la forme d'onde, et mesure le niveau sonore.
+#[tauri::command]
+pub async fn importer_sons(app: AppHandle, rayon_nom: String, projet_id: String, chemins: Vec<String>, avancement: Channel<Avancement>) -> Result<Vec<ResultatImport>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        chemins
+            .into_iter()
+            .enumerate()
+            .map(|(i, chemin)| {
+                let mut rapport = rapporteur(&avancement, i, 0.0, 1.0);
+                match sons::importer(std::path::Path::new(&chemin), &dossier, &mut rapport) {
+                    Ok(ressource) => ResultatImport { chemin, ressource: Some(ressource), erreur: None },
+                    Err(e) => ResultatImport { chemin, ressource: None, erreur: Some(e.to_string()) },
+                }
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("import interrompu : {e}"))
+}
+
 /// Importe une image reçue en octets (collage depuis le presse-papiers). En-têtes : `x-rayon`,
 /// `x-projet`, `x-nom`.
 #[tauri::command]
@@ -322,7 +348,8 @@ pub async fn ressources_copier(app: AppHandle, source_rayon: String, source_id: 
 }
 
 /// Renvoie, en octets bruts, l'aperçu ou la miniature d'une image ; pour une vidéo aussi sa
-/// copie d'aperçu, sa bande de vignettes ou sa forme d'onde. Jamais un original.
+/// copie d'aperçu, sa bande de vignettes ou sa forme d'onde ; pour un son, sa copie d'écoute ou
+/// sa forme d'onde. Jamais un original.
 #[tauri::command]
 pub async fn lire_ressource(app: AppHandle, rayon_nom: String, projet_id: String, id: String, genre: String) -> Result<Response, String> {
     let genre = match genre.as_str() {
@@ -416,12 +443,13 @@ pub async fn police_design_lire(app: AppHandle, rayon_nom: String, projet_id: St
 // Photos de Pixabay (étape 3)
 // ----------------------------------------------------------------------------------------
 
-/// Les fichiers où chercher la clé : en développement, le `.env` du dépôt (en remontant depuis
-/// `src-tauri/`) ; toujours, `cles.env` dans le dossier de configuration d'Eliot.
-fn fichiers_cle_pixabay(app: &AppHandle) -> Vec<PathBuf> {
+/// Les fichiers où chercher une clé (Pixabay, Freesound) : en développement, le `.env` du dépôt
+/// (en remontant depuis `src-tauri/`) ; toujours, `cles.env` dans le dossier de configuration
+/// d'Eliot.
+fn fichiers_cle(app: &AppHandle) -> Vec<PathBuf> {
     let configuration = app.path().app_config_dir().ok();
     if cfg!(debug_assertions) {
-        pixabay::fichiers_de_cle(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), configuration.as_deref())
+        fichiers::fichiers_de_cle(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), configuration.as_deref())
     } else {
         configuration.map(|c| vec![c.join("cles.env")]).unwrap_or_default()
     }
@@ -443,7 +471,7 @@ fn client_pixabay(app: &AppHandle) -> Result<Arc<pixabay::ClientPixabay>, String
     if let Some(client) = garde.as_ref() {
         return Ok(client.clone());
     }
-    let cle = pixabay::lire_cle(&fichiers_cle_pixabay(app)).ok_or_else(|| pixabay::ErreurPixabay::CleAbsente.to_string())?;
+    let cle = pixabay::lire_cle(&fichiers_cle(app)).ok_or_else(|| pixabay::ErreurPixabay::CleAbsente.to_string())?;
     let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("pixabay");
     // Essais de développement : un faux Pixabay local peut remplacer le vrai.
     let adresse_essai = if cfg!(debug_assertions) { std::env::var("ELIOT_PIXABAY_ADRESSE").ok() } else { None };
@@ -541,6 +569,76 @@ pub async fn pixabay_importer_video(app: AppHandle, rayon_nom: String, projet_id
 }
 
 // ----------------------------------------------------------------------------------------
+// Sons de Freesound (étape 4, lot 5)
+// ----------------------------------------------------------------------------------------
+
+fn client_freesound(app: &AppHandle) -> Result<Arc<freesound::ClientFreesound>, String> {
+    let etat = app.state::<Freesound>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(client) = garde.as_ref() {
+        return Ok(client.clone());
+    }
+    let cle = freesound::lire_cle(&fichiers_cle(app)).ok_or_else(|| freesound::ErreurFreesound::CleAbsente.to_string())?;
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("freesound");
+    // Essais de développement : un faux Freesound local peut remplacer le vrai.
+    let adresse_essai = if cfg!(debug_assertions) { std::env::var("ELIOT_FREESOUND_ADRESSE").ok() } else { None };
+    let client = match adresse_essai {
+        Some(adresse) => {
+            let origine: String = adresse.split('/').take(3).collect::<Vec<_>>().join("/") + "/";
+            freesound::ClientFreesound::avec_adresse(cle, cache, adresse, vec![origine])
+        }
+        None => freesound::ClientFreesound::new(cle, cache),
+    };
+    client.nettoyer();
+    let client = Arc::new(client);
+    *garde = Some(client.clone());
+    Ok(client)
+}
+
+/// Ce que l'onglet Audio doit savoir : une clé Freesound est-elle là, et sinon où l'ajouter.
+#[tauri::command]
+pub async fn freesound_etat(app: AppHandle) -> Result<EtatPixabay, String> {
+    tauri::async_runtime::spawn_blocking(move || EtatPixabay { cle: client_freesound(&app).is_ok(), fichier: fichier_cle_conseille(&app) })
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+#[tauri::command]
+pub async fn freesound_chercher(app: AppHandle, requete: String, page: u32, genre: freesound::Genre) -> Result<freesound::PageSons, String> {
+    tauri::async_runtime::spawn_blocking(move || client_freesound(&app)?.chercher(&requete, page, genre).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+/// L'extrait léger d'un son trouvé (MP3), à écouter avant de le choisir.
+#[tauri::command]
+pub async fn freesound_extrait(app: AppHandle, id: u64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_freesound(&app)?.extrait(id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("extrait interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge le son choisi (le premier quart de l'avancement) puis l'importe comme un son du
+/// poste, avec son crédit et sa licence.
+#[tauri::command]
+pub async fn freesound_importer(app: AppHandle, rayon_nom: String, projet_id: String, id: u64, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = client_freesound(&app)?;
+        let temporaire = client.fichier_de_telechargement(id);
+        let resultat = (|| {
+            let (credit, nom) = client.telecharger(id, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.25)).map_err(|e| e.to_string())?;
+            sons::importer_avec_credit(&temporaire, &nom, &dossier, credit, &mut rapporteur(&avancement, 0, 0.25, 1.0)).map_err(|e| e.to_string())
+        })();
+        let _ = std::fs::remove_file(&temporaire);
+        resultat
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
 // Kit de marque (étape 3)
 // ----------------------------------------------------------------------------------------
 
@@ -615,8 +713,9 @@ pub fn dossier_export_video(app: AppHandle) -> Result<String, String> {
 }
 
 /// Fait le film de la page décrite par la fenêtre (`src/export/calques.ts`) et l'écrit dans
-/// `~/Vidéos/Eliot/` sous un nom libre, ou au chemin choisi dans « Enregistrer sous ».
-/// L'avancement part par `avancement`, au plus une fois par demi-centième.
+/// `~/Vidéos/Eliot/` sous un nom libre, ou au chemin choisi dans « Enregistrer sous » (avec, si
+/// elle est demandée, la version sans musique à côté). L'avancement part par `avancement`, au
+/// plus une fois par demi-centième.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn exporter_video(
@@ -628,7 +727,7 @@ pub async fn exporter_video(
     nom: String,
     chemin: Option<String>,
     avancement: Channel<montage::Avancement>,
-) -> Result<String, String> {
+) -> Result<montage::Film, String> {
     let ressources = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
     let extension = match reglages.format {
         montage::FormatVideo::Mp4 => "mp4",
@@ -660,9 +759,7 @@ pub async fn exporter_video(
                 let _ = avancement.send(a);
             }
         };
-        montage::exporter(&description, &reglages, &ressources, &cible, &mut rapport, &annule)
-            .map(|c| c.to_string_lossy().into_owned())
-            .map_err(|e| e.to_string())
+        montage::exporter(&description, &reglages, &ressources, &cible, &mut rapport, &annule).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("export interrompu : {e}"));

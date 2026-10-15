@@ -4,7 +4,7 @@
 
 import { create } from "zustand";
 import { pageCourante, useEditeur } from "../etat/editeur";
-import { annulerFilm, exporterFilm, type AvancementFilm } from "../pont/tauri";
+import { annulerFilm, exporterFilm, type AvancementFilm, type ResultatFilm } from "../pont/tauri";
 import { decrirePage } from "./calques";
 import { nomDate } from "./exporter";
 import { reglagesFilm, type OptionsFilm } from "./plateformes";
@@ -27,8 +27,9 @@ export function annulerExportVideo(): void {
   void annulerFilm();
 }
 
-/** Exporte la page affichée (page vidéo) et renvoie le chemin écrit. */
-export async function exporterVideo(o: OptionsFilm): Promise<string> {
+/** Exporte la page affichée (page vidéo) et renvoie ce qui a été écrit (le film, la version
+ *  sans musique, le niveau final du son). */
+export async function exporterVideo(o: OptionsFilm): Promise<ResultatFilm> {
   if (document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur();
   if (useExportVideo.getState().enCours) throw new Error("un export vidéo est déjà en cours");
   const etat = useEditeur.getState();

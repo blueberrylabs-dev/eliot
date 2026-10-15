@@ -47,32 +47,11 @@ pub enum ErreurPixabay {
     Disque(#[from] io::Error),
 }
 
+pub use crate::fichiers::fichiers_de_cle;
+
 /// Cherche la clé dans des fichiers `.env` (une ligne `PIXABAY_API_KEY=…`), dans l'ordre.
 pub fn lire_cle(fichiers: &[PathBuf]) -> Option<String> {
-    for fichier in fichiers {
-        let Ok(texte) = fs::read_to_string(fichier) else { continue };
-        for ligne in texte.lines() {
-            let ligne = ligne.trim().trim_start_matches("export ").trim();
-            let Some((nom, valeur)) = ligne.split_once('=') else { continue };
-            if nom.trim() == NOM_DE_LA_CLE {
-                let valeur = valeur.trim().trim_matches(['"', '\'']).trim();
-                if !valeur.is_empty() {
-                    return Some(valeur.to_string());
-                }
-            }
-        }
-    }
-    None
-}
-
-/// Les `.env` possibles : en remontant depuis un dossier de départ (le dépôt, en
-/// développement), puis le fichier du dossier de configuration (version installée).
-pub fn fichiers_de_cle(depart: &Path, configuration: Option<&Path>) -> Vec<PathBuf> {
-    let mut fichiers: Vec<PathBuf> = depart.ancestors().take(6).map(|d| d.join(".env")).collect();
-    if let Some(c) = configuration {
-        fichiers.push(c.join("cles.env"));
-    }
-    fichiers
+    crate::fichiers::lire_cle(fichiers, NOM_DE_LA_CLE)
 }
 
 /// Une photo telle que l'interface la voit.
@@ -413,7 +392,7 @@ impl ClientPixabay {
         let r = self.resultat(id)?;
         self.adresse_permise(&r.large_image_url)?;
         let octets = self.lire(&r.large_image_url, &[])?;
-        let credit = Credit { source: "Pixabay".into(), auteur: r.user.clone(), lien: r.page_url.clone() };
+        let credit = Credit { source: "Pixabay".into(), auteur: r.user.clone(), lien: r.page_url.clone(), ..Credit::default() };
         let premier_mot = r.tags.split(',').next().unwrap_or("photo").trim().to_string();
         Ok((octets, credit, format!("pixabay-{}-{}.jpg", premier_mot.replace(' ', "-"), r.id)))
     }
@@ -508,7 +487,7 @@ impl ClientPixabay {
             let _ = fs::remove_file(cible);
             return Err(e);
         }
-        let credit = Credit { source: "Pixabay".into(), auteur: r.user.clone(), lien: r.page_url.clone() };
+        let credit = Credit { source: "Pixabay".into(), auteur: r.user.clone(), lien: r.page_url.clone(), ..Credit::default() };
         let premier_mot = r.tags.split(',').next().unwrap_or("video").trim().to_string();
         Ok((credit, format!("pixabay-{}-{}.mp4", premier_mot.replace(' ', "-"), r.id)))
     }
@@ -606,7 +585,7 @@ mod tests {
         assert!(demandes.lock().unwrap().iter().any(|d| d == "/img/11_340.jpg"), "l'aperçu est demandé en 340 px");
         let (octets, credit, nom) = c.telecharger(11).unwrap();
         assert_eq!(octets, b"IMAGE /img/11_1280.jpg");
-        assert_eq!(credit, Credit { source: "Pixabay".into(), auteur: "Anne".into(), lien: "https://pixabay.com/photos/chat-11/".into() });
+        assert_eq!(credit, Credit { source: "Pixabay".into(), auteur: "Anne".into(), lien: "https://pixabay.com/photos/chat-11/".into(), ..Credit::default() });
         assert_eq!(nom, "pixabay-chat-11.jpg");
         assert!(matches!(c.telecharger(12), Err(ErreurPixabay::AdresseRefusee)), "une adresse hors de Pixabay est refusée");
         assert!(matches!(c.telecharger(99), Err(ErreurPixabay::PhotoInconnue)));
@@ -632,7 +611,7 @@ mod tests {
         let (credit, nom) = c.telecharger_video(21, &cible, &mut |p| parts.push(p)).unwrap();
         assert!(fs::read(&cible).unwrap().starts_with(b"VIDEO /vid/21_1080.mp4"));
         assert_eq!(parts.last(), Some(&1.0));
-        assert_eq!(credit, Credit { source: "Pixabay".into(), auteur: "Lou".into(), lien: "https://pixabay.com/videos/vague-21/".into() });
+        assert_eq!(credit, Credit { source: "Pixabay".into(), auteur: "Lou".into(), lien: "https://pixabay.com/videos/vague-21/".into(), ..Credit::default() });
         assert_eq!(nom, "pixabay-vague-21.mp4");
         assert!(matches!(c.telecharger_video(22, &cible, &mut |_| ()), Err(ErreurPixabay::AdresseRefusee)), "une adresse hors de Pixabay est refusée");
         assert!(matches!(c.telecharger_video(23, &cache.join("l.mp4"), &mut |_| ()), Err(ErreurPixabay::TropLourd(500))));

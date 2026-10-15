@@ -24,6 +24,9 @@ ureq = "3"
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
 # Les polices de la fenêtre arrivent en base64 dans la description de la page.
 base64 = "0.22"
+# Le son (étape 4, lot 5) : niveau sonore EBU R128 (LUFS, crête vraie) des sons importés et
+# du mixage exporté.
+ebur128 = "0.1.10"
 
 # Le code générique des bibliothèques (réduction, encodage) est compilé dans ce paquet-ci :
 # sans optimisation, la réduction d'une photo 24 Mpx passe de 0,1 s à 6,5 s (mesuré le

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { OPTIONS_FILM_DEFAUT, PLATEFORMES, reglagesFilm, remarquesFilm, type OptionsFilm } from "./plateformes";
+import { messageFilm, OPTIONS_FILM_DEFAUT, PLATEFORMES, reglagesFilm, remarquesFilm, type OptionsFilm } from "./plateformes";
 
 const STORY = { largeur: 1080, hauteur: 1920 };
 const PAYSAGE = { largeur: 1920, hauteur: 1080 };
@@ -46,5 +46,24 @@ describe("réglages par plateforme", () => {
       expect(p.debit(60, 1080)).toBeGreaterThanOrEqual(p.debit(30, 1080));
       expect(p.debit(30, 1080)).toBeGreaterThan(p.debit(30, 720));
     }
+  });
+});
+
+describe("le son du film (lot 5)", () => {
+  it("le niveau se cale sur -14 LUFS par défaut, la version sans musique sur demande", () => {
+    const r = reglagesFilm(options({ plateforme: "tiktok" }), { largeur: 1080, hauteur: 1920 });
+    expect([r.niveauLufs, r.sansMusique]).toEqual([-14, false]);
+    expect(reglagesFilm(options({ niveau: false, sansMusique: true }), { largeur: 1080, hauteur: 1920 })).toMatchObject({ niveauLufs: null, sansMusique: true });
+    // Sans le son : ni niveau ni version sans musique ; un GIF n'a jamais de son.
+    expect(reglagesFilm(options({ son: false, sansMusique: true }), { largeur: 1080, hauteur: 1920 })).toMatchObject({ son: false, niveauLufs: null, sansMusique: false });
+    expect(reglagesFilm(options({ format: "gif" }), { largeur: 1080, hauteur: 1920 })).toMatchObject({ son: false, niveauLufs: null, sansMusique: false });
+    expect(PLATEFORMES.every((p) => p.niveauLufs === -14)).toBe(true);
+  });
+
+  it("la notification dit le niveau final et la version sans musique", () => {
+    expect(messageFilm({ chemin: "/v/2026_film.mp4", sansMusique: "/v/2026_film_sans-musique.mp4", niveau: { lufs: -14.04, crete: -2.3, gain: 6.5 } })).toBe(
+      "Vidéo exportée : /v/2026_film.mp4 ; son à −14,0 LUFS, crête à −2,3 dBTP (+6,5 dB) ; version sans musique : 2026_film_sans-musique.mp4",
+    );
+    expect(messageFilm({ chemin: "/v/a.mp4", sansMusique: null, niveau: null })).toBe("Vidéo exportée : /v/a.mp4");
   });
 });

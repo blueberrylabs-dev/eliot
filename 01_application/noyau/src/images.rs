@@ -1,11 +1,12 @@
 //! Import des images : empreinte, original rangé une seule fois, image redressée selon
 //! l'appareil photo, aperçu (2560 px au plus) et miniature (256 px) pour l'interface. Les
-//! vidéos (étape 4, `videos.rs`) sont rangées au même endroit, avec quelques fichiers de plus.
+//! vidéos (étape 4, `videos.rs`) sont rangées au même endroit, avec quelques fichiers de plus,
+//! et les sons aussi (lot 5, `sons.rs`), sans aperçu ni miniature.
 //!
 //! Rangement dans le dossier des ressources :
 //! `originaux/<empreinte>.<ext>`, `apercus/<empreinte>.(jpg|png)`,
 //! `miniatures/<empreinte>.(jpg|png)`, `infos/<empreinte>.json` ; pour une vidéo, aussi
-//! `copies/`, `vignettes/` et `ondes/`.
+//! `copies/`, `vignettes/` et `ondes/` ; pour un son, `copies/` et `ondes/` seulement.
 
 use std::fs;
 use std::io::Cursor;
@@ -21,6 +22,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::fichiers::ecrire_atomiquement;
+use crate::sons::{self, InfosSon};
 use crate::videos::{self, InfosVideo};
 
 pub const COTE_APERCU: u32 = 2560;
@@ -59,16 +61,24 @@ pub struct Ressource {
     /// Pour une vidéo (étape 4) : durée, son, copie d'aperçu, vignettes. Absent pour une image.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub video: Option<InfosVideo>,
+    /// Pour un son (lot 5) : durée, copie d'écoute, niveau. Ni dimensions, ni aperçu.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub son: Option<InfosSon>,
 }
 
-/// Le crédit d'une image venue d'une banque d'images (BRIEF, règle 12).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// Le crédit d'une image, d'une vidéo ou d'un son venus d'une banque (BRIEF, règle 12).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Credit {
-    /// `Pixabay`, plus tard `Pexels`.
+    /// `Pixabay`, `Freesound`, plus tard `Pexels`.
     pub source: String,
     pub auteur: String,
-    /// La page de la photo sur le site d'origine.
+    /// La page de la photo ou du son sur le site d'origine.
     pub lien: String,
+    /// Un son de Freesound : sa licence (`CC0 1.0`, `CC BY 4.0`) et son titre.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub licence: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub titre: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,11 +86,11 @@ pub enum Genre {
     Original,
     Apercu,
     Miniature,
-    /// Vidéo : la copie d'aperçu jouée dans la fenêtre.
+    /// Vidéo : la copie d'aperçu jouée dans la fenêtre ; son : la copie d'écoute.
     Copie,
     /// Vidéo : la bande des vignettes de la frise.
     Vignettes,
-    /// Vidéo avec du son : la forme d'onde (JSON).
+    /// Vidéo avec du son, ou son : la forme d'onde (JSON).
     Onde,
 }
 
@@ -115,6 +125,14 @@ pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBu
     let infos: Ressource = serde_json::from_slice(&fs::read(chemin_infos(dossier, id))?)
         .map_err(|e| ErreurImage::Decodage(e.to_string()))?;
     let video = || infos.video.as_ref().ok_or(ErreurImage::IdentifiantInvalide);
+    if let Some(son) = &infos.son {
+        return match genre {
+            Genre::Copie => Ok(dossier.join("copies").join(format!("{id}.{}", son.copie))),
+            Genre::Onde => Ok(dossier.join("ondes").join(format!("{id}.json"))),
+            Genre::Original => original(dossier, id),
+            Genre::Apercu | Genre::Miniature | Genre::Vignettes => Err(ErreurImage::IdentifiantInvalide),
+        };
+    }
     Ok(match genre {
         Genre::Copie => dossier.join("copies").join(format!("{id}.{}", video()?.copie)),
         Genre::Vignettes => {
@@ -129,15 +147,16 @@ pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBu
         }
         Genre::Apercu => dossier.join("apercus").join(format!("{id}.{}", infos.format_apercu)),
         Genre::Miniature => dossier.join("miniatures").join(format!("{id}.{}", infos.format_apercu)),
-        Genre::Original => {
-            let originaux = dossier.join("originaux");
-            fs::read_dir(&originaux)?
-                .flatten()
-                .map(|e| e.path())
-                .find(|p| p.file_stem().is_some_and(|s| s == id))
-                .ok_or(ErreurImage::IdentifiantInvalide)?
-        }
+        Genre::Original => original(dossier, id)?,
     })
+}
+
+fn original(dossier: &Path, id: &str) -> Result<PathBuf, ErreurImage> {
+    fs::read_dir(dossier.join("originaux"))?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.file_stem().is_some_and(|s| s == id))
+        .ok_or(ErreurImage::IdentifiantInvalide)
 }
 
 /// Décode en appliquant l'orientation enregistrée par l'appareil photo (EXIF).
@@ -230,6 +249,7 @@ pub fn importer(octets: &[u8], nom: &str, dossier: &Path) -> Result<Ressource, E
         format_apercu: format_apercu.to_string(),
         credit: None,
         video: None,
+        son: None,
     };
     let infos = serde_json::to_vec_pretty(&ressource).map_err(|e| ErreurImage::Decodage(e.to_string()))?;
     ecrire_atomiquement(&chemin_infos(dossier, &id), &infos)?;
@@ -284,8 +304,8 @@ fn copier_atomiquement(source: &Path, cible: &Path) -> Result<(), ErreurImage> {
     Ok(())
 }
 
-/// Copie des images d'un dossier de ressources vers un autre (coller entre deux designs). Une
-/// image déjà présente dans la cible n'est pas recopiée.
+/// Copie des images d'un dossier de ressources vers un autre (coller entre deux designs),
+/// vidéos et sons compris. Une ressource déjà présente dans la cible n'est pas recopiée.
 pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressource>, ErreurImage> {
     for sous_dossier in ["originaux", "apercus", "miniatures", "infos", "copies", "vignettes", "ondes"] {
         fs::create_dir_all(cible.join(sous_dossier))?;
@@ -297,13 +317,16 @@ pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressour
             .map_err(|e| ErreurImage::Decodage(e.to_string()))?;
         let nom_original = original.file_name().expect("fichier nommé");
         copier_atomiquement(&original, &cible.join("originaux").join(nom_original))?;
-        for genre in [Genre::Apercu, Genre::Miniature] {
-            let depuis = chemin_ressource(source, id, genre)?;
+        // Un son n'a ni aperçu ni miniature.
+        let genres: &[Genre] = if infos.son.is_some() { &[] } else { &[Genre::Apercu, Genre::Miniature] };
+        for genre in genres {
+            let depuis = chemin_ressource(source, id, *genre)?;
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }
-        // Une vidéo emporte sa copie d'aperçu, ses vignettes et sa forme d'onde.
-        for depuis in videos::fichiers_en_plus(source, &infos) {
+        // Une vidéo emporte sa copie d'aperçu, ses vignettes et sa forme d'onde ; un son, sa
+        // copie d'écoute et sa forme d'onde.
+        for depuis in videos::fichiers_en_plus(source, &infos).into_iter().chain(sons::fichiers_en_plus(source, &infos)) {
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }
@@ -331,7 +354,7 @@ mod tests {
     #[test]
     fn une_photo_de_banque_garde_son_credit() {
         let dossier = dossier_de_test("credit");
-        let credit = Credit { source: "Pixabay".into(), auteur: "Anne".into(), lien: "https://pixabay.com/photos/chat-11/".into() };
+        let credit = Credit { source: "Pixabay".into(), auteur: "Anne".into(), lien: "https://pixabay.com/photos/chat-11/".into(), ..Credit::default() };
         let r = importer_avec_credit(&jpeg(64, 48), "pixabay-chat-11.jpg", &dossier, credit.clone()).unwrap();
         assert_eq!(r.credit.as_ref(), Some(&credit));
         assert_eq!(lister(&dossier)[0].credit.as_ref(), Some(&credit), "le crédit est rangé avec l'image");

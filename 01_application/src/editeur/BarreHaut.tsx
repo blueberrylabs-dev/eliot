@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
 import { exporter, nomDate } from "../export/exporter";
-import { exporterVideo, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
+import { exporterVideo, messageFilm, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
 import { afficherDansDossier, choisirEmplacement, choisirEmplacementFilm, dansTauri, dossierDesigns, dossierExport, dossierExportVideo, type FormatExport } from "../pont/tauri";
 import { ReglagesDuFilm } from "./ExportVideo";
 import { Redimensionner } from "./Redimensionner";
@@ -34,6 +34,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const nombrePages = useEditeur((s) => s.document.pages.length);
   const avecVideo = useEditeur((s) => s.document.pages.some((p) => p.elements.some((e) => e.type === "video")));
   const dureePage = useEditeur((s) => pageCourante(s).duree);
+  const avecMusique = useEditeur((s) => !!pageCourante(s).audio?.some((c) => c.role === "musique"));
   const pageVideo = dureePage !== undefined;
   const notifier = useEditeur((s) => s.notifier);
   const [type, setType] = useState<FormatExport | "mp4" | "gif">(pageVideo && dansTauri ? optionsFilmRetenues.format : "png");
@@ -76,7 +77,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
     fermer();
     try {
       const ecrit = await exporterVideo({ ...film, chemin });
-      notifier(`Vidéo exportée : ${ecrit}`, { chemin: ecrit });
+      notifier(messageFilm(ecrit), { chemin: ecrit.chemin });
     } catch (erreur) {
       const texte = String(erreur);
       notifier(/annulé/.test(texte) ? "Export annulé : rien n'a été écrit." : `Export impossible : ${texte}`, { erreur: !/annulé/.test(texte) });
@@ -132,7 +133,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
         </p>
       )}
       {estFilm && dureePage !== undefined ? (
-        <ReglagesDuFilm options={film} changer={changerFilm} format={format} duree={dureePage} />
+        <ReglagesDuFilm options={film} changer={changerFilm} format={format} duree={dureePage} musique={avecMusique} />
       ) : (
         <>
           <p className="mb-1 text-xs font-medium text-neutral-500">Taille</p>

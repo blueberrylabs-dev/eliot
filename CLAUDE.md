@@ -43,13 +43,15 @@ lourd. Détail : `BRIEF.md`.
   copies d'aperçu, passé sur le poste le 2026-10-15 (VP9 en 720 retenu, Tauri confirmé) ;
   lot 1 (la vidéo dans le design : import, copie d'aperçu, lecture, coupe, vitesse, son,
   vidéos Pixabay, quatre outils pour le pont IA), lot 2 (la frise : bascule Photo ou
-  Vidéo, pistes, tête de lecture, gestes, scinder, trois outils de plus pour le pont IA) et
+  Vidéo, pistes, tête de lecture, gestes, scinder, trois outils de plus pour le pont IA),
   lot 3 (l'animation : entrées, sorties, boucles, textes par morceaux, images clés,
   transitions, fondus du son, styles de texte pour la vidéo, trois outils de plus pour le
-  pont IA, 53 en tout) et lot 4 (l'export en MP4 et en GIF par le noyau, réglages par
-  plateforme, zones sûres) livrés et vérifiés ; reste l'essai d'Alexandre. Après cette
-  livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert) : il attend
-  désormais jusqu'à 30 minutes la fin d'un film.
+  pont IA, 53 en tout), lot 4 (l'export en MP4 et en GIF par le noyau, réglages par
+  plateforme, zones sûres) et lot 5 (le son : onglet Audio, sons importés, Freesound, pistes
+  des sons, musique qui baisse sous la voix, jingles du kit de marque, niveau à -14 LUFS,
+  version sans musique, quatre outils de plus pour le pont IA, 57 en tout) livrés et vérifiés ;
+  reste l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13, puis
+  15 bis si l'extension sert) : la liste de ses outils change.
 
 Suite : `PLAN.md`.
 
@@ -81,7 +83,8 @@ Il faut Node 20.19 ou plus (ou 22.12 et plus) ; si `rustc` est introuvable, fair
 **2. Bibliothèques du système** (une fois, demande ton mot de passe) : moteur web de Tauri,
 décodeurs vidéo (H.264 par `gstreamer1.0-libav`, VP9 par `gstreamer1.0-plugins-good`) et
 `ffmpeg`, qui fabrique les vidéos de test (étape 4 bis) et, dans Eliot, prépare chaque vidéo
-importée (copie d'aperçu, vignettes, forme d'onde), puis plus tard l'export MP4.
+et chaque son importés (copie d'aperçu ou d'écoute, vignettes, forme d'onde) et fait l'export
+MP4.
 
 ```
 sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad ffmpeg
@@ -236,8 +239,9 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 50 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
-comparaisons de Claude dans le conteneur).
+Vérifier : `test result: ok. 62 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+comparaisons de Claude dans le conteneur). La première fois après le lot 5, `cargo` télécharge
+la bibliothèque `ebur128` (mesure du niveau sonore).
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -245,7 +249,7 @@ comparaisons de Claude dans le conteneur).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  121 passed`.
+Vérifier : `Tests  142 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

@@ -9,7 +9,8 @@
 
 import { couperCles, decalerCles } from "./animation";
 import { dureeJouee } from "./fabriques";
-import type { Animations, ElementPage, ElementVideo, PageEliot, Temps } from "./types";
+import { boucle, DUREE_MIN_SON, longueurSon, normaliserSons, partieJouee, tempsMediaSon } from "./son";
+import type { Animations, ClipAudio, ElementPage, ElementVideo, PageEliot, Temps } from "./types";
 
 export const PISTE_PRINCIPALE = 0;
 /** Durée d'un texte, d'une forme ou d'une photo posés sur la frise. */
@@ -18,7 +19,8 @@ export const DUREE_CLIP = 3000;
 export const DUREE_PAGE_DEFAUT = 5000;
 export const DUREE_MIN = 100;
 
-/** Durée d'un fichier vidéo, en millisecondes, d'après sa ressource ; `undefined` si inconnue. */
+/** Durée d'un fichier vidéo ou son, en millisecondes, d'après sa ressource ; `undefined` si
+ *  inconnue. */
 export type Durees = (ressource: string) => number | undefined;
 
 export const estPageVideo = (p: PageEliot): boolean => p.duree !== undefined;
@@ -129,9 +131,12 @@ export function normaliser(page: PageEliot, durees: Durees): PageEliot {
   // 5. Ordre d'empilement : par piste ; sur une même piste, où rien ne se chevauche, par
   //    ordre d'apparition.
   clips.sort((a, b) => a.piste - b.piste || a.debut - b.debut || a.rang - b.rang);
-  const duree = clips.length ? Math.max(DUREE_MIN, ...clips.map((c) => c.fin)) : dureeParDefaut;
+  // 6. Les sons (lot 5) : la page dure jusqu'au dernier clip ou au dernier son ; une musique
+  //    « jusqu'à la fin » va jusque-là.
+  const sons = normaliserSons(page.audio, clips.length ? Math.max(DUREE_MIN, ...clips.map((c) => c.fin)) : null, dureeParDefaut, durees);
+  const duree = sons.duree;
 
-  let change = duree !== page.duree;
+  let change = duree !== page.duree || sons.audio !== page.audio;
   const elements = clips.map((c, i) => {
     let e = c.e;
     if (page.elements[i] !== e) change = true;
@@ -145,7 +150,7 @@ export function normaliser(page: PageEliot, durees: Durees): PageEliot {
     change = true;
     return { ...e, piste: c.piste, temps: { debut: c.debut, fin: c.fin } } as ElementPage;
   });
-  return change ? { ...page, elements, duree } : page;
+  return change ? { ...page, elements, duree, ...(sons.audio ? { audio: sons.audio } : {}) } : page;
 }
 
 /** La fin de la piste principale (0 si elle est vide). */
@@ -358,6 +363,126 @@ export function dupliquerDansLeTemps(page: PageEliot, originaux: ElementPage[], 
   return normaliser({ ...page, elements }, durees);
 }
 
+// ---- Les sons (étape 4, lot 5) ----
+
+/**
+ * Pose un son neuf à la tête de lecture : sur la première piste audio libre à cet endroit, de
+ * préférence une piste qui a déjà des sons du même rôle. Une musique « jusqu'à la fin » couvre
+ * la page jusqu'au bout.
+ */
+export function placerSon(page: PageEliot, son: Omit<ClipAudio, "temps" | "piste">, tete: number, durees: Durees): PageEliot {
+  if (!estPageVideo(page)) return page;
+  const audio = page.audio ?? [];
+  const debut = Math.max(0, arrondi(tete));
+  const duree = page.duree ?? DUREE_PAGE_DEFAUT;
+  const brouillon = { ...son, temps: { debut, fin: debut + DUREE_MIN_SON }, piste: 0 } as ClipAudio;
+  const longueur = son.jusquALaFin ? Math.max(DUREE_MIN_SON, duree - debut) : longueurSon(brouillon, durees(son.ressource));
+  const temps = { debut, fin: debut + longueur };
+  const nombre = Math.max(-1, ...audio.map((c) => c.piste)) + 1;
+  const libres = Array.from({ length: nombre }, (_, n) => n).filter((n) => !audio.some((c) => c.piste === n && chevauche(c.temps, temps)));
+  const memeRole = libres.find((n) => audio.some((c) => c.piste === n && c.role === son.role));
+  const piste = memeRole ?? libres[0] ?? nombre;
+  return normaliser({ ...page, audio: [...audio, { ...son, temps, piste } as ClipAudio] }, durees);
+}
+
+/** Déplace un son : nouveau début et piste audio voulue ; une piste occupée à cet endroit le
+ *  fait descendre sur une piste neuve juste en dessous. */
+export function deplacerSon(page: PageEliot, id: string, debut: number, piste: number, durees: Durees): PageEliot {
+  const c = page.audio?.find((x) => x.id === id);
+  if (!c || !estPageVideo(page)) return page;
+  const d = Math.max(0, arrondi(debut));
+  const temps = { debut: d, fin: d + (c.temps.fin - c.temps.debut) };
+  let p = Math.max(0, Math.round(piste));
+  if (page.audio!.some((x) => x.id !== id && x.piste === p && chevauche(x.temps, temps))) p += 0.5;
+  return normaliser({ ...page, audio: page.audio!.map((x) => (x.id === id ? { ...x, temps, piste: p } : x)) }, durees);
+}
+
+/**
+ * Tire un bord d'un son jusqu'à l'instant `t`. Le début coupe le début du fichier (le son garde
+ * sa fin) ; la fin coupe la fin du fichier, ou, pour un son qui boucle, fixe sa durée (une
+ * musique « jusqu'à la fin » s'arrête alors là). Les voisins de piste bornent le geste.
+ */
+export function rognerSon(page: PageEliot, id: string, cote: "debut" | "fin", t: number, durees: Durees): PageEliot {
+  const c = page.audio?.find((x) => x.id === id);
+  if (!c || !estPageVideo(page)) return page;
+  const { debut, fin } = c.temps;
+  const voisins = page.audio!.filter((x) => x.id !== id && x.piste === c.piste).map((x) => x.temps);
+  let cible = arrondi(t);
+  if (cote === "debut") cible = Math.max(cible, 0, ...voisins.filter((v) => v.fin <= debut).map((v) => v.fin));
+  else cible = Math.min(cible, ...voisins.filter((v) => v.debut >= fin).map((v) => v.debut));
+  const fichier = durees(c.ressource);
+  const partie = partieJouee(c, fichier);
+  let modifie: ClipAudio;
+  if (boucle(c)) {
+    if (cote === "debut") {
+      const nouveau = Math.min(cible, fin - DUREE_MIN_SON);
+      // Le son garde ce qu'il jouait à chaque instant : sa phase avance d'autant.
+      const longueur = partie.fin - partie.debut;
+      const phase = Number.isFinite(longueur) && longueur > 0 ? ((((c.phase ?? 0) + nouveau - debut) % longueur) + longueur) % longueur : 0;
+      modifie = { ...c, temps: { debut: nouveau, fin }, ...(phase ? { phase: arrondi(phase) } : { phase: undefined }) };
+    } else {
+      const { jusquALaFin: _j, ...sans } = c;
+      modifie = { ...sans, boucle: true, temps: { debut, fin: Math.max(cible, debut + DUREE_MIN_SON) } } as ClipAudio;
+    }
+  } else if (cote === "debut") {
+    const nouveau = Math.max(0, Math.min(partie.fin - DUREE_MIN_SON, partie.debut + (cible - debut)));
+    const coupe = { debut: arrondi(nouveau), ...(c.coupe?.fin !== undefined ? { fin: c.coupe.fin } : {}) };
+    modifie = { ...c, coupe: coupe.debut === 0 && coupe.fin === undefined ? undefined : coupe, temps: { debut: arrondi(debut + (nouveau - partie.debut)), fin } };
+  } else {
+    const max = fichier ?? Number.POSITIVE_INFINITY;
+    const nouvelle = Math.min(max, Math.max(partie.debut + DUREE_MIN_SON, partie.debut + (cible - debut)));
+    const coupe = { debut: partie.debut, ...(nouvelle < max ? { fin: arrondi(nouvelle) } : {}) };
+    modifie = { ...c, coupe: coupe.debut === 0 && coupe.fin === undefined ? undefined : coupe, temps: { debut, fin: arrondi(debut + (nouvelle - partie.debut)) } };
+  }
+  return normaliser({ ...page, audio: page.audio!.map((x) => (x.id === id ? modifie : x)) }, durees);
+}
+
+/** Coupe en deux, à l'instant `t`, les sons choisis que `t` traverse (100 ms au moins de
+ *  chaque côté). La seconde moitié reprend le fichier là où la première s'arrête. */
+export function scinderSons(page: PageEliot, ids: string[], t: number, durees: Durees, nouvelId: () => string): { page: PageEliot; nouveaux: string[] } {
+  const nouveaux: string[] = [];
+  const instant = arrondi(t);
+  const audio = (page.audio ?? []).flatMap((c) => {
+    if (!ids.includes(c.id) || instant - c.temps.debut < DUREE_MIN_SON || c.temps.fin - instant < DUREE_MIN_SON) return [c];
+    const id = nouvelId();
+    nouveaux.push(id);
+    const { fonduSortie: _fs, jusquALaFin, ...premierSans } = c;
+    const { fonduEntree: _fe, ...secondSans } = c;
+    if (boucle(c)) {
+      const partie = partieJouee(c, durees(c.ressource));
+      const longueur = partie.fin - partie.debut;
+      const phase = Number.isFinite(longueur) && longueur > 0 ? (tempsMediaSon(c, instant, durees(c.ressource)) - partie.debut) % longueur : 0;
+      const premier = { ...premierSans, boucle: true, temps: { debut: c.temps.debut, fin: instant } } as ClipAudio;
+      const second = { ...secondSans, id, boucle: true, ...(jusquALaFin ? { jusquALaFin } : {}), phase: arrondi(phase), temps: { debut: instant, fin: c.temps.fin } } as ClipAudio;
+      return [premier, second];
+    }
+    const partie = partieJouee(c, durees(c.ressource));
+    const milieu = arrondi(partie.debut + (instant - c.temps.debut));
+    const premier = { ...premierSans, coupe: { debut: partie.debut, fin: milieu }, temps: { debut: c.temps.debut, fin: instant } } as ClipAudio;
+    const second = { ...secondSans, id, coupe: { debut: milieu, ...(c.coupe?.fin !== undefined ? { fin: c.coupe.fin } : {}) }, temps: { debut: instant, fin: c.temps.fin } } as ClipAudio;
+    return [premier, second];
+  });
+  return { page: nouveaux.length ? normaliser({ ...page, audio }, durees) : page, nouveaux };
+}
+
+/** Une copie d'un son juste après lui, sur sa piste si la place est libre, sinon en dessous. */
+export function dupliquerSon(page: PageEliot, id: string, nouvelId: string, durees: Durees): PageEliot {
+  const c = page.audio?.find((x) => x.id === id);
+  if (!c) return page;
+  const longueur = c.temps.fin - c.temps.debut;
+  const temps = { debut: c.temps.fin, fin: c.temps.fin + longueur };
+  const piste = page.audio!.some((x) => x.piste === c.piste && chevauche(x.temps, temps)) ? c.piste + 0.5 : c.piste;
+  const { jusquALaFin: _j, ...sans } = c;
+  const copie = { ...sans, id: nouvelId, temps, piste, ...(c.jusquALaFin ? { boucle: true } : {}) } as ClipAudio;
+  return normaliser({ ...page, audio: [...page.audio!, copie] }, durees);
+}
+
+/** Retire des sons de la page. */
+export function supprimerSons(page: PageEliot, ids: string[], durees: Durees): PageEliot {
+  if (!page.audio?.some((c) => ids.includes(c.id))) return page;
+  return normaliser({ ...page, audio: page.audio.filter((c) => !ids.includes(c.id)) }, durees);
+}
+
 /** L'instant le plus proche parmi `cibles`, s'il est à moins de `seuil` ms ; sinon `t`. */
 export function aimanter(t: number, cibles: number[], seuil: number): number {
   let meilleur = t;
@@ -372,9 +497,13 @@ export function aimanter(t: number, cibles: number[], seuil: number): number {
   return meilleur;
 }
 
-/** Les bords de tous les clips d'une page (sauf ceux de `sauf`), pour l'aimantation. */
-export const bordsDesClips = (p: PageEliot, sauf?: string): number[] =>
-  [0, ...p.elements.flatMap((e) => (e.id !== sauf && e.temps ? [e.temps.debut, e.temps.fin] : []))];
+/** Les bords de tous les clips et de tous les sons d'une page (sauf ceux de `sauf`), pour
+ *  l'aimantation. */
+export const bordsDesClips = (p: PageEliot, sauf?: string): number[] => [
+  0,
+  ...p.elements.flatMap((e) => (e.id !== sauf && e.temps ? [e.temps.debut, e.temps.fin] : [])),
+  ...(p.audio ?? []).flatMap((c) => (c.id !== sauf ? [c.temps.debut, c.temps.fin] : [])),
+];
 
 /** Les pistes d'une page vidéo, de la plus haute à la principale, avec leurs clips. */
 export function pistesDe(p: PageEliot): { piste: number; clips: ElementPage[] }[] {
