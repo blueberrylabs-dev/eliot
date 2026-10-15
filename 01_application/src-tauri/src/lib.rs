@@ -13,6 +13,7 @@ pub fn lancer() {
         .manage(commandes::PolicesPoste::default())
         .manage(commandes::Pixabay::default())
         .manage(commandes::Freesound::default())
+        .manage(commandes::Micro::default())
         .manage(commandes::ExportVideo::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
@@ -56,6 +57,19 @@ pub fn lancer() {
             commandes::freesound_chercher,
             commandes::freesound_extrait,
             commandes::freesound_importer,
+            commandes::micro_lister,
+            commandes::micro_ouvrir,
+            commandes::micro_commencer,
+            commandes::micro_marquer,
+            commandes::micro_abandonner,
+            commandes::micro_fermer,
+            commandes::micro_arreter,
+            commandes::voix_nettoyer,
+            commandes::voix_lire,
+            commandes::voix_purger,
+            commandes::piper_etat,
+            commandes::piper_ecouter,
+            commandes::piper_ajouter,
             commandes::marque_lire,
             commandes::marque_enregistrer,
             commandes::exporter_rendu,

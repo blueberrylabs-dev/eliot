@@ -35,6 +35,7 @@ use crate::fichiers::{chemin_libre, chemin_temporaire};
 use crate::images::{self, Genre};
 use crate::son::{self, ClipAudio};
 use crate::sons::{self, Niveau};
+use crate::voix;
 
 // ----------------------------------------------------------------------------------------
 // Ce que l'interface envoie
@@ -1147,7 +1148,11 @@ fn mixer_son(scene: &Scene, sons_page: &[ClipAudio], duree: f64, annule: &Atomic
         if partie <= 0.0 {
             continue;
         }
-        let original = images::chemin_ressource(&scene.dossier, &c.ressource, Genre::Original).map_err(|e| ErreurMontage::Video(e.to_string()))?;
+        // Une voix nettoyée : sa version nettoyée (faite au besoin), jamais l'original retouché.
+        let original = match c.nettoyage.as_ref().filter(|n| !n.est_vide()) {
+            Some(n) => voix::fichier_pour_export(&scene.dossier, &c.ressource, n).map_err(|e| ErreurMontage::Video(e.to_string()))?,
+            None => images::chemin_ressource(&scene.dossier, &c.ressource, Genre::Original).map_err(|e| ErreurMontage::Video(e.to_string()))?,
+        };
         // Sans boucle, seule la longueur du clip sert ; en boucle, toute la partie jouée.
         let longueur = if c.boucle() { partie } else { partie.min(c.temps.fin - c.temps.debut) };
         let echantillons = decoder_son(&original, debut, Some(longueur), 1.0)?;
@@ -1713,6 +1718,47 @@ mod tests {
         page.sons[0].role = "bruitage".into();
         let film = exporter(&page, &r, &ressources, &dossier.join("sortie").join("bruitage.mp4"), &mut |_| {}, &annule).unwrap();
         assert_eq!(film.sans_musique, None);
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    #[test]
+    fn une_voix_nettoyee_s_exporte_nettoyee() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("voix-nettoyee");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let video = videos::importer(&video_rouge_puis_bleue(&dossier), &ressources, &videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        // Une « voix » : 1 000 Hz, avec un ronflement à 50 Hz aussi fort qu'elle.
+        let wav = dossier.join("voix.wav");
+        let s = Command::new("ffmpeg")
+            .args(["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "aevalsrc=0.05*sin(2*PI*50*t)+0.05*sin(2*PI*1000*t):s=48000:d=2"])
+            .arg(&wav)
+            .output()
+            .unwrap();
+        assert!(s.status.success());
+        let voix = sons::importer(&wav, &ressources, &mut |_| {}).unwrap();
+        let mut page = page_de_test(&video.id);
+        page.elements[0].element["volume"] = json!(0);
+        page.sons = serde_json::from_value(json!([{ "id": "v", "ressource": voix.id, "temps": { "debut": 0, "fin": 2000 }, "piste": 0, "role": "voix" }])).unwrap();
+        let annule = AtomicBool::new(false);
+        let brut = dossier.join("sortie").join("brut.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &brut, &mut |_| {}, &annule).unwrap();
+        // Graves coupés et voix calée sur -16 LUFS : le ronflement s'efface, la voix monte.
+        page.sons[0].nettoyage = Some(voix::Nettoyage { graves: Some(true), niveau: Some(true), ..Default::default() });
+        let net = dossier.join("sortie").join("net.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &net, &mut |_| {}, &annule).unwrap();
+        let (r_brut, r_net) = (niveau_a(&brut, 0.3, 1.7, 50), niveau_a(&net, 0.3, 1.7, 50));
+        let (v_brut, v_net) = (niveau_a(&brut, 0.3, 1.7, 1000), niveau_a(&net, 0.3, 1.7, 1000));
+        assert!(r_net / v_net < 0.25 * r_brut / v_brut, "ronflement {r_brut} puis {r_net}, voix {v_brut} puis {v_net}");
+        assert!(v_net > v_brut * 1.5, "la voix calée monte : {v_brut} puis {v_net}");
+        assert!((lufs_du_film(&net) + 16.0).abs() < 1.5, "{}", lufs_du_film(&net));
+        // La version nettoyée est restée dans le cache du design ; l'original n'a pas bougé.
+        let cle = page.sons[0].nettoyage.as_ref().unwrap().cle();
+        assert!(voix::chemin(&ressources, &voix.id, &cle, "flac").unwrap().exists());
+        assert_eq!(videos::empreinte_fichier(&images::chemin_ressource(&ressources, &voix.id, Genre::Original).unwrap()).unwrap(), voix.id);
         let _ = fs::remove_dir_all(&dossier);
     }
 

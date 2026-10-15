@@ -1,13 +1,16 @@
 // Un son de la frise (étape 4, lot 5) : un rectangle de la longueur de son clip, à la couleur
 // de son rôle (musique, voix, bruitage), avec sa forme d'onde. L'onde suit ce qui s'entend :
-// la boucle, la coupe, le volume, les fondus et la musique qui baisse sous la voix.
+// la boucle, la coupe, le volume, les fondus, la musique qui baisse sous la voix et, pour une
+// voix nettoyée (lot 6), sa version nettoyée dès qu'elle est prête.
 
-import { AudioLines, Mic, Music, Repeat } from "lucide-react";
+import { AudioLines, Mic, Music, Repeat, Sparkles } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { useEditeur } from "../../etat/editeur";
 import { boucle, gainClipSon, tempsMediaSon } from "../../modele/son";
 import type { ClipAudio, Ressource, RoleSon } from "../../modele/types";
-import { ondeRessource, type Onde } from "../../pont/tauri";
+import { ondeNettoyee, ondeRessource, type Onde } from "../../pont/tauri";
+import { cleVersion, useNettoyages } from "../../etat/nettoyage";
+import { nettoyageActif } from "../../modele/voix";
 
 export const COULEURS_ROLE: Record<RoleSon, string> = {
   musique: "bg-emerald-700",
@@ -28,14 +31,16 @@ function OndeSon({ clip, sons, ressource, largeur, hauteur }: { clip: ClipAudio;
   const projet = useEditeur((s) => s.projet);
   const [onde, setOnde] = useState<Onde | null>(null);
   const toile = useRef<HTMLCanvasElement>(null);
+  // La version nettoyée, une fois prête : son onde montre ce qui s'entend.
+  const nettoyee = useNettoyages((s) => (nettoyageActif(clip.nettoyage) ? s.pretes[cleVersion(clip.ressource, clip.nettoyage)]?.cle : undefined));
   useEffect(() => {
     if (!projet) return;
     let actif = true;
-    void ondeRessource(projet, clip.ressource).then((o) => actif && setOnde(o));
+    void (nettoyee ? ondeNettoyee(projet, clip.ressource, nettoyee) : ondeRessource(projet, clip.ressource)).then((o) => actif && o && setOnde(o));
     return () => {
       actif = false;
     };
-  }, [projet, clip.ressource]);
+  }, [projet, clip.ressource, nettoyee]);
   const l = Math.max(1, Math.min(8000, Math.round(largeur)));
   const h = Math.max(4, Math.round(hauteur));
   useEffect(() => {
@@ -80,7 +85,7 @@ export const ClipSon = memo(function ClipSon({ clip, sons, ressource, echelle, h
     <div
       data-son={clip.id}
       data-role={clip.role}
-      title={`${nom} (${secondes} s${clip.jusquALaFin ? ", jusqu'à la fin" : boucle(clip) ? ", répété" : ""})`}
+      title={`${nom} (${secondes} s${clip.jusquALaFin ? ", jusqu'à la fin" : boucle(clip) ? ", répété" : ""}${nettoyageActif(clip.nettoyage) ? ", voix nettoyée" : ""})`}
       onPointerDown={(e) => surCorps(e, clip)}
       className={`absolute top-1 cursor-grab overflow-hidden rounded-md text-[11px] text-white select-none ${COULEURS_ROLE[clip.role]} ${choisi ? "ring-2 ring-white" : "ring-1 ring-black/40"}`}
       style={{ left: gauche, width: largeur, height: h }}
@@ -91,6 +96,7 @@ export const ClipSon = memo(function ClipSon({ clip, sons, ressource, echelle, h
       {!!clip.fonduSortie && <div className="pointer-events-none absolute top-0 right-0 h-full bg-gradient-to-l from-black/40 to-transparent" style={{ width: Math.min(largeur, clip.fonduSortie * echelle) }} />}
       <span className="pointer-events-none relative flex items-center gap-1 truncate px-1.5 pt-0.5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
         <IconeRole role={clip.role} />
+        {nettoyageActif(clip.nettoyage) && <Sparkles size={11} className="shrink-0" aria-label="Voix nettoyée" data-nettoyee />}
         <span className="truncate">{nom}</span>
         {boucle(clip) && <Repeat size={11} className="shrink-0" aria-label="Répété" />}
         {largeur > 90 && <span className="ml-auto shrink-0 text-white/75 tabular-nums">{secondes} s</span>}

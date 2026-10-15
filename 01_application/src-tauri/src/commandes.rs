@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, freesound, images, marque, montage, pixabay, polices, projet, sons, videos};
+use noyau::{export, fichiers, freesound, images, marque, micro, montage, piper, pixabay, polices, projet, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -31,6 +31,10 @@ pub struct Pixabay(Mutex<Option<Arc<pixabay::ClientPixabay>>>);
 /// Le client Freesound (étape 4, lot 5), créé de même à la première demande qui trouve une clé.
 #[derive(Default)]
 pub struct Freesound(Mutex<Option<Arc<freesound::ClientFreesound>>>);
+
+/// Le micro ouvert (étape 4, lot 6), un seul à la fois.
+#[derive(Default)]
+pub struct Micro(Mutex<Option<micro::Captation>>);
 
 /// `~/Documents/Eliot` (le dossier Documents de l'utilisateur, sinon le dossier personnel).
 fn racine(app: &AppHandle) -> Result<PathBuf, String> {
@@ -636,6 +640,232 @@ pub async fn freesound_importer(app: AppHandle, rayon_nom: String, projet_id: St
     })
     .await
     .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// La voix (étape 4, lot 6) : le micro, le nettoyage, la voix de synthèse
+// ----------------------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn micro_lister() -> Result<Vec<micro::Micro>, String> {
+    tauri::async_runtime::spawn_blocking(|| micro::lister().map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))?
+}
+
+/// Ouvre le micro : son niveau arrive tous les 50 ms sur `niveaux` (un micro déjà ouvert est
+/// fermé d'abord).
+#[tauri::command]
+pub async fn micro_ouvrir(app: AppHandle, source: String, niveaux: Channel<micro::NiveauMicro>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let etat = app.state::<Micro>();
+        let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+        *garde = None;
+        let captation = micro::Captation::ouvrir(&source, Box::new(move |n| {
+            let _ = niveaux.send(n);
+        }))
+        .map_err(|e| e.to_string())?;
+        *garde = Some(captation);
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("ouverture interrompue : {e}"))?
+}
+
+fn avec_micro<T>(app: &AppHandle, f: impl FnOnce(&micro::Captation) -> Result<T, micro::ErreurMicro>) -> Result<T, String> {
+    let etat = app.state::<Micro>();
+    let garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    let captation = garde.as_ref().ok_or_else(|| "le micro n'est pas ouvert".to_string())?;
+    f(captation).map_err(|e| e.to_string())
+}
+
+/// Le fichier d'une prise en cours, dans le dossier temporaire du système.
+fn fichier_de_prise() -> PathBuf {
+    let marque = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    std::env::temp_dir().join(format!("eliot-prise-{}-{marque}.wav", std::process::id()))
+}
+
+/// Commence une prise (au clic sur « Enregistrer », compte à rebours compris).
+#[tauri::command]
+pub fn micro_commencer(app: AppHandle) -> Result<(), String> {
+    avec_micro(&app, |m| m.commencer(&fichier_de_prise()))
+}
+
+/// Le top : le compte à rebours est fini, la tête de lecture part. Renvoie l'instant de la
+/// prise, en ms.
+#[tauri::command]
+pub fn micro_marquer(app: AppHandle) -> Result<u64, String> {
+    avec_micro(&app, |m| m.marquer())
+}
+
+#[tauri::command]
+pub fn micro_abandonner(app: AppHandle) {
+    let _ = avec_micro(&app, |m| {
+        m.abandonner();
+        Ok(())
+    });
+}
+
+#[tauri::command]
+pub fn micro_fermer(app: AppHandle) {
+    let etat = app.state::<Micro>();
+    let pris = etat.0.lock().unwrap_or_else(|e| e.into_inner()).take();
+    drop(pris);
+}
+
+/// Une prise rangée dans le design : sa ressource, l'instant du top et sa durée, en ms.
+#[derive(Serialize)]
+pub struct PriseRangee {
+    ressource: images::Ressource,
+    marque: u64,
+    duree: u64,
+}
+
+/// Arrête la prise et la range dans le design sous le nom `nom` (original, copie d'écoute,
+/// forme d'onde, niveau). Le micro continue d'écouter pour la prise suivante.
+#[tauri::command]
+pub async fn micro_arreter(app: AppHandle, rayon_nom: String, projet_id: String, nom: String) -> Result<PriseRangee, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let prise = avec_micro(&app, |m| m.arreter())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let resultat = sons::importer_fait(&prise.chemin, &nom, "micro", Some(prise.marque), None, &dossier, &mut |_| ()).map_err(|e| e.to_string());
+        let _ = std::fs::remove_file(&prise.chemin);
+        resultat.map(|ressource| PriseRangee { ressource, marque: prise.marque, duree: prise.duree })
+    })
+    .await
+    .map_err(|e| format!("rangement interrompu : {e}"))?
+}
+
+/// La version nettoyée d'un son du design (faite au besoin, sinon relue du cache).
+#[tauri::command]
+pub async fn voix_nettoyer(app: AppHandle, rayon_nom: String, projet_id: String, id: String, nettoyage: voix::Nettoyage) -> Result<voix::Traitee, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || voix::nettoyer(&dossier, &id, &nettoyage).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("nettoyage interrompu : {e}"))?
+}
+
+/// La copie d'écoute (`copie`) ou la forme d'onde (`onde`) d'une version nettoyée.
+#[tauri::command]
+pub async fn voix_lire(app: AppHandle, rayon_nom: String, projet_id: String, id: String, cle: String, genre: String) -> Result<Response, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let octets = tauri::async_runtime::spawn_blocking(move || match genre.as_str() {
+        "copie" => voix::chemin(&dossier, &id, &cle, "webm").map_err(|e| e.to_string()).and_then(|c| std::fs::read(c).map_err(|e| format!("lecture impossible : {e}"))),
+        "onde" => voix::lire_onde(&dossier, &id, &cle).map_err(|e| e.to_string()),
+        autre => Err(format!("genre inconnu : {autre}")),
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+#[derive(serde::Deserialize)]
+pub struct VoixUtilisee {
+    ressource: String,
+    nettoyage: voix::Nettoyage,
+}
+
+/// Efface les versions nettoyées dont plus aucun clip du design ne se sert.
+#[tauri::command]
+pub async fn voix_purger(app: AppHandle, rayon_nom: String, projet_id: String, utilisees: Vec<VoixUtilisee>) -> Result<usize, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let gardees: Vec<(String, voix::Nettoyage)> = utilisees.into_iter().map(|u| (u.ressource, u.nettoyage)).collect();
+        voix::purger(&dossier, &gardees)
+    })
+    .await
+    .map_err(|e| format!("rangement interrompu : {e}"))
+}
+
+/// Les dossiers des voix de Piper : `ELIOT_VOIX` pour les essais de développement, sinon
+/// `telechargements/voix/` du dépôt (en développement) et `voix/` dans les données d'Eliot.
+fn dossiers_voix(app: &AppHandle) -> Vec<PathBuf> {
+    if cfg!(debug_assertions)
+        && let Some(d) = std::env::var_os("ELIOT_VOIX")
+    {
+        return vec![PathBuf::from(d)];
+    }
+    let donnees = app.path().app_data_dir().ok();
+    if cfg!(debug_assertions) {
+        piper::dossiers_de_voix(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), donnees.as_deref())
+    } else {
+        donnees.map(|d| vec![d.join("voix")]).unwrap_or_default()
+    }
+}
+
+/// Le dossier où ranger les voix, à montrer dans l'onglet Audio.
+fn dossier_voix_conseille(app: &AppHandle) -> String {
+    let depot = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).map(|d| d.join("telechargements").join("voix"));
+    let dossier = match depot {
+        Some(d) if cfg!(debug_assertions) => Some(d),
+        _ => app.path().app_data_dir().ok().map(|c| c.join("voix")),
+    };
+    dossier.map(|f| f.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// Ce que l'onglet Audio doit savoir de Piper : est-il installé, quelles voix sont là, et où les
+/// ranger.
+#[derive(Serialize)]
+pub struct EtatPiper {
+    installe: bool,
+    voix: Vec<piper::VoixPiper>,
+    dossier: String,
+}
+
+#[tauri::command]
+pub async fn piper_etat(app: AppHandle) -> Result<EtatPiper, String> {
+    tauri::async_runtime::spawn_blocking(move || EtatPiper {
+        installe: piper::trouver_piper().is_some(),
+        voix: piper::lister_voix(&dossiers_voix(&app)).into_iter().map(|v| v.voix).collect(),
+        dossier: dossier_voix_conseille(&app),
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+/// Fait dire `texte` par la voix `voix` : le fichier en cache, calé sur -16 LUFS.
+fn preparer_voix(app: &AppHandle, voix_id: &str, texte: &str, vitesse: f64) -> Result<(piper::VoixTrouvee, PathBuf), String> {
+    let programme = piper::trouver_piper().ok_or_else(|| piper::ErreurPiper::Absent.to_string())?;
+    let toutes = piper::lister_voix(&dossiers_voix(app));
+    if toutes.is_empty() {
+        return Err(piper::ErreurPiper::SansVoix.to_string());
+    }
+    let voix = toutes.into_iter().find(|v| v.voix.id == voix_id).ok_or_else(|| piper::ErreurPiper::VoixInconnue(voix_id.to_string()).to_string())?;
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("piper");
+    let fichier = piper::preparer(&programme, &voix, texte, vitesse, &cache).map_err(|e| e.to_string())?;
+    Ok((voix, fichier))
+}
+
+/// Le texte dit par la voix, à écouter avant de l'ajouter (WAV).
+#[tauri::command]
+pub async fn piper_ecouter(app: AppHandle, voix: String, texte: String, vitesse: f64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || {
+        let (_, fichier) = preparer_voix(&app, &voix, &texte, vitesse)?;
+        std::fs::read(fichier).map_err(|e| format!("lecture impossible : {e}"))
+    })
+    .await
+    .map_err(|e| format!("synthèse interrompue : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Le texte dit par la voix, rangé dans le design comme un son, avec le crédit de la voix.
+#[tauri::command]
+pub async fn piper_ajouter(app: AppHandle, rayon_nom: String, projet_id: String, voix: String, texte: String, vitesse: f64) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (trouvee, fichier) = preparer_voix(&app, &voix, &texte, vitesse)?;
+        let nom = piper::nom_du_son(&texte);
+        let credit = images::Credit {
+            source: "Piper".into(),
+            auteur: trouvee.voix.nom.clone(),
+            lien: trouvee.voix.donnees.clone().unwrap_or_else(|| "https://github.com/OHF-Voice/piper1-gpl".into()),
+            licence: trouvee.voix.licence.clone(),
+            titre: Some(nom.clone()),
+        };
+        sons::importer_fait(&fichier, &nom, "synthese", None, Some(credit), &dossier, &mut |_| ()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("synthèse interrompue : {e}"))?
 }
 
 // ----------------------------------------------------------------------------------------

@@ -30,6 +30,13 @@ function boucle(maintenant: number) {
     image = 0;
     return;
   }
+  // Pendant une prise de voix, la tête passe la fin de la page (la prise l'allongera), dix
+  // minutes au plus.
+  if (useTemps.getState().prise && t < 600_000) {
+    ecrire({ tete: Math.round(t) });
+    image = requestAnimationFrame(boucle);
+    return;
+  }
   if (t >= duree - 1) {
     // Arrêt sur la dernière image (au bout exact, plus rien ne se verrait).
     ecrire({ tete: Math.max(0, duree - 1), joue: false });
@@ -48,8 +55,8 @@ useTemps.subscribe((s, avant) => {
       ecrire({ joue: false });
       return;
     }
-    // Au bout de la page, « lire » repart du début.
-    if (s.tete >= duree - 2) ecrire({ tete: 0 });
+    // Au bout de la page, « lire » repart du début (une prise de voix, elle, continue la page).
+    if (s.tete >= duree - 2 && !s.prise) ecrire({ tete: 0 });
     depart = performance.now();
     teteDepart = useTemps.getState().tete;
     if (!image) image = requestAnimationFrame(boucle);

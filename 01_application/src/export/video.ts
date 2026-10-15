@@ -45,6 +45,9 @@ export async function exporterVideo(o: OptionsFilm): Promise<ResultatFilm> {
     return await exporterFilm(etat.projet, description, reglages, nomDate(), o.chemin, (a) => {
       const e = useExportVideo.getState().enCours;
       if (e) useExportVideo.setState({ enCours: { ...e, avancement: a } });
+      // Annulé juste avant que le noyau ne commence (il remet sa marque à zéro en partant) : on
+      // le lui redit dès son premier signe.
+      if (e?.annulation) void annulerFilm();
     });
   } finally {
     useExportVideo.setState({ enCours: null });

@@ -201,9 +201,10 @@ Choix par défaut de Claude, modifiables sur simple demande :
   calculées par les mêmes formules en TypeScript et en Rust, vérifiées par un tableau de
   valeurs attendues commun. Ce SVG servira aussi à l'étape 5 (SVG, PDF vectoriel, PNG haute
   définition).
-- Son : traitements et mesure du niveau par les filtres de `ffmpeg` (réduction de bruit,
-  coupe des graves, égaliseur, compresseur, dé-esseur, niveau EBU R128, musique qui baisse
-  sous la voix), calculés une fois et gardés en cache. Micro capté par le Rust.
+- Son : traitements calculés une fois et gardés en cache : réduction du bruit par RNNoise
+  dans le noyau, coupe des graves, égaliseur, compresseur et dé-esseur par les filtres de
+  `ffmpeg`, niveau EBU R128 mesuré par `ebur128` (lots 5 et 6, JOURNAL). Micro lu par
+  `ffmpeg`, lancé par le noyau (lot 6).
 - Sous-titres : Whisper sur le processeur (modèle téléchargé une fois par Alexandre, comme
   les archives des personnages) ; voix de synthèse : Piper, même principe. Les deux viennent
   dans leurs lots, avec leurs commandes.
@@ -275,8 +276,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       outils de plus pour le pont IA (57 en tout). Vérifié : noyau 62, interface 142, Chromium
       (son 44, suites d'avant), Tauri (son 26 dont la lecture dans WebKit enregistrée, suites
       d'avant). Reste l'essai d'Alexandre.
-- [ ] Lot 6 : la voix : enregistrement au micro par prises, nettoyage (« Voix nette »), voix
+- [x] Lot 6 : la voix : enregistrement au micro par prises, nettoyage (« Voix nette »), voix
       de synthèse Piper.
+      Livré le 2026-10-15 : micro lu par `ffmpeg` dans le noyau (`micro.rs` : niveau, prise en
+      WAV, top), prise par prise dans l'onglet Audio (compte à rebours, tête qui part, témoin
+      et clip rouges, Espace, Échap, son du montage coupé), nettoyage en valeurs du document
+      (`voix.rs` : RNNoise, graves, chaleur, présence, compresseur, dé-esseur, niveau à -16
+      LUFS ; version nettoyée en cache, jouée par la fenêtre et l'export), « Voix nette » et
+      réglages un par un dans la barre d'une voix, voix de synthèse Piper (`piper.rs`, voix
+      siwis et upmc, licence dans les crédits), un outil de plus pour le pont IA (58 en tout).
+      Vérifié : noyau 74, interface 148, Chromium (voix 37, suites de l'étape 4), Tauri (voix
+      20 dont une prise au micro d'essai et la lecture enregistrée, suites de l'étape 4). Reste
+      l'essai d'Alexandre (commandes 16 et 17 une fois, pour Piper).
 - [ ] Lot 7 : les sous-titres : Whisper, sous-titres mot par mot (le mot prononcé mis en
       valeur), coupe des silences et des hésitations.
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.

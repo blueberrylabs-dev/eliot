@@ -1,6 +1,6 @@
-// L'onglet Audio (étape 4, lot 5) : importer un son du poste, les sons du design, la recherche
-// Freesound, les jingles de la marque et la liste des crédits à coller dans la description
-// d'une vidéo. Un clic pose le son à la tête de lecture, sur la piste audio qui convient ; un
+// L'onglet Audio (étape 4, lots 5 et 6) : importer un son du poste, sa voix au micro ou en
+// synthèse, les sons du design, la recherche Freesound, les jingles de la marque et la liste des
+// crédits à coller dans la description d'une vidéo. Un clic pose le son à la tête de lecture, sur la piste audio qui convient ; un
 // glisser le pose où l'on veut dans la frise. La page devient une vidéo au besoin.
 
 import { Check, ClipboardCopy, Music, Pause, Play } from "lucide-react";
@@ -19,9 +19,11 @@ import { glisserSon } from "../glisserSon";
 import { dureeLisible } from "../videos";
 import { LigneJingle } from "./PanneauMarque";
 import { SectionFreesound } from "./SectionFreesound";
+import { SectionVoix } from "./SectionVoix";
 
-/** Un son de 20 secondes et plus se pose comme une musique, un plus court comme un bruitage. */
-const roleParDefaut = (r: Ressource) => ((r.son?.duree ?? 0) >= 20_000 ? "musique" : "bruitage");
+/** Une prise ou une voix de synthèse se pose comme une voix ; un son de 20 secondes et plus
+ *  comme une musique, un plus court comme un bruitage. */
+const roleParDefaut = (r: Ressource) => (r.son?.origine ? "voix" : (r.son?.duree ?? 0) >= 20_000 ? "musique" : "bruitage");
 
 const nombre = (v: number) => (v < 0 ? "−" : "") + Math.abs(v).toFixed(0);
 
@@ -121,8 +123,10 @@ export function PanneauAudio() {
         <Music size={18} /> {occupe ? "Import en cours" : "Importer un son"}
       </button>
 
+      <SectionVoix />
+
       {sons.length > 0 && (
-        <div className="mb-4">
+        <div className="mt-4 mb-4">
           <p className="mb-2 text-sm font-semibold text-neutral-800">Sons du design</p>
           {sons.map((r) => (
             <LigneSon key={r.id} ressource={r} />

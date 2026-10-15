@@ -1521,13 +1521,66 @@
               "minimum": 1
             }
           }
+        },
+        "nettoyage": {
+          "description": "Le nettoyage d'une voix (l'original n'est jamais touché ; l'export et la fenêtre jouent la version nettoyée) : \"voix nette\" (le réglage prêt : bruit réduit, graves coupés, chaleur et présence, compresseur, dé-esseur, voix calée sur -16 LUFS), \"aucun\", ou les réglages un par un.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "voix nette",
+                "aucun"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "bruit": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Réduction du bruit de fond (RNNoise) ; 1 : toute."
+                },
+                "graves": {
+                  "type": "boolean",
+                  "description": "Coupe les graves sous 80 Hz (rumeur, ronflement)."
+                },
+                "chaleur": {
+                  "type": "number",
+                  "minimum": -6,
+                  "maximum": 6,
+                  "description": "dB, vers 180 Hz."
+                },
+                "presence": {
+                  "type": "number",
+                  "minimum": -6,
+                  "maximum": 6,
+                  "description": "dB, vers 4,5 kHz."
+                },
+                "compresseur": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "deesseur": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "niveau": {
+                  "type": "boolean",
+                  "description": "Cale la voix sur -16 LUFS ; sinon elle garde son niveau."
+                }
+              }
+            }
+          ]
         }
       }
     }
   },
   {
     "name": "regler_son",
-    "description": "Change un son de la frise (identifiant donné par etat, frise.pistesSons) : rôle, volume, fondus, part gardée sous la voix, jusqu'au bout de la page, boucle, coupe, place (debut, piste), fin (l'instant de la page où il s'arrête ; pour un son qui boucle, sa durée), ou le supprime.",
+    "description": "Change un son de la frise (identifiant donné par etat, frise.pistesSons) : rôle, volume, fondus, part gardée sous la voix, jusqu'au bout de la page, boucle, coupe, nettoyage de la voix, place (debut, piste), fin (l'instant de la page où il s'arrête ; pour un son qui boucle, sa durée), ou le supprime.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1604,11 +1657,97 @@
         },
         "supprimer": {
           "type": "boolean"
+        },
+        "nettoyage": {
+          "description": "Le nettoyage d'une voix (l'original n'est jamais touché ; l'export et la fenêtre jouent la version nettoyée) : \"voix nette\" (le réglage prêt : bruit réduit, graves coupés, chaleur et présence, compresseur, dé-esseur, voix calée sur -16 LUFS), \"aucun\", ou les réglages un par un.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "voix nette",
+                "aucun"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "bruit": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Réduction du bruit de fond (RNNoise) ; 1 : toute."
+                },
+                "graves": {
+                  "type": "boolean",
+                  "description": "Coupe les graves sous 80 Hz (rumeur, ronflement)."
+                },
+                "chaleur": {
+                  "type": "number",
+                  "minimum": -6,
+                  "maximum": 6,
+                  "description": "dB, vers 180 Hz."
+                },
+                "presence": {
+                  "type": "number",
+                  "minimum": -6,
+                  "maximum": 6,
+                  "description": "dB, vers 4,5 kHz."
+                },
+                "compresseur": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "deesseur": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "niveau": {
+                  "type": "boolean",
+                  "description": "Cale la voix sur -16 LUFS ; sinon elle garde son niveau."
+                }
+              }
+            }
+          ]
         }
       },
       "required": [
         "id"
       ]
+    }
+  },
+  {
+    "name": "voix_de_synthese",
+    "description": "Fait dire un texte en français par une voix de synthèse (Piper, sur le processeur du poste) et le pose dans la frise de la page affichée, au rôle voix (la musique baisse dessous), à la tête de lecture ou à debut ; une page fixe devient une page vidéo. Le son est calé sur -16 LUFS et rangé dans le design avec le crédit de la voix (la liste à coller est dans etat, frise.creditsSons). Sans texte : les voix installées, leur langue et leur licence. Une phrase par appel donne des clips faciles à placer ; regler_son les déplace ensuite.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "texte": {
+          "type": "string",
+          "description": "3 000 caractères au plus."
+        },
+        "voix": {
+          "type": "string",
+          "description": "Identifiant donné par voix_de_synthese sans texte ; la première voix française par défaut."
+        },
+        "vitesse": {
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5,
+          "description": "1 : normale ; 1,2 : plus vite."
+        },
+        "debut": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Instant de la page, en ms ; la tête de lecture par défaut."
+        },
+        "piste": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "0 : la première piste des sons, sous la principale."
+        }
+      }
     }
   },
   {

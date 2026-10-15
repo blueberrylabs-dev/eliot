@@ -4,7 +4,7 @@
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
-import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
 
 export const dansTauri = isTauri();
 
@@ -27,7 +27,7 @@ interface RessourceNoyau {
   hauteur: number;
   transparence: boolean;
   credit?: (Omit<Credit, "licence" | "titre"> & { licence?: string | null; titre?: string | null }) | null;
-  son?: { duree: number; copie: string; lufs?: number | null; crete?: number | null } | null;
+  son?: { duree: number; copie: string; lufs?: number | null; crete?: number | null; origine?: string | null; marque?: number | null } | null;
   video?: {
     duree: number;
     images_par_seconde: number;
@@ -75,6 +75,8 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
           copie: "webm",
           ...(typeof r.son.lufs === "number" ? { lufs: r.son.lufs } : {}),
           ...(typeof r.son.crete === "number" ? { crete: r.son.crete } : {}),
+          ...(r.son.origine === "micro" || r.son.origine === "synthese" ? { origine: r.son.origine } : {}),
+          ...(typeof r.son.marque === "number" ? { marque: r.son.marque } : {}),
         } satisfies InfosSon,
       }
     : {}),
@@ -1127,6 +1129,233 @@ export async function importerFreesound(ref: RefRessources, id: number, suivi?: 
   const bilan = await importerFichiersNavigateur([fichier]);
   if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
   const ressource = { ...bilan.ressources[0], nom: credit.titre ?? bilan.ressources[0].nom, credit };
+  ressourcesNavigateur.get(ressource.id)!.ressource = ressource;
+  return ressource;
+}
+
+// ========================================================================================
+// La voix (étape 4, lot 6) : le micro, le nettoyage, la voix de synthèse
+// ========================================================================================
+
+/** Un micro du poste, tel que PulseAudio (ou PipeWire) le présente. */
+export interface Micro {
+  nom: string;
+  description: string;
+  defaut: boolean;
+}
+
+/** Le niveau du micro, tous les 50 ms : crête et moyenne en dBFS, saturation, depuis combien de
+ *  ms la prise court (après le compte à rebours), et l'erreur si le micro s'arrête. */
+export interface NiveauMicro {
+  crete: number;
+  rms: number;
+  ecretage: boolean;
+  prise?: number;
+  erreur?: string;
+}
+
+/** Une prise rangée dans le design : la ressource, l'instant du top (ms du fichier) et la durée
+ *  du fichier. */
+export interface PriseRangee {
+  ressource: Ressource;
+  marque: number;
+  duree: number;
+}
+
+/** Une version nettoyée d'un son du design, faite par le noyau. */
+export interface Traitee {
+  cle: string;
+  duree: number;
+  lufs?: number;
+  crete?: number;
+}
+
+/** Une voix de Piper trouvée sur le poste. */
+export interface VoixPiper {
+  id: string;
+  nom: string;
+  langue: string;
+  qualite: string;
+  licence?: string;
+  donnees?: string;
+}
+
+export interface EtatPiper {
+  installe: boolean;
+  voix: VoixPiper[];
+  /** Le dossier où ranger les voix téléchargées. */
+  dossier: string;
+}
+
+/** Les essais de l'interface dans un navigateur posent une fausse voix dans
+ *  `window.__voixEssai` (développement seulement) : faux micro, faux nettoyage, faux Piper. */
+interface VoixEssai {
+  micros(): Promise<Micro[]>;
+  ouvrir(source: string, niveau: (n: NiveauMicro) => void): Promise<void>;
+  commencer(): Promise<void>;
+  marquer(): Promise<number>;
+  arreter(): Promise<{ fichier: File; marque: number; duree: number }>;
+  abandonner(): void;
+  fermer(): void;
+  nettoyer(ressource: string, nettoyage: NettoyageVoix): Promise<{ traitee: Traitee; fichier: File }>;
+  piper(): Promise<EtatPiper>;
+  dire(voix: string, texte: string, vitesse: number): Promise<{ fichier: File; credit: Credit }>;
+}
+const voixEssai = (): VoixEssai | undefined => (!dansTauri && import.meta.env.DEV ? (window as unknown as { __voixEssai?: VoixEssai }).__voixEssai : undefined);
+
+const HORS_FENETRE = "la voix ne s'enregistre et ne se prépare que dans la fenêtre Eliot";
+
+/** La voix est-elle possible ici (dans Tauri, ou avec la fausse voix des essais) ? */
+export const voixDisponible = (): boolean => dansTauri || !!voixEssai();
+
+export async function listerMicros(): Promise<Micro[]> {
+  if (dansTauri) return invoke<Micro[]>("micro_lister");
+  const essai = voixEssai();
+  if (!essai) throw new Error(HORS_FENETRE);
+  return essai.micros();
+}
+
+/** Ouvre le micro `source` ; son niveau arrive à `surNiveau` tous les 50 ms. */
+export async function ouvrirMicro(source: string, surNiveau: (n: NiveauMicro) => void): Promise<void> {
+  if (dansTauri) {
+    const canal = new Channel<NiveauMicro>();
+    canal.onmessage = surNiveau;
+    await invoke("micro_ouvrir", { source, niveaux: canal });
+    return;
+  }
+  const essai = voixEssai();
+  if (!essai) throw new Error(HORS_FENETRE);
+  await essai.ouvrir(source, surNiveau);
+}
+
+export async function commencerPrise(): Promise<void> {
+  if (dansTauri) return invoke("micro_commencer");
+  await voixEssai()?.commencer();
+}
+
+/** Le top : renvoie l'instant de la prise (ms du fichier) où le clip commencera. */
+export async function marquerPrise(): Promise<number> {
+  if (dansTauri) return invoke<number>("micro_marquer");
+  return (await voixEssai()?.marquer()) ?? 0;
+}
+
+export function abandonnerPrise(): void {
+  if (dansTauri) void invoke("micro_abandonner");
+  else voixEssai()?.abandonner();
+}
+
+export function fermerMicro(): void {
+  if (dansTauri) void invoke("micro_fermer");
+  else voixEssai()?.fermer();
+}
+
+/** Arrête la prise et la range dans le design sous le nom `nom`. */
+export async function arreterPrise(ref: RefRessources, nom: string): Promise<PriseRangee> {
+  if (dansTauri) {
+    const r = await invoke<{ ressource: RessourceNoyau; marque: number; duree: number }>("micro_arreter", { rayonNom: ref.rayon, projetId: ref.id, nom });
+    return { ressource: versRessource(r.ressource), marque: r.marque, duree: r.duree };
+  }
+  const essai = voixEssai();
+  if (!essai) throw new Error(HORS_FENETRE);
+  const { fichier, marque, duree } = await essai.arreter();
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource: Ressource = { ...bilan.ressources[0], nom, son: { ...bilan.ressources[0].son!, origine: "micro", marque } };
+  ressourcesNavigateur.get(ressource.id)!.ressource = ressource;
+  return { ressource, marque, duree };
+}
+
+const urlsNettoyees = new Map<string, string>();
+
+/** La version nettoyée d'un son du design (faite par le noyau au besoin, relue sinon). */
+export async function nettoyerVoix(ref: RefRessources, ressource: string, nettoyage: NettoyageVoix): Promise<Traitee> {
+  if (dansTauri) {
+    const t = await invoke<{ cle: string; duree: number; lufs?: number | null; crete?: number | null }>("voix_nettoyer", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, nettoyage });
+    return { cle: t.cle, duree: t.duree, ...(typeof t.lufs === "number" ? { lufs: t.lufs } : {}), ...(typeof t.crete === "number" ? { crete: t.crete } : {}) };
+  }
+  const essai = voixEssai();
+  if (!essai) throw new Error(HORS_FENETRE);
+  const { traitee, fichier } = await essai.nettoyer(ressource, nettoyage);
+  const cle = `${ressource}/${traitee.cle}`;
+  if (!urlsNettoyees.has(cle)) {
+    urlsNettoyees.set(cle, URL.createObjectURL(fichier));
+    ondesNavigateur.set(cle, (await sonderSonNavigateur(await fichier.arrayBuffer())).onde);
+  }
+  return traitee;
+}
+
+/** L'adresse de la copie d'écoute d'une version nettoyée. */
+export async function urlCopieNettoyee(ref: RefRessources, ressource: string, cle: string): Promise<string> {
+  const navigateur = urlsNettoyees.get(`${ressource}/${cle}`);
+  if (navigateur) return navigateur;
+  const fil = `${ref.rayon}/${ref.id}/${ressource}/nettoyee/${cle}`;
+  let promesse = urls.get(fil);
+  if (!promesse) {
+    promesse = invoke<ArrayBuffer>("voix_lire", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, cle, genre: "copie" }).then((octets) => URL.createObjectURL(new Blob([octets], { type: "audio/webm" })));
+    promesse.catch(() => urls.delete(fil));
+    urls.set(fil, promesse);
+  }
+  return promesse;
+}
+
+/** La forme d'onde d'une version nettoyée. */
+export function ondeNettoyee(ref: RefRessources, ressource: string, cle: string): Promise<Onde | null> {
+  if (!dansTauri) return Promise.resolve(ondesNavigateur.get(`${ressource}/${cle}`) ?? null);
+  const fil = `${ref.rayon}/${ref.id}/${ressource}/nettoyee/${cle}`;
+  let promesse = ondes.get(fil);
+  if (!promesse) {
+    promesse = invoke<ArrayBuffer>("voix_lire", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, cle, genre: "onde" }).then(
+      (octets) => JSON.parse(new TextDecoder().decode(octets)) as Onde,
+      () => null,
+    );
+    ondes.set(fil, promesse);
+  }
+  return promesse;
+}
+
+/** Efface les versions nettoyées dont plus aucun clip du design ne se sert. */
+export async function purgerVoix(ref: RefRessources, utilisees: { ressource: string; nettoyage: NettoyageVoix }[]): Promise<void> {
+  if (!dansTauri) return;
+  await invoke("voix_purger", { rayonNom: ref.rayon, projetId: ref.id, utilisees });
+}
+
+/** Piper est-il installé, quelles voix sont là. `null` hors de la fenêtre Eliot. */
+export async function etatPiper(): Promise<EtatPiper | null> {
+  if (dansTauri) return invoke<EtatPiper>("piper_etat");
+  return (await voixEssai()?.piper()) ?? null;
+}
+
+const urlsDites = new Map<string, Promise<string>>();
+
+/** L'adresse locale du texte dit par la voix, à écouter avant de l'ajouter. */
+export function urlVoixDite(voix: string, texte: string, vitesse: number): Promise<string> {
+  const cle = `${voix}\n${vitesse}\n${texte}`;
+  let promesse = urlsDites.get(cle);
+  if (!promesse) {
+    promesse = (async () => {
+      if (dansTauri) {
+        const octets = await invoke<ArrayBuffer>("piper_ecouter", { voix, texte, vitesse });
+        return URL.createObjectURL(new Blob([octets], { type: "audio/wav" }));
+      }
+      const essai = voixEssai();
+      if (!essai) throw new Error(HORS_FENETRE);
+      return URL.createObjectURL((await essai.dire(voix, texte, vitesse)).fichier);
+    })();
+    promesse.catch(() => urlsDites.delete(cle));
+    urlsDites.set(cle, promesse);
+  }
+  return promesse;
+}
+
+/** Le texte dit par la voix, rangé dans le design comme un son (avec le crédit de la voix). */
+export async function ajouterVoixDite(ref: RefRessources, voix: string, texte: string, vitesse: number): Promise<Ressource> {
+  if (dansTauri) return versRessource(await invoke<RessourceNoyau>("piper_ajouter", { rayonNom: ref.rayon, projetId: ref.id, voix, texte, vitesse }));
+  const essai = voixEssai();
+  if (!essai) throw new Error(HORS_FENETRE);
+  const { fichier, credit } = await essai.dire(voix, texte, vitesse);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource: Ressource = { ...bilan.ressources[0], nom: credit.titre ?? "voix", credit, son: { ...bilan.ressources[0].son!, origine: "synthese" } };
   ressourcesNavigateur.get(ressource.id)!.ressource = ressource;
   return ressource;
 }

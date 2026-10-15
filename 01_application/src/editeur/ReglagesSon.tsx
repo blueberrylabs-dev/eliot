@@ -1,13 +1,15 @@
 // Réglages des sons choisis dans la frise (étape 4, lot 5), dans la barre de contexte : rôle
 // (musique, voix, bruitage), volume, fondus, baisse sous la voix, jusqu'au bout de la page,
-// répétition, et le crédit d'un son venu de Freesound.
+// répétition, le crédit d'un son venu de Freesound et, pour une voix (lot 6), son nettoyage.
 
-import { CopyPlus, Pause, Play, Repeat, Trash2, Volume2, VolumeX } from "lucide-react";
+import { CopyPlus, Pause, Play, Repeat, SlidersHorizontal, Sparkles, Trash2, Volume2, VolumeX } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
 import { boucle, FONDU_FIN_MUSIQUE, ROLES_SON, SOUS_LA_VOIX } from "../modele/son";
-import type { ClipAudio, RoleSon } from "../modele/types";
+import type { ClipAudio, NettoyageVoix, RoleSon } from "../modele/types";
+import { borneNettoyage, estVoixNette, nettoyageActif, REGLAGES_NETTOYAGE, VOIX_NETTE } from "../modele/voix";
+import { cleVersion, useNettoyages } from "../etat/nettoyage";
 import { ouvrirLien } from "../pont/tauri";
 import { Bulle } from "./Bulle";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
@@ -15,6 +17,70 @@ import { IconeRole, nomSon } from "./frise/ClipSon";
 import { dureeLisible } from "./videos";
 
 const secondes = (ms: number) => Math.round(ms / 100) / 10;
+const virgule = (v: number, chiffres = 1) => v.toFixed(chiffres).replace(".", ",").replace("-", "−");
+
+/** Où en est la version nettoyée d'un clip : en préparation, prête (son niveau), ou en échec. */
+function EtatNettoyage({ c }: { c: ClipAudio }) {
+  const cle = cleVersion(c.ressource, c.nettoyage);
+  const enCours = useNettoyages((s) => !!s.enCours[cle]);
+  const prete = useNettoyages((s) => s.pretes[cle]);
+  const erreur = useNettoyages((s) => s.erreurs[cle]);
+  if (!nettoyageActif(c.nettoyage)) return <p className="mb-2 text-[11px] text-neutral-500">Aucun nettoyage : la voix telle qu'enregistrée.</p>;
+  if (erreur) return <p className="mb-2 text-[11px] text-red-600">Nettoyage impossible : {erreur}</p>;
+  if (enCours || !prete) return <p data-nettoyage-en-cours className="mb-2 text-[11px] text-neutral-500">Préparation de la voix nettoyée (l'originale joue en attendant)</p>;
+  return (
+    <p data-nettoyage-pret className="mb-2 text-[11px] text-neutral-500">
+      Voix nettoyée prête{prete.lufs !== undefined ? ` : ${virgule(prete.lufs)} LUFS` : ""}. L'original reste intact.
+    </p>
+  );
+}
+
+/** Les réglages du nettoyage d'une voix, un par un. */
+function ReglagesNettoyage({ c, modifier }: { c: ClipAudio; modifier: (n: NettoyageVoix | undefined, etiquette?: string) => void }) {
+  const n = c.nettoyage ?? {};
+  const changer = (m: Partial<NettoyageVoix>, etiquette: string) => {
+    const suivant = borneNettoyage({ ...n, ...m });
+    modifier(nettoyageActif(suivant) ? suivant : undefined, etiquette);
+  };
+  return (
+    <>
+      <EtatNettoyage c={c} />
+      {REGLAGES_NETTOYAGE.map(({ cle, libelle, aide }) => {
+        if (cle === "graves" || cle === "niveau") {
+          return (
+            <label key={cle} title={aide} className="mb-2 flex items-center gap-1.5 text-xs text-neutral-700">
+              <input data-reglage-nettoyage={cle} type="checkbox" checked={!!n[cle]} onChange={(e) => changer({ [cle]: e.target.checked || undefined }, `nettoyage-${cle}`)} className="accent-accent-600" />
+              {libelle}
+            </label>
+          );
+        }
+        const db = cle === "chaleur" || cle === "presence";
+        const valeur = (n[cle] as number | undefined) ?? 0;
+        return (
+          <div key={cle} title={aide} data-reglage-nettoyage={cle}>
+            <Curseur
+              libelle={libelle}
+              valeur={db ? valeur : Math.round(valeur * 100)}
+              min={db ? -6 : 0}
+              max={db ? 6 : 100}
+              pas={db ? 0.5 : 1}
+              unite={db ? " dB" : " %"}
+              surChange={(x) => changer({ [cle]: db ? x : x / 100 }, `nettoyage-${cle}`)}
+            />
+          </div>
+        );
+      })}
+      <div className="flex justify-between">
+        <button className="text-xs text-accent-700 hover:underline" onClick={() => modifier({ ...VOIX_NETTE })}>
+          Remettre Voix nette
+        </button>
+        <button className="text-xs text-accent-700 hover:underline" onClick={() => modifier(undefined)}>
+          Aucun nettoyage
+        </button>
+      </div>
+    </>
+  );
+}
 
 export function ReglagesSon() {
   const sons = useEditeur(useShallow((s) => (pageCourante(s).audio ?? []).filter((c) => s.selectionAudio.includes(c.id))));
@@ -83,6 +149,21 @@ export function ReglagesSon() {
           {volume === 0 ? "Remettre le son" : "Couper le son"}
         </button>
       </Bulle>
+      {c.role === "voix" && (
+        <>
+          <Bouton
+            titre={estVoixNette(c.nettoyage) ? "Voix nette : clique pour revenir à la voix telle qu'enregistrée" : "Voix nette : bruit de fond réduit, graves coupés, voix plus claire et plus égale, niveau calé (l'original reste intact)"}
+            enfoncé={estVoixNette(c.nettoyage)}
+            surClic={() => modifier({ nettoyage: estVoixNette(c.nettoyage) ? undefined : { ...VOIX_NETTE } })}
+          >
+            <Sparkles size={16} />
+            <span className="ml-1 text-sm">Voix nette</span>
+          </Bouton>
+          <Bulle titre="Nettoyage de la voix, réglage par réglage" largeur={300} bouton={<SlidersHorizontal size={16} />} donneesBouton={{ "data-bulle-nettoyage": "" }}>
+            <ReglagesNettoyage c={c} modifier={(n, etiquette) => modifier({ nettoyage: n }, etiquette)} />
+          </Bulle>
+        </>
+      )}
       {c.role === "musique" ? (
         <Bouton
           titre={c.jusquALaFin ? "La musique couvre la page jusqu'au bout, répétée au besoin : clique pour l'arrêter à sa longueur" : "Faire durer la musique jusqu'au bout de la page, répétée au besoin, avec un fondu de fin"}

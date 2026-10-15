@@ -36,7 +36,7 @@ lourd. Détail : `BRIEF.md`.
   (personnages Open Peeps et Humaaans, composeur) livrés et vérifiés ; reste l'essai
   d'Alexandre (`PLAN.md`).
 - Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
-  Humaaans, lues par `npm run bibliotheque`).
+  Humaaans, lues par `npm run bibliotheque` ; voix de Piper dans `telechargements/voix/`, lot 6).
 - Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
   recherche d'essai.
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
@@ -47,11 +47,14 @@ lourd. Détail : `BRIEF.md`.
   lot 3 (l'animation : entrées, sorties, boucles, textes par morceaux, images clés,
   transitions, fondus du son, styles de texte pour la vidéo, trois outils de plus pour le
   pont IA, 53 en tout), lot 4 (l'export en MP4 et en GIF par le noyau, réglages par
-  plateforme, zones sûres) et lot 5 (le son : onglet Audio, sons importés, Freesound, pistes
+  plateforme, zones sûres), lot 5 (le son : onglet Audio, sons importés, Freesound, pistes
   des sons, musique qui baisse sous la voix, jingles du kit de marque, niveau à -14 LUFS,
-  version sans musique, quatre outils de plus pour le pont IA, 57 en tout) livrés et vérifiés ;
-  reste l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13, puis
-  15 bis si l'extension sert) : la liste de ses outils change.
+  version sans musique, quatre outils de plus pour le pont IA, 57 en tout) et lot 6 (la voix :
+  prise au micro avec compte à rebours, « Voix nette » et nettoyage réglage par réglage, voix
+  de synthèse Piper, un outil de plus pour le pont IA, 58 en tout) livrés et vérifiés ; reste
+  l'essai d'Alexandre. Après cette livraison, recompiler le pont (commande 13, puis 15 bis si
+  l'extension sert) : la liste de ses outils change. Pour la voix de synthèse, une fois :
+  commandes 16 et 17.
 
 Suite : `PLAN.md`.
 
@@ -239,9 +242,10 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 62 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
-comparaisons de Claude dans le conteneur). La première fois après le lot 5, `cargo` télécharge
-la bibliothèque `ebur128` (mesure du niveau sonore).
+Vérifier : `test result: ok. 74 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+comparaisons de Claude dans le conteneur). La première fois après le lot 6, `cargo` télécharge
+la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter un faux
+micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -249,7 +253,7 @@ la bibliothèque `ebur128` (mesure du niveau sonore).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  142 passed`.
+Vérifier : `Tests  148 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 
@@ -313,6 +317,44 @@ Vérifier : la commande affiche « Extension prête » suivi du chemin
 pont, puis réinstaller l'extension. Si l'extension et l'entrée du fichier sont actives toutes
 les deux, retirer l'entrée `eliot` du fichier pour éviter un doublon.
 
+### La voix (étape 4, lot 6)
+
+Le micro passe par `ffmpeg` et PulseAudio (que PipeWire fournit sur Ubuntu) : rien à installer
+de plus. Le nettoyage de la voix tourne dans le noyau. Seule la voix de synthèse demande deux
+choses, une fois.
+
+**16. Installer Piper**, le programme de la voix de synthèse (processeur seulement, jamais la
+carte graphique ; environ 170 Mo avec onnxruntime, sa bibliothèque de calcul) :
+
+```
+uv tool install piper-tts==1.8.0
+```
+
+Vérifier : `piper --help` affiche l'aide. Si `piper` est introuvable, taper
+`uv tool update-shell` et rouvrir le terminal (Eliot le cherche aussi dans `~/.local/bin`).
+Revenir en arrière : `uv tool uninstall piper-tts`.
+
+**17. Télécharger deux voix françaises** (135 Mo, depuis le dépôt `rhasspy/piper-voices` de
+Hugging Face) : siwis (une femme, CC BY 4.0) et upmc (Jessica et Pierre, CC BY-SA 4.0). Chaque
+voix a son dossier dans `telechargements/voix/`, hors git, avec son modèle, sa configuration et
+sa fiche (d'où viennent ses données, sous quelle licence) :
+
+```
+for v in siwis upmc; do d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/voix/fr_FR-$v-medium; mkdir -p $d && for f in fr_FR-$v-medium.onnx fr_FR-$v-medium.onnx.json MODEL_CARD; do wget -nc -P $d "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/$v/medium/$f"; done; done
+```
+
+Vérifier les empreintes :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/telechargements/voix && md5sum */*.onnx
+```
+
+Attendu : `20e876e8c839e9b11a26085858f2300c` pour `fr_FR-siwis-medium/fr_FR-siwis-medium.onnx`
+et `6837ede9408c7e1b39fa4a126af9e865` pour `fr_FR-upmc-medium/fr_FR-upmc-medium.onnx` (les
+empreintes publiées dans `voices.json` du même dépôt, retrouvées dans le conteneur de Claude
+le 2026-10-15). Puis rouvrir l'onglet Audio d'Eliot. Revenir en arrière : supprimer le dossier
+`telechargements/voix/`.
+
 ## Arborescence
 
 ```
@@ -320,5 +362,5 @@ Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
 ├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
-└── telechargements/    archives téléchargées à la main (personnages), hors git
+└── telechargements/    archives et voix téléchargées à la main (personnages, voix de Piper), hors git
 ```

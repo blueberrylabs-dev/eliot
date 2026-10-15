@@ -18,6 +18,8 @@ import type { SensAlignement } from "../modele/geometrie";
 import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
+import { versionNettoyee } from "../etat/nettoyage";
+import { borneNettoyage, nettoyageActif, VOIX_NETTE } from "../modele/voix";
 import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
@@ -29,13 +31,13 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { chercherFreesound, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
-import type { Animations, ClipAudio, CleAnimation, RoleSon } from "../modele/types";
+import type { Animations, ClipAudio, CleAnimation, NettoyageVoix, RoleSon } from "../modele/types";
 import { nomSon } from "../editeur/frise/ClipSon";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
@@ -131,6 +133,7 @@ function resumerSon(c: ClipAudio) {
     ...(c.boucle ? { boucle: true } : {}),
     ...(c.jusquALaFin ? { jusquALaFin: true } : {}),
     ...(c.role === "musique" ? { sousLaVoix: c.sousLaVoix ?? 0.3 } : {}),
+    ...(nettoyageActif(c.nettoyage) ? { nettoyage: borneNettoyage(c.nettoyage) } : {}),
   };
 }
 
@@ -554,7 +557,39 @@ function reglagesSon(args: Arguments, longueur: number): Partial<ClipAudio> {
       m.coupe = { debut: Math.round(debut), ...(fin !== undefined ? { fin: Math.round(fin) } : {}) };
     }
   }
+  if (args.nettoyage !== undefined) m.nettoyage = nettoyageDonne(args.nettoyage);
   return m;
+}
+
+/** Le nettoyage d'une voix donné par l'IA : « voix nette », « aucun » (ou null), ou les
+ *  réglages un par un, vérifiés. */
+function nettoyageDonne(v: unknown): NettoyageVoix | undefined {
+  if (v === null || v === "aucun") return undefined;
+  if (v === "voix nette") return { ...VOIX_NETTE };
+  exiger(v && typeof v === "object" && !Array.isArray(v), "nettoyage : \"voix nette\", \"aucun\" ou { bruit, graves, chaleur, presence, compresseur, deesseur, niveau }");
+  const o = v as Record<string, unknown>;
+  const n: NettoyageVoix = {};
+  for (const [cle, valeur] of Object.entries(o)) {
+    if (cle === "graves" || cle === "niveau") {
+      exiger(typeof valeur === "boolean", `nettoyage.${cle} : vrai ou faux`);
+      n[cle] = valeur || undefined;
+    } else if (cle === "chaleur" || cle === "presence") {
+      exiger(typeof valeur === "number" && valeur >= -6 && valeur <= 6, `nettoyage.${cle} : de -6 à 6 dB`);
+      n[cle] = valeur;
+    } else if (cle === "bruit" || cle === "compresseur" || cle === "deesseur") {
+      exiger(typeof valeur === "number" && valeur >= 0 && valeur <= 1, `nettoyage.${cle} : de 0 à 1`);
+      n[cle] = valeur;
+    } else throw new ErreurOutil(`nettoyage : réglage inconnu « ${cle} » (bruit, graves, chaleur, presence, compresseur, deesseur, niveau)`);
+  }
+  const b = borneNettoyage(n);
+  return nettoyageActif(b) ? b : undefined;
+}
+
+/** Attend la version nettoyée d'un son (le noyau la fabrique une fois) : son niveau. */
+async function attendreNettoyage(c: ClipAudio): Promise<Record<string, unknown>> {
+  if (!nettoyageActif(c.nettoyage)) return {};
+  const t = await versionNettoyee(etat().projet!, c.ressource, c.nettoyage!);
+  return { voixNettoyee: { lufs: t.lufs ?? null, crete: t.crete ?? null, duree: t.duree } };
 }
 
 async function base64(blob: Blob): Promise<string> {
@@ -1144,10 +1179,10 @@ const OUTILS: Record<string, Outil> = {
     const m = reglagesSon(args.jingle !== undefined || args.video !== undefined ? args : { ...args, role: undefined }, c.temps.fin - c.temps.debut);
     if (Object.keys(m).length) etat().modifierSons({ [id!]: m });
     const apres = pageCourante(etat()).audio!.find((x) => x.id === id)!;
-    return { donnees: { son: resumerSon(apres), frise: resumerFrise() } };
+    return { donnees: { son: resumerSon(apres), ...(await attendreNettoyage(apres)), frise: resumerFrise() } };
   },
 
-  regler_son(args) {
+  async regler_son(args) {
     designOuvert();
     const page = pageCourante(etat());
     const id = texte(args.id);
@@ -1173,7 +1208,35 @@ const OUTILS: Record<string, Outil> = {
       etat().rognerSon(c.id, "fin", fin!);
     }
     const apres = pageCourante(etat()).audio!.find((x) => x.id === c.id)!;
-    return { donnees: { son: resumerSon(apres), frise: resumerFrise() } };
+    return { donnees: { son: resumerSon(apres), ...(args.nettoyage !== undefined ? await attendreNettoyage(apres) : {}), frise: resumerFrise() } };
+  },
+
+  async voix_de_synthese(args) {
+    designOuvert();
+    const piper = await etatPiper();
+    exiger(piper, "la voix de synthèse ne s'ouvre que dans la fenêtre Eliot");
+    exiger(piper.installe, "Piper n'est pas installé sur le poste : Alexandre doit taper la commande 16 du CLAUDE.md (uv tool install piper-tts), puis relancer Eliot");
+    exiger(piper.voix.length > 0, `aucune voix de Piper : Alexandre doit en télécharger une (commande 17 du CLAUDE.md) dans ${piper.dossier}`);
+    const texteDit = texte(args.texte)?.trim();
+    if (!texteDit) return { donnees: { voix: piper.voix, conseil: "voix_de_synthese avec texte (et voix : un id de cette liste) pour poser la phrase dans la frise" } };
+    exiger(texteDit.length <= 3000, "texte : 3 000 caractères au plus ; découpe en plusieurs appels");
+    const voix = args.voix !== undefined ? piper.voix.find((v) => v.id === String(args.voix)) : (piper.voix.find((v) => v.langue.startsWith("fr")) ?? piper.voix[0]);
+    exiger(voix, `voix inconnue : ${String(args.voix)} (voix_de_synthese sans texte donne la liste)`);
+    const vitesse = nombre(args.vitesse, 1)!;
+    exiger(vitesse >= 0.7 && vitesse <= 1.5, "vitesse : de 0,7 à 1,5 (1 : normale)");
+    const debut = nombre(args.debut);
+    if (args.debut !== undefined) exiger(debut !== undefined && debut >= 0, "debut : un instant de la page, en ms");
+    const piste = nombre(args.piste);
+    if (args.piste !== undefined) exiger(piste !== undefined && Number.isInteger(piste) && piste >= 0, "piste : 0 pour la première piste des sons, 1 pour la suivante…");
+    useTemps.getState().pause();
+    const projet = etat().projet!;
+    const r = await avecSuivi(() => ajouterVoixDite(projet, voix!.id, texteDit, vitesse));
+    exiger(etat().projet === projet, "le design a changé pendant la synthèse");
+    etat().ajouterRessources([r]);
+    const id = etat().ajouterSon(r, { role: "voix", ...(debut !== undefined ? { debut } : {}), ...(piste !== undefined ? { piste } : {}) });
+    exiger(id, "voix non posée");
+    const c = pageCourante(etat()).audio!.find((x) => x.id === id)!;
+    return { donnees: { son: resumerSon(c), voix: { id: voix!.id, nom: voix!.nom, licence: voix!.licence ?? null }, frise: resumerFrise() } };
   },
 
   ajouter_image(args) {

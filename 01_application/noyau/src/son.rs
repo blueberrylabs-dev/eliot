@@ -42,6 +42,9 @@ pub struct ClipAudio {
     pub jusqu_a_la_fin: bool,
     pub phase: Option<f64>,
     pub sous_la_voix: Option<f64>,
+    /// Le nettoyage de la voix (lot 6) : l'export lit alors la version nettoyée du fichier.
+    #[serde(default)]
+    pub nettoyage: Option<crate::voix::Nettoyage>,
 }
 
 fn bruitage() -> String {

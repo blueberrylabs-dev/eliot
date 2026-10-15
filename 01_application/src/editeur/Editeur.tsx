@@ -11,6 +11,7 @@ import { BarreHaut } from "./BarreHaut";
 import { BarreLaterale } from "./BarreLaterale";
 import { deposerFichiers } from "./depot";
 import { Frise } from "./frise/Frise";
+import { IndicateurPrise } from "./IndicateurPrise";
 import { useRaccourcis } from "./raccourcis";
 import { useLecteurSons } from "./sons";
 import { VueGrille } from "./VueGrille";
@@ -73,7 +74,8 @@ export function Editeur() {
       <BarreHaut />
       <div className="flex min-h-0 flex-1">
         <BarreLaterale />
-        <main className="flex min-w-0 flex-1 flex-col">
+        <main className="relative flex min-w-0 flex-1 flex-col">
+          <IndicateurPrise />
           <BarreContexte />
           {vueGrille ? <VueGrille /> : <ZoneDeTravail />}
           {pageVideo && !vueGrille && <Frise />}

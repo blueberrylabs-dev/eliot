@@ -57,6 +57,14 @@ pub struct InfosSon {
     /// Crête vraie, en dBTP ; absente pour un son muet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub crete: Option<f64>,
+    /// D'où vient le son quand Eliot l'a fait lui-même (lot 6) : `micro` (une prise de voix)
+    /// ou `synthese` (une voix de synthèse). Absent pour un son importé.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origine: Option<String>,
+    /// Une prise au micro : l'instant du top (ms du fichier), où la voix commence après le
+    /// compte à rebours. Le clip posé depuis la liste des sons commence là.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub marque: Option<u64>,
 }
 
 /// Extensions reconnues comme des sons à l'import.
@@ -240,6 +248,25 @@ fn analyser(chemin: &Path, duree: u64, avancement: &mut dyn FnMut(f32)) -> Resul
     Ok(mesureur.finir())
 }
 
+/// Décode tout le son de `chemin` (son ou vidéo) en stéréo à 48 kHz, en mémoire : pour les
+/// traitements de la voix (lot 6), qui ont besoin de tout le son à la fois.
+pub(crate) fn decoder_stereo(chemin: &Path) -> Result<Vec<f32>, ErreurSon> {
+    let sortie = videos::programme("ffmpeg")
+        .args(["-hide_banner", "-loglevel", "error", "-nostdin", "-i"])
+        .arg(chemin)
+        .args(["-map", "0:a:0", "-vn", "-sn", "-ac", "2", "-ar", "48000", "-f", "f32le", "pipe:1"])
+        .output()
+        .map_err(|e| if e.kind() == io::ErrorKind::NotFound { ErreurSon::FfmpegAbsent } else { ErreurSon::Lecture(e) })?;
+    if !sortie.status.success() {
+        return Err(ErreurSon::Ffmpeg(String::from_utf8_lossy(&sortie.stderr).lines().last().unwrap_or("échec sans message").to_string()));
+    }
+    let echantillons: Vec<f32> = sortie.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect();
+    if echantillons.len() < 2 {
+        return Err(ErreurSon::PasDeSon);
+    }
+    Ok(echantillons)
+}
+
 // ----------------------------------------------------------------------------------------
 // Import
 // ----------------------------------------------------------------------------------------
@@ -295,7 +322,7 @@ pub fn importer(chemin: &Path, dossier: &Path, avancement: &mut dyn FnMut(f32)) 
         format_apercu: String::new(),
         credit: None,
         video: None,
-        son: Some(InfosSon { duree, copie: "webm".into(), lufs: niveau.lufs, crete: niveau.crete }),
+        son: Some(InfosSon { duree, copie: "webm".into(), lufs: niveau.lufs, crete: niveau.crete, origine: None, marque: None }),
     };
     ecrire_atomiquement(&infos, &serde_json::to_vec_pretty(&ressource).expect("ressource sérialisable"))?;
     avancement(1.0);
@@ -307,6 +334,22 @@ pub fn importer_avec_credit(chemin: &Path, nom: &str, dossier: &Path, credit: Cr
     let mut ressource = importer(chemin, dossier, avancement)?;
     ressource.nom = nom.to_string();
     ressource.credit = Some(credit);
+    let infos = dossier.join("infos").join(format!("{}.json", ressource.id));
+    ecrire_atomiquement(&infos, &serde_json::to_vec_pretty(&ressource).expect("ressource sérialisable"))?;
+    Ok(ressource)
+}
+
+/// Importe un son fait par Eliot (une prise au micro, une voix de synthèse) sous le nom `nom`,
+/// avec son origine (`micro`, `synthese`), l'instant du top d'une prise et, s'il en a un, son
+/// crédit.
+pub fn importer_fait(chemin: &Path, nom: &str, origine: &str, marque: Option<u64>, credit: Option<Credit>, dossier: &Path, avancement: &mut dyn FnMut(f32)) -> Result<Ressource, ErreurSon> {
+    let mut ressource = importer(chemin, dossier, avancement)?;
+    ressource.nom = nom.to_string();
+    ressource.credit = credit;
+    if let Some(son) = ressource.son.as_mut() {
+        son.origine = Some(origine.to_string());
+        son.marque = marque;
+    }
     let infos = dossier.join("infos").join(format!("{}.json", ressource.id));
     ecrire_atomiquement(&infos, &serde_json::to_vec_pretty(&ressource).expect("ressource sérialisable"))?;
     Ok(ressource)

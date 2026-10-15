@@ -5,6 +5,92 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 6 : la voix
+
+Accord d'Alexandre pour enchaîner (« Ça me va, tu peux continuer »). Choix de Claude,
+modifiables sur simple demande :
+
+- Le micro : `ffmpeg`, lancé par le noyau, lit l'entrée PulseAudio (que PipeWire fournit sur
+  Ubuntu), en mono, 48 kHz, 16 bits, par blocs de 20 ms ; le noyau calcule le niveau (crête et
+  moyenne, tous les 50 ms) et écrit la prise en WAV. La brique `cpal` notée au § 4 du BRIEF est
+  écartée : elle demande `libasound2-dev` pour compiler, une installation système de plus, et
+  `ffmpeg` est déjà là. Mesuré dans le conteneur (micro d'essai de PulseAudio) : aucun
+  échantillon perdu, 4,74 s de son lues en 4,70 s d'horloge.
+- La prise : le micro écoute dès « Enregistrer au micro » (le niveau s'affiche) ;
+  « Enregistrer » ouvre le fichier et lance un compte à rebours de 3 s, qui reste dans le
+  fichier ; au top, la tête de lecture part et le clip commencera là (sa coupe) : rien n'est
+  perdu si l'on parle trop tôt. Espace ou la pause finit la prise, Échap l'abandonne, une prise
+  de moins de 0,3 s n'est pas gardée. Pendant la prise, la tête passe la fin de la page (dix
+  minutes au plus) et la page s'allonge à l'arrêt. Le son du montage se tait d'office pendant
+  la prise (sans casque, le micro l'entendrait) ; la case se décoche. « Voix nette » est posé
+  d'office sur chaque prise ; la case se décoche aussi. Une prise est rangée comme un son
+  importé, nommée « Prise 1 », « Prise 2 », avec l'instant de son top : reposée depuis la liste
+  des sons, elle commence encore au top.
+- Mesuré dans Tauri : le bip d'une page, joué pendant une prise et entendu par le micro
+  d'essai, revient dans la prise 0,2 s après son instant (sortie du son de WebKit et entrée de
+  PulseAudio comprises). On parle en regardant la vidéo : rien à corriger. Avec un casque, une
+  voix calée à l'oreille sur la musique peut arriver un peu tard ; il suffit de glisser le
+  clip. À voir sur le poste.
+- Le nettoyage : des valeurs du document posées sur le clip (`nettoyage`), l'original n'est
+  jamais touché (règle 13). Le noyau fabrique une fois la version nettoyée de tout le fichier,
+  par réglages : FLAC 24 bits stéréo pour l'export, copie Opus pour la fenêtre, forme d'onde et
+  niveau, dans `ressources/traitees/`. Ce dossier reste hors de l'archive `.eliot` (il se
+  refait) ; à l'ouverture d'un design, les versions dont plus aucun clip ne se sert sont
+  effacées. La chaîne : réduction du bruit RNNoise (`nnnoiseless` 0.5.2, BSD-3-Clause, modèle
+  compris, rien à télécharger ; son retard d'une trame, 10 ms, est rattrapé ; la force mêle le
+  son d'origine), passe-haut à 80 Hz (24 dB par octave : un ronflement à 50 Hz perd 17 dB, une
+  voix grave à 150 Hz 1 dB), plateau à 180 Hz (chaleur), cloche à 4,5 kHz (présence),
+  compresseur de `ffmpeg` (seuil de -10 à -30 dB, rapport de 1,5 à 6), dé-esseur de `ffmpeg`,
+  puis le niveau : calé sur -16 LUFS, ou gardé tel qu'avant, crête vraie sous -1 dBTP. Le PLAN
+  prévoyait tout par les filtres de `ffmpeg` : RNNoise a été préféré à `afftdn` et `arnndn`
+  (ce dernier demande un fichier de modèle à part) après mesure, ci-dessous.
+- « Voix nette » : bruit réduit à 85 %, graves coupés, chaleur +1,5 dB, présence +3 dB,
+  compresseur et dé-esseur moyens (50 % et 40 %), voix calée sur -16 LUFS. -16 LUFS : le niveau
+  courant d'une voix parlée ; une musique à -14 LUFS, baissée à 30 % sous la voix, descend
+  vers -24, sous elle. Le réglage « niveau » n'était pas dans la liste du BRIEF : ajouté parce
+  qu'une prise au micro d'un ordinateur sort souvent vers -30 LUFS, sous la musique même
+  baissée.
+- Mesuré dans le conteneur, voix de Piper sur des bruits fabriqués : RNNoise baisse un bruit
+  de pièce (rose ou brun) de 30 à 50 dB sans abîmer la voix, mais laisse presque intact un
+  souffle blanc fort (-35 à -45 dBFS) et le ronflement d'un ventilateur (2 à 4 dB) ; `afftdn`
+  ne fait pas mieux sur ces deux-là. Le souffle d'un vrai micro est bien plus bas (-60 dBFS et
+  moins), là où RNNoise le retire peu à peu (34 dB après 3 s). Le ronflement grave, lui, part
+  avec « couper les graves ».
+- Lecture : la fenêtre joue la version nettoyée dès qu'elle est prête, l'originale en
+  attendant ; une petite étoile marque le clip. Mesuré dans WebKit (sortie muette de
+  PulseAudio, enregistrée) : avec « couper les graves », un ronflement à 50 Hz passe de 2 fois
+  à 0,27 fois le niveau d'un 1 kHz voisin, et le film exporté pareil. Nettoyage « Voix nette »
+  d'une phrase de 3,4 s : 0,7 s dans le conteneur (deux cœurs).
+- La voix de synthèse : Piper, un programme à part, lancé comme `ffmpeg` (`piper-tts` 1.8.0,
+  la dernière version sur PyPI le 2026-10-15, dépôt `OHF-Voice/piper1-gpl`, GPL-3.0 ; installé
+  par `uv tool install`, commande 16 du `CLAUDE.md` ; onnxruntime en version processeur, jamais
+  l'option `--cuda`). Les voix : une par dossier dans `telechargements/voix/` (commande 17),
+  avec sa fiche `MODEL_CARD`, d'où Eliot lit la licence et la page des données. Relevé le
+  2026-10-15 sur huggingface.co/rhasspy/piper-voices (fiches des voix françaises) : siwis (CC BY
+  4.0, données SIWIS, une femme), upmc (CC BY-SA 4.0, Jessica et Pierre), mls (CC BY 4.0, 125
+  locuteurs), gilles (CC0, qualité basse), tom (AGPLv3). Conseillées : siwis et upmc. Le son de
+  Piper (22 kHz, mono) est calé sur -16 LUFS et rangé en WAV stéréo à 48 kHz, avec le crédit de
+  la voix ; « Crédits des sons » donne une ligne par voix. Le texte dit reste en cache : écouter
+  puis ajouter ne fait parler Piper qu'une fois. Mesuré dans le conteneur (deux cœurs) : une
+  phrase de 3,6 s prête en 5,5 s dans Eliot, le chargement de la voix compris.
+- Pont IA : `voix_de_synthese` (sans texte : les voix installées et leur licence ; avec texte :
+  la phrase posée au rôle voix) ; `ajouter_son` et `regler_son` prennent `nettoyage` (« voix
+  nette », « aucun » ou réglage par réglage) et attendent la version nettoyée, dont ils donnent
+  le niveau ; `etat` montre le nettoyage des sons (58 outils). L'IA ne prend pas le micro.
+- Correction (lot 4) : une annulation d'export cliquée juste au moment où le noyau partait se
+  perdait (il remet sa marque d'annulation à zéro en partant). La fenêtre la lui redit à son
+  premier signe. Vu une fois par l'essai Tauri de l'export.
+- La coupe des silences et des hésitations repérées par Whisper vient avec les sous-titres, au
+  lot 7.
+- Vérifié dans le conteneur : noyau 74 (dont 12 de la voix : réglages et clé du nettoyage,
+  RNNoise sans décalage, gain final, nettoyage d'une voix relu du cache et purge, liste des
+  micros, en-tête WAV, prise avec top sur un faux micro de `ffmpeg`, micro qui s'arrête,
+  fiches et licences des voix, liste des voix, vrai Piper, export d'une voix nettoyée),
+  interface 148, Chromium 37 vérifications sur la voix (faux micro, faux nettoyage, faux Piper)
+  et les suites de l'étape 4, Tauri 20 (vrai Piper, vrai nettoyage, prise au micro d'essai à la
+  souris, changement de micro vu par PulseAudio, lecture enregistrée, film) et les suites de
+  l'étape 4.
+
 ## 2026-10-15, étape 4, lot 5 : le son
 
 Choix de Claude, modifiables sur simple demande :

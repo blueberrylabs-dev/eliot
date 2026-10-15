@@ -44,6 +44,10 @@ interface EtatTemps {
   arret: number | null;
   /** Les zones sûres montrées sur une page verticale, ou aucune. */
   zonesSures: IdZones | null;
+  /** Une prise de voix en cours (lot 6) : la lecture passe la fin de la page, et le son du
+   *  montage se tait si `muet`. */
+  prise: { muet: boolean } | null;
+  definirPrise: (prise: { muet: boolean } | null) => void;
   choisirZonesSures: (z: IdZones | null) => void;
   allerA: (t: number) => void;
   /** Lit de `debut` à `fin`, puis s'arrête. */
@@ -66,6 +70,10 @@ export const useTemps = create<EtatTemps>((set, get) => ({
   repliee: false,
   arret: null,
   zonesSures: zonesGardees(),
+  prise: null,
+  definirPrise(prise) {
+    set({ prise });
+  },
   choisirZonesSures(zonesSures) {
     set({ zonesSures });
     try {
@@ -109,6 +117,6 @@ export const useTemps = create<EtatTemps>((set, get) => ({
     set({ repliee: !get().repliee });
   },
   remettre() {
-    set({ tete: 0, joue: false, pxParSeconde: null, arret: null });
+    set({ tete: 0, joue: false, pxParSeconde: null, arret: null, prise: null });
   },
 }));

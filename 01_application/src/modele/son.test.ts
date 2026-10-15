@@ -134,6 +134,12 @@ describe("son : la frise", () => {
     const lignes = creditsDesSons(p, { s4s: { nom: "pluie.ogg", credit: { source: "Freesound", auteur: "Anna", lien: "https://freesound.org/s/1/", licence: "CC BY 4.0", titre: "Pluie douce" } }, perso: { nom: "voix.wav" } });
     expect(lignes).toEqual(["« Pluie douce » par Anna (https://freesound.org/s/1/), licence CC BY 4.0, via Freesound"]);
   });
+
+  it("une voix de synthèse a une ligne, quel que soit le nombre de ses phrases", () => {
+    const voix = (titre: string) => ({ nom: titre, credit: { source: "Piper", auteur: "siwis", lien: "https://datashare.is.ed.ac.uk/handle/10283/2353", licence: "CC BY 4.0", titre } });
+    const p = page([son("a", { ressource: "v1" }), son("b", { ressource: "v2" })]);
+    expect(creditsDesSons(p, { v1: voix("Bonjour"), v2: voix("Au revoir") })).toEqual(["Voix de synthèse « siwis » (Piper), données https://datashare.is.ed.ac.uk/handle/10283/2353, licence CC BY 4.0"]);
+  });
 });
 
 // ---- Le tableau commun avec le Rust ----

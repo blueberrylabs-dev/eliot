@@ -4,8 +4,8 @@ L'éditeur, étapes 1 à 3 du `BRIEF.md` et une bonne part de l'étape 4 : un ac
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
 d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
 marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
-leurs voix et leurs bruitages, un enregistrement automatique, l'export en PNG ou en JPEG et
-l'export des vidéos en MP4 ou en GIF.
+leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, un
+enregistrement automatique, l'export en PNG ou en JPEG et l'export des vidéos en MP4 ou en GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -185,6 +185,31 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Pixabay Musique, YouTube Audio Library, Free Music Archive : à télécharger sur leur site,
   puis « Importer un son » ; la licence de chaque titre est à vérifier.
 
+**La voix (étape 4, lot 6)**
+- Onglet Audio, « Ta voix », « Enregistrer au micro » : le micro s'ouvre (celui choisi dans
+  les réglages d'Ubuntu, ou un autre dans la liste) et son niveau s'affiche ; la barre doit
+  monter dans le vert en parlant, sans toucher le rouge.
+- « Enregistrer » : un compte à rebours 3, 2, 1 en grand sur la page, puis la tête de lecture
+  part et l'on parle en suivant la vidéo. Un témoin rouge et un clip rouge dans la frise
+  montrent la prise. Espace (ou « Arrêter ») la finit, Échap l'abandonne. La prise se pose au
+  rôle Voix, là où la tête était au top, et la musique baisse dessous. Le compte à rebours
+  reste dans le fichier : tirer le bord gauche du clip le retrouve si l'on a parlé trop tôt.
+  Prise suivante : la tête reste où la prise s'est arrêtée.
+- Deux cases : « Couper le son du montage pendant la prise » (cochée d'office : sans casque,
+  le micro entendrait la musique) et « Voix nette sur chaque prise » (cochée d'office).
+- « Voix nette », dans la barre d'un son au rôle Voix : bruit de fond réduit (RNNoise), graves
+  coupés sous 80 Hz, un peu de chaleur et de présence, compresseur, dé-esseur, voix calée sur
+  -16 LUFS. L'original n'est jamais touché : Eliot prépare une version nettoyée à côté, que la
+  fenêtre et l'export jouent (l'originale joue le temps qu'elle se prépare). Le bouton voisin
+  ouvre les réglages un par un ; « Aucun nettoyage » revient à la voix telle qu'enregistrée.
+  Une petite étoile sur le clip dit qu'il est nettoyé.
+- « Voix de synthèse » : écrire un texte, choisir une voix et une vitesse, « Écouter », puis
+  « Ajouter » le pose à la tête de lecture, au rôle Voix, calé sur -16 LUFS. Il faut Piper et au
+  moins une voix (commandes 16 et 17 du `CLAUDE.md`, une fois). Les voix conseillées : siwis
+  (une femme, CC BY 4.0) et upmc (Jessica et Pierre, CC BY-SA 4.0) ; la licence de la voix
+  choisie part dans « Crédits des sons ». Les auteurs de Piper le destinent à un usage
+  personnel, ce qui convient à Eliot tant qu'il reste un outil d'apprentissage.
+
 **L'export en MP4 et en GIF (étape 4, lot 4)**
 - Exporter, en haut à droite, sur une page vidéo : MP4 (vidéo avec le son) ou GIF (image
   animée, sans son). Le film entier de la page affichée, fait image par image par le noyau,
@@ -214,7 +239,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder,
   tête de lecture, capture à un instant), animer (entrées, sorties, boucles, images clés,
   transitions, styles de texte pour la vidéo), importer, chercher (Freesound) et poser des
-  sons, les régler, détacher le son d'une vidéo, se servir du kit de marque, dessiner à main
+  sons, les régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher
+  le son d'une vidéo, se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
   capture de la page et exporter (en image, ou en MP4 et en GIF pour une page vidéo, avec la
   version sans musique). On la
@@ -240,6 +266,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 | Espace maintenu + glisser | déplacer la vue |
 | Espace (appui bref, page vidéo) | lire, mettre en pause |
 | Ctrl+B (page vidéo) | scinder à la tête de lecture |
+| Espace, Échap (pendant une prise de voix) | finir la prise, l'abandonner |
 | ←, → sans sélection (Maj : d'une seconde), Début, Fin | tête de lecture d'une image, au début, à la fin |
 | F11 | aperçu en plein écran |
 | Maj+clic, rectangle tracé à la souris | sélection de plusieurs objets |
@@ -251,8 +278,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   `document.json` (le document), `document.precedent.json` (la version d'avant, en secours),
   `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et miniatures des
   images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/` ; pour les sons,
-  `copies/` et `ondes/`). Le dossier se copie
-  tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip.
+  `copies/` et `ondes/` ; pour les voix nettoyées, `traitees/`, refait au besoin). Le dossier
+  se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip (sans
+  `traitees/`).
+- Les prises de voix : rangées dans le design comme les sons importés (`Prise 1`, `Prise 2`, et ainsi de suite).
+- Les voix de Piper : `Eliot/telechargements/voix/` (commande 17), hors git ; les textes dits,
+  en cache dans `~/.cache/fr.alexandredo.eliot/piper/`.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
   plusieurs pages), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
@@ -264,7 +295,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -272,9 +303,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts) et les sons (son.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts) et le nettoyage de la voix (voix.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
-│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
+│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
 │   ├── export/       rendu d'une page hors écran, export en image ; export vidéo : la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), réglages par plateforme (plateformes.ts)

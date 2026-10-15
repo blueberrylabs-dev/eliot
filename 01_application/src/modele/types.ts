@@ -385,6 +385,30 @@ export interface ClipAudio {
   phase?: number;
   /** Musique : la part du volume gardée quand une voix parle (0,3 par défaut). */
   sousLaVoix?: number;
+  /** Le nettoyage de la voix (lot 6) : la fenêtre et l'export jouent la version nettoyée du
+   *  fichier, que le noyau fabrique ; l'original n'est jamais touché. */
+  nettoyage?: NettoyageVoix;
+}
+
+/**
+ * Les réglages du nettoyage d'une voix (étape 4, lot 6), en valeurs du document. Un réglage
+ * absent ne fait rien. Les mêmes dans le noyau (`noyau/src/voix.rs`).
+ */
+export interface NettoyageVoix {
+  /** Réduction du bruit de fond (RNNoise), de 0 à 1. */
+  bruit?: number;
+  /** Coupe les graves sous 80 Hz. */
+  graves?: boolean;
+  /** Chaleur : plateau des bas médiums vers 180 Hz, en dB (de −6 à +6). */
+  chaleur?: number;
+  /** Présence : vers 4,5 kHz, en dB (de −6 à +6). */
+  presence?: number;
+  /** Compresseur, de 0 à 1. */
+  compresseur?: number;
+  /** Dé-esseur, de 0 à 1. */
+  deesseur?: number;
+  /** Cale la voix sur −16 LUFS ; sinon elle garde son niveau d'avant. */
+  niveau?: boolean;
 }
 
 export interface PageEliot {
@@ -434,6 +458,11 @@ export interface InfosSon {
   lufs?: number;
   /** Crête vraie, en dBTP. */
   crete?: number;
+  /** Un son fait par Eliot (lot 6) : une prise au micro ou une voix de synthèse. */
+  origine?: "micro" | "synthese";
+  /** Une prise : l'instant du top (ms du fichier), où la voix commence après le compte à
+   *  rebours ; un clip posé depuis la liste des sons commence là. */
+  marque?: number;
 }
 
 /** Une image ou une vidéo importée, telle que l'interface la connaît : jamais l'original.

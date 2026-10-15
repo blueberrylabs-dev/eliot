@@ -10,9 +10,10 @@ import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
 import { recalerPersonnage } from "../modele/personnages";
 import { catalogueConnu } from "../bibliotheque/personnages";
-import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
+import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type NettoyageVoix, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
 import { deplacerClip, deplacerSon, dupliquerDansLeTemps, dupliquerSon, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, placerSon, rogner, rognerSon, scinder, scinderSons, supprimerSons, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
 import { FONDU_FIN_MUSIQUE } from "../modele/son";
+import { borneNettoyage, nettoyageActif } from "../modele/voix";
 import { cleProche, deplacerCle, DUREE_TRANSITION, poseA, poserCle, retirerCle, type GenreAnimation, type Pose } from "../modele/animation";
 import type { Animation, Transition } from "../modele/types";
 import { useTemps } from "./temps";
@@ -181,8 +182,10 @@ interface EtatEditeur {
   // ---- Sons d'une page vidéo (étape 4, lot 5) ----
   /** Pose un son du design à la tête de lecture (ou à `debut`), sur la piste audio qui
    *  convient ; une page fixe devient une vidéo. Une musique va jusqu'au bout de la page, avec
-   *  un fondu de fin. Un jingle se pose au début ou à la fin. Renvoie l'identifiant du clip. */
-  ajouterSon: (ressource: Ressource, options?: { role?: RoleSon; debut?: number; piste?: number; jingle?: "ouverture" | "fin" }) => string | null;
+   *  un fondu de fin. Un jingle se pose au début ou à la fin. Une prise au micro ou une voix de
+   *  synthèse (lot 6) se pose au rôle voix ; `coupe` et `nettoyage` la posent déjà coupée et
+   *  nettoyée. Renvoie l'identifiant du clip. */
+  ajouterSon: (ressource: Ressource, options?: { role?: RoleSon; debut?: number; piste?: number; jingle?: "ouverture" | "fin"; coupe?: { debut: number; fin?: number }; nettoyage?: NettoyageVoix }) => string | null;
   deplacerSon: (id: string, debut: number, piste: number) => void;
   rognerSon: (id: string, cote: "debut" | "fin", t: number) => void;
   modifierSons: (modifs: Record<string, Partial<ClipAudio>>, etiquette?: string) => void;
@@ -936,12 +939,20 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   ajouterSon(ressource, options = {}) {
     const dureeFichier = ressource.son?.duree ?? (ressource.video?.son ? ressource.video.duree : undefined);
     if (dureeFichier === undefined) return null;
-    const role: RoleSon = options.role ?? (options.jingle ? "musique" : dureeFichier >= 20_000 ? "musique" : "bruitage");
+    const role: RoleSon = options.role ?? (options.jingle ? "musique" : ressource.son?.origine ? "voix" : dureeFichier >= 20_000 ? "musique" : "bruitage");
     const id = nouvelId("s");
     const durees = dureesDe({ ...get().ressources, [ressource.id]: ressource });
     // Une musique (pas un jingle) couvre la page jusqu'au bout, avec un fondu de fin.
     const fond = role === "musique" && !options.jingle;
-    const son = { id, ressource: ressource.id, role, ...(fond ? { jusquALaFin: true, fonduSortie: FONDU_FIN_MUSIQUE } : {}) } as Omit<ClipAudio, "temps" | "piste">;
+    const son = {
+      id,
+      ressource: ressource.id,
+      role,
+      ...(fond ? { jusquALaFin: true, fonduSortie: FONDU_FIN_MUSIQUE } : {}),
+      // Une prise reprise de la liste des sons commence au top, après le compte à rebours.
+      ...(options.coupe ? { coupe: { ...options.coupe } } : ressource.son?.marque ? { coupe: { debut: ressource.son.marque } } : {}),
+      ...(options.nettoyage && nettoyageActif(options.nettoyage) ? { nettoyage: borneNettoyage(options.nettoyage) } : {}),
+    } as Omit<ClipAudio, "temps" | "piste">;
     const etaitVideo = estPageVideo(pageCourante(get()));
     const tete = etaitVideo ? useTemps.getState().tete : 0;
     get().appliquerPage((p) => {

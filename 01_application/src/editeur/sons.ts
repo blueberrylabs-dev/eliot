@@ -2,7 +2,8 @@
 // copie d'écoute de chaque son (jamais l'original, règle 5) est décodée une fois, puis, à chaque
 // lecture, chaque son est programmé sur l'horloge du son, à l'échantillon près : son départ, sa
 // partie jouée, sa boucle, et la courbe de son volume (le volume du clip, ses fondus, la musique
-// qui baisse sous la voix : `modele/son.ts`, les mêmes formules que l'export).
+// qui baisse sous la voix : `modele/son.ts`, les mêmes formules que l'export). Une voix
+// nettoyée (lot 6) joue sa version nettoyée dès qu'elle est prête, l'originale en attendant.
 //
 // Écarté : une balise `<audio>` par son, recalée sur la tête de lecture. Mesuré dans WebKit, une
 // balise part avec un délai variable (jusqu'à 0,3 s quand la fenêtre est chargée, la tête
@@ -12,8 +13,10 @@ import { useEffect, useRef } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
 import { boucle, gainClipSon, partieJouee, sonActifA, tempsMediaSon } from "../modele/son";
-import type { ClipAudio, RefRessources, Ressource } from "../modele/types";
-import { urlCopie } from "../pont/tauri";
+import { sourceDuClip } from "../modele/voix";
+import type { ClipAudio, NettoyageVoix, RefRessources, Ressource } from "../modele/types";
+import { urlCopie, urlCopieNettoyee } from "../pont/tauri";
+import { versionNettoyee } from "../etat/nettoyage";
 
 /** Points par seconde de la courbe du volume d'un son. */
 const POINTS_PAR_SECONDE = 50;
@@ -38,15 +41,32 @@ const contexteDecodage = (): OfflineAudioContext => (decodeur ??= new OfflineAud
 const tampons = new Map<string, Promise<AudioBuffer | null>>();
 const cleTampon = (ref: RefRessources, id: string) => `${ref.rayon}/${ref.id}/${id}`;
 
+function decoder(url: Promise<string>): Promise<AudioBuffer | null> {
+  return url
+    .then((u) => fetch(u))
+    .then((reponse) => reponse.arrayBuffer())
+    .then((octets) => contexteDecodage().decodeAudioData(octets))
+    .catch(() => null);
+}
+
+/** Le son d'une ressource tel qu'il a été importé (sa copie d'écoute). */
 function tamponDe(ref: RefRessources, r: Ressource): Promise<AudioBuffer | null> {
   const cle = cleTampon(ref, r.id);
   let promesse = tampons.get(cle);
   if (!promesse) {
-    promesse = urlCopie(ref, r)
-      .then((url) => fetch(url))
-      .then((reponse) => reponse.arrayBuffer())
-      .then((octets) => contexteDecodage().decodeAudioData(octets))
-      .catch(() => null);
+    promesse = decoder(urlCopie(ref, r));
+    tampons.set(cle, promesse);
+  }
+  return promesse;
+}
+
+/** La version nettoyée d'une ressource (`source` : la clé de `sourceDuClip`). */
+function tamponNettoye(ref: RefRessources, ressource: string, nettoyage: NettoyageVoix, source: string): Promise<AudioBuffer | null> {
+  const cle = cleTampon(ref, source);
+  let promesse = tampons.get(cle);
+  if (!promesse) {
+    promesse = decoder(versionNettoyee(ref, ressource, nettoyage).then((t) => urlCopieNettoyee(ref, ressource, t.cle)));
+    promesse.then((t) => t === null && tampons.delete(cle), () => undefined);
     tampons.set(cle, promesse);
   }
   return promesse;
@@ -58,6 +78,11 @@ function oublierTampons(ref: RefRessources | null) {
   const prefixe = `${ref.rayon}/${ref.id}/`;
   for (const cle of [...tampons.keys()]) if (cle.startsWith(prefixe)) tampons.delete(cle);
 }
+
+type Etat = ReturnType<typeof useTemps.getState>;
+
+/** La page s'entend-elle ? Elle joue, et aucune prise de voix ne lui demande de se taire. */
+const audible = (t: Pick<Etat, "joue" | "prise">) => t.joue && !t.prise?.muet;
 
 interface Programme {
   sources: { source: AudioBufferSourceNode; gain: GainNode }[];
@@ -81,6 +106,9 @@ export function useLecteurSons(): void {
    *  qu'un autre a remplacé ne programme rien. */
   const generation = useRef(0);
 
+  /** Le son qu'un clip joue : sa version nettoyée si elle est prête, sinon l'originale. */
+  const tamponDuClip = (c: ClipAudio) => prets.current.get(sourceDuClip(c).cle) ?? prets.current.get(c.ressource);
+
   /** Arrête les sons programmés ; `garder` : l'horloge du son continue (on relance aussitôt). */
   const arreter = (garder = false) => {
     generation.current++;
@@ -103,7 +131,7 @@ export function useLecteurSons(): void {
     arreter(true);
     const tous = sons.current;
     // Rien à jouer d'ici la fin : l'horloge du son s'arrête.
-    if (!tous.some((c) => prets.current.has(c.ressource) && (c.volume ?? 1) > 0 && c.temps.fin > tete)) {
+    if (!tous.some((c) => tamponDuClip(c) && (c.volume ?? 1) > 0 && c.temps.fin > tete)) {
       if (contexte?.state === "running") void contexte.suspend();
       return;
     }
@@ -113,8 +141,8 @@ export function useLecteurSons(): void {
     else
       void ctx.resume().then(() => {
         const t = useTemps.getState();
-        if (gen === generation.current && t.joue) programmer(ctx, t.tete);
-        else if (!t.joue) void ctx.suspend();
+        if (gen === generation.current && audible(t)) programmer(ctx, t.tete);
+        else if (!audible(t)) void ctx.suspend();
       });
   };
 
@@ -123,7 +151,7 @@ export function useLecteurSons(): void {
     const t0 = ctx.currentTime + MARGE;
     const p: Programme = { sources: [], t0, tete0: tete, ids: new Set() };
     for (const c of tous) {
-      const tampon = prets.current.get(c.ressource);
+      const tampon = tamponDuClip(c);
       if (!tampon || (c.volume ?? 1) <= 0 || c.temps.fin <= tete) continue;
       const fichier = tampon.duration * 1000;
       const debut = Math.max(c.temps.debut, tete);
@@ -164,7 +192,7 @@ export function useLecteurSons(): void {
     lectureSons.clear();
     for (const c of tous) {
       const actif = sonActifA(c, etat.tete);
-      const tampon = prets.current.get(c.ressource);
+      const tampon = tamponDuClip(c);
       lectureSons.set(c.id, {
         joue: etat.joue && actif && !!programme.current?.ids.has(c.id),
         instant: Math.round(tempsMediaSon(c, etat.tete, tampon ? tampon.duration * 1000 : undefined)),
@@ -174,9 +202,11 @@ export function useLecteurSons(): void {
   };
 
   // La tête de lecture mène : lire programme les sons, la pause les arrête, un saut de la tête
-  // pendant la lecture les reprogramme.
+  // pendant la lecture les reprogramme. Une prise de voix « son coupé » fait taire le montage.
   useEffect(() => {
-    const suivre = (etat: { tete: number; joue: boolean }, avant?: { tete: number; joue: boolean }) => {
+    const suivre = (s: Etat, a?: Etat) => {
+      const etat = { tete: s.tete, joue: audible(s) };
+      const avant = a ? { tete: a.tete, joue: audible(a) } : undefined;
       if (!etat.joue) {
         if (programme.current || contexte?.state === "running") arreter();
       } else if (!avant?.joue) lancer(etat.tete);
@@ -185,7 +215,7 @@ export function useLecteurSons(): void {
         const attendue = p.tete0 + (contexte.currentTime - p.t0) * 1000;
         if (Math.abs(etat.tete - attendue) > SAUT) lancer(etat.tete);
       } else if (etat.tete !== avant.tete && Math.abs(etat.tete - avant.tete) > SAUT) lancer(etat.tete);
-      noter(etat);
+      noter({ tete: s.tete, joue: s.joue });
     };
     suivre(useTemps.getState());
     const fin = useTemps.subscribe(suivre);
@@ -201,18 +231,21 @@ export function useLecteurSons(): void {
   useEffect(() => {
     if (!projet) return;
     let actif = true;
+    const pret = (cle: string) => (tampon: AudioBuffer | null) => {
+      if (!actif || !tampon) return;
+      prets.current.set(cle, tampon);
+      const t = useTemps.getState();
+      if (audible(t)) lancer(t.tete);
+    };
     for (const c of audio ?? []) {
       const r = ressources[c.ressource];
-      if (!r || prets.current.has(c.ressource)) continue;
-      void tamponDe(projet, r).then((tampon) => {
-        if (!actif || !tampon) return;
-        prets.current.set(c.ressource, tampon);
-        const t = useTemps.getState();
-        if (t.joue) lancer(t.tete);
-      });
+      if (!r) continue;
+      if (!prets.current.has(c.ressource)) void tamponDe(projet, r).then(pret(c.ressource));
+      const source = sourceDuClip(c);
+      if (source.nettoyage && !prets.current.has(source.cle)) void tamponNettoye(projet, c.ressource, source.nettoyage, source.cle).then(pret(source.cle));
     }
     const t = useTemps.getState();
-    if (t.joue) lancer(t.tete);
+    if (audible(t)) lancer(t.tete);
     noter(t);
     return () => {
       actif = false;

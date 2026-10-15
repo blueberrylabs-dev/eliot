@@ -3,6 +3,8 @@ import { documentVide } from "../modele/fabriques";
 import type { ElementForme } from "../modele/types";
 import { elementsCourants, pageCourante, useEditeur } from "./editeur";
 import { useTemps } from "./temps";
+import { voixUtilisees } from "./nettoyage";
+import { VOIX_NETTE } from "../modele/voix";
 
 const forme = (id: string, x = 0, y = 0): ElementForme => ({
   id, type: "forme", forme: "rectangle", x, y, largeur: 100, hauteur: 100, rotation: 0, opacite: 1, visible: true, verrouille: false,
@@ -194,3 +196,45 @@ describe("sons d'une page vidéo (étape 4, lot 5)", () => {
     expect(pageCourante(etat()).duree).toBe(4000);
   });
 });
+
+describe("la voix (étape 4, lot 6)", () => {
+  const prise = { id: "d".repeat(64), nom: "Prise 1", largeur: 0, hauteur: 0, transparence: false, son: { duree: 9000, copie: "webm" as const, origine: "micro" as const } };
+  const sons = () => pageCourante(etat()).audio ?? [];
+
+  beforeEach(() => etat().ajouterRessources([prise]));
+
+  it("une prise se pose au rôle voix, coupée au top et nettoyée, et le nettoyage se garde quand on scinde", () => {
+    etat().basculerPageVideo(true);
+    // Le compte à rebours (3 s) reste dans le fichier : le clip commence au top.
+    const id = etat().ajouterSon(prise, { debut: 1000, coupe: { debut: 3000 }, nettoyage: { ...VOIX_NETTE, graves: false } })!;
+    const c = sons().find((x) => x.id === id)!;
+    expect(c).toMatchObject({ role: "voix", coupe: { debut: 3000 }, temps: { debut: 1000, fin: 7000 } });
+    expect(c.nettoyage).toEqual({ bruit: 0.85, chaleur: 1.5, presence: 3, compresseur: 0.5, deesseur: 0.4, niveau: true });
+    expect(pageCourante(etat()).duree).toBe(7000);
+    // Reprise de la liste des sons, une prise commence au top.
+    const reprise = etat().ajouterSon({ ...prise, son: { ...prise.son, marque: 2500 } }, { debut: 12_000 })!;
+    expect(sons().find((x) => x.id === reprise)).toMatchObject({ coupe: { debut: 2500 }, temps: { debut: 12_000, fin: 18_500 } });
+    // Sans rôle donné, un son fait par Eliot est une voix, même long.
+    const autre = etat().ajouterSon({ ...prise, id: "e".repeat(64), son: { ...prise.son, duree: 40_000 } })!;
+    expect(sons().find((x) => x.id === autre)!.role).toBe("voix");
+    // Scinder garde le nettoyage des deux côtés ; l'enlever s'annule.
+    etat().selectionnerSons([id]);
+    useTemps.getState().allerA(4000);
+    etat().scinderALaTete();
+    const moitie = etat().selectionAudio[0];
+    expect(sons().find((x) => x.id === moitie)!.nettoyage).toEqual(c.nettoyage);
+    etat().modifierSons({ [id]: { nettoyage: undefined } });
+    expect(sons().find((x) => x.id === id)!.nettoyage).toBeUndefined();
+    etat().annuler();
+    expect(sons().find((x) => x.id === id)!.nettoyage).toEqual(c.nettoyage);
+  });
+
+  it("les voix nettoyées du document, une fois chacune, pour le cache du noyau", () => {
+    etat().basculerPageVideo(true);
+    etat().ajouterSon(prise, { nettoyage: VOIX_NETTE });
+    etat().ajouterSon(prise, { debut: 9000, nettoyage: { ...VOIX_NETTE } });
+    etat().ajouterSon(prise, { debut: 20_000 });
+    expect(voixUtilisees(etat().document.pages)).toEqual([{ ressource: prise.id, nettoyage: VOIX_NETTE }]);
+  });
+});
+

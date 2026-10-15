@@ -18,8 +18,8 @@ gen/schemas/
 *.log
 *.tsbuildinfo
 
-# Archives téléchargées à la main (personnages Open Peeps, Humaaans) : lues par
-# npm run bibliotheque, trop lourdes pour le dépôt
+# Archives et voix téléchargées à la main (personnages Open Peeps, Humaaans ; voix de Piper) :
+# lues par npm run bibliotheque et par Eliot, trop lourdes pour le dépôt
 telechargements/
 
 # Secrets (clés d'API) : hors git, jamais dans un commit (00_moi/COMPTES.md)

@@ -15,6 +15,7 @@ import { pistesAudio } from "../../modele/son";
 import type { ClipAudio, ElementPage, PageEliot } from "../../modele/types";
 import { Clip } from "./Clip";
 import { ClipSon } from "./ClipSon";
+import { usePrise } from "../../etat/prise";
 import { BoutonTransition } from "./Transitions";
 import { ChoixZonesSures } from "../ZonesSures";
 import "./horloge";
@@ -194,6 +195,26 @@ function BarreFrise({ page, largeurZone }: { page: PageEliot; largeurZone: numbe
       <button className={bouton} title={repliee ? "Déplier la frise" : "Replier la frise"} onClick={() => temps.basculerRepli()}>
         {repliee ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
       </button>
+    </div>
+  );
+}
+
+/** La prise de voix en cours (lot 6) : un clip rouge qui grandit avec la tête de lecture. */
+function LignePrise({ echelle }: { echelle: number }) {
+  const phase = usePrise((s) => s.phase);
+  const debut = usePrise((s) => s.debut);
+  const tete = useTemps((s) => (s.prise ? s.tete : null));
+  if (phase !== "enregistre" || tete === null) return null;
+  return (
+    <div data-ligne-prise className="flex" style={{ height: HAUTEUR_SON }}>
+      <div className="sticky left-0 z-10 flex shrink-0 items-center border-r border-b border-white/10 bg-zinc-900 px-2 text-[11px] text-red-300" style={{ width: ENTETE }}>
+        Prise
+      </div>
+      <div className="relative flex-1 border-b border-white/5 bg-zinc-800/30">
+        <div className="absolute top-1 flex items-center gap-1 overflow-hidden rounded-md bg-red-600/85 px-1.5 text-[11px] text-white" style={{ left: debut * echelle, width: Math.max(2, (tete - debut) * echelle), height: HAUTEUR_SON - 8 }}>
+          <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-white" /> <span className="truncate">Prise en cours</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -616,6 +637,7 @@ export function Frise() {
                   </div>
                 </div>
               ))}
+              <LignePrise echelle={echelle} />
             </div>
             {/* La tête de lecture : un trait sur toute la hauteur, avec sa poignée sur la règle. */}
             <div ref={tete} data-tete className="pointer-events-none absolute top-0 left-0 z-20 h-full" style={{ width: 0 }}>

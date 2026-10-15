@@ -163,7 +163,7 @@ export function pistesAudio(p: PageEliot): { piste: number; sons: ClipAudio[] }[
 }
 
 /** Les crédits des sons d'une page à coller dans la description d'une vidéo : un par son venu
- *  d'une banque, une fois chacun. */
+ *  d'une banque, une fois chacun ; une ligne par voix de synthèse. */
 export function creditsDesSons(p: PageEliot, ressources: Record<string, { nom: string; credit?: { source: string; auteur: string; lien: string; licence?: string; titre?: string } }>): string[] {
   const vus = new Set<string>();
   const lignes: string[] = [];
@@ -173,8 +173,12 @@ export function creditsDesSons(p: PageEliot, ressources: Record<string, { nom: s
     const r = ressources[c.ressource];
     const k = r?.credit;
     if (!k) continue;
-    const titre = k.titre ?? r.nom.replace(/\.[a-z0-9]+$/i, "");
-    lignes.push(`« ${titre} » par ${k.auteur} (${k.lien})${k.licence ? `, licence ${k.licence}` : ""}, via ${k.source}`);
+    // Une voix de synthèse (lot 6) : la voix et ses données, une fois pour toutes ses phrases.
+    const ligne =
+      k.source === "Piper"
+        ? `Voix de synthèse « ${k.auteur} » (Piper), données ${k.lien}${k.licence ? `, licence ${k.licence}` : ""}`
+        : `« ${k.titre ?? r.nom.replace(/\.[a-z0-9]+$/i, "")} » par ${k.auteur} (${k.lien})${k.licence ? `, licence ${k.licence}` : ""}, via ${k.source}`;
+    if (!lignes.includes(ligne)) lignes.push(ligne);
   }
   return lignes;
 }

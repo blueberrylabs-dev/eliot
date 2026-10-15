@@ -384,6 +384,10 @@ fn ajouter_au_zip<W: Write + io::Seek>(zip: &mut zip::ZipWriter<W>, racine: &Pat
         if nom.starts_with('.') || nom == FICHIER_PRECEDENT {
             continue;
         }
+        // Les voix nettoyées (lot 6) se refont au besoin : elles restent hors de l'archive.
+        if nom == crate::voix::DOSSIER && dossier.file_name().is_some_and(|d| d == DOSSIER_RESSOURCES) {
+            continue;
+        }
         let chemin = entree.path();
         let relatif = chemin.strip_prefix(racine).expect("sous la racine").to_string_lossy().replace('\\', "/");
         if entree.file_type()?.is_dir() {

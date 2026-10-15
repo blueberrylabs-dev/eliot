@@ -7,6 +7,7 @@ import * as pont from "../pont/tauri";
 import { assurerPolicesDocument, chargerPolicesDesign, fichiersDuPoste } from "../polices";
 import { enregistrerMaintenant, miniatureMaintenant } from "./enregistrement";
 import { useEditeur } from "./editeur";
+import { voixUtilisees } from "./nettoyage";
 
 const erreur = (texte: string, e: unknown) => useEditeur.getState().notifier(`${texte} : ${String(e instanceof Error ? e.message : e)}`, { erreur: true });
 
@@ -24,6 +25,8 @@ export async function ouvrirDesign(ref: RefProjet): Promise<boolean> {
     await assurerPolicesDocument(document);
     useEditeur.getState().chargerProjet(ref, document, ressources);
     if (!info.miniature) void miniatureMaintenant(ref, document);
+    // Les voix nettoyées dont plus aucun clip ne se sert (versions essayées puis abandonnées).
+    void pont.purgerVoix(ref, voixUtilisees(document.pages)).catch(() => undefined);
     return true;
   } catch (e) {
     erreur("Ouverture impossible", e);

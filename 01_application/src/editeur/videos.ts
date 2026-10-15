@@ -230,7 +230,8 @@ export function useLecteurVideo(el: ElementVideo, joue: boolean, son: boolean, n
       const transitions = contextesTransitions(pageCourante(useEditeur.getState())).get(e.id);
       const volume = gainSon(e, etat.tete, { transitionEntree: transitions?.entree, transitionSortie: transitions?.sortie });
       video.volume = volume;
-      video.muted = !son || (e.volume ?? 1) === 0;
+      // Pendant une prise de voix « son coupé », le montage se tait (le micro ne l'entend pas).
+      video.muted = !son || (e.volume ?? 1) === 0 || !!useTemps.getState().prise?.muet;
       if (etat.joue && visible) {
         if (video.paused) {
           chercher(cible);
