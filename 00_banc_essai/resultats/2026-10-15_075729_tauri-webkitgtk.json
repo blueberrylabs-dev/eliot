@@ -1,0 +1,284 @@
+{
+  "version": 1,
+  "horodatage": "2026-10-15_075729",
+  "moteur": "tauri-webkitgtk",
+  "navigateur": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ecran": {
+    "largeur": 1920,
+    "hauteur": 1080,
+    "rapportPixels": 1.25,
+    "frequenceHz": 63
+  },
+  "fenetre": {
+    "largeur": 1473,
+    "hauteur": 802
+  },
+  "scene": {
+    "largeur": 1044,
+    "hauteur": 748,
+    "echellePage": 0.604
+  },
+  "machine": {
+    "processeur": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "coeurs": 32,
+    "memoire_go": 62,
+    "cartes_graphiques": [
+      "card1 : NVIDIA, pilote nvidia"
+    ],
+    "session": "x11",
+    "variables": [],
+    "lancement_automatique": false
+  },
+  "resultats": [
+    {
+      "id": "redessin_page",
+      "titre": "Redessiner les 200 objets à chaque image",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5013,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 18,
+        "acoups": 0,
+        "dessinMoyenMs": 8.67
+      },
+      "verdict": "fluide"
+    },
+    {
+      "id": "glisser_un",
+      "titre": "Glisser un objet (poignées affichées)",
+      "statut": "ok",
+      "stats": {
+        "images": 225,
+        "dureeMs": 5006,
+        "imagesParSeconde": 44.9,
+        "dureeImageP50": 22,
+        "dureeImageP95": 24,
+        "dureeImageMax": 32,
+        "acoups": 0,
+        "dessinMoyenMs": 8.74
+      },
+      "verdict": "correct"
+    },
+    {
+      "id": "glisser_cinquante",
+      "titre": "Glisser 50 objets sélectionnés ensemble",
+      "statut": "ok",
+      "stats": {
+        "images": 208,
+        "dureeMs": 5008,
+        "imagesParSeconde": 41.5,
+        "dureeImageP50": 24,
+        "dureeImageP95": 26,
+        "dureeImageMax": 29,
+        "acoups": 0,
+        "dessinMoyenMs": 9.01
+      },
+      "verdict": "correct"
+    },
+    {
+      "id": "glisser_un_sans_poignees",
+      "titre": "Glisser un objet, sans poignées (un seul calque)",
+      "statut": "ok",
+      "stats": {
+        "images": 235,
+        "dureeMs": 5007,
+        "imagesParSeconde": 46.9,
+        "dureeImageP50": 21,
+        "dureeImageP95": 24,
+        "dureeImageMax": 28,
+        "acoups": 0,
+        "dessinMoyenMs": 8.24
+      },
+      "verdict": "correct"
+    },
+    {
+      "id": "glisser_un_calque_unique",
+      "titre": "Glisser un objet, poignées dans le calque de la page",
+      "statut": "ok",
+      "stats": {
+        "images": 231,
+        "dureeMs": 5020,
+        "imagesParSeconde": 46,
+        "dureeImageP50": 22,
+        "dureeImageP95": 24,
+        "dureeImageMax": 26,
+        "acoups": 0,
+        "dessinMoyenMs": 8.46
+      },
+      "verdict": "correct"
+    },
+    {
+      "id": "glisser_un_calque_glisse",
+      "titre": "Glisser un objet sur un calque à part",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5014,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 0.35
+      },
+      "verdict": "fluide"
+    },
+    {
+      "id": "glisser_cinquante_calque_glisse",
+      "titre": "Glisser 50 objets sur un calque à part",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5014,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 18,
+        "acoups": 0,
+        "dessinMoyenMs": 2.41
+      },
+      "verdict": "fluide"
+    },
+    {
+      "id": "tourner_redimensionner",
+      "titre": "Tourner et redimensionner 10 objets",
+      "statut": "ok",
+      "stats": {
+        "images": 213,
+        "dureeMs": 5019,
+        "imagesParSeconde": 42.4,
+        "dureeImageP50": 23,
+        "dureeImageP95": 25,
+        "dureeImageMax": 27,
+        "acoups": 0,
+        "dessinMoyenMs": 9.19
+      },
+      "verdict": "correct"
+    },
+    {
+      "id": "photo_pleine",
+      "titre": "Glisser une photo 24 Mpx en pleine résolution",
+      "statut": "ok",
+      "stats": {
+        "images": 193,
+        "dureeMs": 5010,
+        "imagesParSeconde": 38.5,
+        "dureeImageP50": 26,
+        "dureeImageP95": 28,
+        "dureeImageMax": 31,
+        "acoups": 0,
+        "dessinMoyenMs": 9.91
+      },
+      "verdict": "correct",
+      "mesures": {
+        "chargement et décodage (ms)": 115,
+        "premier affichage (ms)": 20,
+        "taille source": "6000 x 4000"
+      }
+    },
+    {
+      "id": "photo_apercu",
+      "titre": "Glisser la même photo en aperçu 2560 px",
+      "statut": "ok",
+      "stats": {
+        "images": 210,
+        "dureeMs": 5013,
+        "imagesParSeconde": 41.9,
+        "dureeImageP50": 24,
+        "dureeImageP95": 25,
+        "dureeImageMax": 29,
+        "acoups": 0,
+        "dessinMoyenMs": 9.5
+      },
+      "verdict": "correct",
+      "mesures": {
+        "chargement et décodage (ms)": 32,
+        "premier affichage (ms)": 20,
+        "taille source": "2560 x 1707"
+      }
+    },
+    {
+      "id": "video_h264",
+      "titre": "Vidéo 1080p H.264 dans la page + glisser",
+      "statut": "ok",
+      "stats": {
+        "images": 175,
+        "dureeMs": 5028,
+        "imagesParSeconde": 34.8,
+        "dureeImageP50": 29,
+        "dureeImageP95": 31,
+        "dureeImageMax": 33,
+        "acoups": 0,
+        "dessinMoyenMs": 11.32
+      },
+      "verdict": "correct",
+      "mesures": {
+        "canPlayType": "probably",
+        "images vidéo affichées": 90,
+        "images vidéo perdues": 0,
+        "secondes de vidéo lues": 3.1
+      }
+    },
+    {
+      "id": "video_vp9",
+      "titre": "Vidéo 1080p VP9 dans la page + glisser",
+      "statut": "ok",
+      "stats": {
+        "images": 171,
+        "dureeMs": 5002,
+        "imagesParSeconde": 34.2,
+        "dureeImageP50": 29,
+        "dureeImageP95": 32,
+        "dureeImageMax": 36,
+        "acoups": 5,
+        "dessinMoyenMs": 11.83
+      },
+      "verdict": "correct",
+      "mesures": {
+        "canPlayType": "probably",
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0,
+        "secondes de vidéo lues": 5.4
+      }
+    },
+    {
+      "id": "export_png",
+      "titre": "Exporter la page en PNG 2160 x 2160",
+      "statut": "ok",
+      "mesures": {
+        "durée médiane de 3 exports (ms)": 180,
+        "taille obtenue": "2160 x 2160",
+        "poids (octets)": 819100
+      }
+    },
+    {
+      "id": "reduction_moteur_web",
+      "titre": "Photo 24 Mpx vers aperçu 2560 px, par le moteur web",
+      "statut": "ok",
+      "mesures": {
+        "lecture (ms)": 8,
+        "décodage (ms)": 158,
+        "réduction à 2560 px (ms)": 96,
+        "encodage JPEG (ms)": 25,
+        "total (ms)": 287,
+        "poids de l'aperçu (octets)": 522125
+      }
+    },
+    {
+      "id": "reduction_rust",
+      "titre": "Photo 24 Mpx vers aperçu 2560 px, par le Rust",
+      "statut": "ok",
+      "mesures": {
+        "lecture (ms)": 1.7,
+        "décodage (ms)": 95,
+        "réduction à 2560 px (ms)": 53.6,
+        "encodage JPEG (ms)": 81.9,
+        "total (ms)": 232.2,
+        "poids de l'aperçu (octets)": 437281
+      }
+    }
+  ]
+}

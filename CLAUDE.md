@@ -150,7 +150,7 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && python3 outils/generer_
 
 Vérifier : six lignes « … de fabrication … Mo », puis « Copies prêtes ». Ensuite, carte
 graphique libre, lancer le banc comme à la commande 6 et cliquer « Copies d'aperçu
-(étape 4) » ; ne plus toucher à la fenêtre pendant environ deux minutes. Arrêter : `Ctrl+C`.
+(étape 4) » ; ne plus toucher à la fenêtre pendant environ trois minutes. Arrêter : `Ctrl+C`.
 
 ```
 cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && npm run tauri dev

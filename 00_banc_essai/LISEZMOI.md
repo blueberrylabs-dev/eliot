@@ -48,8 +48,9 @@ demi-seconde :
 Le bouton « Copies d'aperçu (étape 4) » mesure, pour chacune : la fabrication (durée sur le
 processeur, poids), la lecture sur un calque à part au-dessus de la page de 200 objets
 (images par seconde, images de la vidéo affichées et perdues, vitesse réelle), deux vidéos à
-la fois (une principale et une incrustation), et la tête de lecture (temps d'un saut,
-images par seconde pendant un glisser continu de la tête). Environ deux minutes. Résultats
+la fois (une principale et une incrustation), la vidéo posée dans la page elle-même avec la
+page entière redessinée à chaque image (le montage le plus simple), et la tête de lecture (temps d'un saut,
+images par seconde pendant un glisser continu de la tête). Environ trois minutes. Résultats
 dans `resultats/AAAA-MM-JJ_HHMMSS_<moteur>_copies.json`, avec la liste des copies et la
 version de `ffmpeg`.
 

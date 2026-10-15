@@ -7,6 +7,8 @@
 // - la lecture : images par seconde de la fenêtre, images de la vidéo affichées et perdues,
 //   vitesse réelle de lecture (1 = temps réel) ;
 // - deux vidéos à la fois (une vidéo principale et une incrustation) ;
+// - la vidéo posée dans la page elle-même, la page entière (200 objets) redessinée à chaque
+//   image : le montage le plus simple, à comparer au calque à part ;
 // - la tête de lecture : temps d'un saut à un instant précis, vidéo en pause (médiane, 95e
 //   centile, pire), puis un glisser continu de la tête de lecture pendant 3 secondes (combien
 //   d'images différentes arrivent à l'écran par seconde).
@@ -98,20 +100,31 @@ function calqueVideo(ctx: Contexte): Konva.Layer {
 
 const qualite = (video: HTMLVideoElement) => video.getVideoPlaybackQuality?.();
 
-async function mesurerLecture(ctx: Contexte, copie: Copie, nombre: 1 | 2): Promise<Resultat> {
-  const id = `${copie.id}_${nombre === 1 ? "lecture" : "deux_videos"}`;
-  const titre = `${copie.description} : ${nombre === 1 ? "lecture" : "deux vidéos à la fois"}`;
+async function mesurerLecture(ctx: Contexte, copie: Copie, nombre: 1 | 2, dansLaPage = false): Promise<Resultat> {
+  const id = `${copie.id}_${dansLaPage ? "dans_la_page" : nombre === 1 ? "lecture" : "deux_videos"}`;
+  const titre = `${copie.description} : ${dansLaPage ? "dans la page, tout redessiné" : nombre === 1 ? "lecture" : "deux vidéos à la fois"}`;
   const videos: HTMLVideoElement[] = [];
-  const calque = calqueVideo(ctx);
+  // Dans la page : la vidéo rejoint le groupe de la page, juste au-dessus du fond, sous les
+  // 200 objets, et c'est le calque de la page entière qui se redessine à chaque image.
+  const calque = dansLaPage ? ctx.scene.calquePage : calqueVideo(ctx);
+  const conteneur: Konva.Container = dansLaPage ? ctx.scene.groupePage : calque;
+  const ajoutes: Konva.Node[] = [];
   try {
     // Une adresse différente pour la seconde vidéo : le moteur ne doit pas partager un lecteur
     // entre les deux, comme pour deux clips différents dans Eliot.
     for (let i = 0; i < nombre; i++) videos.push(await ouvrir(`${BASE}/${copie.fichier}${i ? "?incrustation" : ""}`));
     // Vidéo principale en 16:9 sur la largeur de la page ; l'incrustation en bas à droite.
-    calque.add(new Konva.Image({ image: videos[0], x: 0, y: (PAGE - 607) / 2, width: PAGE, height: 607 }));
+    ajoutes.push(new Konva.Image({ image: videos[0], x: 0, y: (PAGE - 607) / 2, width: PAGE, height: 607 }));
     if (videos[1]) {
       videos[1].currentTime = 7;
-      calque.add(new Konva.Image({ image: videos[1], x: PAGE - 420, y: PAGE - 270, width: 384, height: 216, stroke: "#ffffff", strokeWidth: 6 }));
+      ajoutes.push(new Konva.Image({ image: videos[1], x: PAGE - 420, y: PAGE - 270, width: 384, height: 216, stroke: "#ffffff", strokeWidth: 6 }));
+    }
+    for (const noeud of ajoutes) {
+      conteneur.add(noeud);
+      if (dansLaPage) {
+        noeud.moveToBottom();
+        noeud.moveUp(); // juste au-dessus du fond de page
+      }
     }
     ctx.scene.stage.batchDraw();
     await Promise.all(videos.map((v) => v.play()));
@@ -140,7 +153,8 @@ async function mesurerLecture(ctx: Contexte, copie: Copie, nombre: 1 | 2): Promi
     return { id, titre, statut: "impossible", note: String((erreur as Error).message) };
   } finally {
     videos.forEach(fermer);
-    calque.destroy();
+    if (dansLaPage) ajoutes.forEach((n) => n.destroy());
+    else calque.destroy();
     ctx.scene.stage.batchDraw();
   }
 }
@@ -237,6 +251,7 @@ export function scenariosCopies(liste: ListeCopies): Scenario[] {
     });
     scenarios.push({ id: `${copie.id}_lecture`, titre: `${copie.description} : lecture`, executer: (ctx) => mesurerLecture(ctx, copie, 1) });
     scenarios.push({ id: `${copie.id}_deux_videos`, titre: `${copie.description} : deux vidéos à la fois`, executer: (ctx) => mesurerLecture(ctx, copie, 2) });
+    scenarios.push({ id: `${copie.id}_dans_la_page`, titre: `${copie.description} : dans la page, tout redessiné`, executer: (ctx) => mesurerLecture(ctx, copie, 1, true) });
     scenarios.push({ id: `${copie.id}_tete_de_lecture`, titre: `${copie.description} : tête de lecture`, executer: (ctx) => mesurerTete(ctx, copie, liste.duree_source_s) });
   }
   return scenarios;
