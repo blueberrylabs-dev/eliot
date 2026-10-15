@@ -10,7 +10,7 @@
 // - la vidéo posée dans la page elle-même, la page entière (200 objets) redessinée à chaque
 //   image : le montage le plus simple, à comparer au calque à part ;
 // - la tête de lecture : temps d'un saut à un instant précis, vidéo en pause (médiane, 95e
-//   centile, pire), puis un glisser continu de la tête de lecture pendant 3 secondes (combien
+//   centile, pire, sauts sans réponse), puis un glisser continu de la tête de lecture pendant 3 secondes (combien
 //   d'images différentes arrivent à l'écran par seconde).
 
 import Konva from "konva";
@@ -159,12 +159,24 @@ async function mesurerLecture(ctx: Contexte, copie: Copie, nombre: 1 | 2, dansLa
   }
 }
 
-/** L'image affichée après un saut : `requestVideoFrameCallback` si le moteur l'a, sinon
- *  l'évènement `seeked` suivi d'une image de la fenêtre. */
-function imageArrivee(video: HTMLVideoElement): Promise<void> {
-  const v = video as HTMLVideoElement & { requestVideoFrameCallback?: (f: () => void) => number };
-  if (typeof v.requestVideoFrameCallback === "function") return new Promise((ok) => v.requestVideoFrameCallback!(() => ok()));
-  return attendre(video, "seeked", 5000).then(() => new Promise((ok) => requestAnimationFrame(() => ok())));
+/**
+ * Un saut de la tête de lecture, vidéo en pause : temps jusqu'à l'évènement `seeked`, plus
+ * une image de la fenêtre pour la dessiner. `null` si la vidéo ne répond pas en 3 secondes
+ * (un saut perdu ne doit jamais bloquer la série : c'est ce qui arrivait avec
+ * `requestVideoFrameCallback`, qui ne se déclenche pas toujours sur une vidéo en pause).
+ */
+async function sauter(video: HTMLVideoElement, cible: number, dessiner: () => void): Promise<number | null> {
+  const t0 = performance.now();
+  const arrivee = attendre(video, "seeked", 3000);
+  video.currentTime = cible;
+  try {
+    await arrivee;
+  } catch {
+    return null;
+  }
+  dessiner();
+  await new Promise((ok) => requestAnimationFrame(() => ok(undefined)));
+  return performance.now() - t0;
 }
 
 async function mesurerTete(ctx: Contexte, copie: Copie, duree: number): Promise<Resultat> {
@@ -179,14 +191,12 @@ async function mesurerTete(ctx: Contexte, copie: Copie, duree: number): Promise<
     calque.add(noeud);
     // 1. Sauts isolés, vidéo en pause, à des instants fixés (les mêmes pour chaque copie).
     const sauts: number[] = [];
+    let perdus = 0;
     for (let i = 0; i < 15; i++) {
       const cible = ((i * 7919) % Math.floor((duree - 1) * 10)) / 10 + 0.37;
-      const t0 = performance.now();
-      const arrivee = imageArrivee(video);
-      video.currentTime = cible;
-      await arrivee;
-      calque.draw();
-      sauts.push(performance.now() - t0);
+      const duree_ms = await sauter(video, cible, () => calque.draw());
+      if (duree_ms === null) perdus++;
+      else sauts.push(duree_ms);
       await new Promise((ok) => setTimeout(ok, 60));
     }
     // 2. Glisser continu de la tête de lecture : un aller de 0 à la fin en 3 secondes, un
@@ -210,11 +220,11 @@ async function mesurerTete(ctx: Contexte, copie: Copie, duree: number): Promise<
       titre,
       statut: "ok",
       mesures: {
-        "saut, médiane (ms)": arrondi(mediane(sauts)),
-        "saut, 95e centile (ms)": arrondi(centile(sauts, 95)),
-        "saut, pire (ms)": arrondi(Math.max(...sauts)),
+        "saut, médiane (ms)": sauts.length ? arrondi(mediane(sauts)) : "aucun",
+        "saut, 95e centile (ms)": sauts.length ? arrondi(centile(sauts, 95)) : "aucun",
+        "saut, pire (ms)": sauts.length ? arrondi(Math.max(...sauts)) : "aucun",
+        "sauts sans réponse en 3 s": perdus,
         "glisser de la tête : images par seconde": arrondi(arrivees / secondes),
-        "méthode": typeof (video as { requestVideoFrameCallback?: unknown }).requestVideoFrameCallback === "function" ? "requestVideoFrameCallback" : "seeked",
       },
     };
   } catch (erreur) {

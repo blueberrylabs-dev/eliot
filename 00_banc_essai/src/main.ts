@@ -179,7 +179,11 @@ async function lancerTests(liste: Scenario[] = SCENARIOS, serie?: { nom: string;
     etat.textContent = `Test ${rang + 1}/${liste.length} : ${scenario.titre}…`;
     let resultat: Resultat;
     try {
-      resultat = await scenario.executer(ctx);
+      // Un test qui ne répond plus ne doit jamais bloquer la série : une minute au plus.
+      resultat = await Promise.race([
+        scenario.executer(ctx),
+        new Promise<never>((_, ko) => setTimeout(() => ko(new Error("test arrêté : plus de réponse après une minute")), 60_000)),
+      ]);
     } catch (erreur) {
       resultat = { id: scenario.id, titre: scenario.titre, statut: "erreur", note: String((erreur as Error)?.message ?? erreur) };
     }
