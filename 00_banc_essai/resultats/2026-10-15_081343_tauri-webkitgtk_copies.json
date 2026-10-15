@@ -1,0 +1,645 @@
+{
+  "version": 1,
+  "serie": "copies",
+  "copies": {
+    "version": 1,
+    "duree_source_s": 20,
+    "source": "source_1080p.mp4",
+    "ffmpeg": "ffmpeg version 6.1.1-3ubuntu5+esm15 Copyright (c) 2000-2023 the FFmpeg developers",
+    "processeur": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "fils": 32,
+    "copies": [
+      {
+        "id": "vp9_1080p",
+        "fichier": "vp9_1080p.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "description": "VP9 en 1080p (taille d'origine)",
+        "fabrication_s": 2.7,
+        "vitesse_fabrication": 7.4,
+        "poids_octets": 21086119,
+        "debit_ko_s": 1029.6
+      },
+      {
+        "id": "vp9_720p",
+        "fichier": "vp9_720p.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "description": "VP9 en 720p",
+        "fabrication_s": 1.81,
+        "vitesse_fabrication": 11.1,
+        "poids_octets": 8493177,
+        "debit_ko_s": 414.7
+      },
+      {
+        "id": "vp9_540p",
+        "fichier": "vp9_540p.webm",
+        "type": "video/webm; codecs=\"vp9, opus\"",
+        "description": "VP9 en 540p",
+        "fabrication_s": 1.48,
+        "vitesse_fabrication": 13.5,
+        "poids_octets": 4477222,
+        "debit_ko_s": 218.6
+      },
+      {
+        "id": "vp8_540p",
+        "fichier": "vp8_540p.webm",
+        "type": "video/webm; codecs=\"vp8, opus\"",
+        "description": "VP8 en 540p",
+        "fabrication_s": 1.75,
+        "vitesse_fabrication": 11.4,
+        "poids_octets": 5169911,
+        "debit_ko_s": 252.4
+      },
+      {
+        "id": "h264_720p",
+        "fichier": "h264_720p.mp4",
+        "type": "video/mp4; codecs=\"avc1.4d401f, mp4a.40.2\"",
+        "description": "H.264 en 720p",
+        "fabrication_s": 0.84,
+        "vitesse_fabrication": 23.9,
+        "poids_octets": 3943813,
+        "debit_ko_s": 192.6
+      },
+      {
+        "id": "h264_540p_rapide",
+        "fichier": "h264_540p_rapide.mp4",
+        "type": "video/mp4; codecs=\"avc1.42e01e, mp4a.40.2\"",
+        "description": "H.264 en 540p, profil de base, décodage allégé",
+        "fabrication_s": 0.67,
+        "vitesse_fabrication": 30,
+        "poids_octets": 2720547,
+        "debit_ko_s": 132.8
+      }
+    ]
+  },
+  "horodatage": "2026-10-15_081343",
+  "moteur": "tauri-webkitgtk",
+  "navigateur": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+  "ecran": {
+    "largeur": 1920,
+    "hauteur": 1080,
+    "rapportPixels": 1.25,
+    "frequenceHz": 63
+  },
+  "fenetre": {
+    "largeur": 1473,
+    "hauteur": 802
+  },
+  "scene": {
+    "largeur": 1044,
+    "hauteur": 748,
+    "echellePage": 0.604
+  },
+  "machine": {
+    "processeur": "AMD Ryzen 9 7950X3D 16-Core Processor",
+    "coeurs": 32,
+    "memoire_go": 62,
+    "cartes_graphiques": [
+      "card1 : NVIDIA, pilote nvidia"
+    ],
+    "session": "x11",
+    "variables": [],
+    "lancement_automatique": false
+  },
+  "resultats": [
+    {
+      "id": "vp9_1080p_fabrication",
+      "titre": "VP9 en 1080p (taille d'origine) : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 2.7,
+        "fois le temps réel": 7.4,
+        "poids (Mo)": 21.1,
+        "débit (Ko/s)": 1029.6,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "vp9_1080p_lecture",
+      "titre": "VP9 en 1080p (taille d'origine) : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5013,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.65
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_1080p_deux_videos",
+      "titre": "VP9 en 1080p (taille d'origine) : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 3.71
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 1,
+        "images vidéo affichées (incrustation)": 163,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "vp9_1080p_dans_la_page",
+      "titre": "VP9 en 1080p (taille d'origine) : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 302,
+        "dureeMs": 5010,
+        "imagesParSeconde": 60.3,
+        "dureeImageP50": 17,
+        "dureeImageP95": 18,
+        "dureeImageMax": 20,
+        "acoups": 0,
+        "dessinMoyenMs": 12.24
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_1080p_tete_de_lecture",
+      "titre": "VP9 en 1080p (taille d'origine) : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 15,
+        "saut, 95e centile (ms)": 21,
+        "saut, pire (ms)": 21,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 39
+      }
+    },
+    {
+      "id": "vp9_720p_fabrication",
+      "titre": "VP9 en 720p : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 1.81,
+        "fois le temps réel": 11.1,
+        "poids (Mo)": 8.5,
+        "débit (Ko/s)": 414.7,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "vp9_720p_lecture",
+      "titre": "VP9 en 720p : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 490,
+        "dureeMs": 5013,
+        "imagesParSeconde": 97.7,
+        "dureeImageP50": 9,
+        "dureeImageP95": 16,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.07
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_720p_deux_videos",
+      "titre": "VP9 en 720p : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.86
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 1,
+        "images vidéo affichées (incrustation)": 163,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "vp9_720p_dans_la_page",
+      "titre": "VP9 en 720p : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5013,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 22,
+        "acoups": 0,
+        "dessinMoyenMs": 11.37
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_720p_tete_de_lecture",
+      "titre": "VP9 en 720p : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 8,
+        "saut, 95e centile (ms)": 11,
+        "saut, pire (ms)": 11,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 62.2
+      }
+    },
+    {
+      "id": "vp9_540p_fabrication",
+      "titre": "VP9 en 540p : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 1.48,
+        "fois le temps réel": 13.5,
+        "poids (Mo)": 4.5,
+        "débit (Ko/s)": 218.6,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "vp9_540p_lecture",
+      "titre": "VP9 en 540p : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.02
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_540p_deux_videos",
+      "titre": "VP9 en 540p : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 18,
+        "acoups": 0,
+        "dessinMoyenMs": 2.77
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 0.99,
+        "images vidéo affichées (incrustation)": 162,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "vp9_540p_dans_la_page",
+      "titre": "VP9 en 540p : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5004,
+        "imagesParSeconde": 62.4,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 19,
+        "acoups": 0,
+        "dessinMoyenMs": 10.5
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp9_540p_tete_de_lecture",
+      "titre": "VP9 en 540p : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 6,
+        "saut, 95e centile (ms)": 8,
+        "saut, pire (ms)": 8,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 62.1
+      }
+    },
+    {
+      "id": "vp8_540p_fabrication",
+      "titre": "VP8 en 540p : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 1.75,
+        "fois le temps réel": 11.4,
+        "poids (Mo)": 5.2,
+        "débit (Ko/s)": 252.4,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "vp8_540p_lecture",
+      "titre": "VP8 en 540p : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.01
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp8_540p_deux_videos",
+      "titre": "VP8 en 540p : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.74
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 1,
+        "images vidéo affichées (incrustation)": 163,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "vp8_540p_dans_la_page",
+      "titre": "VP8 en 540p : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5011,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 10.85
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "vp8_540p_tete_de_lecture",
+      "titre": "VP8 en 540p : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 7,
+        "saut, 95e centile (ms)": 9,
+        "saut, pire (ms)": 9,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 62.3
+      }
+    },
+    {
+      "id": "h264_720p_fabrication",
+      "titre": "H.264 en 720p : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 0.84,
+        "fois le temps réel": 23.9,
+        "poids (Mo)": 3.9,
+        "débit (Ko/s)": 192.6,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "h264_720p_lecture",
+      "titre": "H.264 en 720p : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5014,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.3
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "h264_720p_deux_videos",
+      "titre": "H.264 en 720p : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5011,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.96
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 1,
+        "images vidéo affichées (incrustation)": 163,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "h264_720p_dans_la_page",
+      "titre": "H.264 en 720p : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5013,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 21,
+        "acoups": 0,
+        "dessinMoyenMs": 10.65
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "h264_720p_tete_de_lecture",
+      "titre": "H.264 en 720p : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 12,
+        "saut, 95e centile (ms)": 19,
+        "saut, pire (ms)": 19,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 48.5
+      }
+    },
+    {
+      "id": "h264_540p_rapide_fabrication",
+      "titre": "H.264 en 540p, profil de base, décodage allégé : fabrication",
+      "statut": "ok",
+      "mesures": {
+        "durée de fabrication (s)": 0.67,
+        "fois le temps réel": 30,
+        "poids (Mo)": 2.7,
+        "débit (Ko/s)": 132.8,
+        "canPlayType": "probably"
+      }
+    },
+    {
+      "id": "h264_540p_rapide_lecture",
+      "titre": "H.264 en 540p, profil de base, décodage allégé : lecture",
+      "statut": "ok",
+      "stats": {
+        "images": 311,
+        "dureeMs": 5000,
+        "imagesParSeconde": 62.2,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.13
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "h264_540p_rapide_deux_videos",
+      "titre": "H.264 en 540p, profil de base, décodage allégé : deux vidéos à la fois",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5011,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 17,
+        "acoups": 0,
+        "dessinMoyenMs": 2.79
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture (principale)": 1,
+        "images vidéo affichées (principale)": 162,
+        "images vidéo perdues (principale)": 0,
+        "vitesse de lecture (incrustation)": 1,
+        "images vidéo affichées (incrustation)": 163,
+        "images vidéo perdues (incrustation)": 0
+      }
+    },
+    {
+      "id": "h264_540p_rapide_dans_la_page",
+      "titre": "H.264 en 540p, profil de base, décodage allégé : dans la page, tout redessiné",
+      "statut": "ok",
+      "stats": {
+        "images": 312,
+        "dureeMs": 5012,
+        "imagesParSeconde": 62.3,
+        "dureeImageP50": 16,
+        "dureeImageP95": 17,
+        "dureeImageMax": 18,
+        "acoups": 0,
+        "dessinMoyenMs": 11.22
+      },
+      "verdict": "fluide",
+      "mesures": {
+        "vitesse de lecture": 1,
+        "images vidéo affichées": 162,
+        "images vidéo perdues": 0
+      }
+    },
+    {
+      "id": "h264_540p_rapide_tete_de_lecture",
+      "titre": "H.264 en 540p, profil de base, décodage allégé : tête de lecture",
+      "statut": "ok",
+      "mesures": {
+        "saut, médiane (ms)": 7,
+        "saut, 95e centile (ms)": 17,
+        "saut, pire (ms)": 17,
+        "sauts sans réponse en 3 s": 0,
+        "glisser de la tête : images par seconde": 61.9
+      }
+    }
+  ]
+}

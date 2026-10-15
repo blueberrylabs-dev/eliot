@@ -5,6 +5,47 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, banc des copies d'aperçu : VP9 en 720, Tauri reste
+
+- Série complète d'Alexandre sur le poste principal (`00_banc_essai/resultats/2026-10-15_081343_tauri-webkitgtk_copies.json`),
+  source de 20 s en 1080p, 30 images/s, chargée de bruit (le pire cas pour un encodeur).
+- Les six copies jouent sans à-coup et sans image perdue dans la fenêtre Tauri : seules, à deux
+  en même temps, et posées dans la page de 200 objets redessinée à chaque image (60,3 à 62,4
+  images/s, 16 à 17 ms par image de l'écran). Ce qui les départage est la tête de lecture :
+  saut médian de 15 ms et glisser à 39 images/s en VP9 1080p, 12 ms et 48,5 en H.264 720p,
+  8 ms et 62,2 en VP9 720p, 6 à 7 ms et 62 en 540p (VP9, VP8, H.264).
+- Fabrication : 7 à 30 fois plus vite que le temps réel selon la copie (VP9 720p : 1,8 s pour
+  20 s, 8,5 Mo, environ 25 Mo par minute dans ce pire cas).
+- Décision de Claude, modifiable sur simple demande : copie d'aperçu en VP9, 720 px sur le
+  petit côté (1280 × 720, ou 720 × 1280 pour une story), une image clé par demi-seconde.
+  Raisons : la tête de lecture suit la souris à pleine cadence, et 720 px couvrent la taille
+  réelle de la page à l'écran (environ 650 px CSS, 800 px physiques à 125 %). Écartés : 1080p
+  (tête de lecture lente), H.264 720p (sauts plus lents que VP9 720p), 540p par défaut (image
+  plus floue sans gain visible ici) ; 540 reste un réglage pour une machine modeste, le mini PC
+  dira s'il le faut.
+- Tauri reste l'enveloppe : le repli Electron n'est pas nécessaire. Lot 0 coché dans `PLAN.md`.
+
+## 2026-10-15, révision 9 du BRIEF : le studio 3D
+
+- Question d'Alexandre : intégrer des modèles 3D (Sketchfab, Poly Haven, Kenney, Mixamo).
+  Avis de Claude, sources vérifiées le jour même : Poly Haven en CC0 avec une API gratuite sans
+  clé (crédit « Poly Haven » à afficher) ; Kenney en CC0, sans API ; Sketchfab par une API qui
+  demande la connexion au compte, licences variables, crédit qui suit le modèle ; Mixamo
+  gratuit dans les projets, fichiers bruts non redistribuables, sans API, conditions de 2022 à
+  revérifier. Affichage par three.js (MIT), donc par la carte graphique pendant qu'Eliot
+  tourne ; à l'export, le calque 3D est rendu par la fenêtre, exception à « le Rust rend les
+  calques ».
+- Décision d'Alexandre : « tu le places là où c'est le mieux pour toi ». Claude la place en
+  étape 6, après le labo photo (le reste du catalogue passe en étape 7) : l'animation 3D a
+  besoin de la frise de l'étape 4, l'export du calque 3D de l'export depuis le document de
+  l'étape 5. Écarté : la faire tout de suite, au milieu de la vidéo. BRIEF en révision 9,
+  texte à relire par Alexandre.
+- Banc des copies d'aperçu : la série d'Alexandre s'est figée au test de la tête de lecture
+  de la première copie (`requestVideoFrameCallback` ne se déclenche pas toujours sur une vidéo
+  en pause dans WebKit) ; corrigé (évènement `seeked`, 3 s au plus par saut, une minute au plus
+  par test). Avant le blocage, sur le poste : VP9 en 1080p fluide en lecture (62,2 images/s),
+  avec deux vidéos (62,2) et posé dans la page entière redessinée (60,7), aucune image perdue.
+
 ## 2026-10-15, étape 4 ouverte : plan et banc des copies d'aperçu
 
 - Clé Freesound créée par Alexandre et rangée dans le `.env` ; vérifiée par Claude par une

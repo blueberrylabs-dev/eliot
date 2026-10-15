@@ -1,6 +1,9 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-14, révision 8. La révision 8 ajoute le son (voix,
+Cadrage, écrit une fois. Version du 2026-10-15, révision 9. La révision 9 ajoute le studio 3D
+(§ 6, « Le studio 3D ») : principe **validé par Alexandre le 2026-10-15** (« tu le places là
+où c'est le mieux pour toi »), place choisie par Claude (étape 6, § 7), texte à relire par
+lui. La révision 8 ajoute le son (voix,
 nettoyage, musique, jingles, bruitages, banques de sons : § 6, « Le son ») selon la proposition
 de Claude **validée par Alexandre le 2026-10-14** (« Je valide »), texte à relire par lui ; il
 entre dans l'étape 4. La révision 7, **validée par Alexandre le 2026-10-14** (« Tu as mon
@@ -122,6 +125,11 @@ d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche C
 | Free Music Archive | licences Creative Commons titre par titre, « not all of them can be used in videos, podcasts, short films or commercial projects » ; licence payante par Tribe of Noise (« €45 ») ; pas d'API annoncée | https://freemusicarchive.org/royalty-free-music/ |
 | Openverse | moteur de recherche d'œuvres libres ; sources audio : freesound, jamendo, wikimedia_audio ; API à étudier | https://docs.openverse.org/api/guides/quickstart.html |
 | Piper (voix de synthèse locale) | moteur sous GPL-3.0 (dépôt `OHF-Voice/piper1-gpl`) ; « intended for personal use and text to speech research only » ; « Some voices may have restrictive licenses » | https://github.com/OHF-Voice/piper1-gpl ; `docs/VOICES.md` du même dépôt |
+| Poly Haven (révision 9) | modèles 3D, textures et environnements HDRI : « Our assets are all licensed as CC0 » ; API publique gratuite, même pour un usage commercial, sans clé ; demande de montrer clairement que les fichiers viennent de Poly Haven et d'envoyer un User-Agent propre à l'application | https://polyhaven.com/license ; https://polyhaven.com/our-api |
+| Kenney (révision 9) | objets 2D et 3D : « all game assets on the asset pages are public domain licensed (CC0) », « Attribution is not required » ; pas d'API, téléchargement par paquets | https://kenney.nl/support |
+| Sketchfab (révision 9) | API de téléchargement : l'utilisateur doit se connecter à son compte Sketchfab dans l'application (OAuth) ; licence propre à chaque modèle, surtout Creative Commons ; montrer la licence et l'auteur, crédit qui suit le modèle, mention « provided by Sketchfab » | https://sketchfab.com/developers/download-api/guidelines |
+| Mixamo (révision 9, rapporté) | personnages et animations d'Adobe, gratuits, utilisables dans tout projet ; interdit : « distribute the raw character and animation files » ; pas d'API connue ; FAQ de 2022 écrite pendant une période d'essai, conditions actuelles à vérifier dans celles d'Adobe | https://community.adobe.com/questions-696/mixamo-faq-licensing-royalties-ownership-eula-and-tos-589400 |
+| three.js (révision 9) | 0.186.1, MIT : affichage 3D dans la fenêtre (WebGL) | `npm view three` |
 | Briques audio Rust | `nnnoiseless` 0.5.2 (BSD-3-Clause, réduction de bruit RNNoise), `deep_filter` 0.2.5 (MIT ou Apache-2.0, réduction de bruit), `ebur128` 0.1.10 (MIT, niveau sonore EBU R128), `cpal` 0.18.2 (Apache-2.0, micro), `symphonia` 0.6.1 (MPL-2.0, décodage), `rubato` 5.0.1 (MIT ou Apache-2.0, rééchantillonnage), `hound` 3.5.1 (Apache-2.0, WAV) | `cargo info <crate>` |
 
 ## 5. Règles du projet (au-delà de CONVENTIONS.md)
@@ -374,6 +382,35 @@ mesure le niveau, calcule une fois les traitements lourds (réduction de bruit) 
 résultat en cache, pour que la lecture dans la fenêtre reste fluide ; à l'export, il applique
 tout aux originaux, mixe les pistes et `ffmpeg` encode.
 
+### Le studio 3D (révision 9)
+
+Question d'Alexandre du 2026-10-15 : intégrer des modèles 3D, « comme par exemple les sites
+Sketchfab, Poly Haven, Kenney, Mixamo ». Réponse de Claude : oui, pour ce que la 3D apporte à
+la publicité (un produit qu'on fait tourner, une mascotte qui s'anime, un décor éclairé comme
+en studio) ; principe validé le même jour, place laissée à Claude.
+
+- **L'objet 3D** : un modèle (glTF, GLB, FBX de Mixamo, OBJ) posé dans la page comme une photo
+  détourée, fond transparent. On le tourne à la souris, on cadre et on zoome ; éclairage par un
+  environnement HDRI de Poly Haven et une lumière principale réglable, ombre au sol ; matières
+  recolorables (une couleur de la marque sur le flacon du produit).
+- **L'animation**, sur la frise de l'étape 4 : plateau tournant, mouvements de caméra par
+  images clés, animations du modèle lui-même (un personnage Mixamo qui marche, danse ou fait
+  coucou).
+- **Les banques** : Poly Haven dans un panneau (API sans clé, mention « Poly Haven » à côté des
+  résultats) ; Kenney par ses paquets, rangés à la main dans `telechargements/` comme les
+  personnages ; Sketchfab par la connexion au compte Sketchfab d'Alexandre, seulement les
+  modèles CC0 et CC BY, crédit gardé avec le modèle comme pour les photos ; Mixamo par un
+  téléchargement à la main, puis un import.
+
+Fonctionnement. La 3D s'affiche avec three.js (MIT), en WebGL, donc par la carte graphique
+pendant qu'Eliot tourne ; la règle 9 ne change pas (Eliot ne se lance qu'à la main, carte
+libre). Un modèle importé est rangé dans les ressources du design comme une image (empreinte,
+original, miniature) ; ses fichiers ne vont jamais dans git (règle 10). Exception à « le Rust
+rend les calques » : le Rust ne sait pas dessiner de la 3D sans la carte graphique ; à l'export,
+le calque 3D est donc rendu par la fenêtre, image par image, à la taille de la page, puis confié
+au Rust qui le pose avec le reste et encode. Nouveau type d'élément `objet3d` : ressource,
+caméra, éclairage, couleurs des matières, animation.
+
 ### Brancher une IA : Eliot piloté par Claude
 
 Question d'Alexandre du 2026-10-14 : « est-ce que cet outil, on pourrait le brancher à une IA
@@ -492,6 +529,9 @@ quand un texte est sélectionné, ceux d'une vidéo quand c'est une vidéo.
   pour le format.
 - **Confort** : raccourcis clavier, menu au clic droit, zoom, aperçu plein écran, thème clair
   ou sombre de l'interface.
+- **3D** (révision 9) : objets 3D (glTF, GLB, FBX, OBJ) tournés à la souris, éclairage HDRI,
+  ombre, matières recolorables, animation (plateau tournant, caméra, animations Mixamo) ;
+  Poly Haven, Kenney, Sketchfab, Mixamo.
 
 ### Arborescence
 
@@ -744,7 +784,15 @@ façon Lightroom avec préréglages (pour les photos et les clips vidéo), recad
 redressement, export depuis le document avec les originaux (PDF vectoriel, PNG haute
 définition, WebP, SVG), perspective, détourage local.
 
-Étape 6 : le reste du catalogue (panneau des calques complet, aides pour apprendre, thème
+Révision 9 : le studio 3D devient l'étape 6, après le labo photo, et le reste du catalogue
+passe en étape 7. Raison du choix de Claude : l'animation 3D a besoin de la frise (étape 4),
+et l'export d'un calque 3D s'appuie sur l'export depuis le document (étape 5).
+
+Étape 6, le studio 3D : objet 3D dans la page (import glTF, GLB, FBX, OBJ, orbite, éclairage
+HDRI, ombre, matières), banques (Poly Haven, Kenney, Sketchfab, Mixamo), animation sur la
+frise, export du calque 3D.
+
+Étape 7 : le reste du catalogue (panneau des calques complet, aides pour apprendre, thème
 sombre, texte courbé, styles enregistrés).
 
 ## 8. Hors périmètre
@@ -753,7 +801,8 @@ Hébergement, comptes Eliot, mises à jour automatiques par internet. Services e
 recherche de photos (Pixabay, Pexels), celle de sons (Freesound, révision 8) et Claude branché
 par Alexandre (règle 12). Autres
 banques d'images, modèles fournis par un tiers (ceux d'Eliot sont dessinés pour lui),
-génération d'images par IA, collaboration (commentaires, partage), mode présentation
+génération d'images par IA, modélisation 3D (Eliot pose, éclaire et anime des modèles, il ne
+les fabrique pas), collaboration (commentaires, partage), mode présentation
 (présenter, notes, minuteur), applications tierces intégrées, mobile. Windows et macOS : le
 code reste portable, mais rien n'y sera testé.
 
@@ -832,6 +881,10 @@ cet usage.
 
 Action d'Alexandre avant l'étape 4 : créer un compte Freesound, demander une clé d'API et
 l'ajouter au `.env` (`FREESOUND_API_KEY`).
+
+Tranchée le 2026-10-15, révision 9, par Alexandre : la 3D entre dans Eliot (« tu le places
+là où c'est le mieux pour toi ») ; Claude la place en étape 6 (§ 7). Banques prévues : Poly
+Haven, Kenney, Sketchfab (CC0 et CC BY seulement), Mixamo (à la main).
 
 Action d'Alexandre avant l'étape 3 : créer un compte Pixabay et relever sa clé d'API
 gratuite (et une clé Pexels si la pause se lève). Fait le 2026-10-14 pour Pixabay : la clé

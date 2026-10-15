@@ -180,14 +180,15 @@ GIF réglé pour YouTube, Shorts, TikTok ou Reels. Claude peut tout faire par le
 
 Choix par défaut de Claude, modifiables sur simple demande :
 
-- Enveloppe : Tauri reste, si le banc des copies d'aperçu (lot 0) trouve un format qui joue
-  de façon fluide dans la fenêtre du poste principal. Sinon, Electron (repli prévu au BRIEF).
-  Le mini PC confirmera quand il sera là.
+- Enveloppe : Tauri reste. Le banc du lot 0 a trouvé sur le poste principal des copies qui
+  jouent sans à-coup dans la fenêtre, même à deux et dans la page redessinée ; le repli
+  Electron n'est pas nécessaire. Le mini PC confirmera quand il sera là.
 - Copies d'aperçu : la fenêtre ne lit jamais l'original d'une vidéo (règle 5). À l'import, le
   Rust fait fabriquer par `ffmpeg` (celui du système, commande 2 du `CLAUDE.md`, processeur
   seulement) une copie légère, avec une image clé toutes les demi-secondes pour que la tête de
-  lecture réponde vite, plus les vignettes de la frise et la forme d'onde du son. Format et
-  taille choisis par le banc du lot 0. L'original ne sert qu'à l'export.
+  lecture réponde vite, plus les vignettes de la frise et la forme d'onde du son. Format
+  choisi par le banc du lot 0 : VP9, 720 px sur le petit côté (540 en réglage pour une
+  machine modeste). L'original ne sert qu'à l'export.
 - Document version 4, comme au § 6 du BRIEF : une page qui a une `duree` (millisecondes) est
   une vidéo ; ses éléments portent `temps` (début, fin) et `piste` ; un clip vidéo porte
   `coupe`, `vitesse`, `volume` ; les sons vont dans `audio` avec leur rôle (musique, voix,
@@ -207,13 +208,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
   les archives des personnages) ; voix de synthèse : Piper, même principe. Les deux viennent
   dans leurs lots, avec leurs commandes.
 
-- [ ] Lot 0 : banc des copies d'aperçu dans `00_banc_essai/` (VP9, VP8 et H.264, en 1080p,
+- [x] Lot 0 : banc des copies d'aperçu dans `00_banc_essai/` (VP9, VP8 et H.264, en 1080p,
       720p et 540p, une image clé par demi-seconde) : lecture sur un calque à part avec la
       page de 200 objets, deux vidéos à la fois, temps de saut de la tête de lecture, durée de
-      fabrication et poids de chaque copie. Lancé par Alexandre ; décide le format et confirme
-      Tauri. Banc prêt le 2026-10-15 (commande 6 bis du `CLAUDE.md`), essayé dans le
-      conteneur de Claude (Chromium et Tauri sur écran virtuel : tout tourne, chiffres sans
-      valeur sur 2 cœurs sans carte graphique) ; reste la série sur le poste.
+      fabrication et poids de chaque copie. Série d'Alexandre sur le poste le 2026-10-15
+      (`00_banc_essai/resultats/2026-10-15_081343_tauri-webkitgtk_copies.json`) : tout est
+      fluide, VP9 en 720 retenu pour sa tête de lecture (saut de 8 ms, glisser à pleine
+      cadence), Tauri confirmé. Détail au `JOURNAL.md`.
 - [ ] Lot 1 : la vidéo dans le design : import (glisser, Importer, vidéos Pixabay), copie
       d'aperçu, vignettes, forme d'onde ; élément vidéo qui joue sur son calque ; post animé ;
       document version 4.
@@ -242,4 +243,11 @@ Banc de l'aperçu en direct, labo façon Lightroom et préréglages (photos et c
 export depuis le document (PDF vectoriel, haute définition, WebP, SVG), perspective,
 détourage.
 
-## Étape 6. Le reste du catalogue
+## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)
+
+Objet 3D dans la page (glTF, GLB, FBX, OBJ ; orbite, éclairage HDRI, ombre, matières
+recolorables), banques (Poly Haven par son API, Kenney par ses paquets, Sketchfab par la
+connexion au compte, CC0 et CC BY seulement ; Mixamo à la main), animation sur la frise
+(plateau tournant, caméra, animations du modèle), export du calque 3D rendu par la fenêtre.
+
+## Étape 7. Le reste du catalogue
