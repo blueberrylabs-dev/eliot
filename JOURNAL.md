@@ -5,6 +5,13 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, BRIEF : l'exemple des images clés corrigé
+
+Accord d'Alexandre (« tu as mon accord pour corriger l'exemple ») : dans le modèle de document
+du § 6, les `t` des images clés de l'exemple passent en temps du clip (0 et 3000 au lieu de
+1000 et 4000), et une ligne le dit, comme le code le fait depuis le lot 3. Rien d'autre ne
+change dans le BRIEF.
+
 ## 2026-10-15, étape 4, lot 4 : l'export MP4 et GIF
 
 Choix de Claude, modifiables sur simple demande :

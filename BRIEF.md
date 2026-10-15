@@ -1,6 +1,8 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-15, révision 9. La révision 9 ajoute le studio 3D
+Cadrage, écrit une fois. Version du 2026-10-15, révision 9, avec une correction du même jour
+(l'exemple des images clés du § 6 en temps du clip, accord d'Alexandre : « tu as mon accord pour
+corriger l'exemple »). La révision 9 ajoute le studio 3D
 (§ 6, « Le studio 3D ») : principe **validé par Alexandre le 2026-10-15** (« tu le places là
 où c'est le mieux pour toi »), place choisie par Claude (étape 6, § 7), texte à relire par
 lui. La révision 8 ajoute le son (voix,
@@ -617,7 +619,7 @@ version, testée) :
       "rotation": 0, "piste": 1, "temps": { "debut": 1000, "fin": 4000 },
       "animations": { "entree": { "nom": "glissement-haut", "duree": 400 },
                       "sortie": { "nom": "fondu", "duree": 300 } },
-      "cles": [ { "t": 1000, "echelle": 1 }, { "t": 4000, "echelle": 1.15 } ] }
+      "cles": [ { "t": 0, "echelle": 1 }, { "t": 3000, "echelle": 1.15 } ] }
   ],
   "audio": [
     { "id": "m1", "ressource": "8b1a9953c4611296", "temps": { "debut": 0, "fin": 15000 },
@@ -631,6 +633,8 @@ version, testée) :
   un carrousel s'exporte en une image par page ou en un PDF.
 - Le temps se compte en millisecondes entières ; une page sans `duree` est une image fixe,
   comme à l'étape 1. Une page qui a une durée est une vidéo : sa frise porte les pistes.
+- Le `t` d'une image clé compte depuis le début du clip (`temps.debut`), pas depuis le début
+  de la page : les clés suivent le clip quand on le déplace (correction du 2026-10-15).
 - `reglages` ne garde que les curseurs différents de zéro ; même champ pour une photo et pour
   un clip vidéo (règle 13).
 - Les pistes : `piste` vaut 0 pour la piste principale, plus pour celles du dessus. Le store
