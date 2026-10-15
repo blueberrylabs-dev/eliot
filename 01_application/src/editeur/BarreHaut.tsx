@@ -27,6 +27,7 @@ function useFermerDehors(fermer: () => void) {
 function PanneauExport({ fermer }: { fermer: () => void }) {
   const format = useEditeur((s) => s.document.format);
   const nombrePages = useEditeur((s) => s.document.pages.length);
+  const avecVideo = useEditeur((s) => s.document.pages.some((p) => p.elements.some((e) => e.type === "video")));
   const notifier = useEditeur((s) => s.notifier);
   const [type, setType] = useState<FormatExport>("png");
   const [ratio, setRatio] = useState(1);
@@ -98,6 +99,11 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
             </button>
           </div>
         </>
+      )}
+      {avecVideo && (
+        <p className="mb-3 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
+          Les vidéos sortent ici en image fixe : leur couverture. L'export en MP4 arrive avec la frise vidéo.
+        </p>
       )}
       <label className={`mb-4 flex items-center gap-2 text-sm ${type === "png" ? "text-neutral-700" : "text-neutral-400"}`}>
         <input type="checkbox" disabled={type !== "png"} checked={transparent && type === "png"} onChange={(e) => setTransparent(e.target.checked)} className="accent-accent-600" />

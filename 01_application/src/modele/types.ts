@@ -4,8 +4,18 @@
 // Version 3 (étape 3) : icônes, emojis, QR code, lignes et flèches, ombres, effets de texte,
 // cadres photo, maquettes d'appareils, dessin à main levée, graphiques, tableaux, personnages.
 // Les nouveaux champs sont facultatifs : un document de version 2 reste valable tel quel.
+// Version 4 (étape 4) : la vidéo. Une page qui a une `duree` est une vidéo ; ses éléments
+// portent `temps` et `piste`, ses sons vont dans `audio`. Un élément `video` peut aussi vivre
+// dans une page fixe (post animé). Tout est facultatif : un document de version 3 ne change
+// que de numéro (noyau/src/projet.rs).
 
-export const VERSION_DOCUMENT = 3 as const;
+export const VERSION_DOCUMENT = 4 as const;
+
+/** Un intervalle de temps, en millisecondes entières. */
+export interface Temps {
+  debut: number;
+  fin: number;
+}
 
 export type Alignement = "left" | "center" | "right";
 
@@ -53,6 +63,10 @@ interface ElementBase {
   /** Étiquette de groupe : les éléments qui la partagent se sélectionnent ensemble. */
   groupe?: string;
   ombre?: Ombre;
+  /** Page vidéo : quand l'élément est visible, en millisecondes depuis le début de la page. */
+  temps?: Temps;
+  /** Page vidéo : 0 pour la piste principale, plus pour celles du dessus. */
+  piste?: number;
 }
 
 export interface ElementTexte extends ElementBase {
@@ -161,6 +175,27 @@ export interface ElementImage extends ElementBase {
 }
 
 /**
+ * Une vidéo importée. À l'écran, la fenêtre joue sa copie d'aperçu, jamais l'original
+ * (règle 5) ; figée (vignette, export en image), elle montre sa couverture.
+ */
+export interface ElementVideo extends ElementBase {
+  type: "video";
+  /** Empreinte SHA-256 du fichier d'origine, comme une image. */
+  ressource: string;
+  retourneH: boolean;
+  retourneV: boolean;
+  arrondi?: number;
+  bordure?: { couleur: string; epaisseur: number };
+  /** La partie du fichier qui joue, en millisecondes du fichier : de `debut` à `fin` (la fin
+   *  du fichier si `fin` manque). Absente : tout le fichier. */
+  coupe?: { debut: number; fin?: number };
+  /** 1 : vitesse normale ; de 0,25 à 4. */
+  vitesse?: number;
+  /** De 0 (muet) à 1 ; 1 si absent. */
+  volume?: number;
+}
+
+/**
  * Cadrage d'une photo dans un cadre ou un écran : elle couvre toujours toute la zone (comme
  * `object-fit: cover`), agrandie de `zoom` (1 au moins) ; `x` et `y`, de 0 à 1, disent quelle
  * partie de la photo se voit (0,5 : le centre ; 0 : le bord gauche ou haut).
@@ -265,17 +300,33 @@ export interface ElementTableau extends ElementBase {
   marge: number;
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVideo | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
 
 /** Les éléments qui reçoivent une photo glissée dessus. */
 export type ElementAPhoto = ElementCadre | ElementMaquette;
 export const recoitPhoto = (e: ElementPage): e is ElementAPhoto => e.type === "cadre" || e.type === "maquette";
+
+/** Un son posé sur une page vidéo (musique, voix, bruitage). Rempli à partir du lot 5. */
+export interface ClipAudio {
+  id: string;
+  ressource: string;
+  temps: Temps;
+  /** La partie du fichier qui joue, en millisecondes du fichier. */
+  coupe?: { debut: number; fin?: number };
+  volume?: number;
+  fonduEntree?: number;
+  fonduSortie?: number;
+  role?: "musique" | "voix" | "bruitage";
+}
 
 export interface PageEliot {
   id: string;
   fond: Couleur;
   /** L'ordre du tableau est l'ordre d'empilement : le dernier est au-dessus. */
   elements: ElementPage[];
+  /** Présente : la page est une vidéo de cette durée, en millisecondes. */
+  duree?: number;
+  audio?: ClipAudio[];
 }
 
 /** Taille commune à toutes les pages d'un design, en pixels. */
@@ -291,16 +342,33 @@ export interface DocumentEliot {
   pages: PageEliot[];
 }
 
-/** Une image importée, telle que l'interface la connaît : jamais l'original. L'aperçu et la
- *  miniature se demandent au pont, qui les garde en mémoire (`pont/tauri.ts`). */
+/** Ce que l'interface sait d'une vidéo importée. */
+export interface InfosVideo {
+  /** Millisecondes. */
+  duree: number;
+  imagesParSeconde: number;
+  /** La vidéo a-t-elle du son ? */
+  son: boolean;
+  /** Format de la copie d'aperçu. */
+  copie: "webm" | "mp4";
+  /** La bande des vignettes de la frise : `nombre` images côte à côte, une toutes les
+   *  `intervalle` ms. */
+  vignettes: { nombre: number; intervalle: number; largeur: number; hauteur: number };
+}
+
+/** Une image ou une vidéo importée, telle que l'interface la connaît : jamais l'original.
+ *  L'aperçu, la miniature et la copie d'une vidéo se demandent au pont, qui les garde en
+ *  mémoire (`pont/tauri.ts`). */
 export interface Ressource {
   id: string;
   nom: string;
   largeur: number;
   hauteur: number;
   transparence: boolean;
-  /** D'où vient l'image quand elle n'est pas d'Alexandre (photo Pixabay). */
+  /** D'où vient l'image quand elle n'est pas d'Alexandre (photo ou vidéo Pixabay). */
   credit?: Credit;
+  /** Présent pour une vidéo ; l'aperçu et la miniature sont alors sa couverture. */
+  video?: InfosVideo;
 }
 
 /** Le crédit d'une photo venue d'une banque d'images : rangé avec l'image dans le design. */

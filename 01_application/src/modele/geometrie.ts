@@ -121,7 +121,8 @@ export function redimensionnerElements(elements: ElementPage[], ancien: Format, 
       case "forme":
         return { ...base, type: "forme", epaisseurContour: arrondi(el.epaisseurContour * s), arrondi: arrondi(el.arrondi * s) } as ElementPage;
       case "image":
-        return { ...base, type: "image", ...(el.arrondi ? { arrondi: arrondi(el.arrondi * s) } : {}), ...(el.bordure ? { bordure: bord(el.bordure) } : {}) } as ElementPage;
+      case "video":
+        return { ...base, ...(el.arrondi ? { arrondi: arrondi(el.arrondi * s) } : {}), ...(el.bordure ? { bordure: bord(el.bordure) } : {}) } as ElementPage;
       case "cadre":
         return { ...base, type: "cadre", ...(el.bordure ? { bordure: bord(el.bordure) } : {}) } as ElementPage;
       case "graphique":

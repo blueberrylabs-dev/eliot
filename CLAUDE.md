@@ -40,7 +40,11 @@ lourd. Détail : `BRIEF.md`.
 - Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
   recherche d'essai.
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
-  copies d'aperçu (commande 6 bis), à lancer par Alexandre.
+  copies d'aperçu, passé sur le poste le 2026-10-15 (VP9 en 720 retenu, Tauri confirmé) ;
+  lot 1 (la vidéo dans le design : import, copie d'aperçu, lecture, coupe, vitesse, son,
+  vidéos Pixabay, quatre outils pour le pont IA) livré et vérifié ; reste l'essai
+  d'Alexandre. Après cette livraison, recompiler le pont (commande 13, puis 15 bis si
+  l'extension sert).
 
 Suite : `PLAN.md`.
 
@@ -71,7 +75,8 @@ Il faut Node 20.19 ou plus (ou 22.12 et plus) ; si `rustc` est introuvable, fair
 
 **2. Bibliothèques du système** (une fois, demande ton mot de passe) : moteur web de Tauri,
 décodeurs vidéo (H.264 par `gstreamer1.0-libav`, VP9 par `gstreamer1.0-plugins-good`) et
-`ffmpeg`, qui sert à fabriquer les vidéos de test (étape 4 bis) et plus tard l'export MP4.
+`ffmpeg`, qui fabrique les vidéos de test (étape 4 bis) et, dans Eliot, prépare chaque vidéo
+importée (copie d'aperçu, vignettes, forme d'onde), puis plus tard l'export MP4.
 
 ```
 sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad ffmpeg
@@ -224,7 +229,7 @@ scintille, mêmes variables qu'à la commande 7, placées devant `npm run tauri 
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 35 passed`.
+Vérifier : `test result: ok. 42 passed`.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -232,7 +237,7 @@ Vérifier : `test result: ok. 35 passed`.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  61 passed`.
+Vérifier : `Tests  66 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

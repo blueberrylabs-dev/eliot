@@ -1,9 +1,11 @@
 //! Import des images : empreinte, original rangé une seule fois, image redressée selon
-//! l'appareil photo, aperçu (2560 px au plus) et miniature (256 px) pour l'interface.
+//! l'appareil photo, aperçu (2560 px au plus) et miniature (256 px) pour l'interface. Les
+//! vidéos (étape 4, `videos.rs`) sont rangées au même endroit, avec quelques fichiers de plus.
 //!
 //! Rangement dans le dossier des ressources :
 //! `originaux/<empreinte>.<ext>`, `apercus/<empreinte>.(jpg|png)`,
-//! `miniatures/<empreinte>.(jpg|png)`, `infos/<empreinte>.json`.
+//! `miniatures/<empreinte>.(jpg|png)`, `infos/<empreinte>.json` ; pour une vidéo, aussi
+//! `copies/`, `vignettes/` et `ondes/`.
 
 use std::fs;
 use std::io::Cursor;
@@ -19,6 +21,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 use crate::fichiers::ecrire_atomiquement;
+use crate::videos::{self, InfosVideo};
 
 pub const COTE_APERCU: u32 = 2560;
 pub const COTE_MINIATURE: u32 = 256;
@@ -53,6 +56,9 @@ pub struct Ressource {
     /// D'où vient l'image quand elle n'est pas d'Alexandre (photo Pixabay : auteur et lien).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credit: Option<Credit>,
+    /// Pour une vidéo (étape 4) : durée, son, copie d'aperçu, vignettes. Absent pour une image.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub video: Option<InfosVideo>,
 }
 
 /// Le crédit d'une image venue d'une banque d'images (BRIEF, règle 12).
@@ -70,6 +76,12 @@ pub enum Genre {
     Original,
     Apercu,
     Miniature,
+    /// Vidéo : la copie d'aperçu jouée dans la fenêtre.
+    Copie,
+    /// Vidéo : la bande des vignettes de la frise.
+    Vignettes,
+    /// Vidéo avec du son : la forme d'onde (JSON).
+    Onde,
 }
 
 fn empreinte(octets: &[u8]) -> String {
@@ -94,7 +106,19 @@ pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBu
     }
     let infos: Ressource = serde_json::from_slice(&fs::read(chemin_infos(dossier, id))?)
         .map_err(|e| ErreurImage::Decodage(e.to_string()))?;
+    let video = || infos.video.as_ref().ok_or(ErreurImage::IdentifiantInvalide);
     Ok(match genre {
+        Genre::Copie => dossier.join("copies").join(format!("{id}.{}", video()?.copie)),
+        Genre::Vignettes => {
+            video()?;
+            dossier.join("vignettes").join(format!("{id}.jpg"))
+        }
+        Genre::Onde => {
+            if !video()?.son {
+                return Err(ErreurImage::IdentifiantInvalide);
+            }
+            dossier.join("ondes").join(format!("{id}.json"))
+        }
         Genre::Apercu => dossier.join("apercus").join(format!("{id}.{}", infos.format_apercu)),
         Genre::Miniature => dossier.join("miniatures").join(format!("{id}.{}", infos.format_apercu)),
         Genre::Original => {
@@ -121,7 +145,7 @@ fn decoder_redresse(octets: &[u8]) -> Result<DynamicImage, ErreurImage> {
 }
 
 /// Réduit pour que le grand côté ne dépasse pas `cote` (jamais d'agrandissement).
-fn reduire(image: &DynamicImage, cote: u32) -> Result<DynamicImage, ErreurImage> {
+pub(crate) fn reduire(image: &DynamicImage, cote: u32) -> Result<DynamicImage, ErreurImage> {
     let (l, h) = (image.width(), image.height());
     if l.max(h) <= cote {
         return Ok(image.clone());
@@ -143,7 +167,7 @@ fn reduire(image: &DynamicImage, cote: u32) -> Result<DynamicImage, ErreurImage>
     resultat.ok_or_else(|| ErreurImage::Reduction("tampon de taille inattendue".into()))
 }
 
-fn encoder(image: &DynamicImage, png: bool) -> Result<Vec<u8>, ErreurImage> {
+pub(crate) fn encoder(image: &DynamicImage, png: bool) -> Result<Vec<u8>, ErreurImage> {
     let mut sortie = Vec::new();
     let resultat = if png {
         let rgba = image.to_rgba8();
@@ -197,6 +221,7 @@ pub fn importer(octets: &[u8], nom: &str, dossier: &Path) -> Result<Ressource, E
         transparence,
         format_apercu: format_apercu.to_string(),
         credit: None,
+        video: None,
     };
     let infos = serde_json::to_vec_pretty(&ressource).map_err(|e| ErreurImage::Decodage(e.to_string()))?;
     ecrire_atomiquement(&chemin_infos(dossier, &id), &infos)?;
@@ -254,7 +279,7 @@ fn copier_atomiquement(source: &Path, cible: &Path) -> Result<(), ErreurImage> {
 /// Copie des images d'un dossier de ressources vers un autre (coller entre deux designs). Une
 /// image déjà présente dans la cible n'est pas recopiée.
 pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressource>, ErreurImage> {
-    for sous_dossier in ["originaux", "apercus", "miniatures", "infos"] {
+    for sous_dossier in ["originaux", "apercus", "miniatures", "infos", "copies", "vignettes", "ondes"] {
         fs::create_dir_all(cible.join(sous_dossier))?;
     }
     let mut copiees = Vec::new();
@@ -266,6 +291,11 @@ pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressour
         copier_atomiquement(&original, &cible.join("originaux").join(nom_original))?;
         for genre in [Genre::Apercu, Genre::Miniature] {
             let depuis = chemin_ressource(source, id, genre)?;
+            let relatif = depuis.strip_prefix(source).expect("sous la source");
+            copier_atomiquement(&depuis, &cible.join(relatif))?;
+        }
+        // Une vidéo emporte sa copie d'aperçu, ses vignettes et sa forme d'onde.
+        for depuis in videos::fichiers_en_plus(source, &infos) {
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }

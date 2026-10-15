@@ -12,20 +12,22 @@ import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, u
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
+import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin } from "../modele/types";
+import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, useMarque } from "../etat/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
 import { normaliser } from "../bibliotheque/recherche";
-import { telechargerPhotoPixabay } from "../etat/photos";
+import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
 import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { chercherPixabay, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, type PhotoPixabay } from "../pont/tauri";
+import { chercherPixabay, chercherVideosPixabay, estCheminVideo, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { avecSuivi, suiviFichiers } from "../editeur/SuiviImport";
+import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
 import definitions from "./outils.json";
 
@@ -104,6 +106,7 @@ const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
   image: ["retourneH", "retourneV", "arrondi", "bordure"],
+  video: ["retourneH", "retourneV", "arrondi", "bordure", "coupe", "vitesse", "volume"],
   icone: ["couleur", "trait"],
   emoji: [],
   personnage: ["posture", "pieces", "couleurs", "retourneH"],
@@ -180,6 +183,36 @@ function couleursDemandees(valeur: unknown, base: Record<string, string> = {}): 
   return Object.keys(sortie).length ? sortie : undefined;
 }
 
+/** Coupe, vitesse et volume d'une vidéo envoyés par l'IA, vérifiés contre la durée du fichier.
+ *  `null` remet la valeur par défaut (tout le fichier, vitesse 1, volume 1). */
+function reglagesVideo(ressource: Ressource | undefined, brut: Arguments): Partial<ElementVideo> {
+  const sortie: Partial<ElementVideo> = {};
+  const duree = ressource?.video?.duree ?? 0;
+  if ("coupe" in brut) {
+    const c = brut.coupe as { debut?: unknown; fin?: unknown } | null;
+    if (c === null) sortie.coupe = undefined;
+    else {
+      exiger(c && typeof c === "object", "coupe : { debut, fin } en millisecondes du fichier, ou null");
+      const debut = Math.round(nombre(c.debut, 0)!);
+      const fin = c.fin === undefined || c.fin === null ? undefined : Math.round(nombre(c.fin)!);
+      exiger(debut >= 0 && debut < duree, `coupe.debut : de 0 à ${duree - 1} ms (durée du fichier : ${duree} ms)`);
+      if (fin !== undefined) exiger(fin > debut && fin <= duree, `coupe.fin : après debut, ${duree} ms au plus`);
+      sortie.coupe = debut === 0 && (fin === undefined || fin >= duree) ? undefined : { debut, ...(fin !== undefined && fin < duree ? { fin } : {}) };
+    }
+  }
+  if ("vitesse" in brut) {
+    const v = brut.vitesse === null ? 1 : nombre(brut.vitesse);
+    exiger(v !== undefined && VITESSES.includes(v), `vitesse : ${VITESSES.join(", ")}`);
+    sortie.vitesse = v === 1 ? undefined : v;
+  }
+  if ("volume" in brut) {
+    const v = brut.volume === null ? 1 : nombre(brut.volume);
+    exiger(v !== undefined && v >= 0 && v <= 1, "volume : de 0 (muet) à 1");
+    sortie.volume = v === 1 ? undefined : v;
+  }
+  return sortie;
+}
+
 function nettoyerModification(el: ElementPage, brut: Arguments): Partial<ElementPage> {
   const permises = new Set([...COMMUNES, ...PAR_TYPE[el.type]]);
   const propre: Record<string, unknown> = {};
@@ -206,8 +239,11 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
     else if (cle === "retourneH" || cle === "retourneV") {
       exiger(typeof valeur === "boolean", `${cle} : vrai ou faux`);
       propre[cle] = valeur;
+    } else if (el.type === "video" && (cle === "coupe" || cle === "vitesse" || cle === "volume")) {
+      Object.assign(propre, reglagesVideo(etat().ressources[el.ressource], { [cle]: valeur }));
     } else if (cle === "ressource" && (el.type === "cadre" || el.type === "maquette")) {
       exiger(valeur === null || etat().ressources[String(valeur)], `image inconnue dans ce design : ${String(valeur)}`);
+      exiger(valeur === null || !etat().ressources[String(valeur)].video, "une vidéo ne va pas dans un cadre ni un écran : la poser avec ajouter_video");
       propre[cle] = valeur === null ? undefined : valeur;
     }
     else if (cle === "contour" && el.type === "texte") {
@@ -350,6 +386,20 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
 }
 
 const plancheDePhotos = (photos: PhotoPixabay[]) => planche(photos.map((p) => () => urlApercuPixabay(p.id)), 240, 180, true);
+const plancheDeVideos = (videos: VideoPixabay[]) => planche(videos.map((v) => () => urlApercuVideoPixabay(v.id)), 240, 135, true);
+
+/** Une vidéo posée par l'IA : boîte, puis coupe, vitesse et volume. */
+function poserVideo(ressource: Ressource, args: Arguments): ElementVideo {
+  const base = creerVideo(etat().document.format, ressource);
+  const largeur = nombre(args.largeur);
+  const hauteur = nombre(args.hauteur);
+  const ratio = ressource.largeur / ressource.hauteur;
+  const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
+  const el = { ...placer(base, { ...args, ...dimensions }), ...reglagesVideo(ressource, args) };
+  for (const cle of ["coupe", "vitesse", "volume"] as const) if (el[cle] === undefined) delete el[cle];
+  etat().ajouterElements([el]);
+  return el;
+}
 
 /** Ce que l'IA voit du kit de marque. */
 function resumerMarque(kit: KitMarque) {
@@ -609,7 +659,7 @@ const OUTILS: Record<string, Outil> = {
     const forme = texte(args.forme) as FormeCadre;
     exiger(formes.includes(forme), `forme : ${formes.join(", ")}`);
     const ressource = texte(args.ressource);
-    if (ressource) exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
     const el = placer(creerCadre(etat().document.format, forme, ressource), args);
     etat().ajouterElements([el]);
     return { donnees: el };
@@ -629,7 +679,7 @@ const OUTILS: Record<string, Outil> = {
     const appareil = texte(args.appareil) as Appareil;
     exiger(appareil in APPAREILS, "appareil : telephone, tablette, ordinateur ou montre");
     const ressource = texte(args.ressource);
-    if (ressource) exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
     const base = creerMaquette(etat().document.format, appareil, (couleur(args.couleur ?? "#1c1c1e", "couleur") as string) ?? "#1c1c1e", ressource);
     // Les proportions de l'appareil sont gardées : la hauteur suit la largeur, ou l'inverse.
     const proportion = APPAREILS[appareil].proportion;
@@ -647,7 +697,7 @@ const OUTILS: Record<string, Outil> = {
     exiger(el && recoitPhoto(el), `cadre ou maquette introuvable sur la page affichée : ${String(args.id)}`);
     const ressource = texte(args.ressource);
     if (ressource) {
-      exiger(etat().ressources[ressource], `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+      exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
       etat().remplirPhoto(el.id, ressource);
     }
     const apres = elementsCourants(etat()).find((e) => e.id === el.id);
@@ -674,10 +724,62 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: bilan.ressources[0] };
   },
 
+  async importer_video(args) {
+    designOuvert();
+    const chemin = texte(args.chemin);
+    exiger(chemin?.startsWith("/"), "chemin absolu attendu");
+    exiger(estCheminVideo(chemin!), "fichier vidéo attendu : .mp4, .mov, .m4v, .webm, .mkv, .avi, .mpg ou .mpeg (une image passe par importer_image)");
+    const projet = etat().projet!;
+    const bilan = await avecSuivi(() => importerChemins(projet, [chemin!], suiviFichiers));
+    exiger(bilan.ressources.length, bilan.erreurs.join(" ; ") || "import impossible");
+    etat().ajouterRessources(bilan.ressources);
+    return { donnees: bilan.ressources[0] };
+  },
+
+  ajouter_video(args) {
+    designOuvert();
+    const r = etat().ressources[String(args.ressource)];
+    exiger(r?.video, `vidéo inconnue dans ce design : ${String(args.ressource)} (voir etat ou importer_video)`);
+    return { donnees: poserVideo(r!, args) };
+  },
+
+  async chercher_videos(args) {
+    const requete = texte(args.requete)?.trim();
+    exiger(requete, "requete : quelques mots, en français ou en anglais");
+    const etatCle = await etatPixabay();
+    exiger(etatCle, "les vidéos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+    exiger(etatCle.cle, `pas de clé Pixabay : Alexandre doit ajouter PIXABAY_API_KEY dans ${etatCle.fichier}`);
+    const orientation = texte(args.orientation);
+    if (orientation) exiger(orientation === "horizontal" || orientation === "vertical", "orientation : horizontal ou vertical");
+    const page = Math.max(1, Math.min(12, Math.round(nombre(args.page, 1)!)));
+    const resultat = await chercherVideosPixabay(requete!, page);
+    // Pixabay ne filtre pas les vidéos par orientation : le tri se fait ici.
+    const triees = resultat.videos.filter((v) => !orientation || (orientation === "vertical" ? v.hauteur > v.largeur : v.largeur >= v.hauteur));
+    const nombreVideos = Math.max(1, Math.min(20, Math.round(nombre(args.nombre, 12)!)));
+    const videos = triees.slice(0, nombreVideos);
+    const donnees = {
+      total: resultat.total,
+      page,
+      videos: videos.map((v, i) => ({ numero: i + 1, id: v.id, largeur: v.largeur, hauteur: v.hauteur, duree_s: v.duree, auteur: v.auteur, mots: v.mots })),
+      conseil: "la planche montre une image de chaque vidéo, numérotée ; ajouter_video_pixabay avec l'id choisi",
+    };
+    if (videos.length === 0) return { donnees };
+    return { donnees, image: await base64(await plancheDeVideos(videos)) };
+  },
+
+  async ajouter_video_pixabay(args) {
+    designOuvert();
+    const id = nombre(args.id);
+    exiger(id !== undefined && Number.isInteger(id) && id > 0, "id : l'identifiant d'une vidéo trouvée par chercher_videos");
+    const ressource = await telechargerVideoPixabay(id!);
+    return { donnees: { element: poserVideo(ressource, args), ressource } };
+  },
+
   ajouter_image(args) {
     designOuvert();
     const r = etat().ressources[String(args.ressource)];
     exiger(r, `image inconnue dans ce design : ${String(args.ressource)} (voir etat ou importer_image)`);
+    if (r.video) return OUTILS.ajouter_video(args);
     const base = creerImage(etat().document.format, r);
     const largeur = nombre(args.largeur);
     const hauteur = nombre(args.hauteur);

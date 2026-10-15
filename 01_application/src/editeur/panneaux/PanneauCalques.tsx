@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Image as IconeImage, Lock, LockOpen, Shapes, Type } from "lucide-react";
+import { Eye, EyeOff, Film, Image as IconeImage, Lock, LockOpen, Shapes, Type } from "lucide-react";
 import { elementsCourants, useEditeur } from "../../etat/editeur";
 import { nomElement } from "../../modele/fabriques";
 
@@ -22,7 +22,7 @@ export function PanneauCalques() {
               onClick={(e) => (e.shiftKey ? etat.basculerDansSelection(el.id) : etat.selectionnerSeul(el.id))}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-sm ${choisi ? "border-accent-500 bg-accent-50" : "border-transparent hover:bg-neutral-100"} ${el.visible ? "" : "opacity-50"}`}
             >
-              <span className="text-neutral-500">{el.type === "texte" ? <Type size={15} /> : el.type === "image" ? <IconeImage size={15} /> : <Shapes size={15} />}</span>
+              <span className="text-neutral-500">{el.type === "texte" ? <Type size={15} /> : el.type === "image" ? <IconeImage size={15} /> : el.type === "video" ? <Film size={15} /> : <Shapes size={15} />}</span>
               <span className="flex-1 truncate text-neutral-800">{nomElement(el)}</span>
               {el.groupe && <span className="rounded bg-neutral-100 px-1 text-[10px] text-neutral-500" title="Fait partie d'un groupe">groupe</span>}
               <button

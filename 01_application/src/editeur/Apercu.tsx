@@ -1,5 +1,6 @@
 // L'aperçu en plein écran : la page seule, sans l'interface, pour juger le résultat comme le
-// verra le public. Flèches pour changer de page, Échap pour sortir.
+// verra le public. Flèches pour changer de page, Échap pour sortir. Les vidéos y jouent toutes
+// seules, en boucle, avec le son ; celles lancées dans la zone de travail s'arrêtent.
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -7,6 +8,7 @@ import { Group, Layer, Stage } from "react-konva";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { pleinEcran } from "../pont/tauri";
 import { PageStatique } from "./RenduElement";
+import { useLecture } from "./videos";
 
 export function Apercu() {
   const page = useEditeur(pageCourante);
@@ -17,6 +19,7 @@ export function Apercu() {
   const etat = useEditeur.getState();
 
   useEffect(() => {
+    useLecture.getState().arreter();
     void pleinEcran(true);
     const surTaille = () => setTaille({ l: window.innerWidth, h: window.innerHeight });
     window.addEventListener("resize", surTaille);
@@ -52,7 +55,7 @@ export function Apercu() {
         <Stage width={l} height={h} listening={false}>
           <Layer listening={false}>
             <Group scaleX={echelle} scaleY={echelle}>
-              <PageStatique page={page} format={format} />
+              <PageStatique key={page.id} page={page} format={format} anime />
             </Group>
           </Layer>
         </Stage>

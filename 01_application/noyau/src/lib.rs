@@ -12,3 +12,4 @@ pub mod marque;
 pub mod pixabay;
 pub mod polices;
 pub mod projet;
+pub mod videos;

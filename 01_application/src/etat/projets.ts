@@ -181,7 +181,7 @@ export async function collerAvecImages(): Promise<void> {
   const { pressePapiers, projet } = etat;
   if (pressePapiers.elements.length === 0) return;
   const source = pressePapiers.projet;
-  const ids = [...new Set(pressePapiers.elements.flatMap((e) => (e.type === "image" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
+  const ids = [...new Set(pressePapiers.elements.flatMap((e) => (e.type === "image" || e.type === "video" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
   if (projet && source && ids.length && (source.rayon !== projet.rayon || source.id !== projet.id)) {
     try {
       etat.ajouterRessources(await pont.copierRessources(source, projet, ids));

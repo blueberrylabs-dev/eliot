@@ -1,7 +1,8 @@
-// Le panneau Photos : photos libres de Pixabay. La recherche, les aperçus et le téléchargement
-// passent par le Rust, qui seul connaît la clé (BRIEF, règle 12). Rien ne part sur le réseau
-// avant qu'Alexandre lance une recherche. Un clic pose la photo au centre de la page (ou dans
-// le cadre choisi), un glisser la pose sous le pointeur ou dans le cadre lâché dessous.
+// Le panneau Photos : photos et vidéos libres de Pixabay. La recherche, les aperçus et le
+// téléchargement passent par le Rust, qui seul connaît la clé (BRIEF, règle 12). Rien ne part
+// sur le réseau avant qu'Alexandre lance une recherche. Un clic pose la photo au centre de la
+// page (ou dans le cadre choisi), un glisser la pose sous le pointeur ou dans le cadre lâché
+// dessous. Les vidéos sont dans `SectionVideosPixabay.tsx`.
 
 import { Loader2, RotateCw, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as PointeurReact } from "react";
@@ -11,6 +12,7 @@ import { creerImage } from "../../modele/fabriques";
 import type { Ressource } from "../../modele/types";
 import { chercherPixabay, etatPixabay, ouvrirLien, urlApercuPixabay, type EtatPixabay, type FiltresPixabay, type PhotoPixabay } from "../../pont/tauri";
 import { glisserDepuisPanneau } from "../glisser";
+import { SectionVideosPixabay } from "./SectionVideosPixabay";
 
 const SUGGESTIONS = ["café", "bureau", "nature", "ville", "plage", "cuisine", "sport", "mode", "technologie", "fleurs", "texture", "fond flou"];
 
@@ -44,6 +46,26 @@ interface Recherche {
 
 // La dernière recherche reste là quand on passe d'un onglet à l'autre.
 let memoire: Recherche | null = null;
+let genreMemoire: "photos" | "videos" = "photos";
+
+/** Photos ou vidéos : deux boutons en haut du panneau. */
+function Bascule({ genre, choisir }: { genre: "photos" | "videos"; choisir: (g: "photos" | "videos") => void }) {
+  const bouton = (g: "photos" | "videos", libelle: string) => (
+    <button
+      onClick={() => choisir(g)}
+      aria-pressed={genre === g}
+      className={`flex-1 rounded-md py-1.5 text-xs font-medium ${genre === g ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}
+    >
+      {libelle}
+    </button>
+  );
+  return (
+    <div className="mb-3 flex gap-1 rounded-lg bg-neutral-100 p-1">
+      {bouton("photos", "Photos")}
+      {bouton("videos", "Vidéos")}
+    </div>
+  );
+}
 
 function CartePhoto({ photo }: { photo: PhotoPixabay }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -122,6 +144,11 @@ function CartePhoto({ photo }: { photo: PhotoPixabay }) {
 
 export function PanneauPhotos() {
   const [etat, setEtat] = useState<EtatPixabay | null | undefined>(undefined);
+  const [genre, setGenre] = useState(genreMemoire);
+  const choisirGenre = (g: "photos" | "videos") => {
+    genreMemoire = g;
+    setGenre(g);
+  };
   const [saisie, setSaisie] = useState(memoire?.requete ?? "");
   const [filtres, setFiltres] = useState<FiltresPixabay>(memoire?.filtres ?? {});
   const [recherche, setRecherche] = useState<Recherche | null>(memoire);
@@ -164,7 +191,7 @@ export function PanneauPhotos() {
     return (
       <div>
         <p className="mb-2 text-sm font-semibold text-neutral-800">Photos</p>
-        <p className="text-xs text-neutral-600">Les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot : c'est le Rust qui garde la clé et va les chercher.</p>
+        <p className="text-xs text-neutral-600">Les photos et les vidéos de Pixabay ne s'ouvrent que dans la fenêtre Eliot : c'est le Rust qui garde la clé et va les chercher.</p>
       </div>
     );
   }
@@ -189,8 +216,18 @@ export function PanneauPhotos() {
 
   const plus = recherche && recherche.photos.length < recherche.total && recherche.page < PAGES_MAX && recherche.photos.length >= recherche.page * PAR_PAGE;
 
+  if (genre === "videos") {
+    return (
+      <div>
+        <Bascule genre={genre} choisir={choisirGenre} />
+        <SectionVideosPixabay />
+      </div>
+    );
+  }
+
   return (
     <div>
+      <Bascule genre={genre} choisir={choisirGenre} />
       <form
         className="relative mb-2"
         onSubmit={(e) => {

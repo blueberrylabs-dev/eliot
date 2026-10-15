@@ -1,4 +1,4 @@
-// La barre d'outils qui change selon la sélection : page, texte, forme, image.
+// La barre d'outils qui change selon la sélection : page, texte, forme, image, vidéo.
 
 import {
   AlignCenter,
@@ -45,7 +45,7 @@ import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
 import { APPAREILS, COULEURS_APPAREIL } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPersonnage, type ElementQr, type ElementTableau, type FormeCadre, type Ombre } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPersonnage, type ElementQr, type ElementTableau, type ElementVideo, type FormeCadre, type Ombre } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
@@ -55,6 +55,7 @@ import { ouvrirLien } from "../pont/tauri";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 import { ReglagesPersonnage } from "./ReglagesPersonnage";
+import { ReglagesVideo } from "./ReglagesVideo";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -400,17 +401,19 @@ const FORMES_CADRE: { forme: FormeCadre; nom: string }[] = [
   { forme: "coeur", nom: "Cœur" },
 ];
 
-/** Le crédit d'une photo venue de Pixabay : auteur, et un clic ouvre sa page. */
+/** Le crédit d'une photo ou d'une vidéo venue de Pixabay : auteur, et un clic ouvre sa page. */
 function CreditPhoto({ ressource }: { ressource: string | undefined }) {
-  const credit = useEditeur((s) => (ressource ? s.ressources[ressource]?.credit : undefined));
+  const r = useEditeur((s) => (ressource ? s.ressources[ressource] : undefined));
+  const credit = r?.credit;
   if (!credit) return null;
+  const genre = r.video ? "vidéo" : "photo";
   return (
     <button
-      title={`Ouvrir la page de la photo sur ${credit.source}`}
+      title={`Ouvrir la page de la ${genre} sur ${credit.source}`}
       onClick={() => void ouvrirLien(credit.lien)}
       className="h-8 shrink-0 rounded-md px-2 text-xs whitespace-nowrap text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
     >
-      Photo : {credit.auteur}, {credit.source}
+      {r.video ? "Vidéo" : "Photo"} : {credit.auteur}, {credit.source}
     </button>
   );
 }
@@ -505,7 +508,9 @@ export function BarreContexte() {
 
   const textes = choisis.filter((e): e is ElementTexte => e.type === "texte");
   const formes = choisis.filter((e): e is ElementForme => e.type === "forme");
-  const images = choisis.filter((e) => e.type === "image");
+  // Photos et vidéos partagent retournement, coins et bordure.
+  const images = choisis.filter((e): e is ElementImage | ElementVideo => e.type === "image" || e.type === "video");
+  const videos = choisis.filter((e): e is ElementVideo => e.type === "video");
   const icones = choisis.filter((e): e is ElementIcone => e.type === "icone");
   const qrs = choisis.filter((e): e is ElementQr => e.type === "qr");
   const cadres = choisis.filter((e): e is ElementCadre => e.type === "cadre");
@@ -523,12 +528,18 @@ export function BarreContexte() {
       {choisis.length === 0 && <ReglagePage />}
       {choisis.length > 0 && textes.length === choisis.length && <ReglagesTexte textes={textes} modifier={modifier} />}
       {choisis.length > 0 && formes.length === choisis.length && <ReglagesForme formes={formes} modifier={modifier} />}
+      {choisis.length === 1 && videos.length === 1 && (
+        <>
+          <ReglagesVideo v={videos[0]} />
+          {separateur}
+        </>
+      )}
       {choisis.length > 0 && images.length === choisis.length && (
         <>
-          <Bouton titre="Retourner horizontalement" surClic={() => choisis.forEach((e) => e.type === "image" && etat.modifierElements({ [e.id]: { retourneH: !e.retourneH } }))}>
+          <Bouton titre="Retourner horizontalement" surClic={() => images.forEach((e) => etat.modifierElements({ [e.id]: { retourneH: !e.retourneH } }))}>
             <FlipHorizontal2 size={16} />
           </Bouton>
-          <Bouton titre="Retourner verticalement" surClic={() => choisis.forEach((e) => e.type === "image" && etat.modifierElements({ [e.id]: { retourneV: !e.retourneV } }))}>
+          <Bouton titre="Retourner verticalement" surClic={() => images.forEach((e) => etat.modifierElements({ [e.id]: { retourneV: !e.retourneV } }))}>
             <FlipVertical2 size={16} />
           </Bouton>
           {separateur}

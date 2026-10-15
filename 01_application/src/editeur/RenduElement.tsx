@@ -3,18 +3,19 @@
 // Le même rendu sert à la zone de travail, aux vignettes des pages et aux exports.
 
 import type Konva from "konva";
-import { memo, useMemo } from "react";
+import { memo, useMemo, useRef } from "react";
 import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } from "react-konva";
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { useImagePersonnage } from "../bibliotheque/personnages";
 import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
 import { ecranAppareil, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
+import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type Recadrage } from "../modele/types";
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
 import { useImageRessource } from "./images";
 import { Dessin, Graphique, Tableau } from "./RenduDonnees";
+import { useLecteurVideo, useLecture } from "./videos";
 
 /** Propriétés d'ombre Konva ; sans ombre, rien (Konva ne calcule alors aucune ombre). */
 export function ombreKonva(ombre: Ombre | undefined): Record<string, unknown> {
@@ -105,6 +106,26 @@ function Forme({ el }: { el: ElementForme }) {
 
 function Photo({ el }: { el: ElementImage }) {
   const image = useImageRessource(el.ressource);
+  return <Plaque el={el} image={image} />;
+}
+
+/**
+ * Une vidéo. Figée (vignette, export en image), elle montre sa couverture ; dans la zone de
+ * travail, sa copie d'aperçu, qui joue quand on la lance ; dans l'aperçu plein écran, elle
+ * joue toute seule, en boucle, avec le son.
+ */
+function Video({ el, statique, anime }: { el: ElementVideo; statique: boolean; anime: boolean }) {
+  const couverture = useImageRessource(el.ressource);
+  const enLecture = useLecture((s) => !!s.enLecture[el.id]);
+  const noeud = useRef<Konva.Image>(null);
+  const video = useLecteurVideo(el, anime || enLecture, true, noeud);
+  if (statique && !anime) return <Plaque el={el} image={couverture} />;
+  return <Plaque el={el} image={video ?? couverture} noeud={noeud} />;
+}
+
+/** Une photo ou l'image courante d'une vidéo dans sa boîte : retournée, coins arrondis,
+ *  bordure, ombre. */
+function Plaque({ el, image, noeud }: { el: ElementImage | ElementVideo; image: CanvasImageSource | undefined; noeud?: React.Ref<Konva.Image> }) {
   const arrondi = Math.min(el.arrondi ?? 0, el.largeur / 2, el.hauteur / 2);
   if (!image) {
     // En attendant l'aperçu (ou s'il manque), une plaque grise à la bonne taille.
@@ -112,6 +133,7 @@ function Photo({ el }: { el: ElementImage }) {
   }
   const photo = (
     <ImageKonva
+      ref={noeud}
       image={image}
       width={el.largeur}
       height={el.hauteur}
@@ -416,9 +438,11 @@ interface Proprietes {
   fige?: boolean;
   /** Tableau : la cellule en cours d'écriture (son texte est dans la zone de saisie). */
   celluleMasquee?: { ligne: number; colonne: number } | null;
+  /** Aperçu plein écran : les vidéos jouent toutes seules. */
+  anime?: boolean;
 }
 
-export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null }: Proprietes) {
+export const RenduElement = memo(function RenduElement({ el, enEdition = false, enAjustement = false, statique = false, fige = false, celluleMasquee = null, anime = false }: Proprietes) {
   return (
     <Group
       id={statique ? undefined : el.id}
@@ -435,6 +459,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       {el.type === "texte" && <Texte el={el} masque={enEdition} />}
       {el.type === "forme" && <Forme el={el} />}
       {el.type === "image" && <Photo el={el} />}
+      {el.type === "video" && <Video el={el} statique={statique} anime={anime} />}
       {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
       {el.type === "personnage" && <Personnage el={el} />}
       {el.type === "qr" && <CodeQr el={el} />}
@@ -447,13 +472,14 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
   );
 });
 
-/** Une page entière, figée, à sa taille native : fond puis éléments. */
-export const PageStatique = memo(function PageStatique({ page, format }: { page: PageEliot; format: Format }) {
+/** Une page entière, figée, à sa taille native : fond puis éléments. `anime` : les vidéos
+ *  jouent (aperçu plein écran). */
+export const PageStatique = memo(function PageStatique({ page, format, anime = false }: { page: PageEliot; format: Format; anime?: boolean }) {
   return (
     <>
       <Rect name="fond-page" width={format.largeur} height={format.hauteur} {...remplissageKonva(page.fond, format.largeur, format.hauteur)} listening={false} />
       {page.elements.map((el) => (
-        <RenduElement key={el.id} el={el} statique />
+        <RenduElement key={el.id} el={el} statique anime={anime} />
       ))}
     </>
   );

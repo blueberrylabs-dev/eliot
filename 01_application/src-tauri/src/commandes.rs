@@ -5,11 +5,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, images, marque, pixabay, polices, projet};
+use noyau::{export, images, marque, pixabay, polices, projet, videos};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
-use tauri::ipc::{InvokeBody, Request, Response};
+use tauri::ipc::{Channel, InvokeBody, Request, Response};
 use tauri::{AppHandle, Manager};
 
 /// Une seule opération à la fois sur les designs : un enregistrement automatique ne croise
@@ -247,6 +247,48 @@ pub async fn importer_images(app: AppHandle, rayon_nom: String, projet_id: Strin
     .map_err(|e| format!("import interrompu : {e}"))
 }
 
+/// Où en est l'import d'une vidéo : le fichier en cours (à partir de 0) et sa part faite, de 0
+/// à 1. Envoyé au plus une fois par centième, pour ne pas noyer la fenêtre.
+#[derive(Clone, Serialize)]
+pub struct Avancement {
+    fichier: usize,
+    part: f32,
+}
+
+fn rapporteur(canal: &Channel<Avancement>, fichier: usize, debut: f32, fin: f32) -> impl FnMut(f32) + '_ {
+    let mut dernier = -1.0_f32;
+    move |p: f32| {
+        let part = debut + (fin - debut) * p.clamp(0.0, 1.0);
+        if part - dernier >= 0.01 || (p >= 1.0 && dernier < fin) {
+            dernier = part;
+            let _ = canal.send(Avancement { fichier, part });
+        }
+    }
+}
+
+/// Importe des vidéos (chemins choisis ou déposés), l'une après l'autre : `ffmpeg` occupe déjà
+/// tout le processeur pour chacune. Le noyau range l'original et fabrique la copie d'aperçu,
+/// les vignettes et la forme d'onde ; la fenêtre ne verra que ces copies.
+#[tauri::command]
+pub async fn importer_videos(app: AppHandle, rayon_nom: String, projet_id: String, chemins: Vec<String>, avancement: Channel<Avancement>) -> Result<Vec<ResultatImport>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        chemins
+            .into_iter()
+            .enumerate()
+            .map(|(i, chemin)| {
+                let mut rapport = rapporteur(&avancement, i, 0.0, 1.0);
+                match videos::importer(std::path::Path::new(&chemin), &dossier, &videos::ReglageCopie::default(), &mut rapport) {
+                    Ok(ressource) => ResultatImport { chemin, ressource: Some(ressource), erreur: None },
+                    Err(e) => ResultatImport { chemin, ressource: None, erreur: Some(e.to_string()) },
+                }
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("import interrompu : {e}"))
+}
+
 /// Importe une image reçue en octets (collage depuis le presse-papiers). En-têtes : `x-rayon`,
 /// `x-projet`, `x-nom`.
 #[tauri::command]
@@ -278,12 +320,16 @@ pub async fn ressources_copier(app: AppHandle, source_rayon: String, source_id: 
         .map_err(|e| format!("copie interrompue : {e}"))?
 }
 
-/// Renvoie l'aperçu ou la miniature d'une image, en octets bruts.
+/// Renvoie, en octets bruts, l'aperçu ou la miniature d'une image ; pour une vidéo aussi sa
+/// copie d'aperçu, sa bande de vignettes ou sa forme d'onde. Jamais un original.
 #[tauri::command]
 pub async fn lire_ressource(app: AppHandle, rayon_nom: String, projet_id: String, id: String, genre: String) -> Result<Response, String> {
     let genre = match genre.as_str() {
         "apercu" => images::Genre::Apercu,
         "miniature" => images::Genre::Miniature,
+        "copie" => images::Genre::Copie,
+        "vignettes" => images::Genre::Vignettes,
+        "onde" => images::Genre::Onde,
         autre => return Err(format!("genre inconnu : {autre}")),
     };
     let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
@@ -438,6 +484,45 @@ pub async fn pixabay_importer(app: AppHandle, rayon_nom: String, projet_id: Stri
     tauri::async_runtime::spawn_blocking(move || {
         let (octets, credit, nom) = client_pixabay(&app)?.telecharger(id).map_err(|e| e.to_string())?;
         images::importer_avec_credit(&octets, &nom, &dossier, credit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Vidéos de Pixabay (étape 4)
+// ----------------------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn pixabay_chercher_videos(app: AppHandle, requete: String, page: u32) -> Result<pixabay::PageVideos, String> {
+    tauri::async_runtime::spawn_blocking(move || client_pixabay(&app)?.chercher_videos(&requete, page).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn pixabay_apercu_video(app: AppHandle, id: u64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_pixabay(&app)?.apercu_video(id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge la vidéo choisie (le premier tiers de l'avancement) puis l'importe comme une
+/// vidéo du poste, avec son crédit.
+#[tauri::command]
+pub async fn pixabay_importer_video(app: AppHandle, rayon_nom: String, projet_id: String, id: u64, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&dossier).map_err(|e| e.to_string())?;
+        // Fichier caché, mais qui garde son extension : l'original sera rangé en `.mp4`.
+        let temporaire = dossier.join(format!(".telechargement-pixabay-{id}-{}.mp4", std::process::id()));
+        let resultat = (|| {
+            let (credit, nom) = client_pixabay(&app)?.telecharger_video(id, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.3)).map_err(|e| e.to_string())?;
+            videos::importer_avec_credit(&temporaire, &nom, &dossier, &videos::ReglageCopie::default(), credit, &mut rapporteur(&avancement, 0, 0.3, 1.0)).map_err(|e| e.to_string())
+        })();
+        let _ = std::fs::remove_file(&temporaire);
+        resultat
     })
     .await
     .map_err(|e| format!("téléchargement interrompu : {e}"))?

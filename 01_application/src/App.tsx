@@ -3,6 +3,7 @@
 import { Accueil } from "./accueil/Accueil";
 import { Editeur } from "./editeur/Editeur";
 import { Notification } from "./editeur/Notification";
+import { BandeImport } from "./editeur/SuiviImport";
 import { useEditeur } from "./etat/editeur";
 import { Reglages } from "./reglages/Reglages";
 
@@ -12,6 +13,7 @@ export function App() {
   return (
     <div className="relative h-full">
       {vue === "accueil" ? <Accueil /> : <Editeur />}
+      <BandeImport />
       <Notification />
       {reglages && <Reglages />}
     </div>

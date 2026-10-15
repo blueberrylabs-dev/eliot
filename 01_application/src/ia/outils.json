@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images importées dans le design, polices disponibles. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), polices disponibles. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -1030,7 +1030,7 @@
   },
   {
     "name": "importer_image",
-    "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié.",
+    "description": "Importe une image du poste (chemin absolu d'un fichier JPEG, PNG, WebP, GIF, BMP ou TIFF) dans le design ouvert. Renvoie l'identifiant de la ressource, à passer à ajouter_image. L'original n'est jamais modifié. Une vidéo passe par importer_video.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1173,6 +1173,198 @@
     }
   },
   {
+    "name": "importer_video",
+    "description": "Importe une vidéo du poste (chemin absolu d'un fichier MP4, MOV, M4V, WebM, MKV, AVI, MPG ou MPEG) dans le design ouvert. Eliot range l'original sans le modifier et prépare une copie légère pour l'écran, les vignettes et la forme d'onde du son : quelques secondes à quelques minutes selon la longueur. Renvoie la ressource (taille, durée en millisecondes, son), à passer à ajouter_video.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "chemin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chemin"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_video",
+    "description": "Pose sur la page affichée une vidéo déjà importée (identifiant de ressource donné par etat ou importer_video). Avec seulement largeur ou seulement hauteur, les proportions sont gardées ; sans position, elle est centrée. Sur une page fixe, la vidéo joue en boucle (post animé) ; une capture ou un export en image montre sa couverture.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ressource": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coupe": {
+          "type": "object",
+          "description": "La partie du fichier qui joue, en millisecondes du fichier : { debut, fin } (fin absente : jusqu'au bout). Absente : toute la vidéo.",
+          "properties": {
+            "debut": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fin": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "vitesse": {
+          "type": "number",
+          "enum": [
+            0.25,
+            0.5,
+            0.75,
+            1,
+            1.25,
+            1.5,
+            2,
+            3,
+            4
+          ],
+          "description": "1 : vitesse normale."
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 : muet ; 1 par défaut."
+        }
+      },
+      "required": [
+        "ressource"
+      ]
+    }
+  },
+  {
+    "name": "chercher_videos",
+    "description": "Cherche des vidéos libres sur Pixabay (gratuites, sans obligation de citer l'auteur ; interdit de les revendre telles quelles). Renvoie les vidéos trouvées (taille, durée en secondes, auteur) et une planche numérotée avec une image de chacune. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la vidéo choisie.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots, en français ou en anglais : « mer vagues », « ville la nuit »."
+        },
+        "orientation": {
+          "type": "string",
+          "enum": [
+            "horizontal",
+            "vertical"
+          ],
+          "description": "Trié par Eliot parmi les résultats (Pixabay ne filtre pas les vidéos par sens)."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Page de résultats (40 vidéos par page)."
+        },
+        "nombre": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Vidéos montrées sur la planche, 12 par défaut."
+        }
+      },
+      "required": [
+        "requete"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_video_pixabay",
+    "description": "Télécharge une vidéo trouvée par chercher_videos (1080p), la prépare comme une vidéo importée, la range dans le design avec le nom et le lien de son auteur, puis la pose sur la page (centrée par défaut).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Identifiant de la vidéo donné par chercher_videos."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coupe": {
+          "type": "object",
+          "description": "La partie du fichier qui joue, en millisecondes du fichier : { debut, fin } (fin absente : jusqu'au bout). Absente : toute la vidéo.",
+          "properties": {
+            "debut": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fin": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "vitesse": {
+          "type": "number",
+          "enum": [
+            0.25,
+            0.5,
+            0.75,
+            1,
+            1.25,
+            1.5,
+            2,
+            3,
+            4
+          ],
+          "description": "1 : vitesse normale."
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 : muet ; 1 par défaut."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "marque",
     "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo). À lire avant de composer un design pour sa marque.",
     "inputSchema": {
@@ -1293,7 +1485,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place).",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place).",
     "inputSchema": {
       "type": "object",
       "properties": {

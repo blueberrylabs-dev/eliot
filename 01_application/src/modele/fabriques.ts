@@ -22,6 +22,7 @@ import {
   type FormeCadre,
   type ElementIcone,
   type ElementImage,
+  type ElementVideo,
   type ElementQr,
   type ElementPersonnage,
   type ElementPage,
@@ -284,6 +285,20 @@ export function creerImage(page: Format, ressource: Ressource): ElementImage {
   };
 }
 
+/** La vidéo entre comme une image : à 60 % de la page au plus, proportions gardées, au
+ *  centre ; tout le fichier joue, à vitesse normale. */
+export function creerVideo(page: Format, ressource: Ressource): ElementVideo {
+  const image = creerImage(page, ressource);
+  return { ...image, type: "video" };
+}
+
+/** Durée qui joue d'une vidéo, en millisecondes du fichier, vitesse comprise. */
+export function dureeJouee(el: ElementVideo, dureeFichier: number): number {
+  const debut = el.coupe?.debut ?? 0;
+  const fin = Math.min(el.coupe?.fin ?? dureeFichier, dureeFichier);
+  return Math.max(0, fin - debut) / (el.vitesse ?? 1);
+}
+
 /** Copie avec un nouvel identifiant, décalée pour qu'on la voie. Les éléments d'un même
  *  groupe copiés ensemble restent groupés entre eux, sous une nouvelle étiquette. */
 export function dupliquer(el: ElementPage, decalage = 24, groupes?: Map<string, string>): ElementPage {
@@ -343,6 +358,8 @@ export function nomElement(el: ElementPage): string {
       return el.texte.replace(/\s+/g, " ").slice(0, 28) || "Texte vide";
     case "image":
       return "Image";
+    case "video":
+      return "Vidéo";
     case "icone":
       return `Icône ${el.nom.replace(/-/g, " ")}`;
     case "emoji":

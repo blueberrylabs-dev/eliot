@@ -20,10 +20,10 @@ use serde::Serialize;
 use serde_json::{Map, Value, json};
 use thiserror::Error;
 
-use crate::fichiers::{ecrire_atomiquement, nettoyer_nom};
+use crate::fichiers::{chemin_temporaire, ecrire_atomiquement, nettoyer_nom};
 
 /// Version du document que cette version d'Eliot écrit.
-pub const VERSION_DOCUMENT: u64 = 3;
+pub const VERSION_DOCUMENT: u64 = 4;
 
 pub const FICHIER_DOCUMENT: &str = "document.json";
 pub const FICHIER_PRECEDENT: &str = "document.precedent.json";
@@ -112,7 +112,9 @@ fn nom_de_dossier(nom: &str) -> String {
 /// Amène un document à la version courante. Version 1 (étape 1) : une page unique
 /// `{ page: { largeur, hauteur, fond }, elements }`. Version 2 : `{ nom, format, pages }`.
 /// Version 3 (étape 3) : de nouveaux types d'éléments et des champs facultatifs ; un document
-/// de version 2 reste valable tel quel.
+/// de version 2 reste valable tel quel. Version 4 (étape 4) : la vidéo (`duree` d'une page,
+/// `temps` et `piste` des éléments, élément `video`, sons de la page dans `audio`), tout en champs
+/// facultatifs ; un document de version 2 ou 3 ne change que de numéro.
 pub fn migrer(mut document: Value, nom_par_defaut: &str) -> Result<Value, ErreurProjet> {
     let version = document
         .get("version")
@@ -137,10 +139,10 @@ pub fn migrer(mut document: Value, nom_par_defaut: &str) -> Result<Value, Erreur
             "pages": [ { "id": "page-1", "fond": fond, "elements": elements } ],
         });
     }
-    if version <= 2 {
-        if let Some(objet) = document.as_object_mut() {
-            objet.insert("version".into(), json!(3));
-        }
+    if version < VERSION_DOCUMENT
+        && let Some(objet) = document.as_object_mut()
+    {
+        objet.insert("version".into(), json!(VERSION_DOCUMENT));
     }
     verifier_forme(&document)?;
     Ok(document)
@@ -167,6 +169,16 @@ fn verifier_forme(document: &Value) -> Result<(), ErreurProjet> {
     }
     for page in pages {
         page.get("elements").and_then(Value::as_array).ok_or_else(|| illisible("page sans éléments"))?;
+        // Une page vidéo dure entre un dixième de seconde et trois heures.
+        if let Some(duree) = page.get("duree") {
+            let ms = duree.as_f64().ok_or_else(|| illisible("durée de page illisible"))?;
+            if !(100.0..=10_800_000.0).contains(&ms) {
+                return Err(illisible("durée de page hors limites"));
+            }
+        }
+        if let Some(audio) = page.get("audio") {
+            audio.as_array().ok_or_else(|| illisible("sons de la page illisibles"))?;
+        }
     }
     Ok(())
 }
@@ -377,7 +389,7 @@ fn ajouter_au_zip<W: Write + io::Seek>(zip: &mut zip::ZipWriter<W>, racine: &Pat
         if entree.file_type()?.is_dir() {
             ajouter_au_zip(zip, racine, &chemin)?;
         } else {
-            // Les images sont déjà compressées : les recompresser ne gagne rien.
+            // Les images et les vidéos sont déjà compressées : les recompresser ne gagne rien.
             let deja_compresse = !nom.ends_with(".json");
             let methode = if deja_compresse { zip::CompressionMethod::Stored } else { zip::CompressionMethod::Deflated };
             let options = zip::write::SimpleFileOptions::default().compression_method(methode).large_file(true);
@@ -388,17 +400,24 @@ fn ajouter_au_zip<W: Write + io::Seek>(zip: &mut zip::ZipWriter<W>, racine: &Pat
     Ok(())
 }
 
-/// Écrit le design dans une archive `.eliot` à l'emplacement choisi.
+/// Écrit le design dans une archive `.eliot` à l'emplacement choisi. L'archive s'écrit
+/// directement sur le disque, sous un nom provisoire renommé à la fin : un design plein de
+/// vidéos ne passe pas par la mémoire.
 pub fn exporter_archive(rayon: &Path, id: &str, cible: &Path) -> Result<PathBuf, ErreurProjet> {
     let dossier = dossier_projet(rayon, id)?;
-    let mut tampon = io::Cursor::new(Vec::new());
-    {
-        let mut zip = zip::ZipWriter::new(&mut tampon);
+    let temporaire = chemin_temporaire(cible)?;
+    let resultat = (|| -> Result<(), ErreurProjet> {
+        let mut zip = zip::ZipWriter::new(File::create(&temporaire)?);
         ajouter_au_zip(&mut zip, &dossier, &dossier)?;
-        zip.finish().map_err(|e| io::Error::other(e.to_string()))?;
+        let fichier = zip.finish().map_err(|e| io::Error::other(e.to_string()))?;
+        fichier.sync_all()?;
+        fs::rename(&temporaire, cible)?;
+        Ok(())
+    })();
+    if resultat.is_err() {
+        let _ = fs::remove_file(&temporaire);
     }
-    ecrire_atomiquement(cible, tampon.get_ref())?;
-    Ok(cible.to_path_buf())
+    resultat.map(|()| cible.to_path_buf())
 }
 
 /// Un chemin d'archive accepté : relatif, sans `..`, et seulement ce qu'un design contient.
@@ -450,10 +469,9 @@ pub fn importer_archive(rayon: &Path, archive: &Path) -> Result<InfoProjet, Erre
             if let Some(parent) = destination.parent() {
                 fs::create_dir_all(parent)?;
             }
-            let mut octets = Vec::with_capacity(entree.size() as usize);
-            // La taille annoncée peut mentir : on ne lit jamais plus que la limite.
-            (&mut entree).take(TAILLE_MAX).read_to_end(&mut octets)?;
-            fs::write(&destination, &octets)?;
+            // La taille annoncée peut mentir : on ne lit jamais plus que la limite. Copié par
+            // morceaux, une vidéo ne passe pas par la mémoire.
+            io::copy(&mut (&mut entree).take(TAILLE_MAX), &mut File::create(&destination)?)?;
         }
         let nom_par_defaut = archive.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
         let document = migrer(lire_document(&temporaire).map_err(|_| refus("document.json absent ou illisible"))?, &nom_par_defaut)?;
@@ -529,7 +547,7 @@ mod tests {
             "elements": [ { "id": "a1", "type": "forme" } ],
         });
         let nouveau = migrer(ancien, "Ancien").unwrap();
-        assert_eq!(nouveau["version"], 3);
+        assert_eq!(nouveau["version"], 4);
         assert_eq!(nouveau["nom"], "Ancien");
         assert_eq!(nouveau["format"]["hauteur"], 1920);
         assert_eq!(nouveau["pages"][0]["fond"], "#123456");
@@ -545,20 +563,47 @@ mod tests {
             "pages": [ { "id": "p1", "fond": "#ffffff", "elements": [ { "id": "t1", "type": "texte", "texte": "Bonjour" } ] } ],
         });
         let nouveau = migrer(ancien.clone(), "x").unwrap();
-        assert_eq!(nouveau["version"], 3);
+        assert_eq!(nouveau["version"], 4);
         let mut attendu = ancien;
-        attendu["version"] = json!(3);
+        attendu["version"] = json!(4);
         assert_eq!(nouveau, attendu);
+    }
+
+    #[test]
+    fn un_document_de_l_etape_3_garde_tout_sauf_son_numero_et_la_video_est_controlee() {
+        let ancien = json!({
+            "version": 3,
+            "nom": "Post",
+            "format": { "largeur": 1080, "hauteur": 1350 },
+            "pages": [ { "id": "p1", "fond": "#ffffff", "elements": [ { "id": "c1", "type": "personnage", "collection": "open-peeps" } ] } ],
+        });
+        let nouveau = migrer(ancien.clone(), "x").unwrap();
+        let mut attendu = ancien;
+        attendu["version"] = json!(4);
+        assert_eq!(nouveau, attendu);
+        // Une page vidéo et ses sons passent ; une durée absurde ou des sons mal formés non.
+        let mut video = attendu.clone();
+        video["pages"][0]["duree"] = json!(15000);
+        video["pages"][0]["audio"] = json!([]);
+        assert!(migrer(video.clone(), "x").is_ok());
+        for (champ, valeur) in [("duree", json!(0)), ("duree", json!("long"))] {
+            let mut faux = video.clone();
+            faux["pages"][0][champ] = valeur;
+            assert!(migrer(faux, "x").is_err());
+        }
+        let mut faux = video;
+        faux["pages"][0]["audio"] = json!({});
+        assert!(migrer(faux, "x").is_err());
     }
 
     #[test]
     fn un_document_trop_recent_ou_bancal_est_refuse() {
         assert!(matches!(migrer(json!({ "version": 99 }), "x"), Err(ErreurProjet::VersionFuture(99))));
-        assert!(migrer(json!({ "version": 3, "nom": "x" }), "x").is_err());
+        assert!(migrer(json!({ "version": 4, "nom": "x" }), "x").is_err());
         let rayon = rayon_de_test("refus");
         let info = creer(&rayon, &document_vide("Bon", 10, 10)).unwrap();
         assert!(enregistrer(&rayon, &info.id, b"{ pas du json").is_err());
-        assert!(enregistrer(&rayon, &info.id, &texte(&json!({ "version": 3 }))).is_err());
+        assert!(enregistrer(&rayon, &info.id, &texte(&json!({ "version": 4 }))).is_err());
         let (_, relu) = ouvrir(&rayon, &info.id).unwrap();
         assert_eq!(relu["nom"], "Bon", "un enregistrement refusé ne touche pas au fichier");
         fs::remove_dir_all(&rayon).unwrap();
@@ -640,14 +685,26 @@ mod tests {
         let ressources = a.join(&info.id).join(DOSSIER_RESSOURCES).join("apercus");
         fs::create_dir_all(&ressources).unwrap();
         fs::write(ressources.join("image.jpg"), b"octets de l'image").unwrap();
+        // Une vidéo un peu lourde (3 Mo) et sa copie d'aperçu voyagent aussi.
+        let video: Vec<u8> = (0..3_000_000u32).map(|i| (i * 7 % 251) as u8).collect();
+        let originaux = a.join(&info.id).join(DOSSIER_RESSOURCES).join("originaux");
+        let copies = a.join(&info.id).join(DOSSIER_RESSOURCES).join("copies");
+        fs::create_dir_all(&originaux).unwrap();
+        fs::create_dir_all(&copies).unwrap();
+        fs::write(originaux.join("clip.mp4"), &video).unwrap();
+        fs::write(copies.join("clip.webm"), b"copie").unwrap();
         enregistrer_miniature(&a, &info.id, &[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 1, 2]).unwrap();
 
         let fichier = racine.join("Voyage.eliot");
         exporter_archive(&a, &info.id, &fichier).unwrap();
+        let restes: Vec<_> = fs::read_dir(&racine).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with('.')).collect();
+        assert!(restes.is_empty(), "le fichier provisoire de l'archive a disparu : {restes:?}");
         let importe = importer_archive(&b, &fichier).unwrap();
         assert_eq!(importe.nom, "Voyage");
         assert!(importe.miniature);
         assert_eq!(fs::read(b.join(&importe.id).join("ressources/apercus/image.jpg")).unwrap(), b"octets de l'image");
+        assert_eq!(fs::read(b.join(&importe.id).join("ressources/originaux/clip.mp4")).unwrap(), video);
+        assert_eq!(fs::read(b.join(&importe.id).join("ressources/copies/clip.webm")).unwrap(), b"copie");
         // Un second import du même fichier ne remplace rien : il crée « Voyage_2 ».
         assert_eq!(importer_archive(&b, &fichier).unwrap().id, "Voyage_2");
         fs::remove_dir_all(&racine).unwrap();

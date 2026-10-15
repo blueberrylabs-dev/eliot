@@ -5,6 +5,42 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4, lot 1 : la vidéo dans le design
+
+- Import : le noyau (`videos.rs`) sonde le fichier (`ffprobe`), range l'original tel quel,
+  fabrique la copie d'aperçu (VP9 et Opus, 720 px sur le petit côté, jamais agrandie, une
+  image clé par demi-seconde, mesurée), une couverture prise vers la première seconde (pour
+  les vignettes de page, la miniature et l'export en image), la bande des vignettes de la
+  frise et la forme d'onde (50 pics par seconde). Une vidéo déjà rangée n'est pas refaite.
+  L'avancement remonte à la fenêtre par un canal Tauri ; une bande le montre en bas.
+- Lecture : la fenêtre lit la copie en octets (genre `copie` de `lire_ressource`) et en fait
+  une adresse locale ; une balise vidéo par élément, dessinée par Konva, le calque redessiné
+  à chaque image (`requestVideoFrameCallback`). Choisi parce que c'est la même voie que les
+  images et qu'elle n'expose aucun fichier : écarté pour l'instant, un protocole Tauri qui lit
+  le disque par morceaux, à reprendre si des vidéos très longues pèsent trop en mémoire.
+- Une vidéo ne joue que quand on la lance (barre du haut, comme Canva) ; elle boucle sur sa
+  coupe sans jamais montrer une image qui en sort ; changer de page arrête tout. L'aperçu plein
+  écran fait tout jouer, avec le son (sans le son si le moteur le refuse).
+- Document version 4 : élément `video` (`ressource`, `coupe`, `vitesse`, `volume`,
+  retournement, coins, bordure), champs `temps`, `piste`, `duree` et `audio` déjà décrits mais
+  pas encore servis. Le noyau convertit un document de version 3 en ne changeant que le
+  numéro, et refuse une durée de page hors de 0,1 s à 3 h.
+- Vidéos Pixabay : même chemin que les photos (clé lue par le Rust seul, cache de 24 h), le
+  fichier 1080p téléchargé par morceaux (500 Mo au plus) puis préparé comme une vidéo du
+  poste, crédit gardé. Pixabay ne filtre pas les vidéos par sens : le tri Paysage ou Portrait
+  se fait sur les résultats.
+- Pas encore : une vidéo dans un cadre ou un écran de maquette (refusée, elle se pose seule),
+  l'export MP4 (lot 4) ; l'export en image montre la couverture, et la fenêtre d'export le dit.
+- Pont IA : `importer_video`, `ajouter_video`, `chercher_videos`, `ajouter_video_pixabay`
+  (47 outils), et `modifier` pour la coupe, la vitesse et le volume, vérifiés contre la durée
+  du fichier. Le programme `eliot-mcp` est à recompiler (commande 13).
+- Archive `.eliot` : écrite et relue par morceaux, sans tout charger en mémoire (un design
+  avec des vidéos peut peser des centaines de Mo).
+- Vérifié dans le conteneur : noyau 42 essais, interface 66, Chromium 40 vérifications sur la
+  vidéo et les suites des étapes 2 et 3 inchangées, Tauri par le pont 25 vérifications dont la
+  lecture dans la fenêtre WebKit (rouge, vert, bleu, jaune puis retour au rouge), suites 3a à
+  3f. Une vidéo 1080p de 15 s se prépare en 18 s sur les 2 cœurs du conteneur.
+
 ## 2026-10-15, banc des copies d'aperçu : VP9 en 720, Tauri reste
 
 - Série complète d'Alexandre sur le poste principal (`00_banc_essai/resultats/2026-10-15_081343_tauri-webkitgtk_copies.json`),

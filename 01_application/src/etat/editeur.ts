@@ -38,6 +38,7 @@ const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre"],
   image: ["arrondi", "bordure", "opacite", "ombre"],
+  video: ["arrondi", "bordure", "opacite", "ombre"],
   icone: ["couleur", "trait", "opacite", "ombre"],
   emoji: ["opacite", "ombre"],
   personnage: ["couleurs", "opacite", "ombre"],
@@ -479,8 +480,10 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const style = get().styleCopie;
     const cible = parId(elementsCourants(get())).get(id);
     if (!style || !cible || cible.verrouille) return;
-    // Entre deux types différents, seule la transparence passe.
-    const valeurs = cible.type === style.type ? style.valeurs : { opacite: style.valeurs.opacite };
+    // Entre deux types différents, seule la transparence passe ; une photo et une vidéo
+    // partagent leurs coins, leur bordure et leur ombre.
+    const photoEtVideo = (t: string) => t === "image" || t === "video";
+    const valeurs = cible.type === style.type || (photoEtVideo(cible.type) && photoEtVideo(style.type)) ? style.valeurs : { opacite: style.valeurs.opacite };
     get().modifierElements({ [id]: valeurs as Partial<ElementPage> });
     set({ styleCopie: null, selection: avecGroupes([id], elementsCourants(get())) });
   },

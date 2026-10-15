@@ -3,14 +3,19 @@
 // un navigateur), chaque fonction a un équivalent navigateur, pour travailler l'interface
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { Credit, DocumentEliot, InfoProjet, RefProjet, RefRessources, Ressource } from "../modele/types";
+import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import type { Credit, DocumentEliot, InfoProjet, InfosVideo, RefProjet, RefRessources, Ressource } from "../modele/types";
 
 export const dansTauri = isTauri();
 
 const EXTENSIONS_IMAGES = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "tif", "tiff"];
+/** Les mêmes que le noyau (`videos::EXTENSIONS`). */
+export const EXTENSIONS_VIDEOS = ["mp4", "mov", "m4v", "webm", "mkv", "avi", "mpg", "mpeg"];
+const extension = (chemin: string) => chemin.toLowerCase().split(".").pop() ?? "";
+export const estCheminVideo = (chemin: string) => EXTENSIONS_VIDEOS.includes(extension(chemin));
+export const estCheminImage = (chemin: string) => EXTENSIONS_IMAGES.includes(extension(chemin));
 
-/** Ce que renvoie le noyau pour une image. */
+/** Ce que renvoie le noyau pour une image ou une vidéo. */
 interface RessourceNoyau {
   id: string;
   nom: string;
@@ -18,7 +23,18 @@ interface RessourceNoyau {
   hauteur: number;
   transparence: boolean;
   credit?: Credit | null;
+  video?: {
+    duree: number;
+    images_par_seconde: number;
+    son: boolean;
+    copie: string;
+    vignettes: { nombre: number; intervalle: number; largeur: number; hauteur: number };
+  } | null;
 }
+
+/** Où en est un import : le fichier en cours (à partir de 0), sa part faite de 0 à 1, et le
+ *  nombre de fichiers. */
+export type SuiviImport = (fichier: number, part: number, total: number) => void;
 interface ResultatImport {
   chemin: string;
   ressource: RessourceNoyau | null;
@@ -37,6 +53,17 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
   hauteur: r.hauteur,
   transparence: r.transparence,
   ...(r.credit ? { credit: { source: r.credit.source, auteur: r.credit.auteur, lien: r.credit.lien } } : {}),
+  ...(r.video
+    ? {
+        video: {
+          duree: r.video.duree,
+          imagesParSeconde: r.video.images_par_seconde,
+          son: r.video.son,
+          copie: r.video.copie === "mp4" ? "mp4" : "webm",
+          vignettes: { ...r.video.vignettes },
+        } satisfies InfosVideo,
+      }
+    : {}),
 });
 
 /** Type d'image d'après les premiers octets (les aperçus sont en PNG ou en JPEG). */
@@ -93,8 +120,9 @@ function designMemoire(ref: RefProjet): DesignMemoire {
   return d;
 }
 
-// Images du navigateur : préparées dans l'onglet, gardées le temps de la session.
-const ressourcesNavigateur = new Map<string, { ressource: Ressource; urls: Record<GenreImage, string> }>();
+// Images et vidéos du navigateur : préparées dans l'onglet, gardées le temps de la session.
+// Pour une vidéo, la « copie » est le fichier lui-même (il n'y a pas de Rust ici).
+const ressourcesNavigateur = new Map<string, { ressource: Ressource; urls: Record<GenreImage, string> & { copie?: string } }>();
 
 // ========================================================================================
 // Designs
@@ -246,6 +274,22 @@ export function urlRessource(ref: RefRessources, id: string, genre: GenreImage):
   return promesse;
 }
 
+/** Adresse de la copie d'aperçu d'une vidéo, pour une balise `<video>`. Le noyau lit le
+ *  fichier, la fenêtre en fait une adresse locale ; jamais l'original (règle 5). */
+export function urlCopieVideo(ref: RefRessources, ressource: Ressource): Promise<string> {
+  const navigateur = ressourcesNavigateur.get(ressource.id);
+  if (navigateur?.urls.copie) return Promise.resolve(navigateur.urls.copie);
+  const cle = `${ref.rayon}/${ref.id}/${ressource.id}/copie`;
+  let promesse = urls.get(cle);
+  if (!promesse) {
+    const type = ressource.video?.copie === "mp4" ? "video/mp4" : "video/webm";
+    promesse = invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" }).then((octets) => URL.createObjectURL(new Blob([octets], { type })));
+    promesse.catch(() => urls.delete(cle));
+    urls.set(cle, promesse);
+  }
+  return promesse;
+}
+
 /** Libère les adresses d'images d'un design qu'on quitte. */
 export function oublierImages(ref: RefRessources | null): void {
   if (!ref) return;
@@ -263,28 +307,49 @@ export async function listerRessources(ref: RefRessources): Promise<Ressource[]>
   return liste.map(versRessource);
 }
 
-/** Importe des fichiers déjà choisis ou déposés (chemins sur le disque) : le noyau lit et
- *  prépare tout, dans le dossier du design. */
-export async function importerChemins(ref: RefRessources, chemins: string[]): Promise<BilanImport> {
-  const resultats = await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins });
-  const ressources: Ressource[] = [];
-  const erreurs: string[] = [];
+function bilanDe(resultats: ResultatImport[], bilan: BilanImport = { ressources: [], erreurs: [] }): BilanImport {
   for (const r of resultats) {
-    if (r.ressource) ressources.push(versRessource(r.ressource));
-    else erreurs.push(`${r.chemin.split("/").pop()} : ${r.erreur ?? "erreur inconnue"}`);
+    if (r.ressource) bilan.ressources.push(versRessource(r.ressource));
+    else bilan.erreurs.push(`${r.chemin.split("/").pop()} : ${r.erreur ?? "erreur inconnue"}`);
   }
-  return { ressources, erreurs };
+  return bilan;
 }
 
-/** Ouvre le sélecteur de fichiers et importe les images choisies. `null` si on annule. */
-export async function choisirEtImporterImages(ref: RefRessources): Promise<BilanImport | null> {
+/** Importe des fichiers déjà choisis ou déposés (chemins sur le disque) : le noyau lit et
+ *  prépare tout, dans le dossier du design. Les vidéos passent après les images, l'une après
+ *  l'autre (copie d'aperçu, vignettes, forme d'onde) ; `suivi` dit où en est chacune. Un
+ *  fichier qui n'est ni une image ni une vidéo connue est tenté comme une image. */
+export async function importerChemins(ref: RefRessources, chemins: string[], suivi?: SuiviImport): Promise<BilanImport> {
+  const videos = chemins.filter(estCheminVideo);
+  const images = chemins.filter((c) => !estCheminVideo(c));
+  const bilan: BilanImport = { ressources: [], erreurs: [] };
+  if (images.length) bilanDe(await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins: images }), bilan);
+  if (videos.length) {
+    const canal = new Channel<{ fichier: number; part: number }>();
+    canal.onmessage = (a) => suivi?.(a.fichier, a.part, videos.length);
+    suivi?.(0, 0, videos.length);
+    bilanDe(await invoke<ResultatImport[]>("importer_videos", { rayonNom: ref.rayon, projetId: ref.id, chemins: videos, avancement: canal }), bilan);
+  }
+  return bilan;
+}
+
+/** Ouvre le sélecteur de fichiers et importe les images et les vidéos choisies. `null` si on
+ *  annule. */
+export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviImport, videos = true): Promise<BilanImport | null> {
   if (dansTauri) {
     const { open } = await import("@tauri-apps/plugin-dialog");
-    const choix = await open({ multiple: true, directory: false, title: "Importer des images", filters: [{ name: "Images", extensions: EXTENSIONS_IMAGES }] });
+    const filtres = videos
+      ? [
+          { name: "Images et vidéos", extensions: [...EXTENSIONS_IMAGES, ...EXTENSIONS_VIDEOS] },
+          { name: "Images", extensions: EXTENSIONS_IMAGES },
+          { name: "Vidéos", extensions: EXTENSIONS_VIDEOS },
+        ]
+      : [{ name: "Images", extensions: EXTENSIONS_IMAGES }];
+    const choix = await open({ multiple: true, directory: false, title: videos ? "Importer des images ou des vidéos" : "Importer des images", filters: filtres });
     if (!choix || (Array.isArray(choix) && choix.length === 0)) return null;
-    return importerChemins(ref, Array.isArray(choix) ? choix : [choix]);
+    return importerChemins(ref, Array.isArray(choix) ? choix : [choix], suivi);
   }
-  const fichiers = await choisirFichiersNavigateur();
+  const fichiers = await choisirFichiersNavigateur(videos);
   if (fichiers.length === 0) return null;
   return importerFichiersNavigateur(fichiers);
 }
@@ -318,12 +383,12 @@ export async function copierRessources(source: RefRessources, cible: RefRessourc
 
 // ---- Équivalents navigateur ----
 
-function choisirFichiersNavigateur(): Promise<File[]> {
+function choisirFichiersNavigateur(videos = false): Promise<File[]> {
   return new Promise((resoudre) => {
     const champ = document.createElement("input");
     champ.type = "file";
     champ.multiple = true;
-    champ.accept = "image/*";
+    champ.accept = videos ? "image/*,video/*" : "image/*";
     champ.addEventListener("change", () => resoudre(Array.from(champ.files ?? [])));
     champ.click();
   });
@@ -344,6 +409,26 @@ async function reduireNavigateur(source: ImageBitmap, cote: number, transparence
   return URL.createObjectURL(blob);
 }
 
+/** Une vidéo du navigateur : sa durée et sa taille, et une couverture prise à une seconde
+ *  (au dixième d'une vidéo plus courte), comme le fait le noyau. */
+async function sonderVideoNavigateur(url: string): Promise<{ video: HTMLVideoElement; couverture: ImageBitmap }> {
+  const video = document.createElement("video");
+  video.muted = true;
+  video.preload = "auto";
+  const attendre = (evenement: string) =>
+    new Promise<void>((ok, ko) => {
+      video.addEventListener(evenement, () => ok(), { once: true });
+      video.addEventListener("error", () => ko(new Error("vidéo illisible dans ce navigateur")), { once: true });
+    });
+  const meta = attendre("loadeddata");
+  video.src = url;
+  await meta;
+  const saut = attendre("seeked");
+  video.currentTime = Math.min(1, video.duration / 10);
+  await saut;
+  return { video, couverture: await createImageBitmap(video) };
+}
+
 async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport> {
   const ressources: Ressource[] = [];
   const erreurs: string[] = [];
@@ -354,6 +439,23 @@ async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport
       const deja = ressourcesNavigateur.get(id);
       if (deja) {
         ressources.push(deja.ressource);
+        continue;
+      }
+      if (fichier.type.startsWith("video/") || estCheminVideo(fichier.name)) {
+        const copie = URL.createObjectURL(fichier);
+        const { video, couverture } = await sonderVideoNavigateur(copie);
+        const duree = Math.round(video.duration * 1000);
+        const ressource: Ressource = {
+          id,
+          nom: fichier.name || "vidéo",
+          largeur: video.videoWidth,
+          hauteur: video.videoHeight,
+          transparence: false,
+          video: { duree, imagesParSeconde: 30, son: true, copie: fichier.type.includes("mp4") ? "mp4" : "webm", vignettes: { nombre: 0, intervalle: 1000, largeur: 0, hauteur: 0 } },
+        };
+        ressourcesNavigateur.set(id, { ressource, urls: { apercu: await reduireNavigateur(couverture, 2560, false), miniature: await reduireNavigateur(couverture, 256, false), copie } });
+        couverture.close();
+        ressources.push(ressource);
         continue;
       }
       const image = await createImageBitmap(fichier, { imageOrientation: "from-image" });
@@ -643,6 +745,81 @@ export async function importerPixabay(ref: RefRessources, id: number): Promise<R
   const essai = pixabayEssai();
   if (!essai) throw new Error("les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
   const { fichier, credit } = await essai.importer(id);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource = bilan.ressources[0];
+  ressource.credit = credit;
+  return ressource;
+}
+
+// ========================================================================================
+// Vidéos de Pixabay (étape 4) : même chemin que les photos, par le Rust
+// ========================================================================================
+
+export interface VideoPixabay {
+  id: number;
+  /** Taille du fichier qui sera téléchargé (1080p le plus souvent). */
+  largeur: number;
+  hauteur: number;
+  /** Secondes. */
+  duree: number;
+  auteur: string;
+  lien: string;
+  mots: string;
+}
+
+export interface PageVideosPixabay {
+  total: number;
+  videos: VideoPixabay[];
+}
+
+interface PixabayVideosEssai {
+  chercherVideos(requete: string, page: number): Promise<PageVideosPixabay>;
+  apercuVideo(id: number): Promise<Blob>;
+  importerVideo(id: number): Promise<{ fichier: File; credit: Credit }>;
+}
+const pixabayVideosEssai = () => pixabayEssai() as unknown as Partial<PixabayVideosEssai> | undefined;
+
+export async function chercherVideosPixabay(requete: string, page: number): Promise<PageVideosPixabay> {
+  if (dansTauri) return invoke<PageVideosPixabay>("pixabay_chercher_videos", { requete, page });
+  const essai = pixabayVideosEssai();
+  if (!essai?.chercherVideos) throw new Error("les vidéos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+  return essai.chercherVideos(requete, page);
+}
+
+const urlsApercusVideos = new Map<number, Promise<string>>();
+
+/** Adresse locale de l'image d'aperçu d'une vidéo, gardée le temps de la session. */
+export function urlApercuVideoPixabay(id: number): Promise<string> {
+  let promesse = urlsApercusVideos.get(id);
+  if (!promesse) {
+    promesse = aTonTour(async () => {
+      if (dansTauri) {
+        const octets = await invoke<ArrayBuffer>("pixabay_apercu_video", { id });
+        return URL.createObjectURL(new Blob([octets], { type: "image/jpeg" }));
+      }
+      const essai = pixabayVideosEssai();
+      if (!essai?.apercuVideo) throw new Error("indisponible");
+      return URL.createObjectURL(await essai.apercuVideo(id));
+    });
+    promesse.catch(() => urlsApercusVideos.delete(id));
+    urlsApercusVideos.set(id, promesse);
+  }
+  return promesse;
+}
+
+/** Télécharge la vidéo choisie (1080p) et l'importe dans le design, avec son crédit. `suivi`
+ *  reçoit la part faite, téléchargement puis préparation. */
+export async function importerVideoPixabay(ref: RefRessources, id: number, suivi?: (part: number) => void): Promise<Ressource> {
+  if (dansTauri) {
+    const canal = new Channel<{ fichier: number; part: number }>();
+    canal.onmessage = (a) => suivi?.(a.part);
+    suivi?.(0);
+    return versRessource(await invoke<RessourceNoyau>("pixabay_importer_video", { rayonNom: ref.rayon, projetId: ref.id, id, avancement: canal }));
+  }
+  const essai = pixabayVideosEssai();
+  if (!essai?.importerVideo) throw new Error("les vidéos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
+  const { fichier, credit } = await essai.importerVideo(id);
   const bilan = await importerFichiersNavigateur([fichier]);
   if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
   const ressource = bilan.ressources[0];

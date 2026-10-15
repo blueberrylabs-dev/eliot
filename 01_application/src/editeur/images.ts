@@ -74,7 +74,7 @@ export function useImageRessource(id: string | undefined, genre: GenreImage = "a
  *  du design, icônes, emojis et personnages de la bibliothèque, polices des textes. */
 export async function prechargerPage(page: PageEliot): Promise<void> {
   const projet = useEditeur.getState().projet;
-  const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
+  const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" || e.type === "video" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
   await Promise.all([
     ...ids.map((id) => imageDeRessource(projet, id, "apercu").catch(() => undefined)),
     prechargerVecteurs(page.elements),

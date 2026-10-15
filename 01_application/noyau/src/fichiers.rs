@@ -69,6 +69,34 @@ pub fn ecrire_atomiquement(cible: &Path, octets: &[u8]) -> io::Result<()> {
     resultat
 }
 
+/// Un nom temporaire caché, dans le même dossier que la cible (le renommage reste atomique).
+pub fn chemin_temporaire(cible: &Path) -> io::Result<PathBuf> {
+    let dossier = cible
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "chemin sans dossier"))?;
+    let nom = cible
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "chemin sans nom de fichier"))?
+        .to_string_lossy();
+    let marque = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or(0);
+    Ok(dossier.join(format!(".{nom}.eliot-{}-{marque}", std::process::id())))
+}
+
+/// Copie un fichier, même très gros (une vidéo), sans le charger en mémoire : copie vers un
+/// temporaire du dossier cible, écriture forcée sur le disque, puis renommage.
+pub fn copier_atomiquement(source: &Path, cible: &Path) -> io::Result<()> {
+    let temporaire = chemin_temporaire(cible)?;
+    let resultat = (|| {
+        fs::copy(source, &temporaire)?;
+        File::open(&temporaire)?.sync_all()?;
+        fs::rename(&temporaire, cible)
+    })();
+    if resultat.is_err() {
+        let _ = fs::remove_file(&temporaire);
+    }
+    resultat
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

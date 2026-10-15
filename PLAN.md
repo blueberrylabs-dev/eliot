@@ -215,9 +215,15 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (`00_banc_essai/resultats/2026-10-15_081343_tauri-webkitgtk_copies.json`) : tout est
       fluide, VP9 en 720 retenu pour sa tête de lecture (saut de 8 ms, glisser à pleine
       cadence), Tauri confirmé. Détail au `JOURNAL.md`.
-- [ ] Lot 1 : la vidéo dans le design : import (glisser, Importer, vidéos Pixabay), copie
+- [x] Lot 1 : la vidéo dans le design : import (glisser, Importer, vidéos Pixabay), copie
       d'aperçu, vignettes, forme d'onde ; élément vidéo qui joue sur son calque ; post animé ;
-      document version 4.
+      document version 4. Livré le 2026-10-15 : noyau `videos.rs` (copie VP9 en 720, image
+      clé par demi-seconde, couverture, vignettes, onde), vidéos Pixabay en 1080p, élément
+      `video` (coupe, vitesse, volume, retournement, coins, bordure), lecture dans la page,
+      barre Lire, Son, Vitesse, Couper, aperçu plein écran qui joue, quatre outils pour le
+      pont IA (47 en tout), archive `.eliot` écrite sans passer par la mémoire. Vérifié :
+      noyau 42, interface 66, Chromium (vidéo 40, suites des étapes 2 et 3), Tauri par le pont
+      (vidéo 25 dont la lecture à l'écran, suites 3a à 3f). Reste l'essai d'Alexandre.
 - [ ] Lot 2 : la frise : bascule Vidéo, règle, tête de lecture, lecture et pause, zoom, pistes
       (principale bout à bout, superpositions, son), clips avec vignettes et formes d'onde,
       couper, déplacer, changer de piste, scinder (Ctrl+B), dupliquer, supprimer, aimantation.

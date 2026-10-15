@@ -1,9 +1,10 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1, 2 et 3 du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
-compose à la souris comme dans Canva, une bibliothèque d'icônes, d'emojis, de personnages et
-de polices, des photos libres de Pixabay, un kit de marque, des modèles de départ, un
-enregistrement automatique et l'export en PNG ou en JPEG.
+L'éditeur, étapes 1 à 3 du `BRIEF.md` et début de l'étape 4 : un accueil qui range tes
+designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
+d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
+marque, des modèles de départ, des vidéos posées dans la page, un enregistrement automatique
+et l'export en PNG ou en JPEG.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -86,10 +87,29 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   sous-titre et du texte, logos. Les couleurs et les polices de la marque viennent en tête des
   sélecteurs.
 
+**Vidéos dans le design (étape 4, lot 1)**
+- Importer une vidéo (MP4, MOV, M4V, WebM, MKV, AVI, MPG) par le bouton du panneau Importer
+  ou en la déposant sur la page. Eliot range l'original sans y toucher et prépare, par le
+  `ffmpeg` du poste et sur le processeur, une copie légère pour l'écran (VP9, 720 px sur le
+  petit côté, une image clé par demi-seconde), les vignettes de la future frise et la forme
+  d'onde du son. Une bande en bas de la fenêtre montre l'avancement.
+- La vidéo se pose comme une photo : déplacer, redimensionner, tourner, retourner, coins
+  arrondis, bordure, ombre, transparence. Sa carte du panneau Importer montre sa durée.
+- Barre du haut : Lire et Pause, la durée qui joue, le son (volume, couper), la vitesse (de
+  0,25× à 4×) et Couper (début et fin, en secondes). Sur une page fixe, la vidéo joue en
+  boucle : c'est un post animé. L'aperçu plein écran (F11) fait jouer toutes les vidéos de la
+  page, avec le son.
+- Panneau Photos, bouton Vidéos : vidéos libres de Pixabay, cherchées en français ; le tri
+  Paysage ou Portrait se fait sur les résultats. La vidéo choisie se télécharge en 1080p, se
+  prépare comme une vidéo du poste et garde le nom de son auteur.
+- L'export en PNG ou en JPEG montre la couverture de chaque vidéo (une image prise vers la
+  première seconde) ; l'export en MP4 vient avec la frise (lots suivants de l'étape 4).
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
-  poste, chercher et poser des photos de Pixabay, se servir du kit de marque, dessiner à main
+  poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
+  (coupe, vitesse, volume), se servir du kit de marque, dessiner à main
   levée, poser des graphiques et des tableaux, partir d'un modèle de départ, regarder une
   capture de la page et exporter. On la voit travailler dans la fenêtre,
   et Ctrl+Z défait chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -120,8 +140,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Designs : `~/Documents/Eliot/Designs/<nom du design>/`, un dossier par design :
   `document.json` (le document), `document.precedent.json` (la version d'avant, en secours),
   `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et miniatures des
-  images). Le dossier se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est
-  une archive zip.
+  images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/`). Le dossier se copie
+  tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
   plusieurs pages), jamais d'écrasement.
@@ -131,7 +151,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, designs (projet.rs), exports, polices, Pixabay, kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), designs (projet.rs), exports, polices, Pixabay, kit de marque (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -143,7 +163,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts)
 │   ├── export/       rendu d'une page hors écran, export
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
