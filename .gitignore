@@ -8,6 +8,7 @@ gen/schemas/
 00_banc_essai/public/donnees/*.jpg
 00_banc_essai/public/donnees/*.mp4
 00_banc_essai/public/donnees/*.webm
+00_banc_essai/public/donnees/copies/
 
 # Éditeurs et système
 .idea/

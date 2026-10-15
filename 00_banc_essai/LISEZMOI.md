@@ -30,6 +30,29 @@ Les fichiers de test (`public/donnees/`) sont synthétiques, générés par
 identiques d'une machine à l'autre ; la vidéo VP9 change d'octets (encodeur en temps réel)
 mais pas de contenu.
 
+## Les copies d'aperçu (étape 4, lot 0)
+
+Dans Eliot, la fenêtre ne lira jamais l'original d'une vidéo : le Rust en fera une copie
+légère à l'import. Ce second banc choisit le format de cette copie. `outils/generer_copies.py`
+fabrique une vidéo source de 20 s en 1080p (mire en mouvement, grain léger, son), puis la
+réencode avec le `ffmpeg` du système dans six formats, tous avec une image clé par
+demi-seconde :
+
+| Copie | Pourquoi |
+| --- | --- |
+| VP9 1080p | la taille d'origine : faut-il seulement une copie ? |
+| VP9 720p, VP9 540p | VP9 a joué à vitesse normale au premier banc |
+| VP8 540p | plus simple à décoder que VP9 |
+| H.264 720p, H.264 540p profil de base | H.264 a joué au ralenti au premier banc ; une copie plus petite le sauve-t-elle ? |
+
+Le bouton « Copies d'aperçu (étape 4) » mesure, pour chacune : la fabrication (durée sur le
+processeur, poids), la lecture sur un calque à part au-dessus de la page de 200 objets
+(images par seconde, images de la vidéo affichées et perdues, vitesse réelle), deux vidéos à
+la fois (une principale et une incrustation), et la tête de lecture (temps d'un saut,
+images par seconde pendant un glisser continu de la tête). Environ deux minutes. Résultats
+dans `resultats/AAAA-MM-JJ_HHMMSS_<moteur>_copies.json`, avec la liste des copies et la
+version de `ffmpeg`.
+
 ## Où vont les résultats
 
 Chaque série écrit un fichier `resultats/AAAA-MM-JJ_HHMMSS_<moteur>.json` (moteur :

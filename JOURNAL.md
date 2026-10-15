@@ -5,6 +5,25 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-15, étape 4 ouverte : plan et banc des copies d'aperçu
+
+- Clé Freesound créée par Alexandre et rangée dans le `.env` ; vérifiée par Claude par une
+  recherche d'essai depuis le poste (réponse 200), sans afficher la clé.
+- Plan de l'étape 4 écrit dans `PLAN.md` : huit lots (banc des copies d'aperçu, vidéo dans le
+  design, frise, animation, export, son, voix, sous-titres) et les choix par défaut de Claude :
+  copies d'aperçu fabriquées par le `ffmpeg` du système à l'import, document version 4 comme
+  au § 6 du BRIEF, export rendu par le Rust à partir d'un SVG de chaque calque préparé par
+  l'interface (`resvg`, puis `ffmpeg` en H.264 sur le processeur, jamais l'encodeur de la
+  carte graphique), traitements du son par les filtres de `ffmpeg`.
+- Lot 0 : banc des copies d'aperçu ajouté à `00_banc_essai/` (`outils/generer_copies.py`,
+  `src/copies.ts`, bouton « Copies d'aperçu (étape 4) ») : six copies (VP9 1080p, 720p, 540p ;
+  VP8 540p ; H.264 720p et 540p), lecture sur un calque à part, deux vidéos à la fois, saut et
+  glisser de la tête de lecture, fabrication. Essayé dans le conteneur, dans Chromium puis
+  dans la fenêtre Tauri : tout tourne (H.264 ne joue pas dans le Chromium de l'essai, qui n'a
+  pas ce décodeur ; il joue dans Tauri). Défaut corrigé en route : deux vidéos de même adresse
+  partageaient un lecteur dans WebKit, la seconde a maintenant sa propre adresse. Les chiffres
+  du conteneur (2 cœurs, sans carte graphique) ne disent rien du poste et ne sont pas gardés.
+
 ## 2026-10-14, étape 3, lot 6 : personnages, et vérification de l'étape
 
 - Source : les deux archives téléchargées par Alexandre sur openpeeps.com et humaaans.com,

@@ -4,7 +4,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { activerSelection, creerScene } from "./scene";
 import { mesurerFrequence } from "./mesure";
-import { SCENARIOS, fichiersManquants, type Contexte, type Resultat } from "./scenarios";
+import { SCENARIOS, fichiersManquants, type Contexte, type Resultat, type Scenario } from "./scenarios";
+import { listeCopies, scenariosCopies, type ListeCopies } from "./copies";
 
 interface InfosSysteme {
   processeur: string;
@@ -20,6 +21,7 @@ const element = <T extends HTMLElement>(id: string) => document.getElementById(i
 const etat = element<HTMLParagraphElement>("etat");
 const corpsTableau = element<HTMLTableElement>("tableau").tBodies[0];
 const boutonLancer = element<HTMLButtonElement>("bouton-lancer");
+const boutonCopies = element<HTMLButtonElement>("bouton-copies");
 const boutonLibre = element<HTMLButtonElement>("bouton-libre");
 const boutonCopier = element<HTMLButtonElement>("bouton-copier");
 const compteur = element<HTMLDivElement>("compteur");
@@ -110,9 +112,10 @@ function afficherResultat(r: Resultat): void {
   }
 }
 
-async function enregistrer(resultats: Resultat[]): Promise<void> {
+async function enregistrer(resultats: Resultat[], serie?: { nom: string; copies: ListeCopies }): Promise<void> {
   const donnees = {
     version: 1,
+    ...(serie ? { serie: serie.nom, copies: serie.copies } : {}),
     horodatage: horodatage(),
     moteur,
     navigateur: navigator.userAgent,
@@ -157,9 +160,10 @@ function basculerModeLibre(actif: boolean): void {
   boucleCompteur = requestAnimationFrame(tic);
 }
 
-async function lancerTests(): Promise<void> {
+async function lancerTests(liste: Scenario[] = SCENARIOS, serie?: { nom: string; copies: ListeCopies }): Promise<void> {
   basculerModeLibre(false);
   boutonLancer.disabled = true;
+  boutonCopies.disabled = true;
   boutonLibre.disabled = true;
   boutonCopier.hidden = true;
   corpsTableau.replaceChildren();
@@ -171,8 +175,8 @@ async function lancerTests(): Promise<void> {
 
   const ctx: Contexte = { scene, frequenceHz, dansTauri };
   const resultats: Resultat[] = [];
-  for (const [rang, scenario] of SCENARIOS.entries()) {
-    etat.textContent = `Test ${rang + 1}/${SCENARIOS.length} : ${scenario.titre}…`;
+  for (const [rang, scenario] of liste.entries()) {
+    etat.textContent = `Test ${rang + 1}/${liste.length} : ${scenario.titre}…`;
     let resultat: Resultat;
     try {
       resultat = await scenario.executer(ctx);
@@ -184,12 +188,24 @@ async function lancerTests(): Promise<void> {
   }
 
   etat.textContent = "Terminé. Tu peux passer en mode libre pour manipuler la page à la main.";
-  await enregistrer(resultats);
+  await enregistrer(resultats, serie);
   boutonLancer.disabled = false;
+  boutonCopies.disabled = false;
   boutonLibre.disabled = false;
 }
 
+/** Étape 4, lot 0 : les copies d'aperçu fabriquées par `outils/generer_copies.py`. */
+async function lancerCopies(): Promise<void> {
+  const copies = await listeCopies();
+  if (!copies) {
+    etat.textContent = "Copies d'aperçu absentes : lance d'abord outils/generer_copies.py (commande 4 ter du CLAUDE.md).";
+    return;
+  }
+  await lancerTests(scenariosCopies(copies), { nom: "copies", copies });
+}
+
 boutonLancer.addEventListener("click", () => void lancerTests());
+boutonCopies.addEventListener("click", () => void lancerCopies());
 boutonLibre.addEventListener("click", () => basculerModeLibre(!modeLibre));
 boutonCopier.addEventListener("click", () => {
   void navigator.clipboard.writeText(dernierJson).then(

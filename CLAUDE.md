@@ -1,6 +1,6 @@
 # CLAUDE.md — Eliot
 
-Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-14 (fin de journée).
+Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-15.
 Règles communes à tous mes projets : `/home/nushoko/Bureau/Projets/00_moi/CONVENTIONS.md`,
 `/home/nushoko/Bureau/Projets/00_moi/AUTONOMIE.md`. Qui je suis :
 `/home/nushoko/Bureau/Projets/00_moi/IDENTITE.md`.
@@ -12,7 +12,7 @@ de Canva, pour apprendre la création publicitaire en photos et en vidéos. Taur
 fenêtre, React et Konva pour l'interface et le dessin, un noyau Rust natif pour le travail
 lourd. Détail : `BRIEF.md`.
 
-## État au 2026-10-14
+## État au 2026-10-15
 
 - `BRIEF.md` : révision 7, **validée par Alexandre le 2026-10-14** : bibliothèque, Pixabay
   puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
@@ -37,6 +37,10 @@ lourd. Détail : `BRIEF.md`.
   d'Alexandre (`PLAN.md`).
 - Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
   Humaaans, lues par `npm run bibliotheque`).
+- Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
+  recherche d'essai.
+- Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
+  copies d'aperçu (commande 6 bis), à lancer par Alexandre.
 
 Suite : `PLAN.md`.
 
@@ -136,6 +140,23 @@ Vérifier : deux fichiers dans `resultats/`.
 ```
 ls /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai/resultats
 ```
+
+**6 bis. Banc des copies d'aperçu (étape 4, lot 0).** D'abord fabriquer les copies, sur le
+processeur seulement, environ une minute (il faut `ffmpeg`, installé par la commande 2) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && python3 outils/generer_copies.py
+```
+
+Vérifier : six lignes « … de fabrication … Mo », puis « Copies prêtes ». Ensuite, carte
+graphique libre, lancer le banc comme à la commande 6 et cliquer « Copies d'aperçu
+(étape 4) » ; ne plus toucher à la fenêtre pendant environ deux minutes. Arrêter : `Ctrl+C`.
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && npm run tauri dev
+```
+
+Vérifier : un fichier qui finit par `_copies.json` dans `00_banc_essai/resultats/`.
 
 **7. Si la fenêtre reste blanche, scintille ou plante** (pilote NVIDIA) : `Ctrl+C`, puis
 relancer avec la première variable ; si ça ne suffit pas, avec la seconde. La variable

@@ -1,6 +1,6 @@
 # PLAN.md — Eliot
 
-Plan vivant, source de vérité de l'avancement. Version du 2026-10-14, alignée sur le
+Plan vivant, source de vérité de l'avancement. Version du 2026-10-15, alignée sur le
 `BRIEF.md` (révision 7, validée le 2026-10-14 ; la révision 5 ajoute la bibliothèque, le
 labo photo, le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6 ;
 la révision 6 met Pixabay avant Pexels ; la révision 7 ajoute la création de contenu pour
@@ -169,16 +169,72 @@ Choix par défaut de Claude, modifiables sur simple demande :
       lot 6, 2026-10-14 : tout repassé, détail au JOURNAL)
 - [ ] Livraison sur le poste, puis essai par Alexandre
 
-## Étape 4. La vidéo façon CapCut
+## Étape 4. La vidéo façon CapCut (ouverte le 2026-10-15)
 
-Décision Tauri ou Electron, banc de la copie d'aperçu, frise et pistes, textes animés, son
-(révision 8 du BRIEF : onglet Audio, voix enregistrée au micro, nettoyage de la voix, niveau
-sonore par plateforme, musique qui baisse sous la voix, bruitages Freesound, jingles du kit de
-marque, export sans musique pour les sons tendance ; avant l'étape, Alexandre crée sa clé
-Freesound ; usage personnel d'apprentissage, donc API Freesound et voix Piper permises),
-sous-titres mot par mot, texte qui entre par lignes sur un cadre fixe (principe retenu le
-2026-10-14, prototype `outils/animer_scenes.py`), zones sûres TikTok, Reels et Shorts, réglages d'export par
-plateforme, export MP4 et GIF ; le Rust apprend à rendre les calques de la page.
+Résultat visible attendu : la bascule Vidéo ouvre une frise à pistes sous la page ; on y pose
+des vidéos, des photos, des textes animés, de la musique, des bruitages et sa propre voix
+nettoyée ; on coupe, on scinde, on anime, on sous-titre mot par mot ; on exporte un MP4 ou un
+GIF réglé pour YouTube, Shorts, TikTok ou Reels. Claude peut tout faire par le pont. Détail :
+`BRIEF.md` § 6 (« Ce que Eliot reprend de CapCut », « Le son ») et § 7. Clé Freesound dans le
+`.env` depuis le 2026-10-15 (essai de recherche réussi, clé jamais affichée).
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Enveloppe : Tauri reste, si le banc des copies d'aperçu (lot 0) trouve un format qui joue
+  de façon fluide dans la fenêtre du poste principal. Sinon, Electron (repli prévu au BRIEF).
+  Le mini PC confirmera quand il sera là.
+- Copies d'aperçu : la fenêtre ne lit jamais l'original d'une vidéo (règle 5). À l'import, le
+  Rust fait fabriquer par `ffmpeg` (celui du système, commande 2 du `CLAUDE.md`, processeur
+  seulement) une copie légère, avec une image clé toutes les demi-secondes pour que la tête de
+  lecture réponde vite, plus les vignettes de la frise et la forme d'onde du son. Format et
+  taille choisis par le banc du lot 0. L'original ne sert qu'à l'export.
+- Document version 4, comme au § 6 du BRIEF : une page qui a une `duree` (millisecondes) est
+  une vidéo ; ses éléments portent `temps` (début, fin) et `piste` ; un clip vidéo porte
+  `coupe`, `vitesse`, `volume` ; les sons vont dans `audio` avec leur rôle (musique, voix,
+  bruitage) et leurs traitements. Tous les nouveaux champs sont facultatifs : le noyau
+  convertit un document de version 3 en ne changeant que le numéro.
+- Export : l'interface décrit chaque calque en SVG (les textes avec leurs coupures de lignes,
+  les mêmes fichiers de police), le Rust le rend avec `resvg`, le pose sur les images de la
+  vidéo décodées par `ffmpeg` depuis les originaux, mixe le son, et `ffmpeg` encode en H.264
+  sur le processeur (jamais l'encodeur de la carte graphique, règle 9). Les animations sont
+  calculées par les mêmes formules en TypeScript et en Rust, vérifiées par un tableau de
+  valeurs attendues commun. Ce SVG servira aussi à l'étape 5 (SVG, PDF vectoriel, PNG haute
+  définition).
+- Son : traitements et mesure du niveau par les filtres de `ffmpeg` (réduction de bruit,
+  coupe des graves, égaliseur, compresseur, dé-esseur, niveau EBU R128, musique qui baisse
+  sous la voix), calculés une fois et gardés en cache. Micro capté par le Rust.
+- Sous-titres : Whisper sur le processeur (modèle téléchargé une fois par Alexandre, comme
+  les archives des personnages) ; voix de synthèse : Piper, même principe. Les deux viennent
+  dans leurs lots, avec leurs commandes.
+
+- [ ] Lot 0 : banc des copies d'aperçu dans `00_banc_essai/` (VP9, VP8 et H.264, en 1080p,
+      720p et 540p, une image clé par demi-seconde) : lecture sur un calque à part avec la
+      page de 200 objets, deux vidéos à la fois, temps de saut de la tête de lecture, durée de
+      fabrication et poids de chaque copie. Lancé par Alexandre ; décide le format et confirme
+      Tauri. Banc prêt le 2026-10-15 (commande 6 bis du `CLAUDE.md`), essayé dans le
+      conteneur de Claude (Chromium et Tauri sur écran virtuel : tout tourne, chiffres sans
+      valeur sur 2 cœurs sans carte graphique) ; reste la série sur le poste.
+- [ ] Lot 1 : la vidéo dans le design : import (glisser, Importer, vidéos Pixabay), copie
+      d'aperçu, vignettes, forme d'onde ; élément vidéo qui joue sur son calque ; post animé ;
+      document version 4.
+- [ ] Lot 2 : la frise : bascule Vidéo, règle, tête de lecture, lecture et pause, zoom, pistes
+      (principale bout à bout, superpositions, son), clips avec vignettes et formes d'onde,
+      couper, déplacer, changer de piste, scinder (Ctrl+B), dupliquer, supprimer, aimantation.
+- [ ] Lot 3 : l'animation : textes animés (entrée, sortie, boucle), styles de texte vidéo,
+      images clés, transitions entre clips, vitesse, fondus, texte qui entre par lignes.
+- [ ] Lot 4 : l'export MP4 et GIF par le Rust (calques en SVG, `resvg`, `ffmpeg`), barre de
+      progression et annulation, réglages par plateforme (valeurs vérifiées le jour même),
+      zones sûres TikTok, Reels et Shorts, comparaison au pixel entre l'écran et l'export.
+- [ ] Lot 5 : le son : onglet Audio, sons importés, Freesound (CC0 et CC BY seulement, crédits
+      gardés et liste à coller), musique et bruitages, volume et fondus, musique qui baisse
+      sous la voix, musique répétée jusqu'à la fin, jingles du kit de marque, niveau sonore
+      par plateforme, export sans musique.
+- [ ] Lot 6 : la voix : enregistrement au micro par prises, nettoyage (« Voix nette »), voix
+      de synthèse Piper.
+- [ ] Lot 7 : les sous-titres : Whisper, sous-titres mot par mot (le mot prononcé mis en
+      valeur), coupe des silences et des hésitations.
+- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.
+- [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 5. Le labo photo et les exports de qualité
 

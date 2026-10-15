@@ -28,13 +28,15 @@ function enregistrerResultats(): Plugin {
         });
         requete.on("end", () => {
           try {
-            const donnees = JSON.parse(corps) as { moteur?: string; horodatage?: string };
+            const donnees = JSON.parse(corps) as { moteur?: string; horodatage?: string; serie?: string };
             const moteur = String(donnees.moteur ?? "inconnu").replace(/[^a-z0-9-]/gi, "_");
             const horodatage =
               String(donnees.horodatage ?? "").replace(/[^0-9_-]/g, "") || "sans-date";
             const dossier = join(racine, "resultats");
             mkdirSync(dossier, { recursive: true });
-            const nom = `${horodatage}_${moteur}.json`;
+            // Une série à part (les copies d'aperçu de l'étape 4) garde son nom dans le fichier.
+            const serie = donnees.serie ? `_${String(donnees.serie).replace(/[^a-z0-9-]/gi, "_")}` : "";
+            const nom = `${horodatage}_${moteur}${serie}.json`;
             writeFileSync(join(dossier, nom), JSON.stringify(donnees, null, 2) + "\n", "utf8");
             reponse.setHeader("Content-Type", "application/json");
             reponse.end(JSON.stringify({ fichier: `00_banc_essai/resultats/${nom}` }));
