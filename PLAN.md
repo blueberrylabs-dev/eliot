@@ -6,6 +6,11 @@ labo photo, le mode vidéo façon CapCut, le pont vers une IA, et renumérote le
 la révision 6 met Pixabay avant Pexels ; la révision 7 ajoute la création de contenu pour
 YouTube, TikTok et Instagram et fait passer la vidéo avant le labo photo).
 
+Les essais d'Alexandre (« Essai par Alexandre » de chaque étape, parcours du
+`01_application/LISEZMOI.md`) se font une fois le produit fini, tous ensemble ; les corrections
+suivent à ce moment-là (décision du 2026-10-16, JOURNAL). D'ici là, Claude vérifie chaque lot
+et chaque étape dans son conteneur, comme avant.
+
 ## Étape 0. Banc d'essai (ouverte le 2026-10-14, poste principal fait le 2026-10-14)
 
 Résultat visible attendu : deux fichiers de résultats (fenêtre Tauri et Chrome) sur le poste

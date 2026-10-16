@@ -97,6 +97,10 @@ lourd. Détail : `BRIEF.md`.
   Tauri) ; reste l'essai d'Alexandre, parcours « Essayer l'étape 5 en entier : une publicité de
   produit » du `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application
   (commande 9) et le pont (commande 13).
+- Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
+  moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
+  après chaque lot ; les commandes à lancer avant les essais (compilations, installations
+  uniques) se rassemblent dans le rapport de fin.
 
 Suite : `PLAN.md`.
 

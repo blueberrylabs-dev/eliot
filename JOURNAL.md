@@ -5,6 +5,17 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, les essais d'Alexandre à la fin du produit
+
+Décision d'Alexandre (« Les tests se feront une fois que le produit est fini. Je vais l'essayer
+à ce moment-là et on corrigera au moment voulu. ») : les essais prévus après chaque lot et
+chaque étape (parcours « Essayer… » du `01_application/LISEZMOI.md`) se font tous ensemble,
+une fois le produit fini, et les corrections suivent. Claude continue de vérifier chaque lot et
+chaque étape dans son conteneur ; il ne demande plus d'essai ni de commande à chaque livraison
+et rassemble dans le rapport de fin les commandes à lancer avant les essais (compilations,
+installations uniques du détourage, de Piper, de Whisper). Les cases « Essai par Alexandre » du
+PLAN restent ouvertes jusque-là.
+
 ## 2026-10-16, étape 5 : vérification de l'étape
 
 Demande d'Alexandre (« tu peux vérifier toutes les tables dans son ensemble », lu comme la
