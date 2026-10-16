@@ -1,5 +1,5 @@
-// Les réglages du labo photo (étape 5, lot 2), tels que le document les garde : seulement ceux
-// qui ne sont pas à zéro (BRIEF, modèle de document ; règle 13, l'original n'est jamais
+// Les réglages du labo photo (étape 5, lots 2 et 3), tels que le document les garde : seulement
+// ceux qui ne sont pas à zéro (BRIEF, modèle de document ; règle 13, l'original n'est jamais
 // touché). Le noyau les calcule (`noyau/src/labo.rs`), la fenêtre en refait une partie dans un
 // shader pour l'aperçu en direct (`labo/shader.ts`).
 
@@ -12,6 +12,14 @@ export interface RetoucheCouleur {
   saturation?: number;
   luminance?: number;
 }
+
+/** Les courbes des tonalités : celle de l'image entière, puis une par canal. */
+export const CANAUX_COURBE = ["rgb", "rouge", "vert", "bleu"] as const;
+export type CanalCourbe = (typeof CANAUX_COURBE)[number];
+/** Un point de la courbe : entrée et sortie, de 0 à 255 (l'image telle qu'elle s'affiche). */
+export type PointCourbe = [number, number];
+/** Une liste absente ou vide : la diagonale, rien ne change. */
+export type CourbeTonalites = Partial<Record<CanalCourbe, PointCourbe[]>>;
 
 export interface ReglagesPhoto {
   temperature?: number;
@@ -26,6 +34,7 @@ export interface ReglagesPhoto {
   vibrance?: number;
   saturation?: number;
   melangeur?: Partial<Record<CouleurMelangeur, RetoucheCouleur>>;
+  courbe?: CourbeTonalites;
   texture?: number;
   clarte?: number;
   voile?: number;
@@ -37,7 +46,7 @@ export interface ReglagesPhoto {
   bruit?: number;
 }
 
-export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur">;
+export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur" | "courbe">;
 
 /** Un curseur du panneau : sa plage, son pas, son libellé. */
 export interface DefinitionCurseur {
@@ -77,6 +86,115 @@ function borner(v: unknown, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+export const POINTS_COURBE_MAX = 16;
+/** Les pas de la table d'une courbe (la même dans le noyau et dans le shader). */
+export const PAS_COURBE = 1024;
+
+/**
+ * Les points d'une courbe tels que le document les garde : entiers de 0 à 255, rangés, une
+ * seule sortie par entrée (la dernière donnée), les deux bouts présents (s'ils manquent, (0, 0)
+ * et (255, 255) sont ajoutés), seize au plus ; une diagonale devient une liste vide. Les mêmes
+ * règles que `normaliser_points` du noyau.
+ */
+export function normaliserPoints(points: unknown): PointCourbe[] {
+  if (!Array.isArray(points)) return [];
+  const p: PointCourbe[] = [];
+  for (const q of points) {
+    if (!Array.isArray(q) || q.length < 2) continue;
+    const [x, y] = q as unknown[];
+    if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) continue;
+    p.push([Math.round(Math.min(255, Math.max(0, x))), Math.round(Math.min(255, Math.max(0, y)))]);
+  }
+  // Tri stable : à entrée égale, l'ordre donné reste, et la dernière sortie l'emporte.
+  p.sort((a, b) => a[0] - b[0]);
+  const sortie: PointCourbe[] = [];
+  for (const q of p) {
+    if (sortie.length && sortie[sortie.length - 1][0] === q[0]) sortie[sortie.length - 1] = q;
+    else sortie.push(q);
+  }
+  if (!sortie.length) return sortie;
+  if (sortie[0][0] > 0) sortie.unshift([0, 0]);
+  if (sortie[sortie.length - 1][0] < 255) sortie.push([255, 255]);
+  if (sortie.length > POINTS_COURBE_MAX) {
+    const dernier = sortie[sortie.length - 1];
+    sortie.length = POINTS_COURBE_MAX - 1;
+    sortie.push(dernier);
+  }
+  return sortie.every(([x, y]) => x === y) ? [] : sortie;
+}
+
+/** La courbe normalisée ; `undefined` si toutes ses listes sont des diagonales. */
+export function normaliserCourbe(c: unknown): CourbeTonalites | undefined {
+  if (!c || typeof c !== "object") return undefined;
+  const sortie: CourbeTonalites = {};
+  for (const canal of CANAUX_COURBE) {
+    const p = normaliserPoints((c as Record<string, unknown>)[canal]);
+    if (p.length) sortie[canal] = p;
+  }
+  return Object.keys(sortie).length ? sortie : undefined;
+}
+
+/**
+ * Une courbe monotone par morceaux (Fritsch et Carlson, 1980), la même que celle du noyau :
+ * elle passe par chaque point sans repartir en arrière ni dépasser ses voisins. Lit une valeur
+ * de 0 à 1 et rend une valeur de 0 à 1.
+ */
+export function spline(points: PointCourbe[] | undefined): (v: number) => number {
+  const xs = points && points.length >= 2 ? points.map((q) => q[0] / 255) : [0, 1];
+  const ys = points && points.length >= 2 ? points.map((q) => q[1] / 255) : [0, 1];
+  const n = xs.length;
+  const d: number[] = [];
+  for (let k = 0; k < n - 1; k++) d.push((ys[k + 1] - ys[k]) / (xs[k + 1] - xs[k]));
+  const m = new Array<number>(n).fill(0);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let k = 1; k < n - 1; k++) m[k] = d[k - 1] * d[k] <= 0 ? 0 : (d[k - 1] + d[k]) / 2;
+  for (let k = 0; k < n - 1; k++) {
+    if (d[k] === 0) {
+      m[k] = 0;
+      m[k + 1] = 0;
+    } else {
+      const a = m[k] / d[k];
+      const b = m[k + 1] / d[k];
+      const s = a * a + b * b;
+      if (s > 9) {
+        const t = 3 / Math.sqrt(s);
+        m[k] = t * a * d[k];
+        m[k + 1] = t * b * d[k];
+      }
+    }
+  }
+  return (v: number) => {
+    if (v <= xs[0]) return ys[0];
+    if (v >= xs[n - 1]) return ys[n - 1];
+    let k = 0;
+    while (k < n - 2 && v >= xs[k + 1]) k++;
+    const h = xs[k + 1] - xs[k];
+    const t = (v - xs[k]) / h;
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const y = (2 * t3 - 3 * t2 + 1) * ys[k] + (t3 - 2 * t2 + t) * h * m[k] + (-2 * t3 + 3 * t2) * ys[k + 1] + (t3 - t2) * h * m[k + 1];
+    return Math.min(1, Math.max(0, y));
+  };
+}
+
+/**
+ * La table d'une courbe pour le shader : pour 1024 valeurs de 0 à 1 (en sRGB), la sortie du
+ * rouge, du vert et du bleu (la courbe de l'image entière d'abord, puis celle du canal), en
+ * RGBA ; `null` s'il n'y a rien à faire.
+ */
+export function tableCourbe(c: CourbeTonalites | undefined): Float32Array | null {
+  const n = normaliserCourbe(c);
+  if (!n) return null;
+  const [maitre, r, v, b] = CANAUX_COURBE.map((canal) => spline(n[canal]));
+  const table = new Float32Array(PAS_COURBE * 4);
+  for (let i = 0; i < PAS_COURBE; i++) {
+    const x = maitre(i / (PAS_COURBE - 1));
+    table.set([r(x), v(x), b(x), 1], i * 4);
+  }
+  return table;
+}
+
 /** Chaque valeur dans sa plage, les zéros retirés ; `undefined` s'il ne reste rien. */
 export function normaliserReglages(r: ReglagesPhoto | undefined | null): ReglagesPhoto | undefined {
   if (!r || typeof r !== "object") return undefined;
@@ -99,6 +217,8 @@ export function normaliserReglages(r: ReglagesPhoto | undefined | null): Reglage
     if (Object.keys(t).length) melangeur[couleur] = t;
   }
   if (Object.keys(melangeur).length) sortie.melangeur = melangeur;
+  const courbe = normaliserCourbe(r.courbe);
+  if (courbe) sortie.courbe = courbe;
   return Object.keys(sortie).length ? sortie : undefined;
 }
 
@@ -115,12 +235,16 @@ export function aDesVoisins(r: ReglagesPhoto | undefined): boolean {
 export function cleReglages(r: ReglagesPhoto | undefined): string {
   const n = normaliserReglages(r);
   if (!n) return "";
-  const trie = (o: object): unknown =>
-    Object.fromEntries(
-      Object.entries(o)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([k, v]) => [k, v && typeof v === "object" ? trie(v) : v]),
-    );
+  const trie = (o: unknown): unknown =>
+    Array.isArray(o)
+      ? o.map(trie)
+      : o && typeof o === "object"
+        ? Object.fromEntries(
+            Object.entries(o)
+              .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+              .map(([k, v]) => [k, trie(v)]),
+          )
+        : o;
   return JSON.stringify(trie(n));
 }
 

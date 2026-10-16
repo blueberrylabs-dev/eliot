@@ -1509,6 +1509,34 @@ export async function enregistrerMarque(kit: unknown): Promise<void> {
   }
 }
 
+// ========================================================================================
+// Préréglages d'Alexandre (étape 5, lot 3) : `~/Documents/Eliot/Préréglages/prereglages.json`
+// ========================================================================================
+
+const CLE_PREREGLAGES = "eliot-prereglages";
+
+export async function lirePrereglages(): Promise<unknown> {
+  if (dansTauri) return invoke<unknown>("prereglages_lire");
+  try {
+    const brut = localStorage.getItem(CLE_PREREGLAGES);
+    return brut ? JSON.parse(brut) : { version: 1, prereglages: [] };
+  } catch {
+    return { version: 1, prereglages: [] };
+  }
+}
+
+export async function enregistrerPrereglages(liste: unknown): Promise<void> {
+  if (dansTauri) {
+    await invoke("prereglages_enregistrer", { prereglages: liste });
+    return;
+  }
+  try {
+    localStorage.setItem(CLE_PREREGLAGES, JSON.stringify(liste));
+  } catch {
+    // Stockage indisponible : les préréglages restent en mémoire le temps de l'onglet.
+  }
+}
+
 /** Ouvre une page web (le crédit d'une photo) dans le navigateur du poste. */
 export async function ouvrirLien(adresse: string): Promise<void> {
   if (!/^https:\/\//.test(adresse)) return;

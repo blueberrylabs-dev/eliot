@@ -1,28 +1,34 @@
-// Le panneau du labo photo (étape 5, lot 2), à la place du panneau de gauche, comme « Modifier
-// l'image » chez Canva : histogramme, avant et après, puis Lumière, Couleur (avec le mélangeur
-// de huit couleurs), Effets et Détail. Chaque curseur va de −100 à +100 autour de zéro (sauf
+// Le panneau du labo photo (étape 5, lots 2 et 3), à la place du panneau de gauche, comme
+// « Modifier l'image » chez Canva : histogramme, avant et après, copier et coller les réglages,
+// puis Préréglages, Lumière (avec la courbe des tonalités), Couleur (avec le mélangeur de huit
+// couleurs), Effets et Détail. Chaque curseur va de −100 à +100 autour de zéro (sauf
 // l'exposition, en IL) ; un double-clic le remet à zéro ; sa valeur se tape au clavier. Un geste
-// sur un curseur fait une seule étape d'annulation.
+// sur un curseur ou sur la courbe fait une seule étape d'annulation.
 
-import { ChevronDown, ChevronRight, Eye, RotateCcw, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Eye, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { elementsCourants, useEditeur } from "../etat/editeur";
 import { useImageRessource } from "../editeur/images";
 import {
   aDesVoisins,
+  cleReglages,
   COULEURS_MELANGEUR,
   lireValeur,
   normaliserReglages,
   SECTIONS_LABO,
   texteValeur,
   valeurReglage,
+  type CanalCourbe,
   type CouleurMelangeur,
   type CurseurLabo,
   type DefinitionCurseur,
+  type PointCourbe,
   type ReglagesPhoto,
 } from "../modele/labo";
 import type { ElementImage } from "../modele/types";
-import { abonnerRetouche, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
+import { EditeurCourbe } from "./EditeurCourbe";
+import { Prereglages } from "./Prereglages";
+import { abonnerRetouche, collerReglages, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
 
 /** La teinte de chaque couleur du mélangeur, pour sa pastille. */
 const TEINTES: Record<CouleurMelangeur, string> = {
@@ -226,6 +232,8 @@ function Melangeur({ reglages, changer }: { reglages: ReglagesPhoto | undefined;
 export function PanneauLabo({ el }: { el: ElementImage }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
+  const source = useImageRessource(el.ressource) ?? null;
+  const copie = useLabo((s) => s.copie);
   const modifier = (reglages: ReglagesPhoto | undefined, etiquette: string) => {
     useEditeur.getState().modifierElements({ [el.id]: { reglages: normaliserReglages(reglages) } }, `labo:${el.id}:${etiquette}`);
   };
@@ -238,6 +246,22 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
     const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | undefined)?.reglages;
     modifier({ ...actuel, melangeur: { ...actuel?.melangeur, [couleur]: { ...actuel?.melangeur?.[couleur], [k]: v } } }, `${couleur}-${k}`);
   };
+  const changerCourbe = (canal: CanalCourbe, points: PointCourbe[]) => {
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | undefined)?.reglages;
+    const suivant = { ...actuel, courbe: { ...actuel?.courbe, [canal]: points } };
+    // Un point posé sur la diagonale ne change rien : pas d'étape d'annulation pour si peu.
+    if (cleReglages(suivant) === cleReglages(actuel)) return;
+    modifier(suivant, `courbe-${canal}`);
+  };
+  const basculer = (titre: string) =>
+    setFermees((f) => {
+      const n = new Set(f);
+      if (n.has(titre)) n.delete(titre);
+      else n.add(titre);
+      return n;
+    });
+  // Un survol de préréglage qui finit hors du panneau ne laisse pas la photo en essai.
+  useEffect(() => () => useLabo.setState({ essai: null }), [el.id]);
   // Un curseur relâché hors de sa piste finit quand même le geste.
   useEffect(() => {
     const relache = () => useLabo.getState().geste && finGeste();
@@ -251,6 +275,12 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
           <X size={18} />
         </button>
         <h2 className="flex-1 text-sm font-semibold text-neutral-900">Retoucher</h2>
+        <button data-copier-reglages title="Copier les réglages (Ctrl+Maj+C)" onClick={() => copierReglages(el.id)} className="rounded-md p-1 text-neutral-600 hover:bg-neutral-100">
+          <ClipboardCopy size={15} />
+        </button>
+        <button data-coller-reglages title="Coller les réglages copiés sur cette photo (Ctrl+Maj+V)" disabled={!copie} onClick={() => collerReglages([el.id])} className="rounded-md p-1 text-neutral-600 hover:bg-neutral-100 disabled:opacity-40">
+          <ClipboardPaste size={15} />
+        </button>
         <button
           title="Tout remettre à zéro"
           disabled={!el.reglages}
@@ -273,23 +303,15 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
         <Eye size={15} /> Avant (maintenir)
       </button>
       {voisins && <p className="mb-1 text-[11px] text-neutral-500">Texture, clarté, voile, netteté et bruit se calculent quand on relâche le curseur.</p>}
+      <Section titre="Préréglages" ouverte={!fermees.has("Préréglages")} basculer={() => basculer("Préréglages")}>
+        <Prereglages el={el} source={source} modifier={modifier} />
+      </Section>
       {SECTIONS_LABO.map((s) => (
-        <Section
-          key={s.titre}
-          titre={s.titre}
-          ouverte={!fermees.has(s.titre)}
-          basculer={() =>
-            setFermees((f) => {
-              const n = new Set(f);
-              if (n.has(s.titre)) n.delete(s.titre);
-              else n.add(s.titre);
-              return n;
-            })
-          }
-        >
+        <Section key={s.titre} titre={s.titre} ouverte={!fermees.has(s.titre)} basculer={() => basculer(s.titre)}>
           {s.curseurs.map((d) => (
             <CurseurReglage key={d.cle} def={d} fond={FONDS[d.cle]} valeur={valeurReglage(el.reglages, d.cle)} changer={(v) => changer(d.cle, v)} />
           ))}
+          {s.titre === "Lumière" && <EditeurCourbe courbe={el.reglages?.courbe} changer={changerCourbe} source={source} />}
           {s.titre === "Couleur" && <Melangeur reglages={el.reglages} changer={changerCouleur} />}
         </Section>
       ))}

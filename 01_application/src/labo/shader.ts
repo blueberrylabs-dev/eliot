@@ -1,7 +1,9 @@
-// L'aperçu en direct du labo photo (étape 5, lot 2), dans un shader WebGL 2 : les réglages qui
-// ne regardent qu'un pixel (balance des blancs, exposition, tonalités, couleurs, mélangeur,
-// vignetage, grain), avec les formules de `noyau/src/labo.rs`, ligne pour ligne. Le tableau
-// commun `modele/labo.attendus.json` les contrôle (essai dans Chromium et dans Tauri).
+// L'aperçu en direct du labo photo (étape 5, lots 2 et 3), dans un shader WebGL 2 : les réglages
+// qui ne regardent qu'un pixel (balance des blancs, exposition, tonalités, courbe, couleurs,
+// mélangeur, vignetage, grain), avec les formules de `noyau/src/labo.rs`, ligne pour ligne. Le
+// tableau commun `modele/labo.attendus.json` les contrôle (essai dans Chromium et dans Tauri).
+// La courbe arrive en table (1024 pas par canal, calculée par `tableCourbe`, comme dans le
+// noyau), dans une texture de deux lignes : celle des réglages d'aujourd'hui, celle de la base.
 //
 // Les réglages qui regardent les voisins (bruit, netteté, texture, clarté, voile) viennent du
 // noyau : une « base », l'aperçu retouché sans vignetage ni grain. Le shader la complète :
@@ -9,7 +11,7 @@
 // repos les deux réglages se confondent et l'image est celle du noyau ; pendant qu'on tire un
 // curseur, l'écart suit en direct.
 
-import { COULEURS_MELANGEUR, type ReglagesPhoto } from "../modele/labo";
+import { COULEURS_MELANGEUR, normaliserCourbe, PAS_COURBE, tableCourbe, type ReglagesPhoto } from "../modele/labo";
 
 const SOMMETS = `#version 300 es
 void main() {
@@ -23,11 +25,13 @@ precision highp int;
 struct Reglages {
   vec3 gains;
   float contraste, hl, ombres, blancs, noirs, sat, vib;
+  bool courbe;
   bool melange;
   vec3 melangeur[8];
 };
 uniform sampler2D u_source;
 uniform sampler2D u_base;
+uniform highp sampler2D u_courbe;
 uniform bool u_avecBase;
 uniform Reglages u_cur;
 uniform Reglages u_ref;
@@ -49,7 +53,13 @@ float bruitValeur(float gx, float gy) {
   float bas = noeud(ix, iy + 1u) * (1.0 - fx) + noeud(ix + 1u, iy + 1u) * fx;
   return haut * (1.0 - fy) + bas * fy;
 }
-vec3 reglagesPixel(vec3 c, Reglages r) {
+float lireCourbe(float e, int canal, int ligne) {
+  float x = clamp(e, 0.0, 1.0) * ${PAS_COURBE - 1}.0;
+  int i = min(int(x), ${PAS_COURBE - 2});
+  float t = x - float(i);
+  return texelFetch(u_courbe, ivec2(i, ligne), 0)[canal] * (1.0 - t) + texelFetch(u_courbe, ivec2(i + 1, ligne), 0)[canal] * t;
+}
+vec3 reglagesPixel(vec3 c, Reglages r, int ligne) {
   vec3 l = c * r.gains;
   float y0 = dot(l, LUMA);
   if (y0 > 1e-6) {
@@ -59,6 +69,9 @@ vec3 reglagesPixel(vec3 c, Reglages r) {
     p += 0.3 * r.hl / 100.0 * smoothstep(0.5, 1.0, p) + 0.3 * r.ombres / 100.0 * (1.0 - smoothstep(0.0, 0.5, p))
        + 0.2 * r.blancs / 100.0 * smoothstep(0.7, 1.0, p) + 0.2 * r.noirs / 100.0 * (1.0 - smoothstep(0.0, 0.3, p));
     l *= pow(max(p, 0.0), 2.2) / y0;
+  }
+  if (r.courbe) {
+    l = vec3(versLin(lireCourbe(versSrgb(l.r), 0, ligne)), versLin(lireCourbe(versSrgb(l.g), 1, ligne)), versLin(lireCourbe(versSrgb(l.b), 2, ligne)));
   }
   float y1 = dot(l, LUMA);
   float haut = max(l.r, max(l.g, l.b));
@@ -98,10 +111,10 @@ void main() {
   int py = int(u_taille.y) - 1 - int(gl_FragCoord.y);
   vec4 s = texelFetch(u_source, ivec2(px, py), 0);
   vec3 c = lin3(s.rgb);
-  vec3 l = reglagesPixel(c, u_cur);
+  vec3 l = reglagesPixel(c, u_cur, 0);
   if (u_avecBase) {
     vec3 b = lin3(texelFetch(u_base, ivec2(px, py), 0).rgb);
-    l = max(b + (l - reglagesPixel(c, u_ref)), vec3(0.0));
+    l = max(b + (l - reglagesPixel(c, u_ref, 1)), vec3(0.0));
   }
   if (u_vignetage != 0.0) {
     vec2 uv = vec2((float(px) + 0.5) / u_taille.x * 2.0 - 1.0, (float(py) + 0.5) / u_taille.y * 2.0 - 1.0);
@@ -123,7 +136,17 @@ export interface PixelsBruts {
   hauteur: number;
 }
 
-const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "melange", "melangeur"] as const;
+const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "courbe", "melange", "melangeur"] as const;
+
+/** La diagonale : la ligne d'une texture de courbe quand il n'y a pas de courbe. */
+function tableNeutre(): Float32Array {
+  const t = new Float32Array(PAS_COURBE * 4);
+  for (let i = 0; i < PAS_COURBE; i++) {
+    const v = i / (PAS_COURBE - 1);
+    t.set([v, v, v, 1], i * 4);
+  }
+  return t;
+}
 
 /** Le moteur : un seul contexte WebGL 2 pour toutes les photos (un moteur web en accorde peu). */
 export class MoteurLabo {
@@ -132,6 +155,9 @@ export class MoteurLabo {
   private readonly prog: WebGLProgram;
   private readonly texSource: WebGLTexture;
   private readonly texBase: WebGLTexture;
+  private readonly texCourbe: WebGLTexture;
+  /** Les courbes chargées dans la texture (aujourd'hui, base). */
+  private courbesChargees = "";
   private readonly u = new Map<string, WebGLUniformLocation | null>();
   private sourceChargee: unknown = null;
   private baseChargee: unknown = null;
@@ -155,7 +181,7 @@ export class MoteurLabo {
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(`programme du labo : ${gl.getProgramInfoLog(prog)}`);
     this.prog = prog;
-    const noms = ["u_source", "u_base", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain"];
+    const noms = ["u_source", "u_base", "u_courbe", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain"];
     for (const ensemble of ["u_cur", "u_ref"]) for (const champ of CHAMPS) noms.push(champ === "melangeur" ? `${ensemble}.melangeur[0]` : `${ensemble}.${champ}`);
     for (const nom of noms) this.u.set(nom, gl.getUniformLocation(prog, nom));
     const texture = () => {
@@ -171,6 +197,23 @@ export class MoteurLabo {
     this.texBase = texture();
     // Une base d'un pixel tant qu'il n'y en a pas : une texture vide ferait protester WebGL.
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 255]));
+    // Les courbes : des nombres à virgule, lus pas à pas (texelFetch), sans filtrage.
+    this.texCourbe = texture();
+    this.chargerCourbes(undefined, undefined);
+  }
+
+  private chargerCourbes(cur: ReglagesPhoto["courbe"], ref: ReglagesPhoto["courbe"]): void {
+    const cle = JSON.stringify([normaliserCourbe(cur) ?? null, normaliserCourbe(ref) ?? null]);
+    if (cle === this.courbesChargees) return;
+    const gl = this.gl;
+    const donnees = new Float32Array(PAS_COURBE * 4 * 2);
+    donnees.set(tableCourbe(cur) ?? tableNeutre(), 0);
+    donnees.set(tableCourbe(ref) ?? tableNeutre(), PAS_COURBE * 4);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.texCourbe);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, PAS_COURBE, 2, 0, gl.RGBA, gl.FLOAT, donnees);
+    this.courbesChargees = cle;
   }
 
   private charger(texture: WebGLTexture, unite: number, source: TexImageSource | PixelsBruts): void {
@@ -199,6 +242,7 @@ export class MoteurLabo {
     gl.uniform1f(u("noirs"), r.noirs ?? 0);
     gl.uniform1f(u("sat"), r.saturation ?? 0);
     gl.uniform1f(u("vib"), r.vibrance ?? 0);
+    gl.uniform1i(u("courbe"), normaliserCourbe(r.courbe) ? 1 : 0);
     const m = COULEURS_MELANGEUR.flatMap((c) => [r.melangeur?.[c]?.teinte ?? 0, r.melangeur?.[c]?.saturation ?? 0, r.melangeur?.[c]?.luminance ?? 0]);
     gl.uniform1i(u("melange"), m.some((v) => v !== 0) ? 1 : 0);
     gl.uniform3fv(u("melangeur[0]"), new Float32Array(m));
@@ -226,12 +270,16 @@ export class MoteurLabo {
       this.charger(this.texBase, 1, base!.image);
       this.baseChargee = base!.image;
     }
+    this.chargerCourbes(r.courbe, avecBase ? base!.reglages.courbe : r.courbe);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.texSource);
     gl.activeTexture(gl.TEXTURE1);
     gl.bindTexture(gl.TEXTURE_2D, this.texBase);
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_2D, this.texCourbe);
     gl.uniform1i(this.u.get("u_source")!, 0);
     gl.uniform1i(this.u.get("u_base")!, 1);
+    gl.uniform1i(this.u.get("u_courbe")!, 2);
     gl.uniform1i(this.u.get("u_avecBase")!, avecBase ? 1 : 0);
     this.reglages("u_cur", r);
     this.reglages("u_ref", avecBase ? base!.reglages : r);

@@ -894,7 +894,7 @@ impl Scene {
                 .and_then(|id| images::infos(dossier, id).ok())
                 .and_then(|r| r.video.map(|v| v.duree as f64));
             let retouche = reglages_labo(&e.element);
-            let cle_retouche = retouche.map(|r| serde_json::to_string(&r).unwrap_or_default()).unwrap_or_default();
+            let cle_retouche = retouche.as_ref().map(|r| serde_json::to_string(r).unwrap_or_default()).unwrap_or_default();
             let mut calques = Vec::new();
             for c in &e.calques {
                 let (rendu, decoupes) = match c {

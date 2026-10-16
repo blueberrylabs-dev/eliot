@@ -43,7 +43,8 @@ interface Instantane {
 const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["police", "taillePolice", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "couleur", "interligne", "espacement", "contour", "surlignage", "opacite", "ombre", "animations"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "tirets", "opacite", "ombre", "animations"],
-  image: ["arrondi", "bordure", "opacite", "ombre", "animations"],
+  // La retouche du labo (étape 5) passe d'une photo à l'autre ; pas encore vers une vidéo.
+  image: ["arrondi", "bordure", "opacite", "ombre", "animations", "reglages"],
   video: ["arrondi", "bordure", "opacite", "ombre", "animations"],
   icone: ["couleur", "trait", "opacite", "ombre", "animations"],
   emoji: ["opacite", "ombre", "animations"],
@@ -644,7 +645,8 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     // Entre deux types différents, seule la transparence passe ; une photo et une vidéo
     // partagent leurs coins, leur bordure et leur ombre.
     const photoEtVideo = (t: string) => t === "image" || t === "video";
-    const valeurs = cible.type === style.type || (photoEtVideo(cible.type) && photoEtVideo(style.type)) ? style.valeurs : { opacite: style.valeurs.opacite };
+    const valeurs: Record<string, unknown> = cible.type === style.type || (photoEtVideo(cible.type) && photoEtVideo(style.type)) ? { ...style.valeurs } : { opacite: style.valeurs.opacite };
+    if (cible.type !== "image") delete valeurs.reglages;
     get().modifierElements({ [id]: valeurs as Partial<ElementPage> });
     set({ styleCopie: null, selection: avecGroupes([id], elementsCourants(get())) });
   },

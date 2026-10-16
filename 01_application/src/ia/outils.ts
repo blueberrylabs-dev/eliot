@@ -27,7 +27,9 @@ import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
-import { aDesVoisins, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, type CouleurMelangeur, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
+import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, type CanalCourbe, type CouleurMelangeur, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
+import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
+import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrereglages } from "../labo/prereglages";
 import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
@@ -66,6 +68,31 @@ function exiger(condition: unknown, message: string): asserts condition {
 
 function designOuvert() {
   exiger(etat().projet && etat().vue === "editeur", "aucun design ouvert : utilise nouveau_design ou ouvrir_design");
+}
+
+/** Les réglages demandés au labo se tiennent (noms connus, nombres, points de courbe). */
+function verifierReglages(demandes: Record<string, unknown>): void {
+  const connus = new Set<string>([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe"]);
+  for (const [k, v] of Object.entries(demandes)) {
+    exiger(connus.has(k), `réglage inconnu : ${k} (connus : ${[...connus].join(", ")})`);
+    if (k === "melangeur") {
+      exiger(typeof v === "object" && v !== null && !Array.isArray(v), "melangeur : un objet par couleur, par exemple { bleu: { saturation: 30 } }");
+      for (const [c, m] of Object.entries(v as Record<string, unknown>)) {
+        exiger((COULEURS_MELANGEUR as readonly string[]).includes(c), `melangeur : couleur inconnue ${c} (${COULEURS_MELANGEUR.join(", ")})`);
+        exiger(typeof m === "object" && m !== null && Object.keys(m).every((x) => ["teinte", "saturation", "luminance"].includes(x)), `melangeur.${c} : teinte, saturation, luminance`);
+        for (const x of Object.values(m as Record<string, unknown>)) exiger(typeof x === "number" && Number.isFinite(x), `melangeur.${c} : des nombres de -100 à 100`);
+      }
+    } else if (k === "courbe") {
+      exiger(typeof v === "object" && v !== null && !Array.isArray(v), "courbe : un objet par canal, par exemple { rgb: [[0, 20], [128, 140], [255, 250]] }");
+      for (const [c, points] of Object.entries(v as Record<string, unknown>)) {
+        exiger((CANAUX_COURBE as readonly string[]).includes(c), `courbe : canal inconnu ${c} (${CANAUX_COURBE.join(", ")})`);
+        exiger(Array.isArray(points) && points.every((q) => Array.isArray(q) && q.length === 2 && q.every((n) => typeof n === "number" && Number.isFinite(n))), `courbe.${c} : des points [entrée, sortie] de 0 à 255, par exemple [[0, 20], [255, 240]]`);
+        exiger((points as unknown[]).length <= 16, `courbe.${c} : 16 points au plus`);
+      }
+    } else {
+      exiger(typeof v === "number" && Number.isFinite(v), `${k} : un nombre`);
+    }
+  }
 }
 
 const nombre = (v: unknown, defaut?: number): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : defaut);
@@ -1572,7 +1599,7 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: Object.keys(modifs).map((id) => apres.get(id)) };
   },
 
-  retoucher(args) {
+  async retoucher(args) {
     designOuvert();
     const id = texte(args.id) ?? "";
     const el = elementsCourants(etat()).find((e) => e.id === id);
@@ -1581,26 +1608,63 @@ const OUTILS: Record<string, Outil> = {
     const r = args.reglages ?? {};
     exiger(typeof r === "object" && r !== null && !Array.isArray(r), "reglages : un objet, par exemple { exposition: 0.3, contraste: 15 }");
     const demandes = r as Record<string, unknown>;
-    const connus = new Set<string>([...CURSEURS_LABO.map((c) => c.cle), "melangeur"]);
-    for (const [k, v] of Object.entries(demandes)) {
-      exiger(connus.has(k), `réglage inconnu : ${k} (connus : ${[...connus].join(", ")})`);
-      if (k === "melangeur") {
-        exiger(typeof v === "object" && v !== null && !Array.isArray(v), "melangeur : un objet par couleur, par exemple { bleu: { saturation: 30 } }");
-        for (const [c, m] of Object.entries(v as Record<string, unknown>)) {
-          exiger((COULEURS_MELANGEUR as readonly string[]).includes(c), `melangeur : couleur inconnue ${c} (${COULEURS_MELANGEUR.join(", ")})`);
-          exiger(typeof m === "object" && m !== null && Object.keys(m).every((x) => ["teinte", "saturation", "luminance"].includes(x)), `melangeur.${c} : teinte, saturation, luminance`);
-          for (const x of Object.values(m as Record<string, unknown>)) exiger(typeof x === "number" && Number.isFinite(x), `melangeur.${c} : des nombres de -100 à 100`);
-        }
-      } else {
-        exiger(typeof v === "number" && Number.isFinite(v), `${k} : un nombre`);
-      }
+    verifierReglages(demandes);
+    // Le point de départ : rien, les réglages d'une autre photo, ou ceux de la photo.
+    let depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage).reglages ?? {});
+    const depuis = texte(args.depuis);
+    if (depuis) {
+      const source = elementsCourants(etat()).find((e) => e.id === depuis);
+      exiger(source && source.type === "image", `depuis : ${depuis} n'est pas une photo de la page affichée (voir etat)`);
+      depart = (source as ElementImage).reglages ?? {};
     }
-    const depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage).reglages ?? {});
+    const nomPrereglage = texte(args.prereglage);
+    let prereglage: string | undefined;
+    if (nomPrereglage) {
+      await chargerPrereglages();
+      const p = trouverPrereglage(tousLesPrereglages(), nomPrereglage);
+      exiger(p, `préréglage inconnu : ${nomPrereglage} (voir l'outil prereglages)`);
+      const intensite = nombre(args.intensite, 100)!;
+      exiger(intensite >= 0 && intensite <= 100, "intensite : de 0 à 100");
+      depart = appliquerPrereglage(depart, p, intensite) ?? {};
+      prereglage = intensite === 100 ? p.nom : `${p.nom} à ${Math.round(intensite)} %`;
+    }
     const melangeur = { ...depart.melangeur } as NonNullable<ReglagesPhoto["melangeur"]>;
     for (const [c, m] of Object.entries((demandes.melangeur ?? {}) as Record<CouleurMelangeur, RetoucheCouleur>)) melangeur[c as CouleurMelangeur] = { ...melangeur[c as CouleurMelangeur], ...m };
-    const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur });
+    const courbe = { ...depart.courbe, ...((demandes.courbe ?? {}) as Partial<Record<CanalCourbe, PointCourbe[]>>) };
+    const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur, courbe });
     etat().modifierElements({ [id]: { reglages } as Partial<ElementPage> });
-    return { donnees: { id, reglages: reglages ?? {}, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
+    return { donnees: { id, reglages: reglages ?? {}, prereglage, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
+  },
+
+  async prereglages(args) {
+    const action = texte(args.action) ?? "lister";
+    exiger(action === "lister" || action === "enregistrer", "action : lister ou enregistrer");
+    await chargerPrereglages();
+    if (action === "lister") {
+      const erreur = usePrereglages.getState().erreur;
+      const decrire = (p: { id: string; nom: string; categorie: string; reglages: ReglagesPhoto }) => ({ id: p.id, nom: p.nom, categorie: p.categorie, reglages: p.reglages });
+      return { donnees: { categories: [...CATEGORIES_FOURNIES, CATEGORIE_MIENS], fournis: PREREGLAGES_FOURNIS.map(decrire), miens: usePrereglages.getState().miens.map(decrire), erreur: erreur ?? undefined, garde: "un préréglage garde l'exposition, la netteté et la réduction du bruit de la photo" } };
+    }
+    const nom = texte(args.nom)?.trim();
+    exiger(nom, "enregistrer : un nom est attendu");
+    let reglages: ReglagesPhoto | undefined;
+    const depuis = texte(args.depuis);
+    if (depuis) {
+      designOuvert();
+      const source = elementsCourants(etat()).find((e) => e.id === depuis);
+      exiger(source && source.type === "image", `depuis : ${depuis} n'est pas une photo de la page affichée (voir etat)`);
+      reglages = (source as ElementImage).reglages;
+    } else {
+      exiger(args.reglages && typeof args.reglages === "object" && !Array.isArray(args.reglages), "enregistrer : depuis (une photo) ou reglages (un objet)");
+      verifierReglages(args.reglages as Record<string, unknown>);
+      reglages = normaliserReglages(args.reglages as ReglagesPhoto);
+    }
+    try {
+      const p = await enregistrerPrereglage(nom, reglages);
+      return { donnees: { id: p.id, nom: p.nom, categorie: p.categorie, reglages: p.reglages } };
+    } catch (e) {
+      throw new ErreurOutil(`prereglages : ${e instanceof Error ? e.message : String(e)}`);
+    }
   },
 
   supprimer(args) {

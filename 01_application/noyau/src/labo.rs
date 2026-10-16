@@ -1,15 +1,16 @@
-//! Le labo photo (étape 5, lot 2) : les réglages d'une photo façon Lightroom, valeurs du
+//! Le labo photo (étape 5, lots 2 et 3) : les réglages d'une photo façon Lightroom, valeurs du
 //! document (règle 13 : l'original n'est jamais touché), calculés en nombres à virgule, en
 //! lumière linéaire, dans l'ordre fixe du BRIEF (§ 6, « Ce que Eliot reprend de Lightroom ») :
 //!
 //! 1. balance des blancs (température, teinte) et exposition, des gains par canal ;
 //! 2. tonalités (contraste, hautes lumières, ombres, blancs, noirs), sur la luminance perçue ;
-//! 3. (courbe des tonalités : lot 3) ;
+//! 3. courbe des tonalités (une pour l'image entière, une par canal), sur l'image telle
+//!    qu'elle s'affiche (en sRGB, de 0 à 1) ;
 //! 4. couleurs : saturation, vibrance, puis le mélangeur de huit couleurs ;
 //! 5. détail : réduction du bruit, netteté ;
 //! 6. effets : texture, clarté, correction du voile, puis vignetage et grain.
 //!
-//! Les étapes 1, 2, 4 et la fin de la 6 (vignetage, grain) ne regardent qu'un pixel : la
+//! Les étapes 1 à 4 et la fin de la 6 (vignetage, grain) ne regardent qu'un pixel : la
 //! fenêtre les refait dans un shader WebGL pendant qu'on tire un curseur (`src/labo/shader.ts`,
 //! mêmes formules, ligne pour ligne, contrôlées par le tableau commun
 //! `src/modele/labo.attendus.json`). Les autres regardent les pixels voisins : le noyau les
@@ -56,10 +57,167 @@ impl Melangeur {
     }
 }
 
+/// Au plus seize points par courbe.
+pub const POINTS_COURBE_MAX: usize = 16;
+/// Les pas de la table d'une courbe, lue en ligne droite (la même dans le shader).
+pub const PAS_COURBE: usize = 1024;
+
+/// La courbe des tonalités : des points (entrée, sortie) de 0 à 255, pour l'image entière
+/// (`rgb`) puis pour chaque canal. Une liste vide : la diagonale, rien ne change. Les points
+/// sont rangés par entrée ; la courbe passe toujours par une entrée 0 et une entrée 255 (s'ils
+/// manquent, les points (0, 0) et (255, 255) sont ajoutés).
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Courbe {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rgb: Vec<[f32; 2]>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rouge: Vec<[f32; 2]>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub vert: Vec<[f32; 2]>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bleu: Vec<[f32; 2]>,
+}
+
+/// Les points d'une courbe tels que le document doit les garder : entiers de 0 à 255, rangés,
+/// une seule sortie par entrée (la dernière donnée), les deux bouts présents, seize au plus ;
+/// une diagonale devient une liste vide. Les mêmes règles que `normaliserCourbe` de la fenêtre.
+pub fn normaliser_points(points: &[[f32; 2]]) -> Vec<[f32; 2]> {
+    let mut p: Vec<[f32; 2]> = points
+        .iter()
+        .filter(|q| q[0].is_finite() && q[1].is_finite())
+        .map(|q| [q[0].clamp(0.0, 255.0).round(), q[1].clamp(0.0, 255.0).round()])
+        .collect();
+    // Tri stable : à entrée égale, l'ordre donné reste, et la dernière sortie l'emporte.
+    p.sort_by(|a, b| a[0].total_cmp(&b[0]));
+    let mut sortie: Vec<[f32; 2]> = Vec::with_capacity(p.len() + 2);
+    for q in p {
+        match sortie.last_mut() {
+            Some(d) if d[0] == q[0] => *d = q,
+            _ => sortie.push(q),
+        }
+    }
+    if sortie.is_empty() {
+        return sortie;
+    }
+    if sortie[0][0] > 0.0 {
+        sortie.insert(0, [0.0, 0.0]);
+    }
+    if sortie[sortie.len() - 1][0] < 255.0 {
+        sortie.push([255.0, 255.0]);
+    }
+    if sortie.len() > POINTS_COURBE_MAX {
+        let dernier = sortie[sortie.len() - 1];
+        sortie.truncate(POINTS_COURBE_MAX - 1);
+        sortie.push(dernier);
+    }
+    if sortie.iter().all(|q| q[0] == q[1]) {
+        sortie.clear();
+    }
+    sortie
+}
+
+impl Courbe {
+    pub fn bornes(&self) -> Courbe {
+        Courbe { rgb: normaliser_points(&self.rgb), rouge: normaliser_points(&self.rouge), vert: normaliser_points(&self.vert), bleu: normaliser_points(&self.bleu) }
+    }
+
+    pub fn neutre(&self) -> bool {
+        self.rgb.is_empty() && self.rouge.is_empty() && self.vert.is_empty() && self.bleu.is_empty()
+    }
+}
+
+/// Une courbe monotone par morceaux (Fritsch et Carlson, 1980) : elle passe par chaque point
+/// sans repartir en arrière entre deux points ni dépasser ses voisins. Calculée en f64, comme
+/// les nombres de JavaScript, pour que la fenêtre et le noyau aient la même table.
+struct Spline {
+    x: Vec<f64>,
+    y: Vec<f64>,
+    m: Vec<f64>,
+}
+
+impl Spline {
+    /// `points` : normalisés (de 0 à 255) ; vide : la diagonale.
+    fn new(points: &[[f32; 2]]) -> Spline {
+        let (x, y): (Vec<f64>, Vec<f64>) = if points.len() < 2 {
+            (vec![0.0, 1.0], vec![0.0, 1.0])
+        } else {
+            points.iter().map(|q| (q[0] as f64 / 255.0, q[1] as f64 / 255.0)).unzip()
+        };
+        let n = x.len();
+        let d: Vec<f64> = (0..n - 1).map(|k| (y[k + 1] - y[k]) / (x[k + 1] - x[k])).collect();
+        let mut m = vec![0.0; n];
+        m[0] = d[0];
+        m[n - 1] = d[n - 2];
+        for k in 1..n - 1 {
+            m[k] = if d[k - 1] * d[k] <= 0.0 { 0.0 } else { (d[k - 1] + d[k]) / 2.0 };
+        }
+        for k in 0..n - 1 {
+            if d[k] == 0.0 {
+                m[k] = 0.0;
+                m[k + 1] = 0.0;
+            } else {
+                let (a, b) = (m[k] / d[k], m[k + 1] / d[k]);
+                let s = a * a + b * b;
+                if s > 9.0 {
+                    let t = 3.0 / s.sqrt();
+                    m[k] = t * a * d[k];
+                    m[k + 1] = t * b * d[k];
+                }
+            }
+        }
+        Spline { x, y, m }
+    }
+
+    fn lire(&self, v: f64) -> f64 {
+        let n = self.x.len();
+        if v <= self.x[0] {
+            return self.y[0];
+        }
+        if v >= self.x[n - 1] {
+            return self.y[n - 1];
+        }
+        let mut k = 0;
+        while k < n - 2 && v >= self.x[k + 1] {
+            k += 1;
+        }
+        let h = self.x[k + 1] - self.x[k];
+        let t = (v - self.x[k]) / h;
+        let (t2, t3) = (t * t, t * t * t);
+        let y = (2.0 * t3 - 3.0 * t2 + 1.0) * self.y[k] + (t3 - 2.0 * t2 + t) * h * self.m[k] + (-2.0 * t3 + 3.0 * t2) * self.y[k + 1] + (t3 - t2) * h * self.m[k + 1];
+        y.clamp(0.0, 1.0)
+    }
+}
+
+/// La table d'une courbe : pour 1024 valeurs de 0 à 1 (en sRGB), la sortie de chaque canal,
+/// la courbe de l'image entière d'abord, puis celle du canal. `None` : rien à faire.
+pub fn table_courbe(c: &Courbe) -> Option<Vec<[f32; 3]>> {
+    let c = c.bornes();
+    if c.neutre() {
+        return None;
+    }
+    let (maitre, r, v, b) = (Spline::new(&c.rgb), Spline::new(&c.rouge), Spline::new(&c.vert), Spline::new(&c.bleu));
+    Some(
+        (0..PAS_COURBE)
+            .map(|i| {
+                let x = maitre.lire(i as f64 / (PAS_COURBE - 1) as f64);
+                [r.lire(x) as f32, v.lire(x) as f32, b.lire(x) as f32]
+            })
+            .collect(),
+    )
+}
+
+fn lire_courbe(table: &[[f32; 3]], canal: usize, e: f32) -> f32 {
+    let x = e.clamp(0.0, 1.0) * (PAS_COURBE - 1) as f32;
+    let i = (x as usize).min(PAS_COURBE - 2);
+    let t = x - i as f32;
+    table[i][canal] * (1.0 - t) + table[i + 1][canal] * t
+}
+
 /// Les réglages d'une photo, tels que le document les garde (seulement ceux qui ne sont pas à
 /// zéro ; un absent vaut zéro). Exposition en IL de -5 à +5 ; réduction du bruit et grain de 0 à
-/// 100 ; les autres de -100 à +100.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
+/// 100 ; les autres de -100 à +100 ; la courbe en points de 0 à 255.
+#[derive(Debug, Clone, Default, PartialEq, Deserialize, Serialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Reglages {
     pub temperature: f32,
@@ -73,6 +231,7 @@ pub struct Reglages {
     pub vibrance: f32,
     pub saturation: f32,
     pub melangeur: Melangeur,
+    pub courbe: Courbe,
     pub texture: f32,
     pub clarte: f32,
     pub voile: f32,
@@ -105,6 +264,7 @@ impl Reglages {
             vibrance: c(self.vibrance),
             saturation: c(self.saturation),
             melangeur: Melangeur { rouge: m(g.rouge), orange: m(g.orange), jaune: m(g.jaune), vert: m(g.vert), cyan: m(g.cyan), bleu: m(g.bleu), violet: m(g.violet), magenta: m(g.magenta) },
+            courbe: self.courbe.bornes(),
             texture: c(self.texture),
             clarte: c(self.clarte),
             voile: c(self.voile),
@@ -168,6 +328,8 @@ pub struct Prepares {
     r: Reglages,
     melangeur: [[f32; 3]; 8],
     melange: bool,
+    /// La table de la courbe et le retour du sRGB à la lumière linéaire, s'il y a une courbe.
+    courbe: Option<(Vec<[f32; 3]>, Table)>,
     /// Le grand côté de l'image (vignetage et grain suivent sa taille).
     largeur: u32,
     hauteur: u32,
@@ -189,23 +351,29 @@ impl Prepares {
         let melangeur = r.melangeur.tableau();
         let melange = melangeur.iter().flatten().any(|v| *v != 0.0);
         let cote = largeur.max(hauteur).max(1) as f32;
-        Prepares { entree, sortie, gains, r, melangeur, melange, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote }
+        let courbe = table_courbe(&r.courbe).map(|t| (t, Table::new(srgb_vers_lineaire)));
+        Prepares { entree, sortie, gains, r, melangeur, melange, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote }
     }
 
     pub fn vers_lineaire(&self, c: u8) -> f32 {
         self.entree[c as usize]
     }
 
-    /// Du linéaire au sRGB sur 8 bits, par une table de 4096 pas lue en ligne droite.
-    pub fn vers_srgb8(&self, l: f32) -> u8 {
+    /// Du linéaire au sRGB, de 0 à 1, par une table de 4096 pas lue en ligne droite.
+    fn vers_srgb(&self, l: f32) -> f32 {
         let x = l.clamp(0.0, 1.0) * PAS_SORTIE as f32;
         let i = (x as usize).min(PAS_SORTIE - 1);
         let t = x - i as f32;
-        ((self.sortie[i] * (1.0 - t) + self.sortie[i + 1] * t) * 255.0).round() as u8
+        self.sortie[i] * (1.0 - t) + self.sortie[i + 1] * t
     }
 
-    /// Étapes 1, 2 et 4 : balance des blancs, exposition, tonalités, couleurs. Lumière linéaire
-    /// en entrée et en sortie (la sortie peut dépasser 1).
+    /// Du linéaire au sRGB sur 8 bits.
+    pub fn vers_srgb8(&self, l: f32) -> u8 {
+        (self.vers_srgb(l) * 255.0).round() as u8
+    }
+
+    /// Étapes 1 à 4 : balance des blancs, exposition, tonalités, courbe, couleurs. Lumière
+    /// linéaire en entrée et en sortie (la sortie peut dépasser 1).
     pub fn reglages_pixel(&self, c: [f32; 3]) -> [f32; 3] {
         let r = &self.r;
         let mut l = [c[0] * self.gains[0], c[1] * self.gains[1], c[2] * self.gains[2]];
@@ -221,6 +389,12 @@ impl Prepares {
                 + 0.2 * r.noirs / 100.0 * (1.0 - smoothstep(0.0, 0.3, p));
             let rapport = p.max(0.0).powf(2.2) / y0;
             l = [l[0] * rapport, l[1] * rapport, l[2] * rapport];
+        }
+        // Courbe des tonalités, sur chaque canal tel qu'il s'affiche (au-delà du blanc, le blanc).
+        if let Some((table, lineaire)) = &self.courbe {
+            for (c, v) in l.iter_mut().enumerate() {
+                *v = lineaire.lire(lire_courbe(table, c, self.vers_srgb(*v)));
+            }
         }
         // Couleurs : saturation et vibrance autour de la luminance.
         let y1 = l[0] * LUMA[0] + l[1] * LUMA[1] + l[2] * LUMA[2];
@@ -569,10 +743,91 @@ pub fn base_apercu(chemin: &std::path::Path, r: &Reglages) -> Result<Vec<u8>, St
     Ok(sortie)
 }
 
+// ----------------------------------------------------------------------------------------
+// Les préréglages d'Alexandre (lot 3), rangés hors des designs :
+// `~/Documents/Eliot/Préréglages/prereglages.json`. Ceux qu'Eliot fournit sont dans la fenêtre
+// (`src/modele/prereglages.json`).
+// ----------------------------------------------------------------------------------------
+
+const FICHIER_PREREGLAGES: &str = "prereglages.json";
+const PREREGLAGES_MAX: usize = 200;
+/// Deux cents préréglages tiennent en quelques centaines de Ko ; on refuse un fichier démesuré.
+const TAILLE_PREREGLAGES_MAX: usize = 1024 * 1024;
+
+fn prereglages_vides() -> serde_json::Value {
+    serde_json::json!({ "version": 1, "prereglages": [] })
+}
+
+/// Un fichier de préréglages se tient : une liste d'au plus 200, chacun avec un identifiant
+/// unique, un nom de 1 à 60 caractères et des réglages que le noyau sait lire.
+fn verifier_prereglages(v: &serde_json::Value) -> Result<(), String> {
+    let liste = v.get("prereglages").and_then(|l| l.as_array()).ok_or("une liste « prereglages » est attendue")?;
+    if liste.len() > PREREGLAGES_MAX {
+        return Err(format!("au plus {PREREGLAGES_MAX} préréglages"));
+    }
+    let mut ids = std::collections::HashSet::new();
+    for p in liste {
+        let id = p.get("id").and_then(|x| x.as_str()).filter(|x| !x.is_empty() && x.len() <= 64).ok_or("un préréglage sans identifiant")?;
+        if !ids.insert(id) {
+            return Err(format!("identifiant en double : {id}"));
+        }
+        let nom = p.get("nom").and_then(|x| x.as_str()).unwrap_or("");
+        if nom.trim().is_empty() || nom.chars().count() > 60 {
+            return Err(format!("préréglage {id} : un nom de 1 à 60 caractères"));
+        }
+        let reglages = p.get("reglages").filter(|r| r.is_object()).ok_or_else(|| format!("préréglage {nom} : des réglages sont attendus"))?;
+        serde_json::from_value::<Reglages>(reglages.clone()).map_err(|e| format!("préréglage {nom} : {e}"))?;
+    }
+    Ok(())
+}
+
+/// Les préréglages d'Alexandre. Absent : une liste vide. Abîmé : une erreur, le fichier n'est
+/// pas touché.
+pub fn lire_prereglages(dossier: &std::path::Path) -> Result<serde_json::Value, String> {
+    let octets = match std::fs::read(dossier.join(FICHIER_PREREGLAGES)) {
+        Ok(o) => o,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(prereglages_vides()),
+        Err(e) => return Err(format!("préréglages illisibles : {e}")),
+    };
+    let v: serde_json::Value = serde_json::from_slice(&octets).map_err(|e| format!("préréglages illisibles : {e}"))?;
+    verifier_prereglages(&v).map_err(|e| format!("préréglages illisibles : {e}"))?;
+    Ok(v)
+}
+
+/// Enregistre la liste entière (écriture atomique), après l'avoir vérifiée.
+pub fn enregistrer_prereglages(dossier: &std::path::Path, v: &serde_json::Value) -> Result<(), String> {
+    verifier_prereglages(v)?;
+    let octets = serde_json::to_vec_pretty(v).map_err(|e| e.to_string())?;
+    if octets.len() > TAILLE_PREREGLAGES_MAX {
+        return Err("préréglages trop gros".into());
+    }
+    std::fs::create_dir_all(dossier).map_err(|e| format!("dossier des préréglages : {e}"))?;
+    crate::fichiers::ecrire_atomiquement(&dossier.join(FICHIER_PREREGLAGES), &octets).map_err(|e| format!("préréglages : {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::{Value, json};
+
+    #[test]
+    fn les_prereglages_d_alexandre_se_lisent_et_s_enregistrent() {
+        let d = std::env::temp_dir().join(format!("eliot-prereglages-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        assert_eq!(lire_prereglages(&d).unwrap(), prereglages_vides());
+        let liste = json!({ "version": 1, "prereglages": [{ "id": "a1", "nom": "Mes posts", "reglages": { "contraste": 20, "courbe": { "rgb": [[0, 20], [255, 255]] } } }] });
+        enregistrer_prereglages(&d, &liste).unwrap();
+        assert_eq!(lire_prereglages(&d).unwrap(), liste);
+        let double = json!({ "prereglages": [{ "id": "a", "nom": "x", "reglages": {} }, { "id": "a", "nom": "y", "reglages": {} }] });
+        assert!(enregistrer_prereglages(&d, &double).unwrap_err().contains("double"));
+        let mauvais = json!({ "prereglages": [{ "id": "b", "nom": "x", "reglages": { "contraste": "fort" } }] });
+        assert!(enregistrer_prereglages(&d, &mauvais).is_err());
+        assert!(enregistrer_prereglages(&d, &json!({ "prereglages": [{ "id": "c", "nom": " ", "reglages": {} }] })).is_err());
+        std::fs::write(d.join(FICHIER_PREREGLAGES), b"{ pas du json").unwrap();
+        assert!(lire_prereglages(&d).is_err());
+        assert_eq!(std::fs::read(d.join(FICHIER_PREREGLAGES)).unwrap(), b"{ pas du json", "un fichier abîmé n'est pas touché");
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     const ATTENDUS: &str = include_str!("../../src/modele/labo.attendus.json");
 
@@ -595,6 +850,10 @@ mod tests {
             ("vignetage +40".into(), r(json!({ "vignetage": 40 }))),
             ("grain 70".into(), r(json!({ "grain": 70 }))),
             ("tout".into(), r(json!({ "temperature": 15, "teinte": -5, "exposition": 0.4, "contraste": 25, "hautesLumieres": -40, "ombres": 35, "blancs": 10, "noirs": -10, "vibrance": 20, "saturation": 10, "melangeur": { "orange": { "teinte": 10, "saturation": 20, "luminance": -10 }, "bleu": { "teinte": -15, "saturation": 30, "luminance": -20 } }, "vignetage": -30, "grain": 15 }))),
+            ("courbe en S".into(), r(json!({ "courbe": { "rgb": [[0, 0], [64, 46], [192, 210], [255, 255]] } }))),
+            ("courbe délavée".into(), r(json!({ "courbe": { "rgb": [[0, 40], [128, 128], [255, 228]] } }))),
+            ("courbes par canal".into(), r(json!({ "courbe": { "rouge": [[0, 0], [128, 150], [255, 255]], "vert": [[60, 50]], "bleu": [[0, 30], [255, 220]] } }))),
+            ("courbe et exposition".into(), r(json!({ "exposition": 1.2, "contraste": 20, "courbe": { "rgb": [[0, 20], [96, 80], [200, 215], [255, 240]], "bleu": [[0, 12], [255, 245]] }, "saturation": 15 }))),
         ]
     }
 
@@ -700,6 +959,63 @@ mod tests {
         assert_eq!(m.pixel([220, 30, 30], 32, 24), [220, 30, 30]);
         // Bornes : une exposition de 40 IL vaut 5 IL.
         assert_eq!(Reglages { exposition: 40.0, ..Default::default() }.bornes().exposition, 5.0);
+    }
+
+    #[test]
+    fn la_courbe_fait_ce_qu_elle_dit() {
+        let p = |r: Value| Prepares::new(&serde_json::from_value::<Reglages>(r).unwrap(), 64, 48);
+        // Une diagonale ne change rien et disparaît du document.
+        let diagonale: Reglages = serde_json::from_value(json!({ "courbe": { "rgb": [[0, 0], [100, 100], [255, 255]] } })).unwrap();
+        assert!(diagonale.bornes().neutres());
+        // Noirs relevés : le noir devient un gris sombre, le blanc baisse un peu.
+        let d = p(json!({ "courbe": { "rgb": [[0, 40], [255, 228]] } }));
+        assert_eq!(d.pixel([0, 0, 0], 3, 3), [40, 40, 40]);
+        assert_eq!(d.pixel([255, 255, 255], 3, 3), [228, 228, 228]);
+        // Une courbe en S creuse les ombres et relève les clairs.
+        let s = p(json!({ "courbe": { "rgb": [[0, 0], [64, 46], [192, 210], [255, 255]] } }));
+        assert!(s.pixel([64, 64, 64], 3, 3)[0].abs_diff(46) <= 1 && s.pixel([192, 192, 192], 3, 3)[0].abs_diff(210) <= 1);
+        assert_eq!(s.pixel([128, 128, 128], 3, 3), [128, 128, 128]);
+        // Le canal bleu seul : un gris bleuit, les deux autres canaux ne bougent pas.
+        let b = p(json!({ "courbe": { "bleu": [[0, 0], [128, 160], [255, 255]] } })).pixel([128, 128, 128], 3, 3);
+        assert_eq!((b[0], b[1]), (128, 128));
+        assert!(b[2].abs_diff(160) <= 1, "{b:?}");
+        // Les bouts manquants sont ajoutés, les points rangés, la dernière sortie l'emporte.
+        assert_eq!(normaliser_points(&[[192.0, 200.0], [64.0, 50.0], [64.0, 40.0]]), vec![[0.0, 0.0], [64.0, 40.0], [192.0, 200.0], [255.0, 255.0]]);
+        assert_eq!(normaliser_points(&[[300.0, -4.0]]), vec![[0.0, 0.0], [255.0, 0.0]]);
+        let beaucoup: Vec<[f32; 2]> = (0..40).map(|i| [i as f32 * 6.0, i as f32 * 6.0 + 3.0]).collect();
+        let n = normaliser_points(&beaucoup);
+        assert_eq!(n.len(), POINTS_COURBE_MAX);
+        assert_eq!(n[n.len() - 1], [255.0, 255.0]);
+        // La courbe ne repart jamais en arrière entre deux points qui montent.
+        let t = table_courbe(&Courbe { rgb: vec![[0.0, 0.0], [30.0, 120.0], [60.0, 130.0], [255.0, 255.0]], ..Default::default() }).unwrap();
+        assert!(t.windows(2).all(|w| w[1][0] >= w[0][0] - 1e-6));
+        assert!(t.iter().all(|v| (0.0..=1.0).contains(&v[0])));
+    }
+
+    #[test]
+    fn les_prereglages_fournis_sont_valides_et_distincts() {
+        let liste: Value = serde_json::from_str(include_str!("../../src/modele/prereglages.json")).unwrap();
+        let liste = liste["prereglages"].as_array().unwrap();
+        assert!((18..=24).contains(&liste.len()), "{} préréglages", liste.len());
+        let image = essai(160, 100);
+        let mut rendus: Vec<(String, Vec<u8>)> = Vec::new();
+        for p in liste {
+            let nom = p["nom"].as_str().unwrap().to_string();
+            let reglages = &p["reglages"];
+            for cle in ["exposition", "nettete", "bruit"] {
+                assert!(reglages.get(cle).is_none(), "{nom} : {cle} reste propre à chaque photo");
+            }
+            let r: Reglages = serde_json::from_value(reglages.clone()).unwrap_or_else(|e| panic!("{nom} : {e}"));
+            assert_eq!(r.bornes(), r, "{nom} : des valeurs hors plage");
+            assert!(!r.neutres(), "{nom} ne fait rien");
+            let mut img = image.clone();
+            appliquer(&mut img, 160, 100, &r, true);
+            for (autre, rendu) in &rendus {
+                let ecart: f32 = img.iter().zip(rendu).map(|(a, b)| (*a as f32 - *b as f32).abs()).sum::<f32>() / img.len() as f32;
+                assert!(ecart > 1.0, "{nom} et {autre} se ressemblent trop ({ecart})");
+            }
+            rendus.push((nom, img));
+        }
     }
 
     /// Une image d'essai : un dégradé doux, une marche nette au milieu, du bruit fin.

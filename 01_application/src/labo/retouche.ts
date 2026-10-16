@@ -1,13 +1,13 @@
-// Les photos retouchées par le labo (étape 5, lot 2), dans la fenêtre : une toile par élément,
+// Les photos retouchées par le labo (étape 5, lots 2 et 3), dans la fenêtre : une toile par élément,
 // dessinée par le shader (`shader.ts`) à partir de l'aperçu de 2560 px et, quand il y a des
 // réglages qui regardent les voisins, de la base que le noyau calcule. L'export reconnaît la
 // toile (`marquerToile`) et pose l'original à sa place : le noyau refait la retouche.
 
 import { create } from "zustand";
 import { marquerToile } from "../editeur/images";
-import { useEditeur } from "../etat/editeur";
+import { elementsCourants, elementsSelectionnes, useEditeur } from "../etat/editeur";
 import { aDesVoisins, cleReglages, normaliserReglages, type ReglagesPhoto } from "../modele/labo";
-import type { PageEliot } from "../modele/types";
+import type { ElementImage, ElementPage, PageEliot } from "../modele/types";
 import { baseLabo } from "../pont/tauri";
 import { moteurLabo, type PixelsBruts } from "./shader";
 
@@ -18,9 +18,16 @@ interface EtatLabo {
   geste: boolean;
   /** Le bouton « Avant » est maintenu : la photo s'affiche sans retouche. */
   avant: boolean;
+  /** Un préréglage survolé : la photo le montre sans que le document change. */
+  essai: { id: string; reglages: ReglagesPhoto | undefined } | null;
+  /** Le dernier préréglage appliqué, pour régler son intensité tant que le style n'a pas
+   *  bougé. */
+  applique: { photo: string; prereglage: string; intensite: number } | null;
+  /** Les réglages copiés (Ctrl+Maj+C), à coller sur d'autres photos (Ctrl+Maj+V). */
+  copie: { reglages: ReglagesPhoto | undefined } | null;
 }
 
-export const useLabo = create<EtatLabo>(() => ({ ouvert: null, geste: false, avant: false }));
+export const useLabo = create<EtatLabo>(() => ({ ouvert: null, geste: false, avant: false, essai: null, applique: null, copie: null }));
 
 interface Base {
   cle: string;
@@ -163,24 +170,26 @@ function figerEnDirect(): void {
  * ensuite ; en attendant, la précédente sert, corrigée en direct de l'écart des réglages d'un
  * pixel.
  */
-export function imageRetouchee(id: string, ressource: string, source: HTMLImageElement, reglages: ReglagesPhoto | undefined): CanvasImageSource {
+export function imageRetouchee(id: string, ressource: string, source: HTMLImageElement, reglages: ReglagesPhoto | undefined, essai = false): CanvasImageSource {
   const n = normaliserReglages(reglages);
-  if (!n) return source;
+  if (!n && !essai) return source;
   const moteur = moteurLabo();
   if (!moteur) return source;
   const r = retouche(id, ressource);
+  // Un préréglage survolé ne demande pas de base au noyau : la base des réglages du document
+  // sert de référence, le shader montre l'écart des réglages d'un pixel.
   const voisins = aDesVoisins(n);
-  if (voisins) planifierBase(id, r, n);
-  const base = voisins ? r.base : undefined;
+  if (voisins && !essai) planifierBase(id, r, n!);
+  const base = essai ? r.base : voisins ? r.base : undefined;
   const largeur = source.naturalWidth || source.width;
   const hauteur = source.naturalHeight || source.height;
   const dessine = `${source.src}|${cleReglages(n)}|${base?.cle ?? ""}`;
   const { geste, ouvert } = useLabo.getState();
-  const direct = geste && ouvert === id;
+  const direct = essai || (geste && ouvert === id);
   if (enDirect && enDirect !== id) figerEnDirect();
   if (direct) {
     if (dansLeMoteur !== `${id}|${dessine}`) {
-      moteur.dessiner(source, largeur, hauteur, n, base);
+      moteur.dessiner(source, largeur, hauteur, n ?? {}, base);
       dansLeMoteur = `${id}|${dessine}`;
     }
     enDirect = id;
@@ -190,7 +199,7 @@ export function imageRetouchee(id: string, ressource: string, source: HTMLImageE
   if (enDirect === id) enDirect = null;
   if (r.dessine !== dessine) {
     if (dansLeMoteur !== `${id}|${dessine}`) {
-      moteur.dessiner(source, largeur, hauteur, n, base);
+      moteur.dessiner(source, largeur, hauteur, n!, base);
       dansLeMoteur = `${id}|${dessine}`;
     }
     recopier(r, largeur, hauteur, dessine);
@@ -228,6 +237,56 @@ export async function assurerRetouches(page: PageEliot): Promise<void> {
   }
   // Pas plus de vingt secondes : une base qui n'arrive pas ne bloque pas la capture.
   await Promise.race([Promise.all(attentes), new Promise((ok) => setTimeout(ok, 20_000))]);
+}
+
+/** Copie les réglages d'une photo (`id`, ou la seule photo choisie). */
+export function copierReglages(id?: string): boolean {
+  const etat = useEditeur.getState();
+  const photos = (id ? elementsCourants(etat).filter((e) => e.id === id) : elementsSelectionnes(etat)).filter((e): e is ElementImage => e.type === "image");
+  if (photos.length !== 1) return false;
+  const reglages = normaliserReglages(photos[0].reglages);
+  useLabo.setState({ copie: { reglages } });
+  etat.notifier(reglages ? "Réglages copiés : Ctrl+Maj+V les colle sur les photos choisies." : "Cette photo n'a pas de retouche : coller remettra à zéro les photos choisies.");
+  return true;
+}
+
+/** Colle les réglages copiés sur les photos `ids` (ou les photos choisies), en une seule étape
+ *  d'annulation. Renvoie le nombre de photos retouchées. */
+export function collerReglages(ids?: string[]): number {
+  const { copie } = useLabo.getState();
+  if (!copie) return 0;
+  const etat = useEditeur.getState();
+  const cibles = (ids ? elementsCourants(etat).filter((e) => ids.includes(e.id)) : elementsSelectionnes(etat)).filter((e) => e.type === "image" && !e.verrouille);
+  if (!cibles.length) return 0;
+  etat.modifierElements(Object.fromEntries(cibles.map((e) => [e.id, { reglages: copie.reglages } as Partial<ElementPage>])));
+  etat.notifier(cibles.length === 1 ? "Réglages collés. Ctrl+Z pour revenir." : `Réglages collés sur ${cibles.length} photos. Ctrl+Z pour revenir.`);
+  return cibles.length;
+}
+
+/**
+ * Les vignettes des préréglages sur une photo : la photo réduite à `largeur` px, retouchée par
+ * le shader (les réglages d'un pixel seulement : texture, clarté, voile, netteté et bruit ne
+ * se voient qu'une fois appliqués), en images JPEG prêtes à afficher. Rien pendant qu'on tire
+ * un curseur ou qu'on survole un préréglage : la page affiche alors la toile du moteur.
+ */
+export function vignettesRetouchees(source: HTMLImageElement, liste: { cle: string; reglages: ReglagesPhoto | undefined }[], largeur = 160): Map<string, string> | null {
+  const moteur = moteurLabo();
+  const { geste, essai } = useLabo.getState();
+  if (!moteur || geste || essai || enDirect) return null;
+  const l = largeur;
+  const h = Math.max(1, Math.round(((source.naturalHeight || source.height) / Math.max(1, source.naturalWidth || source.width)) * l));
+  const petite = document.createElement("canvas");
+  petite.width = l;
+  petite.height = h;
+  petite.getContext("2d")!.drawImage(source, 0, 0, l, h);
+  const sortie = new Map<string, string>();
+  for (const { cle, reglages } of liste) {
+    moteur.dessiner(petite, l, h, normaliserReglages(reglages) ?? {});
+    sortie.set(cle, moteur.toile.toDataURL("image/jpeg", 0.85));
+  }
+  // La toile du moteur ne montre plus aucune photo de la page.
+  dansLeMoteur = "";
+  return sortie;
 }
 
 /** L'histogramme d'une toile : 256 cases pour le rouge, le vert, le bleu et la luminance, lues

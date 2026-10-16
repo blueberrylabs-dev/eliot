@@ -346,6 +346,11 @@ Choix par défaut de Claude, modifiables sur simple demande :
   dans l'ordre fixe du BRIEF : balance des blancs, exposition, tonalités, courbe, couleurs,
   détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
   tableau de valeurs attendues commun, comme pour l'animation et le son.
+- Préréglages : un préréglage est un style. Il ne touche ni à l'exposition, ni à la netteté, ni
+  à la réduction du bruit, propres à chaque photo ; l'appliquer remplace le reste de la
+  retouche ; son intensité (de 0 à 100 %) rapproche chaque valeur de zéro. Ceux d'Alexandre
+  sont rangés hors des designs, dans `~/Documents/Eliot/Préréglages/`. Copier et coller les
+  réglages, au contraire, emporte tout, exposition comprise (des photos d'une même série).
 - Exports : le noyau rend la page depuis la description en calques de l'étape 4 (les mêmes
   SVG, les mêmes polices, les originaux des photos) avec `resvg` ; PDF vectoriel par `krilla`
   et `krilla-svg` 0.8 (MIT ou Apache-2.0, des auteurs de `svg2pdf` chez Typst, qui en
@@ -385,8 +390,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
       2,3 sur 255 (réglages d'un pixel) et 3,2 (réglages voisins, l'aperçu étant un JPEG)
       (JOURNAL). Reste pour plus tard : les photos des cadres et des maquettes. Essai
       d'Alexandre : « Essayer le labo photo (étape 5, lot 2) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 3 : courbe des tonalités, une vingtaine de préréglages dessinés par Claude, préréglages
-      d'Alexandre, copier et coller les réglages d'une image à l'autre.
+- [x] Lot 3 : courbe des tonalités, une vingtaine de préréglages dessinés par Claude, préréglages
+      d'Alexandre, copier et coller les réglages d'une image à l'autre. Livré le 2026-10-16 :
+      courbe de points (RVB, rouge, vert, bleu) dans le noyau et le shader, même table, écart nul
+      sur les quatre cas de courbe du tableau commun ; 23 préréglages en cinq catégories
+      (`src/modele/prereglages.json`), vignettes, survol, intensité ; « Les miens » dans
+      `~/Documents/Eliot/Préréglages/` ; Ctrl+Maj+C et Ctrl+Maj+V ; fenêtre et export à 1,35 à
+      1,92 sur 255 avec une courbe (JOURNAL). Essai d'Alexandre : « Essayer la courbe et les
+      préréglages (étape 5, lot 3) » du `01_application/LISEZMOI.md`.
 - [ ] Lot 4 : les clips vidéo dans le labo : réglages qui suivent la lecture, export image par
       image.
 - [ ] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
@@ -396,7 +407,9 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
       document (l'original intact), pinceau pour reprendre les bords.
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
-      WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils).
+      WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils ; lot 3 : `retoucher` prend la
+      courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
+      `prereglages`, 63 outils).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

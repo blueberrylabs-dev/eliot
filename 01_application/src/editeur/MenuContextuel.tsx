@@ -1,10 +1,11 @@
 // Le menu du clic droit (et du bouton « plus » de la mini-barre).
 
-import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Group, Lock, LockOpen, Paintbrush, Trash2, Ungroup } from "lucide-react";
+import { ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpToLine, ClipboardCopy, ClipboardPaste, Copy, CopyPlus, Eye, EyeOff, Group, Lock, LockOpen, Paintbrush, Trash2, Ungroup } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { elementsSelectionnes, useEditeur } from "../etat/editeur";
 import { collerAvecImages } from "../etat/projets";
+import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 
 interface Proprietes {
   x: number;
@@ -17,6 +18,7 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
   const selection = useEditeur((s) => s.selection);
   const choisis = useEditeur(useShallow(elementsSelectionnes));
   const pressePapiers = useEditeur((s) => s.pressePapiers);
+  const copieReglages = useLabo((s) => !!s.copie);
   const etat = useEditeur.getState();
 
   useEffect(() => {
@@ -38,6 +40,8 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
   };
   const aSelection = selection.length > 0;
   const verrouille = choisis.some((e) => e.verrouille);
+  // Le labo photo : copier et coller les réglages d'une photo à l'autre.
+  const photos = choisis.length > 0 && choisis.every((e) => e.type === "image");
   const masque = choisis.length === 1 && !choisis[0].visible;
   const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
   const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;
@@ -62,6 +66,12 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
       <Ligne icone={<CopyPlus size={15} />} libelle="Dupliquer" raccourci="Ctrl+D" inactif={!aSelection} surClic={action(etat.dupliquerSelection)} />
       <Ligne icone={<Trash2 size={15} />} libelle="Supprimer" raccourci="Suppr" inactif={!aSelection || verrouille} surClic={action(etat.supprimerSelection)} />
       <Ligne icone={<Paintbrush size={15} />} libelle="Copier le style" raccourci="Ctrl+Alt+C" inactif={choisis.length !== 1} surClic={action(etat.copierStyle)} />
+      {photos && (
+        <>
+          <Ligne icone={<ClipboardCopy size={15} />} libelle="Copier les réglages" raccourci="Ctrl+Maj+C" inactif={choisis.length !== 1} surClic={action(() => copierReglages())} />
+          <Ligne icone={<ClipboardPaste size={15} />} libelle="Coller les réglages" raccourci="Ctrl+Maj+V" inactif={!copieReglages} surClic={action(() => collerReglages())} />
+        </>
+      )}
       {choisis.length > 1 && (
         <Ligne
           icone={groupe ? <Ungroup size={15} /> : <Group size={15} />}

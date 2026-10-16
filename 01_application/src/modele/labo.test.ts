@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { aDesVoisins, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, lireValeur, normaliserReglages, texteValeur } from "./labo";
+import { aDesVoisins, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, lireValeur, normaliserPoints, normaliserReglages, PAS_COURBE, POINTS_COURBE_MAX, spline, tableCourbe, texteValeur, type PointCourbe } from "./labo";
 
 describe("réglages du labo (étape 5, lot 2)", () => {
   it("le document ne garde que les curseurs différents de zéro, dans leur plage", () => {
@@ -35,7 +35,54 @@ describe("réglages du labo (étape 5, lot 2)", () => {
   it("les noms des réglages sont ceux du noyau (tableau commun)", () => {
     const tableau = JSON.parse(readFileSync(new URL("./labo.attendus.json", import.meta.url), "utf8")) as { cas: { reglages: Record<string, unknown> }[] };
     const cles = Object.keys(tableau.cas[0].reglages).sort();
-    expect(cles).toEqual([...CURSEURS_LABO.map((c) => c.cle), "melangeur"].sort());
+    expect(cles).toEqual([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe"].sort());
     expect(Object.keys(tableau.cas[0].reglages.melangeur as object).sort()).toEqual([...COULEURS_MELANGEUR].sort());
+  });
+});
+
+describe("courbe des tonalités (étape 5, lot 3)", () => {
+  it("les points suivent les règles du noyau", () => {
+    // Les mêmes cas que `la_courbe_fait_ce_qu_elle_dit` dans `noyau/src/labo.rs`.
+    expect(normaliserPoints([[192, 200], [64, 50], [64, 40]])).toEqual([[0, 0], [64, 40], [192, 200], [255, 255]]);
+    expect(normaliserPoints([[300, -4]])).toEqual([[0, 0], [255, 0]]);
+    const beaucoup: PointCourbe[] = Array.from({ length: 40 }, (_, i) => [i * 6, i * 6 + 3]);
+    const n = normaliserPoints(beaucoup);
+    expect(n.length).toBe(POINTS_COURBE_MAX);
+    expect(n[n.length - 1]).toEqual([255, 255]);
+    expect(normaliserPoints([[0, 0], [100, 100], [255, 255]])).toEqual([]);
+    expect(normaliserPoints("n'importe quoi")).toEqual([]);
+    expect(normaliserPoints([[10.4, 20.6], ["a", 3], [Number.NaN, 1]])).toEqual([[0, 0], [10, 21], [255, 255]]);
+  });
+
+  it("une diagonale sort du document, une vraie courbe y reste", () => {
+    expect(normaliserReglages({ courbe: { rgb: [[0, 0], [255, 255]], bleu: [] } })).toBeUndefined();
+    expect(normaliserReglages({ courbe: { bleu: [[0, 30], [255, 220]] } })).toEqual({ courbe: { bleu: [[0, 30], [255, 220]] } });
+    expect(cleReglages({ courbe: { rgb: [[64, 50]] } })).toBe(cleReglages({ courbe: { rgb: [[0, 0], [64, 50], [255, 255]] } }));
+    expect(cleReglages({ courbe: { rgb: [[64, 50]] } })).not.toBe(cleReglages({ courbe: { rgb: [[64, 51]] } }));
+  });
+
+  it("la courbe passe par ses points sans repartir en arrière", () => {
+    const f = spline([[0, 0], [30, 120], [60, 130], [255, 255]]);
+    let avant = -1;
+    for (let i = 0; i <= 1000; i++) {
+      const v = f(i / 1000);
+      expect(v).toBeGreaterThanOrEqual(avant - 1e-9);
+      expect(v).toBeLessThanOrEqual(1);
+      avant = v;
+    }
+    expect(f(30 / 255) * 255).toBeCloseTo(120, 6);
+    expect(f(60 / 255) * 255).toBeCloseTo(130, 6);
+    expect(spline(undefined)(0.37)).toBeCloseTo(0.37, 12);
+  });
+
+  it("la table du shader : la courbe de l'image entière, puis celle du canal", () => {
+    expect(tableCourbe(undefined)).toBeNull();
+    expect(tableCourbe({ rgb: [[0, 0], [255, 255]] })).toBeNull();
+    const t = tableCourbe({ rgb: [[0, 40], [255, 228]], bleu: [[0, 0], [128, 160], [255, 255]] })!;
+    expect(t.length).toBe(PAS_COURBE * 4);
+    // Le noir : 40 en sortie de la courbe RVB ; le bleu passe ensuite par sa propre courbe.
+    expect(t[0] * 255).toBeCloseTo(40, 4);
+    expect(t[2] * 255).toBeGreaterThan(40);
+    expect(t[(PAS_COURBE - 1) * 4] * 255).toBeCloseTo(228, 4);
   });
 });

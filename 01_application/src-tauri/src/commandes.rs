@@ -1162,6 +1162,23 @@ pub async fn labo_base(app: AppHandle, rayon_nom: String, projet_id: String, id:
         .map_err(|e| format!("retouche interrompue : {e}"))?
 }
 
+/// Les préréglages d'Alexandre (étape 5, lot 3) : `~/Documents/Eliot/Préréglages/`.
+fn dossier_prereglages(app: &AppHandle) -> Result<PathBuf, String> {
+    Ok(racine(app)?.join("Préréglages"))
+}
+
+#[tauri::command]
+pub async fn prereglages_lire(app: AppHandle) -> Result<Value, String> {
+    let dossier = dossier_prereglages(&app)?;
+    sur_le_disque(&app, move || labo::lire_prereglages(&dossier)).await
+}
+
+#[tauri::command]
+pub async fn prereglages_enregistrer(app: AppHandle, prereglages: Value) -> Result<(), String> {
+    let dossier = dossier_prereglages(&app)?;
+    sur_le_disque(&app, move || labo::enregistrer_prereglages(&dossier, &prereglages)).await
+}
+
 // ----------------------------------------------------------------------------------------
 // Essai automatique, en développement seulement
 // ----------------------------------------------------------------------------------------

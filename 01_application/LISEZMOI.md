@@ -282,6 +282,26 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - L'original n'est jamais modifié : les réglages sont gardés dans le design, et chaque export
   (image, PDF, SVG, film) refait la retouche depuis l'original.
 
+**Courbe, préréglages, copier et coller (étape 5, lot 3)**
+- La courbe des tonalités, sous les curseurs de Lumière : une courbe pour l'image entière
+  (RVB), une par canal (Rouge, Vert, Bleu), avec l'histogramme de la photo derrière. Un clic sur
+  la courbe y pose un point qu'on glisse ; un double-clic l'enlève (un bout revient à sa
+  place) ; un point choisi bouge aux flèches (Maj : de 10) et part avec Suppr. Seize points au
+  plus par courbe.
+- Les préréglages, en tête du panneau : 23 styles dessinés par Claude, rangés en Naturel,
+  Couleur, Film, Noir et blanc et Sujets. Chaque vignette montre ta photo avec le style ; la
+  survoler le montre sur la page sans rien changer ; un clic l'applique (une étape
+  d'annulation). Juste après, un curseur règle son intensité, de 0 à 100 %. Un préréglage
+  remplace la retouche et garde l'exposition, la netteté et la réduction du bruit de la photo,
+  propres à chacune.
+- « Enregistrer comme préréglage » garde le style de la photo sous un nom, dans « Les miens »
+  (rangés hors des designs, dans `~/Documents/Eliot/Préréglages/`). La corbeille d'une
+  vignette, au survol, le supprime après confirmation.
+- Copier les réglages d'une photo (Ctrl+Maj+C, ou les boutons en haut du labo, ou le clic
+  droit) et les coller sur une ou plusieurs photos choisies (Ctrl+Maj+V, ou le bouton de la
+  barre du haut) : tous les réglages passent, exposition comprise, en une étape d'annulation.
+  « Copier le style » d'une photo (Ctrl+Alt+C) emporte aussi sa retouche.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -292,7 +312,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
-  tableaux, partir d'un modèle de départ, retoucher une photo au labo, regarder une capture de
+  tableaux, partir d'un modèle de départ, retoucher une photo au labo (courbe et préréglages
+  compris, enregistrer un préréglage), regarder une capture de
   la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -369,6 +390,27 @@ recompiler l'application (commande 9) et le pont (commande 13).
 Ce qui m'aide le plus en retour : un curseur qui accroche, le temps après avoir relâché Clarté,
 une retouche qui ne ressemble pas à ce que fait Lightroom, et un export qui diffère de l'écran.
 
+## Essayer la courbe et les préréglages (étape 5, lot 3)
+
+Dix minutes, mêmes conditions que le lot 2 (commande 10 ; avant, une fois, commandes 9 et 13).
+
+1. Un post carré, deux ou trois photos de ton appareil, de sujets différents (un produit, un
+   portrait, un paysage). En choisir une, « Retoucher ».
+2. Préréglages : passer la souris sur les vignettes, catégorie par catégorie. La page montre
+   chaque style au survol. Noter ceux qui te plaisent et ceux qui ne servent à rien.
+3. En appliquer un, puis baisser son intensité vers 50 %.
+4. La courbe, sous Lumière : poser un point vers le quart bas et le descendre, un autre vers le
+   quart haut et le monter (une courbe en S). Puis le canal Bleu : monter un peu le bout du
+   noir (des ombres bleutées).
+5. « Enregistrer comme préréglage », un nom à toi. Choisir une autre photo : il est dans « Les
+   miens ».
+6. Ctrl+Maj+C sur la première photo, choisir les deux autres (Maj+clic), Ctrl+Maj+V : elles
+   prennent la même retouche. Ctrl+Z la défait d'un coup.
+7. Exporter en PNG et en PDF : la courbe et le préréglage sont dans les deux.
+
+Ce qui m'aide le plus en retour : les préréglages à garder, à changer ou à jeter, la sensation
+de la courbe sous la souris (trop sensible, pas assez), et ce qui manque pour tes styles à toi.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -381,6 +423,7 @@ une retouche qui ne ressemble pas à ce que fait Lightroom, et un export qui dif
 | Ctrl+↑, Ctrl+↓ (avec Maj : tout devant, tout derrière) | ordre d'empilement |
 | Ctrl+G, Ctrl+Maj+G | grouper, dégrouper |
 | Ctrl+Alt+C, Ctrl+Alt+V | copier le style, le coller sur la sélection |
+| Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo, les coller sur les photos choisies |
 | Entrée | écrire dans le texte sélectionné |
 | Ctrl+Entrée | ajouter une page |
 | Page préc., Page suiv. | page précédente, suivante |
@@ -410,6 +453,8 @@ une retouche qui ne ressemble pas à ce que fait Lightroom, et un export qui dif
 - Le modèle de Whisper : `Eliot/telechargements/whisper/faster-whisper-small/` (commande 19),
   hors git.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
+- Préréglages du labo enregistrés : `~/Documents/Eliot/Préréglages/prereglages.json` (ceux
+  qu'Eliot fournit sont dans le code, `src/modele/prereglages.json`).
 - Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, `.webp`, `.pdf`, `.svg`,
   avec `_page-01`… pour une image par page), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
   (ou `.gif`), écrits sous un nom provisoire puis renommés une fois finis ; la version sans
@@ -428,12 +473,12 @@ une retouche qui ne ressemble pas à ce que fait Lightroom, et un export qui dif
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── labo/         le labo photo : le panneau Retoucher, le shader de l'aperçu en direct (shader.ts), les photos retouchées affichées (retouche.ts)
+│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts), les photos retouchées affichées, copier et coller les réglages (retouche.ts)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

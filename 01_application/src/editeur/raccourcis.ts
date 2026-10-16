@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
 import { scene } from "./scene";
+import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 
 const PAS_ZOOM = 1.25;
 
@@ -28,7 +29,9 @@ export function useRaccourcis(): void {
       const pageVideo = page.duree !== undefined;
       let traite = true;
 
-      if (ctrl && e.altKey && touche === "c") etat.copierStyle();
+      if (ctrl && e.shiftKey && !e.altKey && touche === "c") traite = copierReglages();
+      else if (ctrl && e.shiftKey && !e.altKey && touche === "v" && useLabo.getState().copie) collerReglages();
+      else if (ctrl && e.altKey && touche === "c") etat.copierStyle();
       else if (ctrl && e.altKey && touche === "v") {
         const [cible] = elementsSelectionnes(etat);
         if (cible) etat.appliquerStyle(cible.id);

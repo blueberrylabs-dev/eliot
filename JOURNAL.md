@@ -5,6 +5,64 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 3 : courbe des tonalités, préréglages, copier et coller
+
+Accord d'Alexandre (« Tu peux attaquer le lot 3 »). Ce que Claude a fait et décidé :
+
+- La courbe des tonalités, étape 3 de l'ordre du BRIEF (après les tonalités, avant les
+  couleurs) : une courbe de points pour l'image entière (RVB), puis une par canal, comme la
+  courbe de points de Lightroom. Elle travaille sur l'image telle qu'elle s'affiche (en sRGB, de
+  0 à 1 ; au-delà du blanc, le blanc). Points entiers de 0 à 255, seize au plus, toujours une
+  entrée 0 et une entrée 255 (ajoutées en (0, 0) et (255, 255) si elles manquent) ; une
+  diagonale sort du document. Entre les points, une courbe monotone (Fritsch et Carlson,
+  1980) : elle ne repart jamais en arrière entre deux points qui montent et ne dépasse pas ses
+  voisins. Écartée : la spline naturelle, qui ondule et peut inverser des tons.
+- La même courbe dans le noyau et dans la fenêtre : une table de 1024 pas par canal, calculée
+  en f64 des deux côtés, lue en ligne droite ; dans le shader, une texture de deux lignes (les
+  réglages du moment, ceux de la base du noyau). Quatre cas de courbe ajoutés au tableau commun
+  (19 cas) : écart nul entre le shader et le noyau sur les quatre.
+- Écartée pour l'instant : la courbe paramétrique de Lightroom (quatre zones à curseurs) ; la
+  courbe de points fait la même chose, en plus libre. À ajouter si Alexandre la demande.
+- Les préréglages : 23 dessinés par Claude (`src/modele/prereglages.json`), en cinq catégories
+  (Naturel, Couleur, Film, Noir et blanc, Sujets), réglés à l'œil sur une planche de cinq photos
+  rendue par le noyau (un portrait, un café, un chat, une fusée de nuit, une moto). Un
+  préréglage est un style : il ne touche ni à l'exposition, ni à la netteté, ni à la réduction
+  du bruit, propres à chaque photo ; l'appliquer remplace tout le reste de la retouche (pas de
+  mélange avec le style d'avant, qui laisserait des restes). Intensité de 0 à 100 % : chaque
+  valeur rapprochée de zéro, chaque point de courbe de la diagonale, réglable juste après
+  l'application tant que le style n'a pas été retouché (l'exposition peut bouger).
+- Écarté : un sépia et des noirs et blancs teintés. L'ordre fixe du BRIEF met la balance des
+  blancs et la courbe avant la saturation : une photo passée en noir et blanc (saturation -100)
+  ne peut plus être teintée. Un étalonnage (ombres, tons moyens, hautes lumières teintés, comme
+  dans Lightroom) le permettrait ; il n'est pas dans le BRIEF, proposition laissée à Alexandre.
+  À la place : « Sombre et désaturé ».
+- Les préréglages d'Alexandre : « Enregistrer comme préréglage » garde le style de la photo sous
+  un nom (le même nom remplace), dans `~/Documents/Eliot/Préréglages/prereglages.json`, hors des
+  designs (commandes `prereglages_lire` et `prereglages_enregistrer`, liste vérifiée par le
+  noyau, écriture atomique, fichier abîmé laissé tel quel). Suppression par la corbeille de la
+  vignette, après confirmation.
+- Le panneau : section Préréglages en tête (catégories, vignettes de la photo avec chaque style
+  par le shader, survol montré sur la page sans toucher au document, clic qui applique en une
+  étape d'annulation, intensité) ; la courbe sous les curseurs de Lumière (canaux RVB, Rouge,
+  Vert, Bleu, histogramme derrière, clic qui pose un point, glisser, double-clic qui l'enlève,
+  flèches et Suppr au clavier ; un geste, une étape d'annulation).
+- Copier et coller les réglages : Ctrl+Maj+C et Ctrl+Maj+V (les touches de Lightroom), boutons
+  du labo, clic droit, et un bouton dans la barre du haut quand des photos sont choisies.
+  Tous les réglages passent, exposition comprise, sur une ou plusieurs photos, en une étape
+  d'annulation. « Copier le style » d'une photo emporte aussi sa retouche (pas vers une vidéo
+  avant le lot 4).
+- Pont IA : `retoucher` prend la courbe, `prereglage` et `intensite` (par nom ou identifiant,
+  sans tenir compte des accents), `depuis` (les réglages d'une autre photo) ; nouvel outil
+  `prereglages` (lister, enregistrer ; pas de suppression par le pont) ; 63 outils.
+- Essais : noyau 99 (3 de plus : la courbe, les préréglages fournis valides et distincts deux à
+  deux, les préréglages d'Alexandre lus et écrits), interface 187 (8 de plus) ; Chromium :
+  shader contre le tableau 19 cas, panneau du lot 3 34 vérifications, panneau du lot 2 16 ;
+  Tauri par le pont : 21 vérifications (préréglage avec courbe, fenêtre contre export à 1,35 sur
+  255 ; courbe en S et canal bleu à 1,67 ; réglages voisins et courbe à 1,92 ; préréglage
+  enregistré sur le disque puis appliqué à une autre photo ; depuis ; PDF avec la courbe à 1,73
+  de l'export PNG ; erreurs), labo du lot 2 14 ; dans la fenêtre de WebKitGTK, à la souris : les
+  vignettes, le survol en noir et blanc, un point de la courbe tiré, la photo qui suit.
+
 ## 2026-10-16, étape 5, lot 2 : le labo photo
 
 Accord d'Alexandre pour continuer (« Tu peux continuer »). Ce que Claude a fait et décidé :

@@ -84,6 +84,8 @@ pub fn lancer() {
             commandes::annuler_export_video,
             commandes::exporter_document,
             commandes::labo_base,
+            commandes::prereglages_lire,
+            commandes::prereglages_enregistrer,
             commandes::autotest_demande,
             commandes::autotest_rapport,
             ia::ia_infos,

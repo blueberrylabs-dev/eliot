@@ -189,10 +189,12 @@ function Forme({ el }: { el: ElementForme }) {
 function Photo({ el }: { el: ElementImage }) {
   const source = useImageRessource(el.ressource);
   const avant = useLabo((s) => s.avant && s.ouvert === el.id);
+  // Un préréglage survolé dans le labo : la photo le montre, le document ne change pas.
+  const essai = useLabo((s) => (s.essai?.id === el.id ? s.essai : null));
   const [, rafraichir] = useState(0);
   const noeud = useRef<Konva.Image>(null);
   useEffect(() => abonnerRetouche(el.id, () => rafraichir((v) => v + 1)), [el.id]);
-  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, el.reglages) : source;
+  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, essai ? essai.reglages : el.reglages, !!essai) : source;
   // La toile reste le même objet quand on la redessine : Konva doit en être prévenu.
   useLayoutEffect(() => {
     noeud.current?.getLayer()?.batchDraw();

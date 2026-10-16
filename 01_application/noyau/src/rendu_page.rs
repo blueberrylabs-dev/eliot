@@ -453,7 +453,7 @@ impl Images {
             }
         } else if let Some(reste) = href.strip_prefix("eliot:retouche/") {
             let (id, cle) = reste.split_once('/')?;
-            let r = self.retouches.lock().ok()?.get(cle).copied()?;
+            let r = self.retouches.lock().ok()?.get(cle).cloned()?;
             match photo_vectorielle(&self.dossier, id, Some(&r)) {
                 Ok((g, o)) => Some((g, Arc::new(o))),
                 Err(e) => {

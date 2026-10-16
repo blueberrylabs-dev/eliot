@@ -16,6 +16,7 @@ import {
   ArrowUp,
   Blend,
   Bold,
+  ClipboardPaste,
   CopyPlus,
   FlipHorizontal2,
   FlipVertical2,
@@ -61,7 +62,7 @@ import { ReglagesSon } from "./ReglagesSon";
 import { ReglagesAnimation } from "./ReglagesAnimation";
 import { useTemps } from "../etat/temps";
 import { poseA } from "../modele/animation";
-import { useLabo } from "../labo/retouche";
+import { collerReglages, useLabo } from "../labo/retouche";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -543,6 +544,7 @@ function Opacite({ choisis }: { choisis: ElementPage[] }) {
 export function BarreContexte() {
   const choisis = useEditeur(useShallow(elementsSelectionnes));
   const sonsChoisis = useEditeur((s) => s.selectionAudio.length > 0);
+  const copieReglages = useLabo((s) => !!s.copie);
   const etat = useEditeur.getState();
 
   const modifier = (modif: Partial<ElementPage>, etiquette?: string) =>
@@ -583,12 +585,20 @@ export function BarreContexte() {
         <>
           <button
             data-retoucher
-            title="Retoucher la photo : lumière, couleur, effets, détail"
+            title="Retoucher la photo : préréglages, lumière, couleur, effets, détail"
             onClick={() => useLabo.setState({ ouvert: choisis[0].id })}
             className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
           >
             <SlidersHorizontal size={16} /> Retoucher
           </button>
+          {separateur}
+        </>
+      )}
+      {copieReglages && choisis.length > 0 && choisis.every((e) => e.type === "image") && (
+        <>
+          <Bouton titre={choisis.length > 1 ? `Coller les réglages copiés sur ces ${choisis.length} photos (Ctrl+Maj+V)` : "Coller les réglages copiés (Ctrl+Maj+V)"} surClic={() => collerReglages()}>
+            <ClipboardPaste size={16} />
+          </Bouton>
           {separateur}
         </>
       )}
