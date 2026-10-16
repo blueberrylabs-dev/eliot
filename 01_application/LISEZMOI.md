@@ -1,12 +1,13 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 à 4 du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
-compose à la souris comme dans Canva, une bibliothèque d'icônes, d'emojis, de personnages et
-de polices, des photos et des vidéos libres de Pixabay, un kit de marque, des modèles de
-départ, des vidéos montées et animées sur une frise, avec leur musique, leurs bruitages, ta
-voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et les « euh »
-coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG ou en JPEG
-et l'export des vidéos en MP4 ou en GIF.
+L'éditeur, étapes 1 à 4 du `BRIEF.md` et début de l'étape 5 : un accueil qui range tes
+designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
+d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
+marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
+leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et
+les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG,
+JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, et l'export des vidéos en MP4 ou en
+GIF.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -44,8 +45,14 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'espace maintenue ou bouton du milieu pour déplacer la vue.
 - Redimensionner : passer le design dans un autre format, sur place ou sur une copie.
 - Aperçu en plein écran (F11), flèches pour changer de page, Échap pour sortir.
-- Exporter en PNG (fond transparent possible) ou en JPEG, taille normale ou double, la page
-  affichée ou toutes les pages (une image par page), dans `~/Images/Eliot/`.
+- Exporter, en haut à droite : PNG (fond transparent possible), JPEG, WebP (fond transparent
+  possible), de ×1 à ×4 (une affiche A4 ou A5 : 150 ou 300 dpi), la page affichée ou toutes
+  les pages (une image par page) ; PDF vectoriel de toutes les pages (ou de la page affichée),
+  les textes sélectionnables, une page A4 ou A5 à la taille de son papier ; SVG de la page
+  affichée, textes en tracés et photos dedans. Le tout dans `~/Images/Eliot/`. Depuis l'étape
+  5, c'est le noyau qui rend la page, depuis les originaux des photos et les fichiers de
+  police : l'export ne dépend plus de la définition des aperçus. Hors de l'application, dans
+  un navigateur, seuls le PNG et le JPEG se font (par la fenêtre).
 
 **Bibliothèque et mise en forme (étape 3)**
 - Fabriquée sur le poste une fois : `npm run bibliotheque` (commande 8 bis du `CLAUDE.md`).
@@ -271,7 +278,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
   tableaux, partir d'un modèle de départ, regarder une capture de la page et exporter (en
-  image, ou en MP4 et en GIF pour une page vidéo, avec la version sans musique). On la voit
+  PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo, avec la version sans
+  musique). On la voit
   travailler dans la fenêtre, et Ctrl+Z défait chacune de ses actions. Mise en place :
   commandes 13 à 15 bis du `CLAUDE.md`.
 
@@ -308,6 +316,24 @@ main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : ce qui ne joue pas de façon fluide, un son en retard sur
 l'image, un geste de la frise qui ne fait pas ce que tu attends, et les temps relevés (import,
 Whisper, export).
+
+## Essayer les exports (étape 5, lot 1)
+
+Quelques minutes, Eliot lancé à la main, carte graphique libre (commande 10). Avant, une fois :
+la commande 13 du `CLAUDE.md` (le pont IA apprend les nouveaux formats).
+
+1. Accueil, format A4, puis le panneau Modèles : « Affiche de festival ». Glisser dans le cadre
+   une photo de ton appareil, prise à la verticale (onglet Importer).
+2. Exporter, PNG, 300 dpi : l'image fait 2480 × 3508 px. L'ouvrir et zoomer sur la photo : elle
+   vient de l'original, nette, et droite.
+3. Exporter, PDF : l'ouvrir dans la visionneuse de documents. Zoomer très fort sur un titre :
+   il reste net ; sélectionner un texte et le copier. Propriétés du document : format A4.
+4. Ajouter une deuxième page, Exporter, PDF, Toutes : un seul fichier de deux pages.
+5. Exporter, SVG : l'ouvrir dans Firefox ou dans Inkscape, elle est identique.
+6. Un post carré, Exporter, WebP, ×2, fond transparent : le comparer au PNG (taille du fichier).
+
+Ce qui m'aide le plus en retour : un texte qui ne tombe pas au même endroit qu'à l'écran (un
+mot, une ligne qui change), une couleur différente, et le temps d'un PDF de plusieurs pages.
 
 ## Raccourcis
 
@@ -350,8 +376,8 @@ Whisper, export).
 - Le modèle de Whisper : `Eliot/telechargements/whisper/faster-whisper-small/` (commande 19),
   hors git.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
-- Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, avec `_page-01`… pour
-  plusieurs pages), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
+- Exports : `~/Images/Eliot/AAAA-MM-JJ_HHMMSS_eliot.png` (ou `.jpg`, `.webp`, `.pdf`, `.svg`,
+  avec `_page-01`… pour une image par page), jamais d'écrasement. Les films : `~/Vidéos/Eliot/AAAA-MM-JJ_HHMMSS_eliot.mp4`
   (ou `.gif`), écrits sous un nom provisoire puis renommés une fois finis ; la version sans
   musique à côté, `…_sans-musique.mp4`.
 - Un design supprimé part dans la corbeille d'Ubuntu.
@@ -360,7 +386,7 @@ Whisper, export).
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -373,7 +399,7 @@ Whisper, export).
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── export/       rendu d'une page hors écran, export en image ; export vidéo : la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), réglages par plateforme (plateformes.ts)
+│   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
 └── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé

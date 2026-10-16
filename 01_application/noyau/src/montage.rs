@@ -312,11 +312,11 @@ fn matrice(m: &[f64; 6]) -> Transform {
 
 /// Les transformations se composent en `f64`, puis passent en `f32` pour le dessin.
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct Affine([f64; 6]);
+pub(crate) struct Affine(pub(crate) [f64; 6]);
 
 impl Affine {
-    const IDENTITE: Affine = Affine([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
-    fn translation(x: f64, y: f64) -> Self {
+    pub(crate) const IDENTITE: Affine = Affine([1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
+    pub(crate) fn translation(x: f64, y: f64) -> Self {
         Affine([1.0, 0.0, 0.0, 1.0, x, y])
     }
     fn echelle(s: f64) -> Self {
@@ -330,7 +330,7 @@ impl Affine {
         Affine([c, s, -s, c, 0.0, 0.0])
     }
     /// `self × n` : `n` s'applique d'abord.
-    fn fois(&self, n: &Affine) -> Affine {
+    pub(crate) fn fois(&self, n: &Affine) -> Affine {
         let (m, n) = (&self.0, &n.0);
         Affine([
             m[0] * n[0] + m[2] * n[1],
@@ -444,17 +444,19 @@ fn premultiplier(mut rgba: Vec<u8>, largeur: u32, hauteur: u32) -> Option<Pixmap
 // Polices et options de `resvg`
 // ----------------------------------------------------------------------------------------
 
-struct FaceEliot {
-    italique: bool,
-    poids_min: u16,
-    poids_max: u16,
-    id: fontdb::ID,
+/// Un fichier de police de la fenêtre. `I` : son numéro dans la base de polices (celle de
+/// `resvg` ici, celle du PDF dans `rendu_page.rs`).
+pub(crate) struct FaceEliot<I = fontdb::ID> {
+    pub(crate) italique: bool,
+    pub(crate) poids_min: u16,
+    pub(crate) poids_max: u16,
+    pub(crate) id: I,
 }
 
 /// Choisit le fichier d'une famille le plus proche du style et du poids demandés.
-fn choisir_face(faces: &[FaceEliot], italique: bool, poids: u16) -> Option<fontdb::ID> {
-    let memes: Vec<&FaceEliot> = faces.iter().filter(|f| f.italique == italique).collect();
-    let liste: Vec<&FaceEliot> = if memes.is_empty() { faces.iter().collect() } else { memes };
+pub(crate) fn choisir_face<I: Copy>(faces: &[FaceEliot<I>], italique: bool, poids: u16) -> Option<I> {
+    let memes: Vec<&FaceEliot<I>> = faces.iter().filter(|f| f.italique == italique).collect();
+    let liste: Vec<&FaceEliot<I>> = if memes.is_empty() { faces.iter().collect() } else { memes };
     liste
         .into_iter()
         .min_by_key(|f| if poids < f.poids_min { f.poids_min - poids } else { poids.saturating_sub(f.poids_max) })
@@ -463,7 +465,7 @@ fn choisir_face(faces: &[FaceEliot], italique: bool, poids: u16) -> Option<fontd
 
 /// Les options de rendu : les polices de la fenêtre d'abord (par le nom que la fenêtre leur
 /// donne), celles du poste en secours ; les aperçus des photos pour les ombres.
-fn options_rendu(polices: &[PoliceCalques], dossier_ressources: &Path) -> Result<usvg::Options<'static>, ErreurMontage> {
+pub(crate) fn options_rendu(polices: &[PoliceCalques], dossier_ressources: &Path) -> Result<usvg::Options<'static>, ErreurMontage> {
     let mut base = fontdb::Database::new();
     base.load_system_fonts();
     let mut familles: HashMap<String, Vec<FaceEliot>> = HashMap::new();
@@ -677,8 +679,12 @@ impl ElementEnPlace {
         self.el.visible && self.el.temps.is_none_or(|tp| t >= tp.debut && t < tp.fin)
     }
 
-    /// L'instant du fichier vidéo (ms) montré à l'instant `t` de la page.
+    /// L'instant du fichier vidéo (ms) montré à l'instant `t` de la page. Sur une page fixe
+    /// (élément sans temps), la couverture, comme à l'écran.
     fn temps_media(&self, t: f64) -> f64 {
+        if self.el.temps.is_none() {
+            return instant_de_couverture(self.duree_fichier);
+        }
         let coupe = self.clip.coupe.unwrap_or_default();
         let fin = coupe.fin.unwrap_or(f64::INFINITY).min(self.duree_fichier.unwrap_or(f64::INFINITY));
         let depuis = self.el.temps.map_or(t, |tp| t - tp.debut);
@@ -829,14 +835,21 @@ fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &Ou
 
 impl Scene {
     fn preparer(description: &DescriptionPage, reglages: &Reglages, dossier: &Path) -> Result<Scene, ErreurMontage> {
+        Scene::preparer_taille(description, reglages.largeur, reglages.hauteur, reglages.images_par_seconde, false, dossier)
+    }
+
+    /// La scène à une taille donnée ; `transparent` : ni le fond noir du film, ni celui de la
+    /// page (une image PNG ou WebP à fond transparent, étape 5).
+    fn preparer_taille(description: &DescriptionPage, largeur: u32, hauteur: u32, images_par_seconde: u32, transparent: bool, dossier: &Path) -> Result<Scene, ErreurMontage> {
         let options = options_rendu(&description.polices, dossier)?;
         let format = Format { largeur: description.largeur, hauteur: description.hauteur };
-        let (largeur, hauteur) = (reglages.largeur, reglages.hauteur);
         // Le film garde les proportions de la page (au pixel près, pour la parité).
         let sortie = Affine::echelles(largeur as f64 / format.largeur, hauteur as f64 / format.hauteur);
         let mut fond = Pixmap::new(largeur, hauteur).ok_or_else(|| ErreurMontage::Reglages("taille du film".into()))?;
-        fond.fill(Color::BLACK);
-        for c in &description.fond {
+        if !transparent {
+            fond.fill(Color::BLACK);
+        }
+        for c in description.fond.iter().filter(|_| !transparent) {
             if let Calque::Svg { svg, boite, opacite, .. } = c {
                 let a = arbre(svg, &options)?;
                 if let Some((x, y, p)) = rendre_exact(&a, boite, &sortie, largeur, hauteur) {
@@ -890,7 +903,7 @@ impl Scene {
             let sous_titre = e.element.get("sousTitre").and_then(|v| serde_json::from_value::<SousTitre>(v.clone()).ok());
             elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier });
         }
-        Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: reglages.images_par_seconde as f64 })
+        Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: images_par_seconde as f64 })
     }
 
     /// Compose l'image `rang` du film dans `cadre`.
@@ -1486,6 +1499,61 @@ pub fn exporter(
     };
     rapport(avancement, "fini", images, 1.0);
     Ok(Film { chemin: cible.to_path_buf(), sans_musique, niveau: niveau_film.map(|n| n.0) })
+}
+
+/// La pose d'un élément pour un rendu vectoriel (PDF, SVG ; étape 5, lot 1) : sa matrice du
+/// repère de l'élément vers la page, son opacité, l'échelle de ses ombres, et pour une vidéo
+/// l'instant du fichier à montrer. Les effets lettre par lettre et les volets n'y sont pas : le
+/// texte est posé au repos.
+pub(crate) struct PoseVectorielle {
+    pub(crate) matrice: Affine,
+    pub(crate) opacite: f64,
+    pub(crate) echelle_ombre: f64,
+    pub(crate) instant_video: Option<f64>,
+}
+
+/// La pose de chaque élément de la description à l'instant `t` (`None` : il ne se voit pas),
+/// par les mêmes formules que le film.
+pub(crate) fn poses_vectorielles(description: &DescriptionPage, t: f64, dossier: &Path) -> Result<Vec<Option<PoseVectorielle>>, ErreurMontage> {
+    let animes: Vec<ElementAnime> = description
+        .elements
+        .iter()
+        .map(|e| serde_json::from_value(e.element.clone()).map_err(|err| ErreurMontage::Calque(format!("élément : {err}"))))
+        .collect::<Result<_, _>>()?;
+    let transitions = animation::contextes_transitions(&animes);
+    let format = Format { largeur: description.largeur, hauteur: description.hauteur };
+    let mut poses = Vec::new();
+    for (e, el) in description.elements.iter().zip(animes) {
+        let (entree, sortie) = transitions.get(&el.id).cloned().unwrap_or((None, None));
+        let clip: Clip = serde_json::from_value(e.element.clone()).unwrap_or_default();
+        let duree_fichier = clip.ressource.as_deref().filter(|_| el.genre == "video").and_then(|id| images::infos(dossier, id).ok()).and_then(|r| r.video.map(|v| v.duree as f64));
+        let place = ElementEnPlace { el, clip, ctx: Contexte { format, transition_entree: entree, transition_sortie: sortie }, calques: Vec::new(), totaux: e.totaux, sous_titre: None, finesse: 1.0, duree_fichier };
+        if !place.visible_a(t) {
+            poses.push(None);
+            continue;
+        }
+        let etat = place.etat(t);
+        let instant_video = (place.el.genre == "video").then(|| place.temps_media(t));
+        poses.push(Some(PoseVectorielle { matrice: etat.element, opacite: etat.opacite, echelle_ombre: etat.echelle_noeuds, instant_video }));
+    }
+    Ok(poses)
+}
+
+/// L'instant de la couverture d'une vidéo (ms du fichier) : celui que `videos.rs` prend à
+/// l'import, et que l'écran montre sur une page fixe.
+pub(crate) fn instant_de_couverture(duree_fichier: Option<f64>) -> f64 {
+    duree_fichier.map_or(0.0, |d| (d / 10.0).min(1000.0).floor())
+}
+
+/// Une page à un instant (ms), en pixels prémultipliés, à la taille demandée : l'export d'une
+/// image depuis le document (étape 5, lot 1), photos et vidéos depuis leurs originaux.
+pub(crate) fn rendre_instant(description: &DescriptionPage, largeur: u32, hauteur: u32, instant: f64, transparent: bool, dossier_ressources: &Path) -> Result<Pixmap, ErreurMontage> {
+    const CADENCE: u32 = 30;
+    let mut scene = Scene::preparer_taille(description, largeur, hauteur, CADENCE, transparent, dossier_ressources)?;
+    let mut cadre = Pixmap::new(largeur, hauteur).ok_or_else(|| ErreurMontage::Reglages("taille de l'image".into()))?;
+    let rang = (instant.max(0.0) * CADENCE as f64 / 1000.0).round() as u64;
+    scene.composer(rang, &mut cadre)?;
+    Ok(cadre)
 }
 
 /// Une image du film, en PNG, sans encoder de film : pour comparer l'export à l'écran.

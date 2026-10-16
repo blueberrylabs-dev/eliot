@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, freesound, images, marque, micro, montage, parole, piper, pixabay, polices, projet, sons, videos, voix};
+use noyau::{export, fichiers, freesound, images, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -1104,6 +1104,45 @@ pub async fn exporter_video(
 #[tauri::command]
 pub fn annuler_export_video(app: AppHandle) {
     app.state::<ExportVideo>().annule.store(true, Ordering::SeqCst);
+}
+
+// ----------------------------------------------------------------------------------------
+// Export depuis le document (étape 5, lot 1)
+// ----------------------------------------------------------------------------------------
+
+#[derive(Clone, Serialize)]
+pub struct AvancementExport {
+    fait: usize,
+    total: usize,
+}
+
+/// Rend les pages décrites par la fenêtre (`src/export/calques.ts`) depuis les originaux et les
+/// écrit dans `~/Images/Eliot/` sous un nom libre, ou au chemin choisi dans « Enregistrer
+/// sous » : PNG, JPEG, WebP ou SVG, un fichier par page ; PDF, un seul fichier. Renvoie les
+/// chemins écrits ; l'avancement part par `avancement` après chaque page.
+#[tauri::command]
+pub async fn exporter_document(
+    app: AppHandle,
+    rayon_nom: String,
+    projet_id: String,
+    demande: rendu_page::DemandeExport,
+    nom: String,
+    chemin: Option<String>,
+    avancement: Channel<AvancementExport>,
+) -> Result<Vec<String>, String> {
+    let ressources = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let dossier = dossier_export_par_defaut(&app)?;
+    let chemin = chemin.filter(|c| !c.is_empty()).map(PathBuf::from);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut suivi = |fait, total| {
+            let _ = avancement.send(AvancementExport { fait, total });
+        };
+        rendu_page::exporter_document(demande, &ressources, &dossier, &nom, chemin.as_deref(), &mut suivi)
+            .map(|ecrits| ecrits.iter().map(|c| c.to_string_lossy().into_owned()).collect())
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("export interrompu : {e}"))?
 }
 
 // ----------------------------------------------------------------------------------------

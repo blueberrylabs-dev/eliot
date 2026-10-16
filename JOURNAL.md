@@ -5,6 +5,67 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 1 : les exports depuis le document
+
+- Le noyau rend lui-même la page pour tous les exports en image et en document, comme pour le
+  film : la fenêtre la décrit en calques (`src/export/calques.ts`), le noyau la dessine avec
+  les originaux des photos et les fichiers de police de la fenêtre (`noyau/src/rendu_page.rs`,
+  commande `exporter_document`). L'export ne dépend plus des aperçus de 2560 px. Hors de
+  l'application, dans un navigateur, le PNG et le JPEG passent encore par Konva.
+- PNG, JPEG (qualité 92, posé sur du blanc) et WebP (encodeur libwebp du `ffmpeg` du système,
+  qualité 90, transparence possible), de ×1 à ×4, ou 150 et 300 dpi pour l'A4 et l'A5 ; au plus
+  12 000 px de côté et 100 millions de pixels.
+- PDF : toutes les pages en un fichier (ou la page affichée), par `krilla` 0.8.2 et
+  `krilla-svg` 0.8.1 (MIT ou Apache-2.0, toutes leurs dépendances sous licences permissives).
+  Écart avec le plan, qui nommait `svg2pdf` 0.13 : cette version tient à `resvg` 0.45 et ne fait
+  qu'une page par fichier ; `krilla-svg`, des mêmes auteurs chez Typst, en reprend le travail,
+  lit l'arbre de `usvg` 0.47 et fait des documents de plusieurs pages. Formes et textes restent
+  vectoriels, les textes se sélectionnent, les polices sont incluses (réduites aux lettres
+  employées), une photo JPEG droite passe sans être recompressée et une seule fois même posée
+  trois fois. Une page A4 ou A5 prend la taille de son papier ; une autre compte 96 pixels par
+  pouce (1080 px font 810 pt). Le BRIEF (§ 6, « L'export, de bout en bout ») nomme encore
+  `svg2pdf` ; à corriger avec l'accord d'Alexandre.
+- SVG : la page en un seul document, relu et réécrit par `usvg` 0.48 : textes en tracés, photos
+  et images des vidéos dedans ; il s'ouvre tel quel sans les polices.
+- Deux réglages des calques de texte (`contexteSvg.ts`), trouvés par la comparaison au pixel,
+  valent aussi pour le film. La taille optique (l'axe `opsz` des polices variables Inter,
+  Fraunces, DM Sans, Bodoni Moda, Source Serif 4) : le canevas de WebKitGTK ne l'applique pas,
+  celui de Chromium l'applique, `resvg` l'appliquait toujours ; la fenêtre mesure désormais,
+  une fois par police, ce que fait son canevas (largeur d'un texte au canevas contre la même
+  dans la page, avec et sans taille optique) et le dit au noyau (`font-optical-sizing`). Et
+  chaque ligne garde la longueur que la fenêtre lui mesure (`textLength`), parce que le moteur
+  de polices de WebKitGTK arrondit ses avances (jusqu'à 3 px d'écart au bout d'une ligne de
+  740 px).
+- WebP : écrit dans un tuyau, `ffmpeg` laisse la taille du fichier à 0 en tête et, au-delà de
+  32 Ko, l'écrit en quatre octets de trop à la fin ; Pillow refusait le fichier. Le noyau garde
+  les blocs entiers et note la taille.
+- Comparaison au pixel dans Tauri (WebKitGTK), par le pont, entre la capture de la fenêtre et
+  le PNG du noyau : les 42 modèles de départ, écart moyen de 0,54 sur 255 (médiane 0,53, 1,4 au
+  pire, « On recrute ») ; après un léger adoucissement qui efface le lissage des bords des
+  lettres, 0,46 % des pixels au plus s'écartent de plus de 40, rien ne se déplace. Une page
+  riche (photo couchée par l'appareil, tournée, arrondie, bordée, ombrée ; cadre, maquette,
+  icône, emoji, QR code, graphique, tableau, trois polices, fond en dégradé, vidéo en
+  couverture) : 0,72 ; son PDF rendu par poppler : 1,04 ; son SVG rendu par Chromium : 0,49.
+  Avant les deux réglages des textes : 1,41 pour la page riche et 2,11 au pire des modèles.
+  Ce qui reste : le lissage des lettres et leur ligne de base, que WebKitGTK cale au pixel.
+- Fenêtre d'export revue : sept formats (PNG, JPEG, WebP ; PDF, SVG ; MP4, GIF), tailles en ×1
+  à ×4 ou en dpi, transparence pour le PNG et le WebP, choix des pages pour le PDF (toutes par
+  défaut) ; le SVG prend la page affichée.
+- Pont IA : `exporter` prend `webp`, `pdf`, `svg` et `echelle` (0,5 et 1 pour l'A4 et l'A5, 1 à
+  4 sinon ; `ratio` reste compris). Sa description change : recompiler le pont (commande 13).
+- Essais : noyau 90 (6 de plus), interface 174 (2 de plus). Chromium : fenêtre d'export hors de
+  l'application 10 ; sous-titres 44 ; la page animée du lot 4 de l'étape 4, écran contre noyau,
+  de 0,41 à 0,52 sur 255 avec 0,13 % de pixels éloignés au plus (0,38 % avant la mesure de la
+  taille optique). Tauri : exports 62 (les 42 modèles, la page riche, les formats), montage
+  complet de l'étape 4 25. PDF de trois pages A4 avec une photo de 6 Mpx : 1,8 s dans le
+  conteneur. Une photo introuvable fait échouer le PDF ou le SVG avec un message, au lieu d'y
+  laisser un trou.
+- Point à surveiller, d'avant ce lot : le montage complet de l'étape 4 (Tauri) passe 25 sur 25,
+  mais une exécution, lancée pendant que d'autres essais tournaient, a vu la fenêtre se figer
+  après la réouverture du design, au passage sur la page du post animé (le moteur web à 144 %
+  du processeur, le pont sans réponse) ; même moment que l'arrêt noté à la vérification de
+  l'étape 4. Pas reproduit en relançant seul.
+
 ## 2026-10-16, banc de l'aperçu en direct : le shader WebGL
 
 - Série d'Alexandre sur le poste principal (`00_banc_essai/resultats/2026-10-16_091151_tauri-webkitgtk_labo.json`),

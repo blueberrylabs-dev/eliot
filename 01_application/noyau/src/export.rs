@@ -10,7 +10,7 @@ use crate::fichiers::{chemin_libre, ecrire_atomiquement, nettoyer_nom};
 
 #[derive(Debug, Error)]
 pub enum ErreurExport {
-    #[error("format inconnu : « {0} » (attendu : png, jpeg ou pdf)")]
+    #[error("format inconnu : « {0} » (attendu : png, jpeg, webp, pdf ou svg)")]
     FormatInconnu(String),
     #[error("le contenu reçu n'est pas un fichier {0}")]
     ContenuNonConforme(&'static str),
@@ -24,7 +24,9 @@ pub enum ErreurExport {
 pub enum Format {
     Png,
     Jpeg,
+    Webp,
     Pdf,
+    Svg,
 }
 
 impl Format {
@@ -32,7 +34,9 @@ impl Format {
         match nom.to_ascii_lowercase().as_str() {
             "png" => Ok(Self::Png),
             "jpeg" | "jpg" => Ok(Self::Jpeg),
+            "webp" => Ok(Self::Webp),
             "pdf" => Ok(Self::Pdf),
+            "svg" => Ok(Self::Svg),
             autre => Err(ErreurExport::FormatInconnu(autre.to_string())),
         }
     }
@@ -41,7 +45,9 @@ impl Format {
         match self {
             Self::Png => "png",
             Self::Jpeg => "jpg",
+            Self::Webp => "webp",
             Self::Pdf => "pdf",
+            Self::Svg => "svg",
         }
     }
 
@@ -49,7 +55,9 @@ impl Format {
         match self {
             Self::Png => "PNG",
             Self::Jpeg => "JPEG",
+            Self::Webp => "WebP",
             Self::Pdf => "PDF",
+            Self::Svg => "SVG",
         }
     }
 
@@ -58,7 +66,9 @@ impl Format {
         match self {
             Self::Png => &["png"],
             Self::Jpeg => &["jpg", "jpeg"],
+            Self::Webp => &["webp"],
             Self::Pdf => &["pdf"],
+            Self::Svg => &["svg"],
         }
     }
 
@@ -67,7 +77,12 @@ impl Format {
         match self {
             Self::Png => octets.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]),
             Self::Jpeg => octets.starts_with(&[0xFF, 0xD8, 0xFF]),
+            Self::Webp => octets.len() >= 12 && octets.starts_with(b"RIFF") && &octets[8..12] == b"WEBP",
             Self::Pdf => octets.starts_with(b"%PDF-"),
+            Self::Svg => {
+                let debut = String::from_utf8_lossy(&octets[..octets.len().min(512)]).trim_start_matches('\u{feff}').trim_start().to_string();
+                (debut.starts_with("<svg") || debut.starts_with("<?xml")) && debut.contains("<svg")
+            }
         }
     }
 }
@@ -135,6 +150,11 @@ mod tests {
         assert!(Format::Png.signature_valide(PNG_MINIMAL));
         assert!(Format::Jpeg.signature_valide(&[0xFF, 0xD8, 0xFF, 0xE0]));
         assert!(Format::Pdf.signature_valide(b"%PDF-1.7"));
+        assert!(Format::Webp.signature_valide(b"RIFF\x10\0\0\0WEBPVP8 "));
+        assert!(!Format::Webp.signature_valide(b"RIFF\x10\0\0\0WAVEfmt "));
+        assert!(Format::Svg.signature_valide(b"<svg xmlns=\"http://www.w3.org/2000/svg\"/>"));
+        assert!(Format::Svg.signature_valide(b"<?xml version=\"1.0\"?>\n<svg/>"));
+        assert!(!Format::Svg.signature_valide(b"<html><svg/></html>"));
         assert!(!Format::Png.signature_valide(&[0xFF, 0xD8, 0xFF]));
         assert!(!Format::Jpeg.signature_valide(b"<html>"));
     }

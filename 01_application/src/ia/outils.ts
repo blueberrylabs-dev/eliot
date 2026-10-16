@@ -9,7 +9,7 @@ import { clipsACouper, estHesitation, OPTIONS_BLANCS, SILENCE_MIN, type LanguePa
 import { ajusterSousTitres, centreParDefaut, estSousTitre, motsDeLaPage, retirerSousTitres, sourcesDeParole, STYLES_SOUS_TITRES } from "../modele/sousTitres";
 import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
-import { exporter } from "../export/exporter";
+import { echellesPossibles, exporter, FORMATS_DU_NOYAU, LIBELLES_EXPORT } from "../export/exporter";
 import { exporterVideo, type IdPlateforme } from "../export/video";
 import { rendrePage } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, urlSvg } from "../bibliotheque/bibliotheque";
@@ -34,7 +34,7 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
@@ -1691,10 +1691,17 @@ const OUTILS: Record<string, Outil> = {
       });
       return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}) } };
     }
+    const format = (["png", "jpeg", "webp", "pdf", "svg"] as const).find((f) => f === args.format) ?? "png";
+    exiger(dansTauri || !FORMATS_DU_NOYAU.includes(format), `le ${LIBELLES_EXPORT[format]} se fait dans l'application Eliot`);
+    // `ratio` : l'ancien nom d'`echelle` (1 ou 2), toujours compris.
+    const demandee = nombre(args.echelle, nombre(args.ratio, 1))!;
+    const permises = echellesPossibles(etat().document.format);
+    exiger(format === "pdf" || format === "svg" || permises.includes(demandee), `echelle : ${permises.join(", ")} pour ce format de page`);
     const chemins = await exporter({
-      format: args.format === "jpeg" ? "jpeg" : "png",
-      pages: args.pages === "toutes" ? "toutes" : "courante",
-      ratio: args.ratio === 2 ? 2 : 1,
+      format,
+      // Le PDF réunit toutes les pages, sauf demande contraire ; le SVG, la page affichée.
+      pages: args.pages === "toutes" || (format === "pdf" && args.pages !== "courante") ? "toutes" : "courante",
+      echelle: format === "pdf" || format === "svg" ? 1 : demandee,
       transparent: booleen(args.transparent) ?? false,
     });
     return { donnees: { chemins } };

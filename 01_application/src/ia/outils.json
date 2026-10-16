@@ -2474,7 +2474,7 @@
   },
   {
     "name": "exporter",
-    "description": "Exporte la page affichée ou toutes les pages. PNG ou JPEG : dans le dossier Images/Eliot de l'utilisateur, une image par page. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Renvoie les chemins écrits et le niveau final du son.",
+    "description": "Exporte la page affichée ou toutes les pages, rendues par l'application depuis les originaux des photos et les fichiers de police. PNG, JPEG ou WebP : dans le dossier Images/Eliot de l'utilisateur, une image par page, de une à quatre fois la taille de la page (A4 et A5 : 150 ou 300 dpi). PDF : toutes les pages en un fichier (sauf pages à courante), formes et textes vectoriels, textes sélectionnables ; une page A4 ou A5 garde la taille de son papier. SVG : la page affichée, textes en tracés, photos dedans. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Une page vidéo exportée en image sort à l'instant de la tête de lecture. Renvoie les chemins écrits et le niveau final du son.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2483,6 +2483,9 @@
           "enum": [
             "png",
             "jpeg",
+            "webp",
+            "pdf",
+            "svg",
             "mp4",
             "gif"
           ]
@@ -2493,19 +2496,22 @@
             "courante",
             "toutes"
           ],
-          "description": "PNG ou JPEG seulement."
+          "description": "PNG, JPEG, WebP : courante par défaut. PDF : toutes par défaut."
         },
-        "ratio": {
-          "type": "integer",
+        "echelle": {
+          "type": "number",
           "enum": [
+            0.5,
             1,
-            2
+            2,
+            3,
+            4
           ],
-          "description": "PNG ou JPEG seulement."
+          "description": "PNG, JPEG, WebP : multiplie la taille de la page (1 par défaut). A4 et A5 : 0.5 (150 dpi) ou 1 (300 dpi) ; autres formats : 1 à 4."
         },
         "transparent": {
           "type": "boolean",
-          "description": "PNG seulement."
+          "description": "PNG et WebP : sans le fond de la page."
         },
         "plateforme": {
           "type": "string",

@@ -736,13 +736,36 @@ export async function activerIa(active: boolean): Promise<InfosIa> {
 // Export
 // ========================================================================================
 
-export type FormatExport = "png" | "jpeg";
+export type FormatExport = "png" | "jpeg" | "webp" | "pdf" | "svg";
+
+/** Ce que le noyau rend depuis le document (étape 5, lot 1, `noyau/src/rendu_page.rs`). */
+export interface DemandeExportDocument {
+  format: FormatExport;
+  /** Chaque page décrite en calques (`export/calques.ts`) et l'instant montré (ms). */
+  pages: { description: unknown; instant: number }[];
+  /** Les polices de toutes les pages, une fois chacune. */
+  polices: unknown[];
+  /** PNG, JPEG, WebP : de 0,5 à 4. */
+  echelle: number;
+  /** PNG et WebP. */
+  transparent: boolean;
+}
+
+/** Rend et écrit l'export par le noyau, depuis les originaux ; renvoie les chemins écrits (un
+ *  seul pour un PDF). Dans Images/Eliot sous un nom libre, ou au chemin choisi. */
+export async function exporterDocument(ref: RefRessources, demande: DemandeExportDocument, nom: string, chemin: string | undefined, suivi?: (fait: number, total: number) => void): Promise<string[]> {
+  if (!dansTauri) throw new Error("cet export se fait dans l'application Eliot (Tauri)");
+  const canal = new Channel<{ fait: number; total: number }>();
+  canal.onmessage = (a) => suivi?.(a.fait, a.total);
+  return invoke<string[]>("exporter_document", { rayonNom: ref.rayon, projetId: ref.id, demande, nom, chemin: chemin ?? null, avancement: canal });
+}
 
 /**
- * Écrit le rendu. Dans Tauri : octets bruts vers le noyau, qui vérifie le format et écrit de
- * façon atomique ; renvoie le chemin écrit. Dans un navigateur : téléchargement classique.
+ * Écrit un rendu fait par la fenêtre (PNG ou JPEG). Dans Tauri : octets bruts vers le noyau,
+ * qui vérifie le format et écrit de façon atomique ; renvoie le chemin écrit. Dans un
+ * navigateur : téléchargement classique.
  */
-export async function ecrireExport(octets: Uint8Array, format: FormatExport, nom: string, chemin?: string): Promise<string> {
+export async function ecrireExport(octets: Uint8Array, format: "png" | "jpeg", nom: string, chemin?: string): Promise<string> {
   if (dansTauri) {
     return invoke<string>("exporter_rendu", octets, { headers: enTetes({ "x-format": format, "x-nom": nom, "x-chemin": chemin ?? "" }) });
   }
@@ -825,17 +848,21 @@ export async function choisirEmplacementFilm(nom: string, format: "mp4" | "gif")
   });
 }
 
+const FILTRES_EXPORT: Record<FormatExport, { titre: string; nom: string; extensions: string[] }> = {
+  png: { titre: "Enregistrer l'image", nom: "Image PNG", extensions: ["png"] },
+  jpeg: { titre: "Enregistrer l'image", nom: "Image JPEG", extensions: ["jpg", "jpeg"] },
+  webp: { titre: "Enregistrer l'image", nom: "Image WebP", extensions: ["webp"] },
+  pdf: { titre: "Enregistrer le PDF", nom: "Document PDF", extensions: ["pdf"] },
+  svg: { titre: "Enregistrer le SVG", nom: "Image vectorielle SVG", extensions: ["svg"] },
+};
+
 /** « Enregistrer sous » : renvoie le chemin choisi, ou `null` si on annule. */
 export async function choisirEmplacement(nom: string, format: FormatExport): Promise<string | null> {
   if (!dansTauri) return nom;
   const { save } = await import("@tauri-apps/plugin-dialog");
-  const extension = format === "png" ? "png" : "jpg";
+  const f = FILTRES_EXPORT[format];
   const dossier = await dossierExport();
-  return save({
-    title: "Enregistrer l'image",
-    defaultPath: `${dossier}/${nom}.${extension}`,
-    filters: [{ name: format === "png" ? "Image PNG" : "Image JPEG", extensions: format === "png" ? ["png"] : ["jpg", "jpeg"] }],
-  });
+  return save({ title: f.titre, defaultPath: `${dossier}/${nom}.${f.extensions[0]}`, filters: [{ name: f.nom, extensions: f.extensions }] });
 }
 
 export async function afficherDansDossier(chemin: string): Promise<void> {

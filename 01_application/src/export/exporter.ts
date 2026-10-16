@@ -1,21 +1,54 @@
-// Export : chaque page est rendue hors écran à sa taille native, quel que soit le zoom
-// (règle 7), puis le noyau Rust écrit le fichier.
+// Export d'images et de documents. Dans l'application (étape 5, lot 1) : la fenêtre décrit chaque
+// page en calques (`calques.ts`, comme pour le film) et le noyau la rend lui-même depuis les
+// originaux des photos et les fichiers de police : PNG, JPEG, WebP, PDF vectoriel, SVG
+// (`noyau/src/rendu_page.rs`). Hors de l'application (`npm run dev` dans un navigateur) : la
+// page est rendue par Konva à sa taille native, quel que soit le zoom (règle 7), et téléchargée,
+// en PNG ou en JPEG seulement.
 
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
-import { ecrireExport, type FormatExport } from "../pont/tauri";
+import { FORMATS_PAGE, type Format, type PageEliot } from "../modele/types";
+import { dansTauri, ecrireExport, exporterDocument, type FormatExport } from "../pont/tauri";
+import { decrirePage, type PoliceCalques } from "./calques";
 import { rendrePage } from "./rendu";
 
 export interface OptionsExport {
   format: FormatExport;
-  /** 1 ou 2 : multiplie la définition (une page de 1080 px donne 2160 px en x2). */
-  ratio: number;
-  /** PNG seulement : le fond de la page n'est pas dessiné. */
+  /** PNG, JPEG, WebP : multiplie la définition (une page de 1080 px donne 2160 px à 2 ; une
+   *  affiche A4 fait 300 dpi à 1, 150 dpi à 0,5). Sans effet sur le PDF et le SVG. */
+  echelle: number;
+  /** PNG et WebP : le fond de la page n'est pas dessiné. */
   transparent: boolean;
-  /** La page affichée, ou toutes les pages (une image par page, numérotées). */
+  /** La page affichée, ou toutes les pages (une image par page, numérotées ; un seul PDF). Le
+   *  SVG : la page affichée seulement. */
   pages: "courante" | "toutes";
-  /** Chemin choisi dans « Enregistrer sous » (page affichée seulement). */
+  /** Chemin choisi dans « Enregistrer sous » (un seul fichier). */
   chemin?: string;
+}
+
+/** Où en est l'export : `description` (la fenêtre décrit les pages), `rendu` (le noyau). */
+export type Progression = (fait: number, total: number, etape: "description" | "rendu") => void;
+
+/** Les formats que seule l'application sait faire (le noyau). */
+export const FORMATS_DU_NOYAU: FormatExport[] = ["webp", "pdf", "svg"];
+
+export const LIBELLES_EXPORT: Record<FormatExport, string> = { png: "PNG", jpeg: "JPEG", webp: "WebP", pdf: "PDF", svg: "SVG" };
+
+/** Le plus grand côté et le nombre de pixels d'une image exportée (comme le noyau). */
+export const COTE_MAX = 12_000;
+export const PIXELS_MAX = 100_000_000;
+
+/** Une page au format A4 ou A5 (300 dpi), dans un sens ou dans l'autre : ses tailles se disent
+ *  en dpi. */
+export function formatPapier(format: Format): boolean {
+  return FORMATS_PAGE.some((f) => (f.id === "a4" || f.id === "a5") && ((f.largeur === format.largeur && f.hauteur === format.hauteur) || (f.largeur === format.hauteur && f.hauteur === format.largeur)));
+}
+
+/** Les tailles proposées : 150 et 300 dpi pour l'A4 et l'A5, sinon ×1 à ×4 ; celles qui
+ *  dépassent la taille permise sont retirées (×1 reste toujours). */
+export function echellesPossibles(format: Format): number[] {
+  const toutes = formatPapier(format) ? [0.5, 1] : [1, 2, 3, 4];
+  return toutes.filter((e) => e === 1 || (Math.round(format.largeur * e) <= COTE_MAX && Math.round(format.hauteur * e) <= COTE_MAX && Math.round(format.largeur * e) * Math.round(format.hauteur * e) <= PIXELS_MAX));
 }
 
 const deux = (n: number) => String(n).padStart(2, "0");
@@ -26,28 +59,60 @@ export function nomDate(): string {
   return `${d.getFullYear()}-${deux(d.getMonth() + 1)}-${deux(d.getDate())}_${deux(d.getHours())}${deux(d.getMinutes())}${deux(d.getSeconds())}_eliot`;
 }
 
-/** Exporte et renvoie les chemins écrits (un par page). */
-export async function exporter(options: OptionsExport, progression?: (fait: number, total: number) => void): Promise<string[]> {
+/** Les pages demandées : une page vidéo sort à l'instant de la tête de lecture (la page
+ *  affichée), sinon au début ; une page fixe, telle quelle. */
+function pagesDemandees(options: OptionsExport): { page: PageEliot; instant: number }[] {
+  const etat = useEditeur.getState();
+  const pages = options.format === "svg" || options.pages === "courante" ? [pageCourante(etat)] : etat.document.pages;
+  return pages.map((page) => ({ page, instant: page.duree !== undefined && page.id === etat.pageActive ? useTemps.getState().tete : 0 }));
+}
+
+/** Exporte et renvoie les chemins écrits (un par page, ou le PDF). */
+export async function exporter(options: OptionsExport, progression?: Progression): Promise<string[]> {
   // Un texte en cours de saisie est validé avant le rendu.
   if (document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur();
   const etat = useEditeur.getState();
   const { document: doc } = etat;
-  const pages = options.pages === "toutes" ? doc.pages : [pageCourante(etat)];
+  const demandees = pagesDemandees(options);
   const base = nomDate();
+  if (dansTauri) {
+    if (!etat.projet) throw new Error("aucun design ouvert");
+    const projet = etat.projet;
+    const pages: { description: Awaited<ReturnType<typeof decrirePage>>; instant: number }[] = [];
+    for (const [rang, d] of demandees.entries()) {
+      progression?.(rang, demandees.length, "description");
+      pages.push({ description: await decrirePage(d.page, doc.format), instant: d.instant });
+    }
+    // Les polices une fois pour toutes les pages ; les sons ne servent qu'au film.
+    const polices: PoliceCalques[] = [];
+    const vues = new Set<string>();
+    for (const p of pages) {
+      for (const f of p.description.polices) {
+        const cle = `${f.famille.toLowerCase()}|${f.style}|${f.poidsMin}|${f.poidsMax}`;
+        if (!vues.has(cle)) {
+          vues.add(cle);
+          polices.push(f);
+        }
+      }
+      p.description = { ...p.description, polices: [], sons: [] };
+    }
+    progression?.(0, demandees.length, "rendu");
+    return exporterDocument(projet, { format: options.format, pages, polices, echelle: options.echelle, transparent: options.transparent }, base, options.chemin, (fait, total) => progression?.(fait, total, "rendu"));
+  }
+  if (options.format !== "png" && options.format !== "jpeg") throw new Error(`le ${LIBELLES_EXPORT[options.format]} se fait dans l'application Eliot`);
   const ecrits: string[] = [];
-  for (const [rang, page] of pages.entries()) {
-    progression?.(rang, pages.length);
-    // Une page vidéo sort à l'instant de la tête de lecture (la page affichée), sinon au début.
+  for (const [rang, { page, instant }] of demandees.entries()) {
+    progression?.(rang, demandees.length, "rendu");
     const blob = await rendrePage(page, doc.format, {
-      pixelRatio: options.ratio,
+      pixelRatio: options.echelle,
       type: options.format === "png" ? "image/png" : "image/jpeg",
       transparent: options.transparent,
-      instant: page.id === etat.pageActive ? useTemps.getState().tete : 0,
+      instant,
     });
     const octets = new Uint8Array(await blob.arrayBuffer());
-    const nom = pages.length > 1 ? `${base}_page-${deux(rang + 1)}` : base;
-    ecrits.push(await ecrireExport(octets, options.format, nom, pages.length === 1 ? options.chemin : undefined));
+    const nom = demandees.length > 1 ? `${base}_page-${deux(rang + 1)}` : base;
+    ecrits.push(await ecrireExport(octets, options.format, nom, demandees.length === 1 ? options.chemin : undefined));
   }
-  progression?.(pages.length, pages.length);
+  progression?.(demandees.length, demandees.length, "rendu");
   return ecrits;
 }

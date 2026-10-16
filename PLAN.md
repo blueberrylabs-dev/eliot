@@ -347,10 +347,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
   détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
   tableau de valeurs attendues commun, comme pour l'animation et le son.
 - Exports : le noyau rend la page depuis la description en calques de l'étape 4 (les mêmes
-  SVG, les mêmes polices, les originaux des photos) avec `resvg` ; PDF vectoriel par `svg2pdf`
-  0.13 (MIT ou Apache-2.0, celui de Typst) ; WebP par le `ffmpeg` du système (encodeur libwebp,
-  déjà là) ; SVG avec ses images et ses polices dedans. L'export actuel par la fenêtre
-  (aperçus de 2560 px) laisse la place au rendu du noyau, comparé au pixel avant de s'y fier.
+  SVG, les mêmes polices, les originaux des photos) avec `resvg` ; PDF vectoriel par `krilla`
+  et `krilla-svg` 0.8 (MIT ou Apache-2.0, des auteurs de `svg2pdf` chez Typst, qui en
+  reprennent le travail ; `svg2pdf` 0.13, prévu d'abord, tient à `resvg` 0.45 et ne fait
+  qu'une page par fichier, JOURNAL du 2026-10-16) ; WebP par le `ffmpeg` du système (encodeur
+  libwebp, déjà là) ; SVG avec ses images dedans et ses textes en tracés (il s'ouvre sans les
+  polices). L'export par la fenêtre (aperçus de 2560 px) laisse la place au rendu du noyau,
+  comparé au pixel avant de s'y fier ; il reste hors de l'application, pour le PNG et le
+  JPEG.
 - Détourage : un modèle d'IA sur le processeur, lancé comme Whisper (programme installé par
   Alexandre, modèle téléchargé une fois dans `telechargements/`), choisi au lot 7 d'après sa
   licence (libre pour un usage commercial de préférence) et sa qualité sur des photos de
@@ -365,10 +369,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (`00_banc_essai/resultats/2026-10-16_091151_tauri-webkitgtk_labo.json`) : shader à 62
       images par seconde sur la photo et la vidéo, écart de 0,044 sur 255 avec le Rust ; le
       shader est retenu (JOURNAL).
-- [ ] Lot 1 : exports depuis le document : PNG haute définition (×1 à ×4, ou 150 et 300 dpi
+- [x] Lot 1 : exports depuis le document : PNG haute définition (×1 à ×4, ou 150 et 300 dpi
       pour l'A4 et l'A5), JPEG, WebP, PDF vectoriel (toutes les pages), SVG (une page) ;
       fenêtre d'export revue ; comparaison au pixel entre l'écran et l'export ; `exporter` du
-      pont étendu.
+      pont étendu. Livré le 2026-10-16 (`noyau/src/rendu_page.rs`, commande
+      `exporter_document`) : les 42 modèles de départ à 0,54 sur 255 en moyenne de la fenêtre
+      (WebKitGTK), une page riche à 0,72, son PDF rendu par poppler à 1,04, son SVG rendu par
+      Chromium à 0,49 (JOURNAL). Essai d'Alexandre : « Essayer les exports (étape 5, lot 1) »
+      du `01_application/LISEZMOI.md`.
 - [ ] Lot 2 : le labo : moteur des réglages dans le noyau, bouton Retoucher, panneau (Lumière,
       Couleur avec mélangeur, Effets, Détail), histogramme, aperçu en direct par la voie du lot
       0, avant et après, double-clic qui remet à zéro, valeur au clavier ; export depuis
@@ -383,7 +391,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
       biais), à l'écran et à l'export.
 - [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
       document (l'original intact), pinceau pour reprendre les bords.
-- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.
+- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
+      WebP, PDF, SVG et l'échelle).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

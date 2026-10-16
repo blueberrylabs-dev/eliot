@@ -5,7 +5,7 @@ import { AlertTriangle, Bot, Check, ChevronDown, Clapperboard, Cloud, Copy, Down
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
-import { exporter, nomDate } from "../export/exporter";
+import { echellesPossibles, exporter, FORMATS_DU_NOYAU, formatPapier, nomDate } from "../export/exporter";
 import { exporterVideo, messageFilm, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
 import { afficherDansDossier, choisirEmplacement, choisirEmplacementFilm, dansTauri, dossierDesigns, dossierExport, dossierExportVideo, type FormatExport } from "../pont/tauri";
 import { ReglagesDuFilm } from "./ExportVideo";
@@ -29,6 +29,17 @@ function useFermerDehors(fermer: () => void) {
 /** Les derniers réglages de film choisis, gardés le temps de la session. */
 let optionsFilmRetenues: OptionsFilm = OPTIONS_FILM_DEFAUT;
 
+/** Ce que dit chaque format, sous son nom. */
+const FORMATS_IMAGE: { id: FormatExport | "mp4" | "gif"; libelle: string; detail: string }[] = [
+  { id: "png", libelle: "PNG", detail: "net, transparence" },
+  { id: "jpeg", libelle: "JPEG", detail: "léger, photos" },
+  { id: "webp", libelle: "WebP", detail: "léger, pour le web" },
+  { id: "pdf", libelle: "PDF", detail: "vectoriel, à imprimer" },
+  { id: "svg", libelle: "SVG", detail: "vectoriel, une page" },
+  { id: "mp4", libelle: "MP4", detail: "vidéo avec le son" },
+  { id: "gif", libelle: "GIF", detail: "image animée, sans son" },
+];
+
 function PanneauExport({ fermer }: { fermer: () => void }) {
   const format = useEditeur((s) => s.document.format);
   const nombrePages = useEditeur((s) => s.document.pages.length);
@@ -38,15 +49,22 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const pageVideo = dureePage !== undefined;
   const notifier = useEditeur((s) => s.notifier);
   const [type, setType] = useState<FormatExport | "mp4" | "gif">(pageVideo && dansTauri ? optionsFilmRetenues.format : "png");
-  const [ratio, setRatio] = useState(1);
+  const echelles = echellesPossibles(format);
+  const papier = formatPapier(format);
+  const [echelle, setEchelle] = useState(1);
   const [transparent, setTransparent] = useState(false);
   const [pages, setPages] = useState<"courante" | "toutes">("courante");
+  // Un PDF réunit d'ordinaire toutes les pages : son propre choix, toutes par défaut.
+  const [pagesPdf, setPagesPdf] = useState<"courante" | "toutes">("toutes");
   const [occupe, setOccupe] = useState<string | null>(null);
   const [dossier, setDossier] = useState("");
   const [dossierVideo, setDossierVideo] = useState("");
   const [film, setFilm] = useState<OptionsFilm>(optionsFilmRetenues);
   const boite = useFermerDehors(fermer);
   const estFilm = type === "mp4" || type === "gif";
+  const vectoriel = type === "pdf" || type === "svg";
+  const transparencePossible = type === "png" || type === "webp";
+  const pagesChoisies = type === "svg" ? "courante" : type === "pdf" ? pagesPdf : pages;
 
   useEffect(() => {
     void dossierExport().then(setDossier);
@@ -85,7 +103,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   };
 
   const lancer = async (avecEmplacement: boolean) => {
-    if (estFilm) return lancerFilm(avecEmplacement);
+    if (type === "mp4" || type === "gif") return lancerFilm(avecEmplacement);
     setOccupe("Export en cours…");
     try {
       let chemin: string | undefined;
@@ -94,7 +112,9 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
         if (!choisi) return;
         chemin = choisi;
       }
-      const ecrits = await exporter({ format: type, ratio, transparent, pages, chemin }, (fait, total) => total > 1 && setOccupe(`Page ${Math.min(fait + 1, total)} sur ${total}…`));
+      const ecrits = await exporter({ format: type, echelle: vectoriel ? 1 : echelle, transparent: transparent && transparencePossible, pages: pagesChoisies, chemin }, (fait, total, etape) => {
+        if (total > 1) setOccupe(`${etape === "description" ? "Préparation de la page" : type === "pdf" ? "PDF, page" : "Page"} ${Math.min(fait + 1, total)} sur ${total}…`);
+      });
       const dernier = ecrits[ecrits.length - 1];
       const texte = ecrits.length > 1 ? `${ecrits.length} pages exportées dans ${dossier}` : `Exporté : ${dernier}`;
       notifier(dansTauri ? texte : `Téléchargé : ${dernier}`, { chemin: dansTauri ? dernier : undefined });
@@ -106,60 +126,64 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
     }
   };
 
-  const option = (choisi: boolean) => `flex-1 rounded-md border px-2 py-1.5 text-sm ${choisi ? "border-accent-600 bg-accent-50 text-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`;
+  const option = (choisi: boolean) => `rounded-md border px-2 py-1.5 text-sm ${choisi ? "border-accent-600 bg-accent-50 text-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`;
   const filmPossible = pageVideo && dansTauri;
-
-  return (
-    <div ref={boite} className="absolute top-12 right-3 z-30 w-80 rounded-xl border border-neutral-200 bg-white p-4 text-neutral-900 shadow-xl">
-      <p className="mb-3 text-sm font-semibold text-neutral-800">Exporter</p>
-      <p className="mb-1 text-xs font-medium text-neutral-500">Format</p>
-      <div className="mb-3 grid grid-cols-2 gap-2">
-        <button className={option(type === "png")} onClick={() => choisirType("png")}>
-          PNG <span className="block text-[11px] text-neutral-500">net, transparence possible</span>
+  const possible = (id: FormatExport | "mp4" | "gif") => (id === "mp4" || id === "gif" ? filmPossible : dansTauri || !FORMATS_DU_NOYAU.includes(id));
+  const taille = (e: number) => `${Math.round(format.largeur * e)} × ${Math.round(format.hauteur * e)}`;
+  const choixPages = (valeur: "courante" | "toutes", changer: (v: "courante" | "toutes") => void, detail: string) => (
+    <>
+      <p className="mb-1 text-xs font-medium text-neutral-500">Pages</p>
+      <div className="mb-3 flex gap-2">
+        <button className={`flex-1 ${option(valeur === "courante")}`} onClick={() => changer("courante")}>
+          Cette page
         </button>
-        <button className={option(type === "jpeg")} onClick={() => choisirType("jpeg")}>
-          JPEG <span className="block text-[11px] text-neutral-500">plus léger, pour les photos</span>
-        </button>
-        <button className={`${option(type === "mp4")} disabled:opacity-50`} disabled={!filmPossible} onClick={() => choisirType("mp4")}>
-          MP4 <span className="block text-[11px] text-neutral-500">vidéo avec le son</span>
-        </button>
-        <button className={`${option(type === "gif")} disabled:opacity-50`} disabled={!filmPossible} onClick={() => choisirType("gif")}>
-          GIF <span className="block text-[11px] text-neutral-500">image animée, sans son</span>
+        <button className={`flex-1 ${option(valeur === "toutes")}`} onClick={() => changer("toutes")}>
+          Toutes ({nombrePages})<span className="block text-[11px] text-neutral-500">{detail}</span>
         </button>
       </div>
-      {!filmPossible && (
-        <p className="mb-3 text-[11px] text-neutral-500">
-          {dansTauri ? "MP4 et GIF : passe la page en Vidéo (bouton Vidéo, en haut) pour en faire un film." : "MP4 et GIF se font dans l'application Eliot."}
-        </p>
-      )}
+    </>
+  );
+
+  return (
+    <div ref={boite} className="absolute top-12 right-3 z-30 w-96 rounded-xl border border-neutral-200 bg-white p-4 text-neutral-900 shadow-xl">
+      <p className="mb-3 text-sm font-semibold text-neutral-800">Exporter</p>
+      <p className="mb-1 text-xs font-medium text-neutral-500">Format</p>
+      <div className="mb-3 grid grid-cols-6 gap-2">
+        {FORMATS_IMAGE.map((f, i) => (
+          <button key={f.id} data-format={f.id} className={`${i < 3 ? "col-span-2" : "col-span-3"} ${option(type === f.id)} disabled:opacity-50`} disabled={!possible(f.id)} onClick={() => choisirType(f.id)}>
+            {f.libelle} <span className="block text-[11px] text-neutral-500">{f.detail}</span>
+          </button>
+        ))}
+      </div>
+      {!dansTauri && <p className="mb-3 text-[11px] text-neutral-500">WebP, PDF, SVG, MP4 et GIF se font dans l'application Eliot.</p>}
+      {dansTauri && !filmPossible && <p className="mb-3 text-[11px] text-neutral-500">MP4 et GIF : passe la page en Vidéo (bouton Vidéo, en haut) pour en faire un film.</p>}
       {estFilm && dureePage !== undefined ? (
         <ReglagesDuFilm options={film} changer={changerFilm} format={format} duree={dureePage} musique={avecMusique} />
       ) : (
         <>
-          <p className="mb-1 text-xs font-medium text-neutral-500">Taille</p>
-          <div className="mb-3 flex gap-2">
-            {[1, 2].map((r) => (
-              <button key={r} className={option(ratio === r)} onClick={() => setRatio(r)}>
-                ×{r}{" "}
-                <span className="block text-[11px] text-neutral-500">
-                  {format.largeur * r} × {format.hauteur * r}
-                </span>
-              </button>
-            ))}
-          </div>
-          {nombrePages > 1 && (
+          {!vectoriel && (
             <>
-              <p className="mb-1 text-xs font-medium text-neutral-500">Pages</p>
+              <p className="mb-1 text-xs font-medium text-neutral-500">Taille</p>
               <div className="mb-3 flex gap-2">
-                <button className={option(pages === "courante")} onClick={() => setPages("courante")}>
-                  Cette page
-                </button>
-                <button className={option(pages === "toutes")} onClick={() => setPages("toutes")}>
-                  Toutes ({nombrePages})<span className="block text-[11px] text-neutral-500">une image par page</span>
-                </button>
+                {echelles.map((e) => (
+                  <button key={e} data-echelle={e} className={`flex-1 ${option(echelle === e)}`} onClick={() => setEchelle(e)}>
+                    {papier ? `${Math.round(300 * e)} dpi` : `×${e}`} <span className="block text-[11px] text-neutral-500">{taille(e)}</span>
+                  </button>
+                ))}
               </div>
             </>
           )}
+          {type === "pdf" && (
+            <p className="mb-3 rounded-md bg-neutral-50 px-2.5 py-2 text-[11px] text-neutral-600">
+              Formes et textes restent vectoriels, nets à toutes les tailles ; les textes se sélectionnent. {papier ? "La page garde la taille de son papier." : "La page compte 96 pixels par pouce."}
+            </p>
+          )}
+          {type === "svg" && (
+            <p className="mb-3 rounded-md bg-neutral-50 px-2.5 py-2 text-[11px] text-neutral-600">
+              La page affichée. Les textes deviennent des tracés et les photos sont dedans : le fichier s'ouvre partout tel quel.
+            </p>
+          )}
+          {nombrePages > 1 && type !== "svg" && (type === "pdf" ? choixPages(pagesPdf, setPagesPdf, "un seul fichier") : choixPages(pages, setPages, "une image par page"))}
           {(avecVideo || pageVideo) && (
             <p className="mb-3 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] text-amber-900">
               {pageVideo
@@ -167,16 +191,18 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
                 : "Les vidéos d'une page fixe sortent ici en image fixe : leur couverture."}
             </p>
           )}
-          <label className={`mb-4 flex items-center gap-2 text-sm ${type === "png" ? "text-neutral-700" : "text-neutral-400"}`}>
-            <input type="checkbox" disabled={type !== "png"} checked={transparent && type === "png"} onChange={(e) => setTransparent(e.target.checked)} className="accent-accent-600" />
-            Fond transparent
-          </label>
+          {!vectoriel && (
+            <label className={`mb-4 flex items-center gap-2 text-sm ${transparencePossible ? "text-neutral-700" : "text-neutral-400"}`}>
+              <input type="checkbox" disabled={!transparencePossible} checked={transparent && transparencePossible} onChange={(e) => setTransparent(e.target.checked)} className="accent-accent-600" />
+              Fond transparent{type === "jpeg" && <span className="text-[11px] text-neutral-400"> (PNG et WebP)</span>}
+            </label>
+          )}
         </>
       )}
       <button disabled={!!occupe} onClick={() => void lancer(false)} className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-60">
         <Download size={16} /> {occupe ?? (estFilm ? "Exporter dans Vidéos/Eliot" : dansTauri ? "Exporter dans Images/Eliot" : "Télécharger")}
       </button>
-      {dansTauri && (pages === "courante" || estFilm) && (
+      {dansTauri && (pagesChoisies === "courante" || estFilm || type === "pdf") && (
         <button disabled={!!occupe} onClick={() => void lancer(true)} className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 py-2 text-sm text-neutral-700 hover:bg-neutral-50 disabled:opacity-60">
           <FolderOpen size={16} /> Enregistrer sous…
         </button>

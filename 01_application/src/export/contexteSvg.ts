@@ -185,6 +185,46 @@ interface FauxCanevas {
   height: number;
 }
 
+/**
+ * Le canevas de la fenêtre applique-t-il la taille optique (l'axe `opsz` des polices variables :
+ * Inter, Fraunces, DM Sans…) ? Chromium oui, WebKitGTK non, et `resvg` l'applique si on ne lui
+ * dit rien (étape 5, lot 1). Mesuré une fois par police : la largeur d'un texte au canevas,
+ * comparée à celle du même texte dans la page, avec et sans taille optique. Sans écart entre
+ * les deux (police sans cet axe, ou pas de page), la réponse ne change rien : non.
+ */
+const tailleOptiqueParPolice = new Map<string, boolean>();
+export function canevasAvecTailleOptique(police: string): boolean {
+  const connue = tailleOptiqueParPolice.get(police);
+  if (connue !== undefined) return connue;
+  let reponse = false;
+  try {
+    const essai = "Hamburgefonstiv 0123456789";
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx && document.body) {
+      ctx.font = police;
+      const canevas = ctx.measureText(essai).width;
+      const dansLaPage = (optique: "auto" | "none") => {
+        const s = document.createElement("span");
+        s.style.cssText = "position:absolute;left:-10000px;top:0;visibility:hidden;white-space:pre";
+        s.style.font = police;
+        s.style.setProperty("font-optical-sizing", optique);
+        s.textContent = essai;
+        document.body.appendChild(s);
+        const largeur = s.getBoundingClientRect().width;
+        s.remove();
+        return largeur;
+      };
+      const avec = dansLaPage("auto");
+      const sans = dansLaPage("none");
+      reponse = Math.abs(avec - sans) > 0.5 && Math.abs(canevas - avec) < Math.abs(canevas - sans);
+    }
+  } catch {
+    // Pas de page (essais) : sans taille optique.
+  }
+  tailleOptiqueParPolice.set(police, reponse);
+  return reponse;
+}
+
 export class ContexteSvg {
   canvas: FauxCanevas = { width: 1, height: 1 };
   // Propriétés que Konva lit et écrit directement.
@@ -723,7 +763,8 @@ export class ContexteSvg {
     const variante = mots.includes("small-caps") ? ` font-variant="small-caps"` : "";
     const espacement = Number.parseFloat(this.etat.letterSpacing) || 0;
     return {
-      attributs: `font-family="${echapper(famille)}" font-size="${n(taille)}"${poids ? ` font-weight="${poids === "bold" ? 700 : poids}"` : ""}${style ? ` font-style="${style}"` : ""}${variante}${espacement ? ` letter-spacing="${n(espacement)}"` : ""}`,
+      // La taille optique (axe `opsz` des polices variables) comme le canevas de la fenêtre.
+      attributs: `font-family="${echapper(famille)}" font-size="${n(taille)}"${poids ? ` font-weight="${poids === "bold" ? 700 : poids}"` : ""}${style ? ` font-style="${style}"` : ""}${variante}${espacement ? ` letter-spacing="${n(espacement)}"` : ""} font-optical-sizing="${canevasAvecTailleOptique(f) ? "auto" : "none"}"`,
       taille,
     };
   }
@@ -749,7 +790,12 @@ export class ContexteSvg {
       appliquer(e.m, debut - marge, y + taille * 0.6 + marge),
     ];
     const direction = e.direction === "rtl" ? ` direction="rtl"` : "";
-    this.poser(`<text x="${n(x)}" y="${n(y)}" ${attributs} text-anchor="${ancre}"${ligneDeBase}${direction} ${peinture} xml:space="preserve" transform="${matriceSvg(e.m)}">${echapper(texte)}</text>`, boiteDePoints(coins));
+    // La ligne garde la longueur que la fenêtre lui mesure : le moteur du noyau espace ses
+    // lettres un rien autrement (les avances de la fenêtre sont arrondies par son moteur de
+    // polices, jusqu'à 3 px sur une ligne de 740 px) ; la fin de la ligne tombe ainsi au même
+    // endroit qu'à l'écran (étape 5, lot 1).
+    const longueur = [...texte].length > 1 && largeur > 0 ? ` textLength="${n(largeur)}" lengthAdjust="spacing"` : "";
+    this.poser(`<text x="${n(x)}" y="${n(y)}" ${attributs} text-anchor="${ancre}"${ligneDeBase}${direction}${longueur} ${peinture} xml:space="preserve" transform="${matriceSvg(e.m)}">${echapper(texte)}</text>`, boiteDePoints(coins));
   }
 
   fillText(texte: string, x: number, y: number) {

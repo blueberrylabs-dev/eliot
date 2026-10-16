@@ -24,6 +24,12 @@ ureq = "3"
 resvg = { version = "0.48.1", default-features = false, features = ["text", "raster-images"] }
 # Les polices de la fenêtre arrivent en base64 dans la description de la page.
 base64 = "0.22"
+# L'export depuis le document (étape 5, lot 1) : le PDF vectoriel (textes sélectionnables, polices
+# incluses), par krilla, qui lit un arbre usvg 0.47 ; usvg 0.48, celui de resvg plus haut, reste
+# pour le reste du rendu (polices variables composées par harfrust).
+krilla = { version = "0.8.2", default-features = false, features = ["raster-images", "simple-text"] }
+krilla-svg = "0.8.1"
+usvg_pdf = { package = "usvg", version = "0.47.0", default-features = false, features = ["text"] }
 # Le son (étape 4, lot 5) : niveau sonore EBU R128 (LUFS, crête vraie) des sons importés et
 # du mixage exporté.
 ebur128 = "0.1.10"

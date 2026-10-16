@@ -65,7 +65,11 @@ lourd. Détail : `BRIEF.md`.
 - Étape 5, le labo photo et les exports de qualité : ouverte le 2026-10-16 (plan, lots et règle
   de décision de l'aperçu en direct dans `PLAN.md`) ; lot 0, banc de l'aperçu en direct, passé
   sur le poste le 2026-10-16 : le shader WebGL est retenu (62 images par seconde sur la photo et
-  la vidéo), le Rust calcule les réglages qui regardent les voisins et l'export.
+  la vidéo), le Rust calcule les réglages qui regardent les voisins et l'export. Lot 1, les
+  exports depuis le document (PNG, JPEG, WebP de ×1 à ×4 ou en dpi, PDF vectoriel de toutes les
+  pages, SVG, rendus par le noyau depuis les originaux), livré et vérifié le 2026-10-16 ; essai
+  d'Alexandre : « Essayer les exports (étape 5, lot 1) » du `01_application/LISEZMOI.md`. Après
+  cette livraison : recompiler l'application (commande 9) et le pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -252,7 +256,9 @@ première fois, plusieurs minutes et quelques Go dans `01_application/src-tauri/
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/src-tauri && cargo build -j 4
 ```
 
-Vérifier : la dernière ligne commence par `Finished`.
+Vérifier : la dernière ligne commence par `Finished`. La première fois après l'étape 5, lot 1,
+`cargo` télécharge `krilla` (l'export en PDF), qui demande Rust 1.92 au moins : si la
+compilation le réclame, `rustup update`, puis relancer la commande.
 
 **10. Lancer Eliot, carte graphique libre** :
 
@@ -272,7 +278,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 84 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+Vérifier : `test result: ok. 90 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
@@ -284,7 +290,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  172 passed`.
+Vérifier : `Tests  174 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

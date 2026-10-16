@@ -52,7 +52,7 @@ async function autotest(chemin: string): Promise<void> {
     rapport.pageActiveApresReouverture = pageCourante(etat()).elements.length;
     await attendre(800);
     const t1 = performance.now();
-    rapport.export = await exporter({ format: "png", ratio: 1, transparent: false, pages: "toutes" });
+    rapport.export = await exporter({ format: "png", echelle: 1, transparent: false, pages: "toutes" });
     rapport.exportMs = Math.round(performance.now() - t1);
     rapport.ok = true;
   } catch (erreur) {

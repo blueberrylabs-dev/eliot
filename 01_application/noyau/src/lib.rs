@@ -18,6 +18,7 @@ pub mod piper;
 pub mod pixabay;
 pub mod polices;
 pub mod projet;
+pub mod rendu_page;
 pub mod son;
 pub mod sons;
 pub mod sous_titres;

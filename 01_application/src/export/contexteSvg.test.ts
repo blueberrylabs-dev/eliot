@@ -123,6 +123,9 @@ describe("contexte SVG", () => {
     expect(c.svg).toContain('text-anchor="middle"');
     expect(c.svg).toContain('transform="matrix(1 0 0 1 5 6)"');
     expect(c.svg).toContain(">Bonjour &amp; co</text>");
+    // Étape 5, lot 1 : sans taille optique, et la ligne garde la longueur mesurée par la fenêtre.
+    expect(c.svg).toContain('font-optical-sizing="none"');
+    expect(c.svg).toContain(`textLength="${ctx.measureText("Bonjour & co").width}" lengthAdjust="spacing"`);
   });
 
   it("un texte par morceaux : chaque lettre porte ses rangs et son centre", () => {
@@ -140,6 +143,8 @@ describe("contexte SVG", () => {
     const c = svgs(ctx.calques());
     expect(c.map((x) => x.unite?.lettre)).toEqual([0, 1, undefined]);
     expect(c[1].unite).toMatchObject({ cx: 15, cy: 93, taille: 20 });
+    // Une lettre seule n'a pas de longueur imposée.
+    expect(c[0].svg).not.toContain("textLength");
   });
 
   it("une photo et une vidéo : posées par le noyau, le carré unité vers le repère de base", () => {
