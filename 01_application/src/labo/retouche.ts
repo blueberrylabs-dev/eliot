@@ -5,7 +5,7 @@
 
 import { create } from "zustand";
 import { marquerToile } from "../editeur/images";
-import { elementsCourants, elementsSelectionnes, useEditeur } from "../etat/editeur";
+import { elementsCourants, elementsSelectionnes, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { aDesVoisins, cleReglages, normaliserReglages, sansRognage, type ReglagesPhoto } from "../modele/labo";
 import type { ElementImage, ElementPage, ElementVideo, PageEliot } from "../modele/types";
 import { baseLabo, baseLaboPixels } from "../pont/tauri";
@@ -16,6 +16,9 @@ interface EtatLabo {
   ouvert: string | null;
   /** Un curseur est tiré : la base du noyau attendra qu'on le relâche. */
   geste: boolean;
+  /** La marque du geste en cours, ajoutée aux étiquettes : tout le geste, une seule étape à
+   *  annuler. */
+  marqueGeste: string;
   /** Le bouton « Avant » est maintenu : la photo s'affiche sans retouche. */
   avant: boolean;
   /** Un préréglage survolé : la photo le montre sans que le document change. */
@@ -27,7 +30,12 @@ interface EtatLabo {
   copie: { reglages: ReglagesPhoto | undefined } | null;
 }
 
-export const useLabo = create<EtatLabo>(() => ({ ouvert: null, geste: false, avant: false, essai: null, applique: null, copie: null }));
+export const useLabo = create<EtatLabo>(() => ({ ouvert: null, geste: false, marqueGeste: "", avant: false, essai: null, applique: null, copie: null }));
+
+/** Un curseur (ou un point de la courbe) est attrapé. */
+export function commencerGeste(): void {
+  useLabo.setState({ geste: true, marqueGeste: etiquetteDeGeste("") });
+}
 
 interface Base {
   cle: string;

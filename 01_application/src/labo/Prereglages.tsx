@@ -11,7 +11,7 @@ import { appliquerPrereglage, CATEGORIE_MIENS, CATEGORIES_FOURNIES, gardes, meme
 import type { ElementImage, ElementVideo } from "../modele/types";
 import { useEditeur } from "../etat/editeur";
 import { chargerPrereglages, enregistrerPrereglage, supprimerPrereglage, usePrereglages } from "./prereglages";
-import { finGeste, useLabo, vignettesRetouchees } from "./retouche";
+import { commencerGeste, finGeste, useLabo, vignettesRetouchees } from "./retouche";
 
 /** La catégorie ouverte reste d'une photo à l'autre. */
 let categorieRetenue = CATEGORIES_FOURNIES[0];
@@ -157,7 +157,7 @@ export function Prereglages({ el, source, modifier }: { el: ElementImage | Eleme
             max={100}
             step={1}
             value={applique!.intensite}
-            onPointerDown={() => useLabo.setState({ geste: true })}
+            onPointerDown={commencerGeste}
             onPointerUp={finGeste}
             onPointerCancel={finGeste}
             onKeyDown={(e) => e.stopPropagation()}

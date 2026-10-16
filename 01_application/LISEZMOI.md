@@ -344,6 +344,26 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - L'original n'est jamais modifié : le recadrage est gardé dans le design, et l'export le
   refait depuis l'original (image, PDF, SVG, film).
 
+**La perspective (étape 5, lot 6)**
+- Poser une photo ou un clip sur l'écran d'un ordinateur, la face d'une boîte, une affiche en
+  biais : « Retoucher », section « Perspective », « Poser les coins ». Quatre poignées rondes
+  apparaissent aux coins du visuel ; chacune se pose sur un coin de l'écran, de la boîte ou de
+  l'affiche. Le contour et la grille des tiers suivent la perspective ; glisser dans le visuel
+  le déplace tout entier.
+- Les flèches poussent le dernier coin tiré d'un pixel (Maj : de dix). Entrée finit, Échap
+  revient aux coins d'avant, Ctrl+Z défait coin par coin. Ensuite, un double-clic sur le visuel
+  reprend ses coins.
+- Pour aller plus vite, quatre perspectives prêtes, à ajuster ensuite : Fuit à gauche, Fuit à
+  droite, Fuit vers le haut, Fuit vers le bas. « À plat » rend le visuel droit dans sa boîte.
+- La boîte de l'objet sur la page est celle des quatre coins : la déplacer, l'agrandir ou la
+  tourner emmène la perspective. Coins arrondis, bordure et ombre suivent la perspective, les
+  retouches du labo aussi ; un clip en perspective se lit et s'exporte image par image.
+- Le recadrage se fait à plat : « À plat » (les coins s'effacent), recadrer, puis reposer les
+  coins. Ce qui part en perspective est le cadre gardé.
+- L'export refait la perspective depuis l'original, par le noyau (PNG, JPEG, WebP, PDF, SVG, MP4,
+  GIF), avec les mêmes formules que la fenêtre. Dans le PDF et le SVG, le visuel posé devient une
+  image, assez fine pour l'original ; le reste de la page reste vectoriel.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -356,7 +376,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
   tableaux, partir d'un modèle de départ, retoucher une photo ou un clip au labo (courbe et
   préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
-  angle, horizon trouvé seul), regarder une capture de
+  angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
+  perspective prête), regarder une capture de
   la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -508,6 +529,30 @@ Dix minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13
 Ce qui m'aide le plus en retour : une photo où « Auto » se trompe (à m'envoyer si possible), la
 sensation des poignées (trop petites, trop sensibles), et les proportions qui te manquent.
 
+## Essayer la perspective (étape 5, lot 6)
+
+Dix minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13).
+
+1. Un post carré. En fond, une photo de ton appareil où l'on voit de biais un écran d'ordinateur
+   ou de téléphone (ou une affiche, la face d'une boîte). Par-dessus, une autre photo ou une
+   capture d'écran : le visuel à poser.
+2. Le visuel choisi, « Retoucher », Perspective, « Poser les coins ». Tirer chaque poignée sur un
+   coin de l'écran de la photo ; zoomer (Ctrl + molette) et finir aux flèches, coin par coin.
+   Entrée.
+3. Dans la barre du haut, Coins vers 20, puis une bordure fine et une ombre : elles suivent la
+   perspective.
+4. Double-clic sur le visuel : les coins reviennent. En tirer un, puis Échap : ceux d'avant
+   reviennent.
+5. Un second visuel : « Fuit à gauche », puis l'ajuster.
+6. Une story, une photo d'écran en fond, un clip posé dessus par ses coins ; Lire, puis exporter
+   en MP4.
+7. Exporter le post en PNG ×2 et en PDF : zoomer sur le visuel posé, il est net et tombe au même
+   endroit qu'à l'écran.
+
+Ce qui m'aide le plus en retour : la précision des poignées (un coin difficile à viser), la
+netteté du visuel posé, à l'écran et à l'export, et les objets sur lesquels tu voudrais poser un
+visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -522,6 +567,7 @@ sensation des poignées (trop petites, trop sensibles), et les proportions qui t
 | Ctrl+Alt+C, Ctrl+Alt+V | copier le style, le coller sur la sélection |
 | Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo ou d'un clip, les coller sur ceux choisis |
 | Double-clic sur une photo ou un clip | recadrer ; puis Entrée pour finir, Échap pour revenir au cadre d'avant, flèches pour pousser la photo, molette pour la rapprocher |
+| Double-clic sur un visuel en perspective | reprendre ses coins ; puis Entrée pour finir, Échap pour revenir aux coins d'avant, flèches pour pousser le dernier coin tiré (Maj : de dix) |
 | Entrée | écrire dans le texte sélectionné |
 | Ctrl+Entrée | ajouter une page |
 | Page préc., Page suiv. | page précédente, suivante |
@@ -563,7 +609,7 @@ sensation des poignées (trop petites, trop sensibles), et les proportions qui t
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -571,12 +617,12 @@ sensation des poignées (trop petites, trop sensibles), et les proportions qui t
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page)
+│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

@@ -5,9 +5,9 @@
 // l'exposition, en IL) ; un double-clic le remet à zéro ; sa valeur se tape au clavier. Un geste
 // sur un curseur ou sur la courbe fait une seule étape d'annulation.
 
-import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Crop, Eye, RotateCcw, RotateCw, Ruler, Wand2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Crop, Eye, Move3d, RotateCcw, RotateCw, Ruler, Square, Wand2, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { elementsCourants, useEditeur } from "../etat/editeur";
+import { elementsCourants, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { useImageRessource } from "../editeur/images";
 import {
   aDesVoisins,
@@ -31,9 +31,11 @@ import {
 import type { ElementImage, ElementVideo } from "../modele/types";
 import { EditeurCourbe } from "./EditeurCourbe";
 import { Prereglages } from "./Prereglages";
-import { abonnerApercuClip, abonnerRetouche, collerReglages, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
+import { abonnerApercuClip, abonnerRetouche, collerReglages, commencerGeste, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
 import { PROPORTIONS, type Rognage } from "../modele/rognage";
 import { choisirProportions, commencerRecadrage, finirRecadrage, photoOuClip, pivoterProportions, redresserAuto, redresserElement, remettreRognage, useRecadrage } from "./recadrage";
+import { PERSPECTIVES_PRETES } from "../modele/perspective";
+import { appliquerPerspectivePrete, commencerPerspective, finirPerspective, remettreAPlat, usePerspective } from "./miseEnPerspective";
 
 /** La teinte de chaque couleur du mélangeur, pour sa pastille. */
 const TEINTES: Record<CouleurMelangeur, string> = {
@@ -73,9 +75,6 @@ const PISTE = "#e5e7eb";
 const CURSEUR =
   "w-full cursor-pointer appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-400 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-neutral-400 [&::-moz-range-thumb]:bg-white";
 
-function debutGeste() {
-  useLabo.setState({ geste: true });
-}
 
 /** Un curseur du labo : libellé, valeur modifiable au clavier, double-clic qui remet à zéro.
  *  `format` et `lire` : pour un curseur qui n'est pas de -100 à +100 (une teinte en degrés). */
@@ -122,7 +121,7 @@ function CurseurReglage({ def, valeur, changer, libelle, nom, fond, format, lire
         max={def.max}
         step={def.pas}
         value={valeur}
-        onPointerDown={debutGeste}
+        onPointerDown={commencerGeste}
         onPointerUp={finGeste}
         onPointerCancel={finGeste}
         onChange={(e) => changer(Number(e.target.value))}
@@ -307,7 +306,7 @@ function Recadrer({ el }: { el: ElementImage | ElementVideo }) {
   const changerAngle = (v: number) => {
     commencerRecadrage(el.id);
     const enGeste = useLabo.getState().geste;
-    if (!depart.current) depart.current = { rognage: photoOuClip(el.id)?.rognage, etiquette: `rogner-angle:${el.id}:${Date.now()}` };
+    if (!depart.current) depart.current = { rognage: photoOuClip(el.id)?.rognage, etiquette: etiquetteDeGeste(`rogner-angle:${el.id}`) };
     useRecadrage.setState({ redressement: enGeste });
     redresserElement(el.id, v, depart.current.rognage, depart.current.etiquette);
     if (!enGeste) depart.current = null;
@@ -325,6 +324,13 @@ function Recadrer({ el }: { el: ElementImage | ElementVideo }) {
     }
   };
   const bouton = "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-40";
+  if (el.perspective) {
+    return (
+      <p data-recadrage className="text-[11px] text-neutral-500">
+        Ce visuel est en perspective : le recadrage se fait à plat. « À plat », dans la section Perspective, puis recadrer.
+      </p>
+    );
+  }
   return (
     <div data-recadrage>
       <div className="mb-2 flex gap-2">
@@ -394,13 +400,61 @@ function Recadrer({ el }: { el: ElementImage | ElementVideo }) {
   );
 }
 
+/** La perspective (lot 6) : le mode « coins » de la page, les perspectives prêtes, à plat. */
+function MettreEnPerspective({ el }: { el: ElementImage | ElementVideo }) {
+  const enCours = usePerspective((s) => s.id === el.id);
+  const bouton = "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-40";
+  return (
+    <div data-perspective>
+      <div className="mb-2 flex gap-2">
+        <button
+          data-poser-coins
+          aria-pressed={enCours}
+          onClick={() => (enCours ? finirPerspective() : commencerPerspective(el.id))}
+          className={`${bouton} flex-1 ${enCours ? "border-accent-600 bg-accent-600 text-white hover:bg-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`}
+          title={enCours ? "Finir (Entrée)" : "Poser les quatre coins sur la page"}
+        >
+          <Move3d size={14} /> {enCours ? "Terminer" : "Poser les coins"}
+        </button>
+        <button data-a-plat disabled={!el.perspective} onClick={() => remettreAPlat(el.id)} className={`${bouton} border-neutral-300 text-neutral-700 hover:bg-neutral-50`} title="Remettre le visuel à plat dans sa boîte">
+          <Square size={14} /> À plat
+        </button>
+      </div>
+      <p className="mb-1 text-xs text-neutral-600">Pour commencer</p>
+      <div className="mb-2 grid grid-cols-2 gap-1" role="group" aria-label="Perspectives prêtes">
+        {PERSPECTIVES_PRETES.map((p) => (
+          <button
+            key={p.id}
+            data-perspective-prete={p.id}
+            title={p.aide}
+            onClick={() => {
+              appliquerPerspectivePrete(el.id, p.id);
+              commencerPerspective(el.id);
+            }}
+            className="flex items-center gap-1.5 rounded-md border border-neutral-200 px-1.5 py-1 text-left text-[11px] leading-tight text-neutral-700 hover:bg-neutral-50"
+          >
+            <svg viewBox="0 0 24 18" width="22" height="16" className="shrink-0" aria-hidden>
+              <polygon points={p.coins.map(([x, y]) => `${1 + x * 22},${1 + y * 16}`).join(" ")} fill="#e0e7ff" stroke="#4f46e5" strokeWidth="1.2" />
+            </svg>
+            {p.nom}
+          </button>
+        ))}
+      </div>
+      <p className="text-[11px] text-neutral-500">
+        Pose le visuel sur l'écran d'un ordinateur, la face d'une boîte ou une affiche en biais : un coin sur chaque coin. Coins arrondis, bordure et ombre suivent la perspective.
+      </p>
+    </div>
+  );
+}
+
 export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
   const source = useImageRessource(el.ressource) ?? null;
   const copie = useLabo((s) => s.copie);
   const modifier = (reglages: ReglagesPhoto | undefined, etiquette: string) => {
-    useEditeur.getState().modifierElements({ [el.id]: { reglages: normaliserReglages(reglages) } }, `labo:${el.id}:${etiquette}`);
+    const { geste, marqueGeste } = useLabo.getState();
+    useEditeur.getState().modifierElements({ [el.id]: { reglages: normaliserReglages(reglages) } }, `labo:${el.id}:${etiquette}${geste ? marqueGeste : ""}`);
   };
   const changer = (cle: CurseurLabo, v: number) => {
     // Le dernier état du document : plusieurs changements peuvent arriver dans la même image.
@@ -488,6 +542,9 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
       </Section>
       <Section titre="Recadrer et redresser" ouverte={!fermees.has("Recadrer et redresser")} basculer={() => basculer("Recadrer et redresser")}>
         <Recadrer el={el} />
+      </Section>
+      <Section titre="Perspective" ouverte={!fermees.has("Perspective")} basculer={() => basculer("Perspective")}>
+        <MettreEnPerspective el={el} />
       </Section>
       {SECTIONS_LABO.map((s) => (
         <Section key={s.titre} titre={s.titre} ouverte={!fermees.has(s.titre)} basculer={() => basculer(s.titre)}>

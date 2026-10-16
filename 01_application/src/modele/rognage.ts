@@ -327,7 +327,7 @@ export interface BoiteElement {
 }
 
 /** Le point `(px, py)` de la boîte de l'élément (avant retournement), vers la page. */
-function versPage(el: BoiteElement, px: number, py: number): Pt {
+export function versPage(el: BoiteElement, px: number, py: number): Pt {
   const lx = el.retourneH ? el.largeur - px : px;
   const ly = el.retourneV ? el.hauteur - py : py;
   const t = el.rotation * RAD;

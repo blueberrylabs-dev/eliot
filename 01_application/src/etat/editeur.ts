@@ -22,6 +22,15 @@ const LIMITE_HISTORIQUE = 100;
 /** Deux modifications de même nature à moins de 700 ms forment une seule étape à annuler
  *  (glisser une couleur, appuyer plusieurs fois sur une flèche). */
 const FENETRE_FUSION_MS = 700;
+/** Les étiquettes d'un geste (un curseur tiré, un coin glissé) portent cette marque et un
+ *  numéro propre au geste : ses étapes forment une seule étape à annuler, même quand le geste
+ *  marque une pause de plus de 700 ms (une main qui hésite, une machine lente). */
+const MARQUE_GESTE = "#geste";
+let gestes = 0;
+export function etiquetteDeGeste(base: string): string {
+  gestes += 1;
+  return `${base}${MARQUE_GESTE}${gestes}`;
+}
 
 export interface Notification {
   numero: number;
@@ -365,7 +374,7 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     if (suivant === document) return;
     suivant = normaliserPages(suivant, document, dureesDe(get().ressources));
     const maintenant = Date.now();
-    const fusion = etiquette !== undefined && etiquette === derniereEtiquette && maintenant - dernierInstant < FENETRE_FUSION_MS;
+    const fusion = etiquette !== undefined && etiquette === derniereEtiquette && (etiquette.includes(MARQUE_GESTE) || maintenant - dernierInstant < FENETRE_FUSION_MS);
     const page = pageDe(suivant, pageActive);
     const ids = new Set(page.elements.map((e) => e.id));
     const sons = new Set((page.audio ?? []).map((c) => c.id));

@@ -7,7 +7,7 @@
 import { RotateCcw } from "lucide-react";
 import { useMemo, useRef, useState, type PointerEvent as EvenementPointeur } from "react";
 import { CANAUX_COURBE, normaliserPoints, POINTS_COURBE_MAX, spline, type CanalCourbe, type CourbeTonalites, type PointCourbe } from "../modele/labo";
-import { finGeste, histogramme, useLabo } from "./retouche";
+import { commencerGeste, finGeste, histogramme } from "./retouche";
 
 const DIAGONALE: PointCourbe[] = [
   [0, 0],
@@ -107,7 +107,7 @@ export function EditeurCourbe({ courbe, changer, source }: { courbe: CourbeTonal
       pts = [...pts, [bx, by] as PointCourbe].sort((a, b) => a[0] - b[0]);
       i = pts.findIndex((p) => p[0] === bx);
     }
-    useLabo.setState({ geste: true });
+    commencerGeste();
     svg.current?.setPointerCapture(e.pointerId);
     tire.current = i;
     setChoisi(i);

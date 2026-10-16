@@ -15,6 +15,8 @@
 // sont écrites dans le repère de base (la transformation courante appliquée point par point),
 // comme le fait un vrai canevas.
 
+import { boiteDuVisuel, composer, contourProjete, depuisAffine, type PerspectiveCalque } from "../modele/perspective";
+
 export type Matrice = [number, number, number, number, number, number];
 
 const IDENTITE: Matrice = [1, 0, 0, 1, 0, 0];
@@ -139,6 +141,9 @@ export interface CalqueImage extends Commun {
   decoupes: string[];
   /** La place de l'image sur la page (repère de base), pour la taille de rendu. */
   boite: Boite;
+  /** Un visuel en perspective (étape 5, lot 6) : le noyau le déforme lui-même, depuis
+   *  l'original ; `matrice` envoie alors le carré unité sur la boîte du visuel déformé. */
+  perspective?: PerspectiveCalque;
 }
 
 export type Calque = CalqueSvg | CalqueImage;
@@ -856,6 +861,38 @@ export class ContexteSvg {
     }
     const href = vue?.href ?? enPng(source, ls, hs);
     this.poser(this.imageSvg(href, ls, hs, sx, sy, sl, sh, dx, dy, dl, dh), boite);
+  }
+
+  /**
+   * Un visuel en perspective (étape 5, lot 6) : la photo ou l'image de la vidéo `source`, posée
+   * comme le dit `p` (repère courant). Le noyau le déforme depuis l'original ; son ombre suit son
+   * contour, coins arrondis compris. Une source que le noyau ne connaît pas n'est pas posée.
+   */
+  poserEnPerspective(source: unknown, p: PerspectiveCalque) {
+    const vue = this.sources.reconnaitre(source);
+    if (!vue || !("ressource" in vue || "video" in vue)) return;
+    const e = this.etat;
+    const plan = composer(depuisAffine(e.m), p.plan);
+    const q: PerspectiveCalque = { ...p, plan };
+    const [x0, y0, x1, y1] = boiteDuVisuel(q);
+    const boite = { x0, y0, x1, y1 };
+    if (this.ombreActive()) {
+      const contour = contourProjete(plan, p.plat, p.arrondi);
+      this.poserOmbre(`<path d="M${contour.map((c) => `${n(c[0])} ${n(c[1])}`).join("L")}Z" fill="#000000"/>`, boite, this.commun());
+    }
+    const visible = croiser(boite, e.boiteDecoupe);
+    if (boiteVide(visible)) return;
+    this.bruts.push({
+      calque: {
+        genre: "ressource" in vue ? "image" : "video",
+        ressource: "ressource" in vue ? vue.ressource : vue.video,
+        matrice: [x1 - x0, 0, 0, y1 - y0, x0, y0],
+        decoupes: [...e.decoupes],
+        boite: arrondirBoite(visible),
+        perspective: q,
+        ...this.commun(),
+      },
+    });
   }
 
   /** Une image en SVG, entière ou par une fenêtre. */

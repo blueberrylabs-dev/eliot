@@ -27,7 +27,9 @@ import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
-import { PROPORTIONS, proportionner, rapportDe, redresser } from "../modele/rognage";
+import { PROPORTIONS, proportionner, rapportDe, redresser, versPage } from "../modele/rognage";
+import { PERSPECTIVES_PRETES } from "../modele/perspective";
+import { appliquerPerspectivePrete, poserCoins, remettreAPlat } from "../labo/miseEnPerspective";
 import { photoOuClip, poserRognage, remettreRognage } from "../labo/recadrage";
 import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, ZONES_ETALONNAGE, type CanalCourbe, type CouleurMelangeur, type Etalonnage, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
 import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
@@ -1660,6 +1662,7 @@ const OUTILS: Record<string, Outil> = {
     const el = elementsCourants(etat()).find((e) => e.id === id);
     exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
     exiger(el.type === "image" || el.type === "video", "recadrer : une photo ou un clip vidéo (élément de type image ou video)");
+    exiger(!el.perspective, "recadrer : ce visuel est en perspective ; le remettre à plat d'abord (perspective, aPlat: true)");
     exiger(!el.verrouille, `${id} est verrouillé : déverrouille-le d'abord (modifier, verrouille: false)`);
     const ressource = etat().ressources[el.ressource];
     exiger(ressource && ressource.largeur > 0 && ressource.hauteur > 0, "recadrer : les dimensions de l'original manquent");
@@ -1705,6 +1708,45 @@ const OUTILS: Record<string, Outil> = {
         conseil: "juger le cadre avec capture",
       },
     };
+  },
+
+  perspective(args) {
+    designOuvert();
+    const id = texte(args.id) ?? "";
+    const el = elementsCourants(etat()).find((e) => e.id === id);
+    exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
+    exiger(el.type === "image" || el.type === "video", "perspective : une photo ou un clip vidéo (élément de type image ou video)");
+    exiger(!el.verrouille, `${id} est verrouillé : déverrouille-le d'abord (modifier, verrouille: false)`);
+    const etiquette = `perspective:${id}:${Date.now()}`;
+    if (booleen(args.aPlat)) remettreAPlat(id);
+    const pret = texte(args.pret);
+    if (pret) exiger(appliquerPerspectivePrete(id, pret), `pret : ${PERSPECTIVES_PRETES.map((p) => p.id).join(", ")}`);
+    if (args.coins !== undefined) {
+      const c = args.coins as unknown;
+      exiger(Array.isArray(c) && c.length === 4 && c.every((q) => Array.isArray(q) && q.length === 2 && q.every((v) => typeof v === "number" && Number.isFinite(v))), "coins : quatre points [x, y] de la page, dans l'ordre haut gauche, haut droit, bas droit, bas gauche du visuel");
+      const actuel = photoOuClip(id)!;
+      // Des pixels de la page vers la boîte de l'élément (sans sa rotation, sans ses retournements).
+      const t = (-actuel.rotation * Math.PI) / 180;
+      const locaux = (c as [number, number][]).map(([x, y]) => {
+        const dx = x - actuel.x;
+        const dy = y - actuel.y;
+        let lx = dx * Math.cos(t) - dy * Math.sin(t);
+        let ly = dx * Math.sin(t) + dy * Math.cos(t);
+        if (actuel.retourneH) lx = actuel.largeur - lx;
+        if (actuel.retourneV) ly = actuel.hauteur - ly;
+        return [lx, ly] as [number, number];
+      });
+      exiger(poserCoins(actuel, locaux, etiquette), "coins : le quadrilatère doit être convexe, dans l'ordre haut gauche, haut droit, bas droit, bas gauche (sens des aiguilles d'une montre), sans se croiser ni s'aplatir");
+    }
+    const apres = photoOuClip(id)!;
+    const r = (v: number) => Math.round(v * 100) / 100;
+    const coins = apres.perspective
+      ? apres.perspective.coins.map(([u, v]) => {
+          const q = versPage(apres, u * apres.largeur, v * apres.hauteur);
+          return [r(q.x), r(q.y)];
+        })
+      : null;
+    return { donnees: { id, perspective: apres.perspective ?? null, coins, boite: { x: r(apres.x), y: r(apres.y), largeur: r(apres.largeur), hauteur: r(apres.hauteur) }, conseil: "juger le résultat avec capture" } };
   },
 
   async prereglages(args) {

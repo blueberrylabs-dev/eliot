@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { documentVide } from "../modele/fabriques";
 import type { ElementForme } from "../modele/types";
-import { elementsCourants, pageCourante, useEditeur } from "./editeur";
+import { elementsCourants, etiquetteDeGeste, pageCourante, useEditeur } from "./editeur";
 import { useTemps } from "./temps";
 import { voixUtilisees } from "./nettoyage";
 import { VOIX_NETTE } from "../modele/voix";
@@ -103,6 +103,32 @@ describe("store", () => {
     etat().modifierFormat({ largeur: 1080, hauteur: 1920 }, true);
     expect(etat().document.format).toEqual({ largeur: 1080, hauteur: 1920 });
     expect(elementsCourants(etat())[0]).toMatchObject({ y: 420, largeur: 1080 });
+  });
+
+  it("un geste reste une seule étape à annuler, même avec une pause au milieu", () => {
+    vi.useFakeTimers();
+    try {
+      etat().ajouterElements([forme("a")]);
+      const avant = etat().passe.length;
+      // Sans marque de geste : une pause de plus de 700 ms coupe en deux étapes.
+      etat().modifierElements({ a: { x: 10 } }, "glisser");
+      vi.advanceTimersByTime(900);
+      etat().modifierElements({ a: { x: 20 } }, "glisser");
+      expect(etat().passe.length).toBe(avant + 2);
+      // Avec la marque : une seule étape, quelle que soit la pause ; le geste suivant en fait une autre.
+      const geste = etiquetteDeGeste("glisser");
+      etat().modifierElements({ a: { x: 30 } }, geste);
+      vi.advanceTimersByTime(4000);
+      etat().modifierElements({ a: { x: 40 } }, geste);
+      expect(etat().passe.length).toBe(avant + 3);
+      etat().modifierElements({ a: { x: 50 } }, etiquetteDeGeste("glisser"));
+      expect(etat().passe.length).toBe(avant + 4);
+      etat().annuler();
+      etat().annuler();
+      expect((elementsCourants(etat())[0] as ElementForme).x).toBe(20);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("le renommage ne s'annule pas", () => {

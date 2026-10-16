@@ -26,6 +26,7 @@ import { abonnerRetouche, cleCouverture, dessinerClipRetouche, imageRetouchee, u
 import { imagesAffichees } from "../labo/recadrage";
 import { normaliserReglages, reglagesDeRendu } from "../modele/labo";
 import { matriceRognage, type Rognage } from "../modele/rognage";
+import { calquePerspective, dessinerEnPerspective } from "../labo/moteurPerspective";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
@@ -278,6 +279,7 @@ export function poserRecadree(ctx: { drawImage(...a: unknown[]): void; save(): v
 function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVideo; image: CanvasImageSource | undefined; noeud?: React.Ref<Konva.Image>; dessiner?: (ctx: Konva.Context, largeur: number, hauteur: number) => boolean }) {
   const arrondi = Math.min(el.arrondi ?? 0, el.largeur / 2, el.hauteur / 2);
   const original = useEditeur((s) => s.ressources[el.ressource]);
+  const rendus = useRef(0);
   if (!image) {
     // En attendant l'aperçu (ou s'il manque), une plaque grise à la bonne taille.
     return <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#d9d6ce" />;
@@ -286,9 +288,16 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
   const W = original?.largeur || iw;
   const H = original?.hauteur || ih;
   const rognage = el.rognage;
+  // En perspective (lot 6) : le shader pose le visuel sur ses quatre coins, avec ses coins
+  // arrondis et sa bordure ; l'ombre suit son contour.
+  const perspective = el.perspective;
   // Redressée : l'image est découpée par la boîte, qui découperait aussi son ombre ; l'ombre
   // passe alors par une plaque de même forme, comme pour des coins arrondis.
-  const decoupee = arrondi > 0 || (!!rognage && Math.abs(rognage.angle) >= 1e-9);
+  const decoupee = !perspective && (arrondi > 0 || (!!rognage && Math.abs(rognage.angle) >= 1e-9));
+  // Chaque rendu de la photo peut changer sa toile (retouche) : le rendu en perspective gardé
+  // se refait alors.
+  const version = ++rendus.current;
+  const parImage = typeof HTMLVideoElement !== "undefined" && image instanceof HTMLVideoElement;
   const photo = (
     <ImageKonva
       ref={noeud}
@@ -301,21 +310,27 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
       scaleY={el.retourneV ? -1 : 1}
       perfectDrawEnabled={false}
       {...(decoupee ? {} : ombreKonva(el.ombre))}
-      {...(dessiner || rognage
+      {...(dessiner || rognage || perspective
         ? {
             // Un clip retouché : son image passe par le shader au moment du dessin ; une image
-            // recadrée est posée par `poserRecadree`.
+            // recadrée est posée par `poserRecadree` ; en perspective, par le shader de la
+            // perspective (le recadrage compris).
             sceneFunc: (ctx: Konva.Context, forme: Konva.Shape) => {
               const w = forme.width();
               const h = forme.height();
-              const poser = (i: CanvasImageSource) => poserRecadree(ctx as unknown as Parameters<typeof poserRecadree>[0], i, rognage, W, H, w, h);
-              if (!dessiner || !dessiner({ drawImage: (i: CanvasImageSource) => poser(i) } as unknown as Konva.Context, w, h)) poser(image);
+              const calque = perspective ? calquePerspective(perspective, rognage, W, H, w, h, el.arrondi ?? 0, el.bordure) : null;
+              const echelle = Math.abs(forme.getAbsoluteScale().x) * ((ctx as unknown as { canvas?: { getPixelRatio?: () => number } }).canvas?.getPixelRatio?.() ?? 1);
+              const poser = (i: CanvasImageSource, parImageDuClip: boolean) => {
+                if (calque && dessinerEnPerspective(ctx, el.id, i, calque, echelle, parImageDuClip ? null : version)) return;
+                poserRecadree(ctx as unknown as Parameters<typeof poserRecadree>[0], i, rognage, W, H, w, h);
+              };
+              if (!dessiner || !dessiner({ drawImage: (i: CanvasImageSource) => poser(i, true) } as unknown as Konva.Context, w, h)) poser(image, parImage);
             },
           }
         : {})}
     />
   );
-  const bordure = el.bordure && el.bordure.epaisseur > 0 && (
+  const bordure = !perspective && el.bordure && el.bordure.epaisseur > 0 && (
     <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} stroke={el.bordure.couleur} strokeWidth={el.bordure.epaisseur} listening={false} perfectDrawEnabled={false} />
   );
   if (!decoupee) {

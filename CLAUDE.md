@@ -83,8 +83,11 @@ lourd. Détail : `BRIEF.md`.
   « Essayer l'étalonnage et la musique sous une vidéo qui parle ». Lot 5, recadrer et redresser
   (mode recadrage sur la page, proportions prêtes, grille des tiers, angle, « Auto », tracer
   l'horizon, outil `recadrer` du pont, 64 outils), livré et vérifié le 2026-10-16 ; essai :
-  « Essayer le recadrage (étape 5, lot 5) ». Après ces livraisons : recompiler l'application
-  (commande 9) et le pont (commande 13).
+  « Essayer le recadrage (étape 5, lot 5) ». Lot 6, la perspective (un visuel posé sur quatre
+  coins, mode « coins » sur la page, perspectives prêtes, coins arrondis, bordure et ombre qui
+  suivent, rendu par le noyau à l'export, outil `perspective` du pont, 65 outils), livré et
+  vérifié le 2026-10-16 ; essai : « Essayer la perspective (étape 5, lot 6) ». Après ces
+  livraisons : recompiler l'application (commande 9) et le pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -293,7 +296,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 111 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 117 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
@@ -305,7 +308,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  200 passed`.
+Vérifier : `Tests  205 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

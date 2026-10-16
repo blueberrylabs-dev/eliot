@@ -5,6 +5,66 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 6 : la perspective
+
+Accord d'Alexandre (« Ok, tu peux attaquer »). Ce que Claude a fait et décidé :
+
+- La perspective est une valeur de l'élément (`perspective`, sur une photo ou un clip) : ses
+  quatre coins, haut gauche, haut droit, bas droit, bas gauche, en fractions de sa boîte. La
+  boîte reste la plus petite autour des coins : sélectionner, aligner, déplacer, agrandir et
+  tourner l'objet marchent comme avant et emmènent la perspective. Écarté : des coins en pixels
+  de la page, à recalculer à chaque déplacement de l'objet.
+- Ce qui part en perspective est le visuel tel qu'on le voit à plat : le cadre gardé du lot 5,
+  les retouches du labo. Sa taille à plat est la moyenne des côtés opposés du quadrilatère. Les
+  coins arrondis et la bordure se dessinent à plat, puis suivent la perspective, comme sur une
+  vraie affiche ; l'ombre suit le contour projeté.
+- Le calcul : l'homographie du carré unité vers les quatre coins (Heckbert, 1989) et son
+  inverse pour chaque pixel ; le bord et la bordure lissés sur la taille d'un pixel de sortie,
+  mesurée par la dérivée de l'homographie ; la source lue dans une pyramide d'images réduites
+  (lecture trilinéaire), au niveau du nombre de pixels de source par pixel de sortie. Un visuel
+  posé loin et petit ne scintille pas, un visuel posé près reste net.
+- Deux moteurs, un seul calcul, comme pour le labo : dans la fenêtre, un shader WebGL
+  (`src/labo/moteurPerspective.ts`) ; à l'export, le noyau sur le processeur
+  (`noyau/src/perspective.rs`). Un tableau de valeurs commun (`perspective.attendus.json`),
+  écrit par le Rust et relu par les tests de l'interface, les garde d'accord.
+- L'export : en PNG, JPEG, WebP et dans les films, le noyau pose l'original, image par image pour
+  un clip (un clip posé petit se décode à la taille utile). Le PDF et le SVG ne savent pas
+  déformer une image en perspective (leurs transformations sont affines) : le noyau pose le
+  visuel déjà déformé, en image, assez fine pour l'original (jusqu'à trois fois la taille de
+  l'export) ; le reste de la page reste vectoriel.
+- Le mode « coins » : section Perspective du labo, « Poser les coins », ou un double-clic sur un
+  visuel déjà en perspective. Quatre poignées, la grille des tiers projetée, glisser dans le
+  visuel pour le déplacer, les flèches pour le dernier coin tiré, Entrée, Échap ; Suppr ne
+  supprime rien pendant le mode. Un quadrilatère croisé, retourné ou trop mince est refusé : le
+  coin s'arrête avant. Quatre perspectives prêtes (Fuit à gauche, Fuit à droite, Fuit vers le
+  haut, Fuit vers le bas), comme points de départ ; « À plat ».
+- Le recadrage attend que le visuel soit à plat (le panneau et l'outil du pont le disent).
+  Écarté pour ce lot : un cadre de recadrage lui-même en perspective, difficile à lire.
+- Un défaut des lots 2 à 5 corrigé au passage : un geste (un curseur du labo, un point de la
+  courbe, l'intensité d'un préréglage, le cadre de recadrage, l'angle, un coin de la
+  perspective) pouvait se couper en deux étapes d'annulation quand plus de 700 ms passaient
+  entre deux mouvements. Ses étiquettes portent maintenant une marque propre au geste, et ses
+  étapes se fondent quelle que soit la pause. Trouvé en repassant le test du lot 2 : dans le
+  conteneur, Chromium met parfois plus de 700 ms à suivre un mouvement du curseur.
+- Pont IA : `perspective` (quatre coins en pixels de la page, une perspective prête, ou à plat),
+  65 outils ; `recadrer` refuse un visuel en perspective et dit quoi faire.
+- Mesures dans Tauri, post carré, une photo posée par ses coins sur un écran dessiné penché :
+  fenêtre contre export à 2,09 sur 255 dans le visuel, 0,47 sur toute la page ; avec coins
+  arrondis, bordure et ombre, 0,70 ; le PDF rendu par poppler, 2,08 (poppler pose toute image un
+  demi-pixel plus loin que tiny-skia et Chromium : constaté aussi sur une photo à plat, 4,30
+  sans compenser, 2,76 en compensant) ; le SVG rendu par Chromium, 1,45 ; un clip retouché en
+  perspective, capture contre export à 1,35, image du MP4 à 1,67 ; ce film de 3 s en 1080 × 1080
+  (90 images) en 18,1 s sur les deux cœurs du conteneur.
+- Limites : une face par visuel (une boîte vue sur deux faces demande deux visuels) ; pas
+  d'écran courbe ; l'histogramme du labo reste celui du visuel à plat.
+- Essais : noyau 117 (6 de plus : le tableau commun, les coins, un damier en perspective, coins
+  arrondis et bordure, l'export d'une photo en perspective, un clip en perspective dans le
+  film), interface 205 (5 de plus : quatre pour la géométrie de la perspective, un pour les
+  gestes dans l'historique) ; Chromium : lot 6 en 23 vérifications, shader contre le tableau
+  25 cas, lots 1 à 5 et corrections repassés ; Tauri par le pont : lot 6 en 19 vérifications,
+  exports du lot 1 (62), lots 2 à 5 et corrections repassés ; dans la fenêtre de WebKitGTK : le
+  visuel posé par le shader, le mode « coins » au double-clic, un coin tiré.
+
 ## 2026-10-16, étape 5, lot 5 : recadrer et redresser
 
 Accord d'Alexandre (« Tu peux passer au lot 5 »). Ce que Claude a fait et décidé :

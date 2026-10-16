@@ -147,6 +147,11 @@ export function zoomerSousLeCadre(id: string, k: number): void {
 export function commencerRecadrage(id: string): void {
   const el = photoOuClip(id);
   if (!el || el.verrouille) return;
+  // En perspective (lot 6), le cadre de la boîte n'est plus celui du visuel : à plat d'abord.
+  if (el.perspective) {
+    useEditeur.getState().notifier("Ce visuel est en perspective : remets-le à plat (section Perspective) pour le recadrer.");
+    return;
+  }
   if (useLabo.getState().ouvert !== id) useLabo.setState({ ouvert: id });
   if (useRecadrage.getState().id === id) return;
   const etat = useEditeur.getState();

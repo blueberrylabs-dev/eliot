@@ -33,6 +33,8 @@ import { useTemps } from "../etat/temps";
 import { CalqueZonesSures } from "./ZonesSures";
 import { CadreRognage } from "../labo/CadreRognage";
 import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
+import { CadrePerspective } from "../labo/CadrePerspective";
+import { commencerPerspective, usePerspective } from "../labo/miseEnPerspective";
 
 /** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
  *  centrée ; plus grande, elle suit la position voulue sans quitter la zone. */
@@ -105,6 +107,8 @@ export function ZoneDeTravail() {
   // Une photo ou un clip en cours de recadrage (étape 5, lot 5) : son cadre remplace le
   // Transformer, et il ne se déplace pas.
   const enRecadrage = useRecadrage((s) => s.id);
+  // Une photo ou un clip dont on pose les coins (lot 6) : de même.
+  const enPerspective = usePerspective((s) => s.id);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
   const dessin = useEditeur((s) => s.dessin);
@@ -310,12 +314,12 @@ export function ZoneDeTravail() {
     const gp = groupePageRef.current;
     if (!tr || !gp || geste.current) return;
     const noeuds = selection
-      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage)
+      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
       .filter((n): n is Konva.Group => !!n && n.isVisible());
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
-  }, [selection, elements, enEdition, enAjustement, enRecadrage]);
+  }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective]);
 
   // ---- Gestes : glisser et transformer ----
 
@@ -731,7 +735,11 @@ export function ZoneDeTravail() {
     // Double-clic sur un cadre rempli : on ajuste la photo ; sur une photo ou un clip : on le
     // recadre ; sur un texte : on l'écrit.
     if (el && recoitPhoto(el) && el.ressource) etat.commencerAjustement(el.id);
-    else if (el && (el.type === "image" || el.type === "video") && !el.verrouille) commencerRecadrage(el.id);
+    else if (el && (el.type === "image" || el.type === "video") && !el.verrouille) {
+      // En perspective, le double-clic reprend ses coins ; à plat, il recadre.
+      if (el.perspective) commencerPerspective(el.id);
+      else commencerRecadrage(el.id);
+    }
     else etat.commencerEdition(g.id());
   };
 
@@ -786,7 +794,7 @@ export function ZoneDeTravail() {
                 key={el.id}
                 el={el}
                 enEdition={el.id === enEdition}
-                enAjustement={el.id === enAjustement || el.id === enRecadrage}
+                enAjustement={el.id === enAjustement || el.id === enRecadrage || el.id === enPerspective}
                 fige={!!dessin}
                 celluleMasquee={celluleEnEdition?.id === el.id ? celluleEnEdition : null}
                 transEntree={transitions.get(el.id)?.entree}
@@ -829,6 +837,7 @@ export function ZoneDeTravail() {
           />
           <Group {...transformationPage}>
             <CadreRognage echelle={echelle} />
+            <CadrePerspective echelle={echelle} />
           </Group>
           <Rect ref={rectangleRef} visible={false} fill="rgba(79,70,229,0.08)" stroke={ACCENT} strokeWidth={1} listening={false} />
           <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
@@ -847,6 +856,11 @@ export function ZoneDeTravail() {
       {enRecadrage && (
         <div data-aide-recadrage className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Tire les poignées pour recadrer, glisse la photo dans le cadre, molette pour la rapprocher. Entrée pour finir, Échap pour annuler.
+        </div>
+      )}
+      {enPerspective && (
+        <div data-aide-perspective className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Pose chaque coin sur un coin de l'écran, de la boîte ou de l'affiche ; les flèches poussent le dernier coin. Entrée pour finir, Échap pour annuler.
         </div>
       )}
       {dessin && (

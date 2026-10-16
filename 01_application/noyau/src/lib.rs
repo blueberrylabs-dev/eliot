@@ -16,6 +16,7 @@ pub mod marque;
 pub mod micro;
 pub mod montage;
 pub mod parole;
+pub mod perspective;
 pub mod piper;
 pub mod pixabay;
 pub mod polices;

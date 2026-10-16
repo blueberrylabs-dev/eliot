@@ -35,6 +35,7 @@ use crate::sous_titres::{self, SousTitre};
 use crate::fichiers::{chemin_libre, chemin_temporaire};
 use crate::images::{self, Genre};
 use crate::labo;
+use crate::perspective;
 use crate::son::{self, ClipAudio};
 use crate::sons::{self, Niveau};
 use crate::voix;
@@ -102,6 +103,10 @@ pub enum Calque {
         opacite: f64,
         fusion: Option<String>,
         unite: Option<Unite>,
+        /// En perspective (étape 5, lot 6) : `matrice` envoie le carré unité sur la boîte du
+        /// visuel déformé, que le noyau rend lui-même (`perspective.rs`).
+        #[serde(default)]
+        perspective: Option<perspective::PerspectiveCalque>,
     },
     Video {
         ressource: String,
@@ -111,6 +116,8 @@ pub enum Calque {
         opacite: f64,
         fusion: Option<String>,
         unite: Option<Unite>,
+        #[serde(default)]
+        perspective: Option<perspective::PerspectiveCalque>,
     },
 }
 
@@ -551,6 +558,8 @@ struct LecteurVideo {
     retouche: Option<labo::Reglages>,
     debut: f64,
     pas: f64,
+    /// En perspective (lot 6) : chaque image déformée, à cette finesse.
+    perspective: Option<(perspective::PerspectiveCalque, f64)>,
 }
 
 impl LecteurVideo {
@@ -574,7 +583,13 @@ impl LecteurVideo {
                         let graine = labo::graine_du_temps(self.debut + r as f64 * self.pas);
                         labo::appliquer_graine(&mut tampon, self.largeur, self.hauteur, reglages, true, graine);
                     }
-                    let pixmap = premultiplier(tampon, self.largeur, self.hauteur).ok_or_else(|| ErreurMontage::Video("image de taille inattendue".into()))?;
+                    let pixmap = match &self.perspective {
+                        Some((p, finesse)) => {
+                            let source = image::RgbaImage::from_raw(self.largeur, self.hauteur, tampon).ok_or_else(|| ErreurMontage::Video("image de taille inattendue".into()))?;
+                            rendre_perspective(&source, p, *finesse)?.0
+                        }
+                        None => premultiplier(tampon, self.largeur, self.hauteur).ok_or_else(|| ErreurMontage::Video("image de taille inattendue".into()))?,
+                    };
                     self.courante = Some((r, pixmap));
                 }
                 Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
@@ -790,6 +805,13 @@ pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
 /// Une photo du design, depuis l'original redressé, réduite à `largeur` × `hauteur` au plus,
 /// puis retouchée par le labo à cette taille (les rayons des réglages suivent la taille).
 fn charger_photo(dossier: &Path, id: &str, largeur: f64, hauteur: f64, reglages: Option<&labo::Reglages>) -> Result<Pixmap, ErreurMontage> {
+    let rgba = charger_rgba(dossier, id, largeur, hauteur, reglages)?;
+    let (l, h) = rgba.dimensions();
+    premultiplier(rgba.into_raw(), l, h).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
+}
+
+/// La même photo, en RGBA (non prémultiplié) : la source d'un visuel en perspective.
+fn charger_rgba(dossier: &Path, id: &str, largeur: f64, hauteur: f64, reglages: Option<&labo::Reglages>) -> Result<image::RgbaImage, ErreurMontage> {
     let chemin = images::chemin_ressource(dossier, id, Genre::Original).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
     let octets = fs::read(chemin)?;
     let image = images::decoder_redresse(&octets).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
@@ -809,7 +831,16 @@ fn charger_photo(dossier: &Path, id: &str, largeur: f64, hauteur: f64, reglages:
     if let Some(r) = reglages {
         labo::appliquer(&mut rgba, l, h, r, true);
     }
-    premultiplier(rgba, l, h).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
+    image::RgbaImage::from_raw(l, h, rgba).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
+}
+
+/// Un visuel en perspective rendu à `finesse` : l'image (prémultipliée) et la matrice qui envoie
+/// le carré unité sur la boîte qu'elle couvre (repère de l'élément).
+fn rendre_perspective(source: &image::RgbaImage, p: &perspective::PerspectiveCalque, finesse: f64) -> Result<(Pixmap, [f64; 6]), ErreurMontage> {
+    let (img, b) = perspective::rendre(source, p, finesse).ok_or_else(|| ErreurMontage::Calque("perspective trop grande ou dégénérée".into()))?;
+    let (l, h) = img.dimensions();
+    let pixmap = premultiplier(img.into_raw(), l, h).ok_or_else(|| ErreurMontage::Calque("perspective vide".into()))?;
+    Ok((pixmap, [b[2] - b[0], 0.0, 0.0, b[3] - b[1], b[0], b[1]]))
 }
 
 /// La chaîne `atempo` d'une vitesse (chaque maillon entre 0,5 et 2).
@@ -843,12 +874,19 @@ struct OuvertureVideo {
 /// Lance le décodage d'une vidéo : `ffmpeg` sort, une par une, les images du fichier aux
 /// instants des images du film à partir de l'image `rang`, à la taille utile.
 fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &OuvertureVideo, rang: u64, retouche: Option<&labo::Reglages>) -> Result<LecteurVideo, ErreurMontage> {
-    let Calque::Video { ressource, matrice: m, .. } = calque else {
+    let Calque::Video { ressource, matrice: m, perspective: p, .. } = calque else {
         return Err(ErreurMontage::Video("calque inattendu".into()));
     };
     let original = images::chemin_ressource(dossier, ressource, Genre::Original).map_err(|e| ErreurMontage::Video(e.to_string()))?;
     let infos = images::infos(dossier, ressource).map_err(|e| ErreurMontage::Video(e.to_string()))?;
-    let (fx, fy) = Affine(*m).facteurs();
+    // En perspective : l'original réduit juste assez pour le visuel déformé.
+    let (fx, fy) = match p {
+        Some(p) => {
+            let k = perspective::reduction_source(p, infos.largeur as f64, infos.hauteur as f64, o.finesse);
+            (infos.largeur as f64 * k / o.finesse, infos.hauteur as f64 * k / o.finesse)
+        }
+        None => Affine(*m).facteurs(),
+    };
     let largeur = ((fx * o.finesse).ceil() as u32).clamp(2, infos.largeur.max(2));
     let hauteur = ((fy * o.finesse).ceil() as u32).clamp(2, infos.hauteur.max(2));
     let cadence = images_par_seconde * o.vitesse;
@@ -866,7 +904,7 @@ fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &Ou
     let mut processus = programme("ffmpeg").args(&a).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(lancer_erreur)?;
     let erreurs = Some(lire_erreurs(&mut processus));
     let sortie = processus.stdout.take().expect("sortie redirigée");
-    Ok(LecteurVideo { processus, sortie, erreurs, largeur, hauteur, premiere: rang, courante: None, fini: false, retouche: retouche.cloned(), debut: o.debut, pas: 1000.0 / cadence })
+    Ok(LecteurVideo { processus, sortie, erreurs, largeur, hauteur, premiere: rang, courante: None, fini: false, retouche: retouche.cloned(), debut: o.debut, pas: 1000.0 / cadence, perspective: p.clone().map(|p| (p, o.finesse)) })
 }
 
 impl Scene {
@@ -918,8 +956,27 @@ impl Scene {
             let cle_retouche = retouche.as_ref().map(|r| serde_json::to_string(r).unwrap_or_default()).unwrap_or_default();
             let mut calques = Vec::new();
             for c in &e.calques {
+                let mut calque = c.clone();
                 let (rendu, decoupes) = match c {
                     Calque::Svg { svg, boite, .. } => (Rendu::Svg(SvgRendu { arbre: arbre(svg, &options)?, boite: *boite, fin: None, exact: None }), Vec::new()),
+                    Calque::Image { ressource, decoupes, perspective: Some(p), .. } => {
+                        let infos = images::infos(dossier, ressource).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
+                        let k = perspective::reduction_source(p, infos.largeur as f64, infos.hauteur as f64, finesse);
+                        let source = charger_rgba(dossier, ressource, infos.largeur as f64 * k, infos.hauteur as f64 * k, retouche.as_ref())?;
+                        let (pixmap, mat) = rendre_perspective(&source, p, finesse)?;
+                        if let Calque::Image { matrice, .. } = &mut calque {
+                            *matrice = mat;
+                        }
+                        (Rendu::Image(ImageRendu { pixmap: Arc::new(pixmap) }), decoupes.iter().filter_map(|d| trace(d)).collect())
+                    }
+                    Calque::Video { decoupes, perspective: Some(p), .. } => {
+                        if let Some((b, _, _)) = perspective::cadre(p, finesse)
+                            && let Calque::Video { matrice, .. } = &mut calque
+                        {
+                            *matrice = [b[2] - b[0], 0.0, 0.0, b[3] - b[1], b[0], b[1]];
+                        }
+                        (Rendu::Video(None), decoupes.iter().filter_map(|d| trace(d)).collect())
+                    }
                     Calque::Image { ressource, matrice: m, decoupes, .. } => {
                         let (fx, fy) = Affine(*m).facteurs();
                         let (l, h) = ((fx * finesse).ceil() as u32, (fy * finesse).ceil() as u32);
@@ -936,7 +993,7 @@ impl Scene {
                     }
                     Calque::Video { decoupes, .. } => (Rendu::Video(None), decoupes.iter().filter_map(|d| trace(d)).collect()),
                 };
-                calques.push(CalqueEnPlace { calque: c.clone(), rendu, decoupes });
+                calques.push(CalqueEnPlace { calque, rendu, decoupes });
             }
             let sous_titre = e.element.get("sousTitre").and_then(|v| serde_json::from_value::<SousTitre>(v.clone()).ok());
             elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier, retouche });
@@ -1812,6 +1869,36 @@ mod tests {
         };
         let (avec, sans) = (ecart(&film(json!({ "grain": 100, "exposition": -1 }), "grain")), ecart(&film(json!({ "exposition": -1 }), "sans")));
         assert!(avec > sans + 1.5, "grain : {avec} contre {sans}");
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Un clip en perspective (étape 5, lot 6) : chaque image du film est déformée sur ses
+    /// quatre coins ; hors du quadrilatère, la page.
+    #[test]
+    fn un_clip_en_perspective_l_est_image_par_image() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("perspective");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let ressource = videos::importer(&video_rouge_puis_bleue(&dossier), &ressources, &videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        let q = [[60.0, 20.0], [300.0, 0.0], [280.0, 180.0], [40.0, 150.0]];
+        let plan = perspective::homographie(&q).unwrap();
+        let mut page = page_de_test(&ressource.id);
+        page.elements[0].calques[0] = serde_json::from_value(json!({ "genre": "video", "ressource": ressource.id, "matrice": [260, 0, 0, 180, 40, 0], "decoupes": [], "boite": { "x0": 40, "y0": 0, "x1": 300, "y1": 180 }, "opacite": 1,
+            "perspective": { "plan": plan, "source": [1, 0, 0, 1, 0, 0], "plat": [245, 155], "arrondi": 0 } })).unwrap();
+        let cible = dossier.join("film.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |_| {}, &AtomicBool::new(false)).unwrap();
+        let milieu = perspective::projeter(&plan, 0.5, 0.4);
+        let (mx, my) = (milieu[0].round() as u32, milieu[1].round() as u32);
+        let (rouge, bleu) = (image_a(&cible, 0.5), image_a(&cible, 1.5));
+        assert!(proche(rouge.get_pixel(mx, my), [255, 0, 0]), "0,5 s : {:?}", rouge.get_pixel(mx, my));
+        assert!(proche(bleu.get_pixel(mx, my), [0, 0, 255]), "1,5 s : {:?}", bleu.get_pixel(mx, my));
+        // Le coin haut gauche de la page, hors du quadrilatère : le fond blanc.
+        assert!(proche(rouge.get_pixel(10, 10), [255, 255, 255]), "{:?}", rouge.get_pixel(10, 10));
+        assert!(proche(rouge.get_pixel(44, 8), [255, 255, 255]), "{:?}", rouge.get_pixel(44, 8));
         let _ = fs::remove_dir_all(&dossier);
     }
 

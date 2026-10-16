@@ -7,6 +7,7 @@ import { useTemps } from "../etat/temps";
 import { scene } from "./scene";
 import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 import { finirRecadrage, glisserImage, photoOuClip, useRecadrage } from "../labo/recadrage";
+import { finirPerspective, tirerCoin, usePerspective } from "../labo/miseEnPerspective";
 
 const PAS_ZOOM = 1.25;
 
@@ -29,6 +30,26 @@ export function useRaccourcis(): void {
       const page = pageCourante(etat);
       const pageVideo = page.duree !== undefined;
       let traite = true;
+
+      // En posant les coins (étape 5, lot 6) : Entrée finit, Échap revient aux coins d'avant, les
+      // flèches poussent le dernier coin tiré ; Suppr ne supprime rien.
+      const coins = usePerspective.getState();
+      if (coins.id && !ctrl && !e.altKey) {
+        const el = photoOuClip(coins.id);
+        if (e.key === "Enter") finirPerspective();
+        else if (e.key === "Escape") finirPerspective(true);
+        else if (e.key === "Delete" || e.key === "Backspace") traite = true;
+        else if (e.key.startsWith("Arrow") && el && coins.coin !== null) {
+          const pas = e.shiftKey ? 10 : 1;
+          tirerCoin(el, coins.coin, e.key === "ArrowLeft" ? -pas : e.key === "ArrowRight" ? pas : 0, e.key === "ArrowUp" ? -pas : e.key === "ArrowDown" ? pas : 0, `perspective-fleches:${coins.id}:${coins.coin}`);
+        } else if (e.key.startsWith("Arrow")) traite = true;
+        else traite = false;
+        if (traite) {
+          e.preventDefault();
+          return;
+        }
+        traite = true;
+      }
 
       // En recadrant (étape 5, lot 5) : Entrée finit, Échap revient au cadre d'avant, les flèches
       // font glisser la photo sous le cadre ; Suppr ne supprime rien.

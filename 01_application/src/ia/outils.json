@@ -2556,7 +2556,7 @@
   },
   {
     "name": "recadrer",
-    "description": "Recadrer et redresser une photo (élément de type image) ou un clip vidéo (type video) de la page affichée, comme le recadrage de Lightroom. Le cadre gardé ne montre jamais de coin vide : redresser le resserre autant qu'il le faut. Ordre : remettre (toute l'image, droite), puis angle ou auto, puis proportions, puis zone. angle : le redressement en degrés, de -45 à 45 (positif : l'image tourne dans le sens des aiguilles d'une montre) ; l'image tourne autour du cadre, la boîte de l'élément garde sa place et sa taille. auto : le noyau cherche l'horizon ou une verticale nette et la remet droite (renvoie l'angle trouvé, ou dit qu'il n'y a pas de ligne assez nette). proportions : libre, original, page (les proportions de la page), 1:1, 4:5, 3:2, 4:3, 16:9, ou largeur:hauteur (5:4, 2:3, 9:16) ; le plus grand cadre de ces proportions, au plus près du cadre actuel. zone : le cadre exact, { x, y, largeur, hauteur } en fractions de l'image redressée (0, 0 : son coin haut gauche ; 1 : toute sa largeur ou sa hauteur). Avec proportions et zone, la photo reste à sa place sur la page : la boîte de l'élément devient le cadre gardé. L'original n'est jamais modifié ; l'export suit le recadrage. Juger le cadre avec capture. Renvoie le recadrage et la boîte de l'élément.",
+    "description": "Recadrer et redresser une photo (élément de type image) ou un clip vidéo (type video) de la page affichée, comme le recadrage de Lightroom. Le cadre gardé ne montre jamais de coin vide : redresser le resserre autant qu'il le faut. Ordre : remettre (toute l'image, droite), puis angle ou auto, puis proportions, puis zone. angle : le redressement en degrés, de -45 à 45 (positif : l'image tourne dans le sens des aiguilles d'une montre) ; l'image tourne autour du cadre, la boîte de l'élément garde sa place et sa taille. auto : le noyau cherche l'horizon ou une verticale nette et la remet droite (renvoie l'angle trouvé, ou dit qu'il n'y a pas de ligne assez nette). proportions : libre, original, page (les proportions de la page), 1:1, 4:5, 3:2, 4:3, 16:9, ou largeur:hauteur (5:4, 2:3, 9:16) ; le plus grand cadre de ces proportions, au plus près du cadre actuel. zone : le cadre exact, { x, y, largeur, hauteur } en fractions de l'image redressée (0, 0 : son coin haut gauche ; 1 : toute sa largeur ou sa hauteur). Avec proportions et zone, la photo reste à sa place sur la page : la boîte de l'élément devient le cadre gardé. L'original n'est jamais modifié ; l'export suit le recadrage. Un visuel en perspective ne se recadre pas (outil perspective, aPlat: true d'abord). Juger le cadre avec capture. Renvoie le recadrage et la boîte de l'élément.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2603,6 +2603,50 @@
             "largeur",
             "hauteur"
           ]
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "perspective",
+    "description": "Poser une photo (élément de type image) ou un clip vidéo (type video) de la page affichée en perspective, sur quatre coins quelconques : l'écran incliné d'un ordinateur ou d'un téléphone, la face d'une boîte, une affiche en biais. Le visuel tel qu'il remplit sa boîte à plat (recadrage compris) est déformé sur les coins ; coins arrondis, bordure et ombre de l'élément suivent la perspective ; l'export le refait depuis l'original. Ordre : aPlat, puis pret, puis coins. coins : quatre points [x, y] de la page, dans l'ordre haut gauche, haut droit, bas droit, bas gauche du visuel (le sens des aiguilles d'une montre), formant un quadrilatère convexe ; la boîte de l'élément devient la plus petite boîte autour d'eux. Pour poser le visuel sur un objet d'une photo de la page, relever ses coins avec capture, puis les donner ici. pret : fuit-gauche, fuit-droite (le côté le plus loin est le plus court), fuit-haut (une table, un sol), fuit-bas (un plafond), sur la boîte actuelle. aPlat : vrai remet le visuel à plat dans sa boîte. Un visuel en perspective ne se recadre pas : le remettre à plat d'abord. Renvoie la perspective (coins en fractions de la boîte), les coins sur la page et la boîte.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de la photo ou du clip (voir etat)."
+        },
+        "aPlat": {
+          "type": "boolean",
+          "description": "Vrai : remettre à plat."
+        },
+        "pret": {
+          "type": "string",
+          "enum": [
+            "fuit-gauche",
+            "fuit-droite",
+            "fuit-haut",
+            "fuit-bas"
+          ],
+          "description": "Une perspective prête, sur la boîte actuelle."
+        },
+        "coins": {
+          "type": "array",
+          "description": "Quatre points [x, y] de la page : haut gauche, haut droit, bas droit, bas gauche.",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "minItems": 4,
+          "maxItems": 4
         }
       },
       "required": [

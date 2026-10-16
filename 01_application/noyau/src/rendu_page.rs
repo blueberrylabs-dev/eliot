@@ -34,6 +34,7 @@ use thiserror::Error;
 use crate::export::{self, ErreurExport, Format};
 use crate::images::{self, Genre};
 use crate::labo;
+use crate::perspective;
 use crate::montage::{self, Affine, Calque, DescriptionPage, ErreurMontage, FaceEliot, PoliceCalques};
 
 #[derive(Debug, Error)]
@@ -230,8 +231,13 @@ fn ouvrir_groupe(sortie: &mut String, m: &Affine, opacite: f64, fusion: Option<&
 
 /// Une clé courte pour des réglages du labo (empreinte FNV-1a de leur JSON).
 fn cle_reglages(r: &labo::Reglages) -> String {
+    cle_texte(&serde_json::to_string(r).unwrap_or_default())
+}
+
+/// Une clé courte d'un texte (empreinte FNV-1a).
+fn cle_texte(texte: &str) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for o in serde_json::to_string(r).unwrap_or_default().bytes() {
+    for o in texte.bytes() {
         h = (h ^ o as u64).wrapping_mul(0x0100_0000_01b3);
     }
     format!("{h:016x}")
@@ -242,13 +248,38 @@ fn cle_reglages(r: &labo::Reglages) -> String {
 /// `eliot:retouche/<empreinte>/<clé des réglages>`, l'image d'une vidéo par
 /// `eliot:video/<empreinte>/<ms>` : `Images::lire` sait les lire.
 pub fn composer_svg(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<String, ErreurRendu> {
-    Ok(composer_svg_retouches(description, t, dossier_ressources)?.0)
+    Ok(composer_svg_retouches(description, t, dossier_ressources)?.svg)
 }
 
-/// Le même, avec les réglages du labo que le SVG désigne par leur clé.
-fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<(String, Vec<(String, labo::Reglages)>), ErreurRendu> {
+/// Un visuel en perspective (étape 5, lot 6) que le SVG désigne par `eliot:perspective/<clé>` :
+/// sa source (une photo, ou l'image d'une vidéo à un instant de son fichier), sa retouche, sa
+/// perspective et la finesse de son rendu (pixels par pixel de la page).
+#[derive(Debug, Clone, serde::Serialize)]
+struct TachePerspective {
+    ressource: String,
+    video_ms: Option<u64>,
+    retouche: Option<labo::Reglages>,
+    perspective: perspective::PerspectiveCalque,
+    finesse: f64,
+}
+
+/// Le SVG composé et ce que ses adresses désignent.
+struct Compose {
+    svg: String,
+    retouches: Vec<(String, labo::Reglages)>,
+    perspectives: Vec<(String, TachePerspective)>,
+}
+
+/// La finesse d'un visuel en perspective dans un PDF ou un SVG : celle de sa source là où elle
+/// est la plus serrée, entre 1 et 3 pixels par pixel de la page.
+const FINESSE_PERSPECTIVE_MAX: f64 = 3.0;
+
+/// Le même, avec les réglages du labo et les visuels en perspective que le SVG désigne par leur
+/// clé.
+fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<Compose, ErreurRendu> {
     let poses = montage::poses_vectorielles(description, t, dossier_ressources)?;
     let mut retouches: Vec<(String, labo::Reglages)> = Vec::new();
+    let mut perspectives: Vec<(String, TachePerspective)> = Vec::new();
     let (l, h) = (description.largeur, description.hauteur);
     let mut corps = String::new();
     let mut defs = String::new();
@@ -274,7 +305,7 @@ fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressour
                 corps.push_str(&calque_imbrique(svg, boite.x0, boite.y0)?);
                 corps.push_str("</g>");
             }
-            Calque::Image { ressource, matrice, decoupes, opacite, fusion, unite, .. } | Calque::Video { ressource, matrice, decoupes, opacite, fusion, unite, .. } => {
+            Calque::Image { ressource, matrice, decoupes, opacite, fusion, unite, perspective: vue, .. } | Calque::Video { ressource, matrice, decoupes, opacite, fusion, unite, perspective: vue, .. } => {
                 if unite.is_some_and(|u| u.actif) || !images::identifiant_valide(ressource) {
                     return Ok(());
                 }
@@ -288,18 +319,33 @@ fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressour
                     let _ = write!(defs, "<clipPath id=\"eliot_d{n}\"><path d=\"{}\"/></clipPath>", d.replace('"', ""));
                     let _ = write!(corps, "<g clip-path=\"url(#eliot_d{n})\">");
                 }
-                let href = match (c, instant_video) {
-                    (Calque::Video { .. }, Some(ms)) => match retouche {
-                        Some((cle, _)) => format!("eliot:video/{ressource}/{}/{cle}", ms.max(0.0).round() as u64),
-                        None => format!("eliot:video/{ressource}/{}", ms.max(0.0).round() as u64),
-                    },
+                let video_ms = match (c, instant_video) {
+                    (Calque::Video { .. }, Some(ms)) => Some(ms.max(0.0).round() as u64),
                     (Calque::Video { .. }, None) => return Ok(()),
-                    _ => match retouche {
-                        Some((cle, _)) => format!("eliot:retouche/{ressource}/{cle}"),
-                        None => format!("eliot:original/{ressource}"),
-                    },
+                    _ => None,
                 };
-                let _ = write!(corps, "<image width=\"1\" height=\"1\" preserveAspectRatio=\"none\" transform=\"{}\" xlink:href=\"{href}\"/>", matrice_svg(&Affine(*matrice)));
+                let (href, matrice) = if let Some(p) = vue {
+                    // En perspective : le noyau rend le visuel déformé, depuis l'original, à la
+                    // finesse de sa source ; le SVG le pose sur sa boîte.
+                    let infos = images::infos(dossier_ressources, ressource).map_err(|e| ErreurRendu::Photo(ressource.clone(), e.to_string()))?;
+                    let finesse = perspective::densite_source(p, infos.largeur as f64, infos.hauteur as f64).clamp(1.0, FINESSE_PERSPECTIVE_MAX);
+                    let Some((b, _, _)) = perspective::cadre(p, finesse) else { return Ok(()) };
+                    let tache = TachePerspective { ressource: ressource.clone(), video_ms, retouche: retouche.map(|(_, r)| r.clone()), perspective: p.clone(), finesse };
+                    let cle = cle_texte(&serde_json::to_string(&tache).unwrap_or_default());
+                    if !perspectives.iter().any(|(c, _)| *c == cle) {
+                        perspectives.push((cle.clone(), tache));
+                    }
+                    (format!("eliot:perspective/{cle}"), [b[2] - b[0], 0.0, 0.0, b[3] - b[1], b[0], b[1]])
+                } else {
+                    let href = match (video_ms, retouche) {
+                        (Some(ms), Some((cle, _))) => format!("eliot:video/{ressource}/{ms}/{cle}"),
+                        (Some(ms), None) => format!("eliot:video/{ressource}/{ms}"),
+                        (None, Some((cle, _))) => format!("eliot:retouche/{ressource}/{cle}"),
+                        (None, None) => format!("eliot:original/{ressource}"),
+                    };
+                    (href, *matrice)
+                };
+                let _ = write!(corps, "<image width=\"1\" height=\"1\" preserveAspectRatio=\"none\" transform=\"{}\" xlink:href=\"{href}\"/>", matrice_svg(&Affine(matrice)));
                 for _ in decoupes {
                     corps.push_str("</g>");
                 }
@@ -331,7 +377,7 @@ fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressour
         w = nombre(l),
         h = nombre(h)
     );
-    Ok((svg, retouches))
+    Ok(Compose { svg, retouches, perspectives })
 }
 
 // ----------------------------------------------------------------------------------------
@@ -417,6 +463,36 @@ fn image_de_video_retouchee(png: &[u8], r: &labo::Reglages, ms: u64) -> Result<V
     Ok(sortie)
 }
 
+/// Un visuel en perspective (étape 5, lot 6), rendu par le noyau depuis l'original (retouché par
+/// le labo s'il le faut), en PNG transparent hors du visuel.
+fn visuel_en_perspective(dossier: &Path, t: &TachePerspective) -> Result<Vec<u8>, ErreurRendu> {
+    let source = match t.video_ms {
+        Some(ms) => {
+            let png = image_de_video(dossier, &t.ressource, ms)?;
+            let mut img = image::load_from_memory(&png).map_err(|e| ErreurRendu::Ffmpeg(format!("image de la vidéo : {e}")))?.to_rgba8();
+            if let Some(r) = &t.retouche {
+                let (l, h) = img.dimensions();
+                labo::appliquer_graine(&mut img, l, h, r, true, labo::graine_du_temps(ms as f64));
+            }
+            img
+        }
+        None => {
+            let chemin = images::chemin_ressource(dossier, &t.ressource, Genre::Original).map_err(|e| ErreurRendu::Photo(t.ressource.clone(), e.to_string()))?;
+            let octets = fs::read(&chemin)?;
+            let mut img = images::decoder_redresse(&octets).map_err(|e| ErreurRendu::Photo(t.ressource.clone(), e.to_string()))?.to_rgba8();
+            if let Some(r) = &t.retouche {
+                let (l, h) = img.dimensions();
+                labo::appliquer(&mut img, l, h, r, true);
+            }
+            img
+        }
+    };
+    let (rendu, _) = perspective::rendre(&source, &t.perspective, t.finesse).ok_or_else(|| ErreurRendu::Photo(t.ressource.clone(), "perspective trop grande ou dégénérée".into()))?;
+    let mut sortie = Vec::new();
+    image::DynamicImage::ImageRgba8(rendu).write_to(&mut Cursor::new(&mut sortie), image::ImageFormat::Png).map_err(|e| ErreurRendu::Photo(t.ressource.clone(), e.to_string()))?;
+    Ok(sortie)
+}
+
 /// Lit une adresse `eliot:` du SVG composé ; garde ce qu'elle a déjà lu, et ce qui n'a pas pu
 /// l'être : une photo manquante fait échouer l'export plutôt que de laisser un trou.
 struct Images {
@@ -425,16 +501,21 @@ struct Images {
     erreurs: std::sync::Mutex<Vec<String>>,
     /// Les réglages du labo désignés par les adresses `eliot:retouche/…/<clé>`.
     retouches: std::sync::Mutex<HashMap<String, labo::Reglages>>,
+    /// Les visuels en perspective désignés par les adresses `eliot:perspective/<clé>`.
+    perspectives: std::sync::Mutex<HashMap<String, TachePerspective>>,
 }
 
 impl Images {
     fn nouvelles(dossier: &Path) -> Arc<Self> {
-        Arc::new(Images { dossier: dossier.to_path_buf(), lues: Default::default(), erreurs: Default::default(), retouches: Default::default() })
+        Arc::new(Images { dossier: dossier.to_path_buf(), lues: Default::default(), erreurs: Default::default(), retouches: Default::default(), perspectives: Default::default() })
     }
 
-    fn connaitre(&self, retouches: Vec<(String, labo::Reglages)>) {
+    fn connaitre(&self, retouches: Vec<(String, labo::Reglages)>, perspectives: Vec<(String, TachePerspective)>) {
         if let Ok(mut m) = self.retouches.lock() {
             m.extend(retouches);
+        }
+        if let Ok(mut m) = self.perspectives.lock() {
+            m.extend(perspectives);
         }
     }
 
@@ -496,6 +577,15 @@ impl Images {
                     None
                 }
             }
+        } else if let Some(cle) = href.strip_prefix("eliot:perspective/") {
+            let tache = self.perspectives.lock().ok()?.get(cle).cloned()?;
+            match visuel_en_perspective(&self.dossier, &tache) {
+                Ok(o) => Some((Codage::Png, Arc::new(o))),
+                Err(e) => {
+                    self.erreurs.lock().ok()?.push(e.to_string());
+                    None
+                }
+            }
         } else if let Some(id) = href.strip_prefix("eliot:apercu/") {
             let chemin = images::chemin_ressource(&self.dossier, id, Genre::Apercu).ok()?;
             let o = fs::read(chemin).ok()?;
@@ -515,10 +605,10 @@ impl Images {
 
 /// La page en SVG autonome : textes en tracés, photos et images de vidéos dedans (base64).
 pub fn svg(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<Vec<u8>, ErreurRendu> {
-    let (compose, retouches) = composer_svg_retouches(description, t, dossier_ressources)?;
+    let Compose { svg: compose, retouches, perspectives } = composer_svg_retouches(description, t, dossier_ressources)?;
     let mut options = montage::options_rendu(&description.polices, dossier_ressources)?;
     let images = Images::nouvelles(dossier_ressources);
-    images.connaitre(retouches);
+    images.connaitre(retouches, perspectives);
     let lecteur = images.clone();
     options.image_href_resolver = usvg::ImageHrefResolver {
         resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
@@ -626,8 +716,8 @@ pub fn pdf_suivi(pages: &[(DescriptionPage, f64)], dossier_ressources: &Path, av
     let options = options_pdf(&polices_du_document(pages), images.clone())?;
     let mut document = krilla::Document::new();
     for (rang, (description, t)) in pages.iter().enumerate() {
-        let (compose, retouches) = composer_svg_retouches(description, *t, dossier_ressources)?;
-        images.connaitre(retouches);
+        let Compose { svg: compose, retouches, perspectives } = composer_svg_retouches(description, *t, dossier_ressources)?;
+        images.connaitre(retouches, perspectives);
         let arbre = usvg_pdf::Tree::from_str(&compose, &options).map_err(|e| ErreurRendu::Svg(e.to_string()))?;
         images.verifier()?;
         let k = points_par_pixel(description.largeur, description.hauteur);
@@ -1010,6 +1100,50 @@ mod tests {
         }
         let texte = String::from_utf8(svg(&retouchee, 0.0, &dossier).unwrap()).unwrap();
         assert!(texte.contains("data:image/jpeg;base64,") && !texte.contains("eliot:"));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Une photo en perspective (étape 5, lot 6) : l'image, le PDF et le SVG la posent sur ses
+    /// quatre coins, rouge à gauche et bleue à droite, rien hors du quadrilatère.
+    #[test]
+    fn une_photo_en_perspective_passe_dans_l_export() {
+        let dossier = dossier_de_test("perspective");
+        let id = photo(&dossier);
+        let q = [[0.0, 40.0], [400.0, 0.0], [380.0, 300.0], [20.0, 260.0]];
+        let plan = perspective::homographie(&q).unwrap();
+        let page: DescriptionPage = serde_json::from_value(json!({
+            "largeur": 600, "hauteur": 400, "duree": 0,
+            "fond": [rectangle(600.0, 400.0, "#ffffff")],
+            "elements": [
+                { "element": { "id": "p", "type": "image", "x": 100, "y": 50, "largeur": 400, "hauteur": 300, "rotation": 0, "opacite": 1, "visible": true, "ressource": id },
+                  "calques": [{ "genre": "image", "ressource": id, "matrice": [400, 0, 0, 300, 0, 0], "decoupes": [], "boite": { "x0": 0, "y0": 0, "x1": 400, "y1": 300 }, "opacite": 1,
+                                "perspective": { "plan": plan, "source": [1, 0, 0, 1, 0, 0], "plat": [390, 280], "arrondi": 0 } }] }
+            ],
+            "polices": []
+        }))
+        .unwrap();
+        let sur_page = |u: f64, v: f64| {
+            let p = perspective::projeter(&plan, u, v);
+            ((p[0] + 100.0).round() as u32, (p[1] + 50.0).round() as u32)
+        };
+        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let (gx, gy) = sur_page(0.25, 0.5);
+        let (dx, dy) = sur_page(0.75, 0.5);
+        let (g, d, dehors) = (pixel(&png, gx, gy), pixel(&png, dx, dy), pixel(&png, 104, 54));
+        assert!(g[0] > 180 && g[2] < 70, "gauche : {g:?}");
+        assert!(d[2] > 180 && d[0] < 70, "droite : {d:?}");
+        assert!(proche(dehors, [255, 255, 255, 255], 2), "hors du visuel : {dehors:?}");
+        // Le PDF : le même visuel, déformé par le noyau depuis l'original.
+        let octets = pdf(&[(page.clone(), 0.0)], &dossier).unwrap();
+        let chemin = dossier.join("perspective.pdf");
+        fs::write(&chemin, &octets).unwrap();
+        if Command::new("pdftoppm").args(["-r", "96", "-png", "-singlefile"]).arg(&chemin).arg(dossier.join("perspective")).status().is_ok_and(|s| s.success()) {
+            let rendu = image::open(dossier.join("perspective.png")).unwrap().to_rgba8();
+            let (a, b, c) = (rendu.get_pixel(gx, gy).0, rendu.get_pixel(dx, dy).0, rendu.get_pixel(104, 54).0);
+            assert!(proche(a, g, 12) && proche(b, d, 12) && proche(c, dehors, 4), "{a:?} {b:?} {c:?}");
+        }
+        let texte = String::from_utf8(svg(&page, 0.0, &dossier).unwrap()).unwrap();
+        assert!(texte.contains("data:image/png;base64,") && !texte.contains("eliot:"));
         let _ = fs::remove_dir_all(&dossier);
     }
 

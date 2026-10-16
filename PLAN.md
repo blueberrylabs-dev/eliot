@@ -423,8 +423,16 @@ Choix par défaut de Claude, modifiables sur simple demande :
       fenêtre et export à 1,5 sur 255 (photo redressée), PDF à 1,96, clip recadré dans le MP4 à
       1,76 (JOURNAL). Essai d'Alexandre : « Essayer le recadrage (étape 5, lot 5) » du
       `01_application/LISEZMOI.md`.
-- [ ] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
-      biais), à l'écran et à l'export.
+- [x] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
+      biais), à l'écran et à l'export. Livré le 2026-10-16 : les quatre coins gardés sur
+      l'élément (`perspective`, en fractions de sa boîte, qui reste la plus petite autour d'eux) ;
+      mode « coins » sur la page (section Perspective du labo ou double-clic, poignées, glisser,
+      flèches, Entrée, Échap), quatre perspectives prêtes, « À plat » ; coins arrondis, bordure,
+      ombre et retouches suivent ; la fenêtre pose le visuel par un shader WebGL, le noyau par le
+      même calcul sur le processeur (`noyau/src/perspective.rs`, tableau de valeurs commun) ;
+      fenêtre et export à 2,09 sur 255 dans le visuel (0,47 sur toute la page), PDF à 2,08, SVG
+      rendu par Chromium à 1,45, clip en perspective dans le MP4 à 1,67 (JOURNAL). Essai
+      d'Alexandre : « Essayer la perspective (étape 5, lot 6) » du `01_application/LISEZMOI.md`.
 - [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
       document (l'original intact), pinceau pour reprendre les bords.
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
@@ -432,7 +440,7 @@ Choix par défaut de Claude, modifiables sur simple demande :
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
       `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips ;
       corrections du 2026-10-16 : `retoucher` prend l'étalonnage ; lot 5 : `recadrer`, 64
-      outils).
+      outils ; lot 6 : `perspective`, 65 outils).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

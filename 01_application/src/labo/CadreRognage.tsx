@@ -8,7 +8,7 @@
 import type Konva from "konva";
 import { useEffect, useRef } from "react";
 import { Group, Line, Rect, Shape } from "react-konva";
-import { elementsCourants, useEditeur } from "../etat/editeur";
+import { elementsCourants, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { matriceRognage, type Poignee } from "../modele/rognage";
 import { useImageRessource } from "../editeur/images";
 import { glisserImage, imagesAffichees, redresserSelonLigne, tirerPoignee, useRecadrage, type PhotoOuClip } from "./recadrage";
@@ -113,7 +113,7 @@ export function CadreRognage({ echelle }: { echelle: number }) {
     const p = stage?.getPointerPosition();
     if (!p || !racine.current) return;
     const q = racine.current.getAbsoluteTransform().copy().invert().point(p);
-    geste.current = { depart: el, x: q.x, y: q.y, quoi, etiquette: `rogner:${el.id}:${quoi}:${Date.now()}` };
+    geste.current = { depart: el, x: q.x, y: q.y, quoi, etiquette: etiquetteDeGeste(`rogner:${el.id}:${quoi}`) };
     if (quoi === "niveau") ligne.current?.points([q.x, q.y, q.x, q.y]);
     else document.body.style.cursor = quoi === "image" ? "grabbing" : curseur(quoi, el);
   };

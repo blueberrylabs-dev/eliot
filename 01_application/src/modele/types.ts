@@ -14,6 +14,7 @@
 
 import type { ReglagesPhoto } from "./labo";
 import type { Rognage } from "./rognage";
+import type { Perspective } from "./perspective";
 
 export const VERSION_DOCUMENT = 4 as const;
 
@@ -248,6 +249,9 @@ export interface ElementImage extends ElementBase {
   /** Le recadrage et le redressement (étape 5, lot 5) ; absent : toute l'image, droite. La
    *  boîte de l'élément a les proportions du rectangle gardé. */
   rognage?: Rognage;
+  /** La perspective (étape 5, lot 6) : le visuel à plat posé sur quatre coins, en fractions de
+   *  la boîte de l'élément ; absente : à plat. */
+  perspective?: Perspective;
 }
 
 /**
@@ -278,6 +282,8 @@ export interface ElementVideo extends ElementBase {
   reglages?: ReglagesPhoto;
   /** Le recadrage et le redressement (étape 5, lot 5), comme une photo. */
   rognage?: Rognage;
+  /** La perspective (étape 5, lot 6), comme une photo. */
+  perspective?: Perspective;
 }
 
 /**
