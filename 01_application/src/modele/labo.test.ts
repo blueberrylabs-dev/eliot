@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { aDesVoisins, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, lireValeur, normaliserPoints, normaliserReglages, PAS_COURBE, POINTS_COURBE_MAX, spline, tableCourbe, texteValeur, type PointCourbe } from "./labo";
+import { aDesVoisins, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, lireValeur, normaliserEtalonnage, normaliserPoints, normaliserReglages, vecteurEtalonnage, PAS_COURBE, POINTS_COURBE_MAX, spline, tableCourbe, texteValeur, type PointCourbe } from "./labo";
 
 describe("réglages du labo (étape 5, lot 2)", () => {
   it("le document ne garde que les curseurs différents de zéro, dans leur plage", () => {
@@ -35,7 +35,7 @@ describe("réglages du labo (étape 5, lot 2)", () => {
   it("les noms des réglages sont ceux du noyau (tableau commun)", () => {
     const tableau = JSON.parse(readFileSync(new URL("./labo.attendus.json", import.meta.url), "utf8")) as { cas: { reglages: Record<string, unknown> }[] };
     const cles = Object.keys(tableau.cas[0].reglages).sort();
-    expect(cles).toEqual([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe"].sort());
+    expect(cles).toEqual([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe", "etalonnage"].sort());
     expect(Object.keys(tableau.cas[0].reglages.melangeur as object).sort()).toEqual([...COULEURS_MELANGEUR].sort());
   });
 });
@@ -102,5 +102,27 @@ describe("clips vidéo au labo (étape 5, lot 4)", () => {
     const tableau = JSON.parse(readFileSync(new URL("./labo.attendus.json", import.meta.url), "utf8")) as { cas: { nom: string; graine: number }[] };
     expect(tableau.cas.some((c) => c.graine === 37)).toBe(true);
     expect(tableau.cas.filter((c) => c.graine !== 0).length).toBe(1);
+  });
+});
+
+describe("étalonnage (étape 5, corrections du 2026-10-16)", () => {
+  it("le document garde les zones colorées, la teinte en degrés, la force de 0 à 100", () => {
+    expect(normaliserEtalonnage(undefined)).toBeUndefined();
+    expect(normaliserEtalonnage({ ombres: { teinte: 200, saturation: 0 }, equilibre: 30 })).toBeUndefined();
+    expect(normaliserEtalonnage({ ombres: { teinte: 400.4, saturation: 140 }, hautesLumieres: { teinte: -30, saturation: 20 }, equilibre: -250 })).toEqual({ ombres: { teinte: 40, saturation: 100 }, hautesLumieres: { teinte: 330, saturation: 20 }, equilibre: -100 });
+    expect(normaliserEtalonnage({ tonsMoyens: { teinte: 0, saturation: 12 } })).toEqual({ tonsMoyens: { saturation: 12 } });
+    expect(normaliserReglages({ saturation: -100, etalonnage: { ombres: { teinte: 30, saturation: 50 } } })).toEqual({ saturation: -100, etalonnage: { ombres: { teinte: 30, saturation: 50 } } });
+  });
+
+  it("l'écart d'une teinte ne change pas la luminance d'un gris", () => {
+    for (const t of [0, 35, 120, 210, 300]) {
+      const v = vecteurEtalonnage(t, 100);
+      expect(v[0] * 0.2126 + v[1] * 0.7152 + v[2] * 0.0722).toBeCloseTo(0, 6);
+    }
+    // Une teinte orangée réchauffe : plus de rouge, moins de bleu.
+    const orange = vecteurEtalonnage(30, 50);
+    expect(orange[0]).toBeGreaterThan(0);
+    expect(orange[2]).toBeLessThan(0);
+    for (const c of vecteurEtalonnage(210, 0)) expect(Math.abs(c)).toBe(0);
   });
 });

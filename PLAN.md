@@ -343,8 +343,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
   là.
 - Réglages : des valeurs du document (`reglages`, seulement les curseurs différents de zéro,
   même champ pour une photo et un clip, règle 13). Le noyau les calcule en lumière linéaire,
-  dans l'ordre fixe du BRIEF : balance des blancs, exposition, tonalités, courbe, couleurs,
-  détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
+  dans l'ordre fixe du BRIEF : balance des blancs, exposition, tonalités, courbe, couleurs
+  (l'étalonnage en dernier), détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
   tableau de valeurs attendues commun, comme pour l'animation et le son.
 - Préréglages : un préréglage est un style. Il ne touche ni à l'exposition, ni à la netteté, ni
   à la réduction du bruit, propres à chaque photo ; l'appliquer remplace le reste de la
@@ -406,6 +406,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       capture à 1,46 sur 255 de l'export (2,92 avec clarté et texture), image du MP4 à 1,66
       (JOURNAL). Essai d'Alexandre : « Essayer les clips au labo (étape 5, lot 4) » du
       `01_application/LISEZMOI.md`.
+- [x] Corrections du BRIEF du 2026-10-16, après le lot 4 : grain et réduction du bruit de 0 à
+      100 ; `krilla` à la place de `svg2pdf` ; la musique baisse là où l'on parle dans une
+      vidéo de la page (le noyau trouve la parole dans son son) ; l'étalonnage (une teinte et
+      sa force pour les ombres, les tons moyens, les hautes lumières, et l'équilibre), dans le
+      noyau et le shader, même tableau, écart nul ; préréglages Sépia et Noir et blanc bleuté
+      (25 en tout) (JOURNAL). Essai d'Alexandre : « Essayer l'étalonnage et la musique sous une
+      vidéo qui parle » du `01_application/LISEZMOI.md`.
 - [ ] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
       prêtes, grille des tiers).
 - [ ] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
@@ -415,7 +422,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
       WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils ; lot 3 : `retoucher` prend la
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
-      `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips).
+      `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips ;
+      corrections du 2026-10-16 : `retoucher` prend l'étalonnage).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

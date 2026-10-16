@@ -7,6 +7,7 @@ import { AudioLines, Mic, Music, Repeat, Sparkles } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { useEditeur } from "../../etat/editeur";
 import { boucle, gainClipSon, tempsMediaSon } from "../../modele/son";
+import { useParolesDeLaPage } from "../../etat/parole";
 import type { ClipAudio, Ressource, RoleSon } from "../../modele/types";
 import { ondeNettoyee, ondeRessource, type Onde } from "../../pont/tauri";
 import { cleVersion, useNettoyages } from "../../etat/nettoyage";
@@ -29,6 +30,7 @@ export const nomSon = (r: Ressource | undefined): string => r?.credit?.titre ?? 
 
 function OndeSon({ clip, sons, ressource, largeur, hauteur }: { clip: ClipAudio; sons: readonly ClipAudio[]; ressource: Ressource; largeur: number; hauteur: number }) {
   const projet = useEditeur((s) => s.projet);
+  const paroles = useParolesDeLaPage();
   const [onde, setOnde] = useState<Onde | null>(null);
   const toile = useRef<HTMLCanvasElement>(null);
   // La version nettoyée, une fois prête : son onde montre ce qui s'entend.
@@ -55,10 +57,10 @@ function OndeSon({ clip, sons, ressource, largeur, hauteur }: { clip: ClipAudio;
       const t = clip.temps.debut + (x / l) * longueur;
       const instant = tempsMediaSon(clip, t, fichier);
       const pic = onde.pics[Math.min(onde.pics.length - 1, Math.floor((instant / 1000) * onde.par_seconde))] ?? 0;
-      const haut = Math.max(1, (pic / plusFort) * h * gainClipSon(clip, t, sons));
+      const haut = Math.max(1, (pic / plusFort) * h * gainClipSon(clip, t, sons, paroles));
       c.fillRect(x, (h - haut) / 2, 1.5, haut);
     }
-  }, [onde, l, h, clip, sons, ressource]);
+  }, [onde, l, h, clip, sons, ressource, paroles]);
   if (!onde) return null;
   return <canvas ref={toile} width={l} height={h} className="pointer-events-none absolute bottom-1 left-0" style={{ width: largeur, height: h }} />;
 }

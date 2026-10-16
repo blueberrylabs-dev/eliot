@@ -1163,6 +1163,25 @@ fn mixer_son(scene: &Scene, sons_page: &[ClipAudio], duree: f64, annule: &Atomic
     let par_ms = FREQUENCE as f64 / 1000.0;
     let total = (duree * par_ms).ceil() as usize;
     let mut mix = Mixage::default();
+    // Où l'on parle dans les vidéos de la page : la musique y baisse aussi (décision d'Alexandre
+    // du 2026-10-16). L'analyse du niveau est faite une fois par fichier, puis relue.
+    let mut analyses: Vec<(f64, f64, f64, f64, Vec<[u64; 2]>)> = Vec::new();
+    if sons_page.iter().any(|c| c.est_musique()) {
+        for el in &scene.elements {
+            if el.el.genre != "video" || !el.el.visible || el.el.volume.unwrap_or(1.0) <= 0.0 {
+                continue;
+            }
+            let (Some(id), Some(temps)) = (el.clip.ressource.as_deref(), el.el.temps) else { continue };
+            if !images::infos(&scene.dossier, id).is_ok_and(|i| i.video.is_some_and(|v| v.son)) {
+                continue;
+            }
+            if let Ok(a) = crate::parole::analyser(&scene.dossier, id) {
+                analyses.push((temps.debut, temps.fin, el.clip.coupe.unwrap_or_default().debut, el.clip.vitesse.unwrap_or(1.0), a.parole));
+            }
+        }
+    }
+    let clips_qui_parlent: Vec<son::ClipQuiParle> = analyses.iter().map(|(debut, fin, coupe_debut, vitesse, parole)| son::ClipQuiParle { debut: *debut, fin: *fin, coupe_debut: *coupe_debut, vitesse: *vitesse, parole }).collect();
+    let paroles = son::paroles_des_clips(&clips_qui_parlent);
     for el in &scene.elements {
         if annule.load(Ordering::Relaxed) {
             return Err(ErreurMontage::Annule);
@@ -1247,7 +1266,7 @@ fn mixer_son(scene: &Scene, sons_page: &[ClipAudio], duree: f64, annule: &Atomic
                 break;
             };
             if j % 48 == 0 {
-                gain = son::gain_clip_son(c, k as f64 / par_ms, sons_page) as f32;
+                gain = son::gain_clip_son(c, k as f64 / par_ms, sons_page, &paroles) as f32;
             }
             tampon[2 * k] += echantillons[2 * i] * gain;
             tampon[2 * k + 1] += echantillons[2 * i + 1] * gain;
@@ -1865,6 +1884,45 @@ mod tests {
         let s = Command::new("ffmpeg").args(["-hide_banner", "-loglevel", "error", "-i"]).arg(film).args(["-vn", "-ac", "2", "-ar", "48000", "-f", "f32le", "pipe:1"]).output().unwrap();
         let v: Vec<f32> = s.stdout.chunks_exact(4).map(|o| f32::from_le_bytes([o[0], o[1], o[2], o[3]])).collect();
         sons::mesurer(&v).lufs.unwrap()
+    }
+
+    /// Une vidéo où l'on parle (décision d'Alexandre du 2026-10-16) : la musique baisse là où
+    /// l'analyse trouve de la parole dans son son, et seulement là.
+    #[test]
+    fn la_musique_baisse_la_ou_l_on_parle_dans_une_video() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("parle");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        // 2 s d'image ; le son : 1 000 Hz de 1 à 1,6 s, du silence ailleurs.
+        let chemin = dossier.join("parle.mp4");
+        let s = Command::new("ffmpeg")
+            .args(["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:size=160x90:rate=25:duration=2", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=2"])
+            .args(["-af", "volume=0:enable='not(between(t,1,1.6))'", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest"])
+            .arg(&chemin)
+            .output()
+            .unwrap();
+        assert!(s.status.success(), "{}", String::from_utf8_lossy(&s.stderr));
+        let video = videos::importer(&chemin, &ressources, &videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        let musique = sons::importer(&sinus_wav(&dossier, "musique.wav", 440, 2.0), &ressources, &mut |_| {}).unwrap();
+        let mut page = page_de_test(&video.id);
+        page.elements[0].element.as_object_mut().unwrap().remove("fonduEntree");
+        page.sons = serde_json::from_value(json!([{ "id": "m", "ressource": musique.id, "temps": { "debut": 0, "fin": 2000 }, "piste": 0, "role": "musique" }])).unwrap();
+        let cible = dossier.join("sortie").join("film.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |_| {}, &AtomicBool::new(false)).unwrap();
+        let (avant, sous) = (niveau_a(&cible, 0.2, 0.7, 440), niveau_a(&cible, 1.15, 1.5, 440));
+        assert!(avant > 0.02, "{avant}");
+        assert!((sous / avant - 0.3).abs() < 0.08, "sous la parole de la vidéo : {sous} pour {avant}");
+        // La même vidéo muette : la musique ne baisse plus.
+        page.elements[0].element["volume"] = json!(0);
+        let cible2 = dossier.join("sortie").join("muette.mp4");
+        exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible2, &mut |_| {}, &AtomicBool::new(false)).unwrap();
+        let (avant2, sous2) = (niveau_a(&cible2, 0.2, 0.7, 440), niveau_a(&cible2, 1.15, 1.5, 440));
+        assert!((sous2 / avant2 - 1.0).abs() < 0.15, "vidéo muette : {sous2} pour {avant2}");
+        let _ = fs::remove_dir_all(&dossier);
     }
 
     #[test]

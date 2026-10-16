@@ -2,7 +2,8 @@
 // copie d'écoute de chaque son (jamais l'original, règle 5) est décodée une fois, puis, à chaque
 // lecture, chaque son est programmé sur l'horloge du son, à l'échantillon près : son départ, sa
 // partie jouée, sa boucle, et la courbe de son volume (le volume du clip, ses fondus, la musique
-// qui baisse sous la voix : `modele/son.ts`, les mêmes formules que l'export). Une voix
+// qui baisse sous la voix et là où l'on parle dans une vidéo : `modele/son.ts`, les mêmes
+// formules que l'export). Une voix
 // nettoyée (lot 6) joue sa version nettoyée dès qu'elle est prête, l'originale en attendant.
 //
 // Écarté : une balise `<audio>` par son, recalée sur la tête de lecture. Mesuré dans WebKit, une
@@ -17,6 +18,7 @@ import { sourceDuClip } from "../modele/voix";
 import type { ClipAudio, NettoyageVoix, RefRessources, Ressource } from "../modele/types";
 import { urlCopie, urlCopieNettoyee } from "../pont/tauri";
 import { versionNettoyee } from "../etat/nettoyage";
+import { analyserLesVideosParlantes, useParolesDeLaPage } from "../etat/parole";
 
 /** Points par seconde de la courbe du volume d'un son. */
 const POINTS_PAR_SECONDE = 50;
@@ -100,6 +102,11 @@ export function useLecteurSons(): void {
   const ressources = useEditeur((s) => s.ressources);
   const sons = useRef<ClipAudio[]>([]);
   sons.current = audio ?? [];
+  // Où l'on parle dans les vidéos de la page : la musique y baisse.
+  const parolesPage = useParolesDeLaPage();
+  const paroles = useRef(parolesPage);
+  paroles.current = parolesPage;
+  const elements = useEditeur((s) => pageCourante(s).elements);
   const prets = useRef(new Map<string, AudioBuffer>());
   const programme = useRef<Programme | null>(null);
   /** Chaque lancement ou arrêt l'avance : un lancement qui attendait l'horloge du son et
@@ -175,7 +182,7 @@ export function useLecteurSons(): void {
       // La courbe du volume, de l'entrée à la fin du son.
       const n = Math.max(2, Math.ceil(duree * POINTS_PAR_SECONDE) + 1);
       const courbe = new Float32Array(n);
-      for (let i = 0; i < n; i++) courbe[i] = Math.max(0, Math.min(1, gainClipSon(c, Math.min(c.temps.fin - 1, debut + (i / (n - 1)) * (c.temps.fin - debut)), tous)));
+      for (let i = 0; i < n; i++) courbe[i] = Math.max(0, Math.min(1, gainClipSon(c, Math.min(c.temps.fin - 1, debut + (i / (n - 1)) * (c.temps.fin - debut)), tous, paroles.current)));
       const gain = ctx.createGain();
       gain.gain.value = courbe[0];
       gain.gain.setValueCurveAtTime(courbe, quand, Math.max(0.01, duree));
@@ -196,7 +203,7 @@ export function useLecteurSons(): void {
       lectureSons.set(c.id, {
         joue: etat.joue && actif && !!programme.current?.ids.has(c.id),
         instant: Math.round(tempsMediaSon(c, etat.tete, tampon ? tampon.duration * 1000 : undefined)),
-        volume: actif ? gainClipSon(c, etat.tete, tous) : 0,
+        volume: actif ? gainClipSon(c, etat.tete, tous, paroles.current) : 0,
       });
     }
   };
@@ -252,6 +259,18 @@ export function useLecteurSons(): void {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projet, audio, ressources]);
+
+  // Les vidéos qu'on entend sous une musique sont analysées ; une analyse qui arrive pendant la
+  // lecture fait reprogrammer depuis la tête.
+  useEffect(() => {
+    analyserLesVideosParlantes(pageCourante(useEditeur.getState()), ressources);
+  }, [elements, audio, ressources]);
+  useEffect(() => {
+    const t = useTemps.getState();
+    if (audible(t)) lancer(t.tete);
+    noter(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parolesPage]);
 
   // Un autre design : ses sons décodés partent avec lui.
   useEffect(

@@ -5,6 +5,52 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, corrections du BRIEF : la musique sous une vidéo qui parle, l'étalonnage
+
+Réponses d'Alexandre au compte rendu du lot 4 : « Oui, pour ton point 1. Deux, ta
+recommandation. Et oui, pour l'étalonnage. » Le BRIEF est corrigé en quatre points, avec son
+accord (en-tête du BRIEF) :
+
+- Le grain et la réduction du bruit vont de 0 à 100 (le BRIEF disait -100 à +100 pour tous les
+  curseurs) ; le PDF vectoriel passe par `krilla` et `krilla-svg` à la place de `svg2pdf`
+  (choix du lot 1, JOURNAL du même jour).
+- La musique baisse aussi là où l'on parle dans une vidéo de la page, pas seulement sous un son
+  au rôle Voix. Recommandation de Claude, retenue : la baisse suit la parole que le noyau
+  trouve dans le son de la vidéo (la même analyse que pour couper les blancs), et non toute
+  vidéo qu'on entend. Écarté : baisser sous chaque vidéo qui a du son, parce qu'une vidéo de
+  bruit d'ambiance (une rue, une cuisine) ferait taire la musique sans raison. Les passages de
+  parole du fichier sont ramenés au temps de la page (coupe, vitesse, temps du clip), une
+  vidéo muette ou cachée ne compte pas, et deux passages à moins de 1,2 s l'un de l'autre n'en
+  font qu'un : sans cela, la musique remonterait entre deux phrases. Mêmes rampes que sous la
+  voix (200 ms avant, 400 ms après). Limite connue : l'analyse écoute un niveau, pas une voix ;
+  un son continu fort (une perceuse) compte comme de la parole. Le tableau commun du son passe
+  à 84 cas, dont 24 avec de la parole de vidéo.
+- L'étalonnage, ajouté au labo : une teinte (0 à 360°) et sa force (0 à 100) pour les ombres,
+  les tons moyens et les hautes lumières, et un équilibre (-100 à +100). Il vient en dernier
+  des couleurs, après la saturation et le mélangeur, si bien qu'il colore aussi une photo
+  passée en noir et blanc. Formule : l'écart de la teinte pleine à sa propre luminance (un gris
+  ne change pas de luminance), pondéré par trois zones prises sur la luminance perçue, dont la
+  frontière glisse avec l'équilibre ; il multiplie la couleur en lumière linéaire. Le même
+  calcul dans le noyau et le shader : trois cas ajoutés au tableau commun (23 cas), écart
+  nul. Dans le panneau, sous le mélangeur : Teinte (piste arc-en-ciel, en degrés), Force,
+  Équilibre ; une teinte choisie sans force en reçoit une de 25, pour qu'on la voie. Un
+  préréglage à mi-intensité divise la force de chaque teinte, garde les teintes et
+  l'équilibre.
+- Deux préréglages en profitent, dans Noir et blanc : Sépia et Noir et blanc bleuté (25 en
+  tout).
+- Pont IA : `retoucher` prend `etalonnage`, zone par zone (une zone donnée se fond avec celle
+  déjà posée, comme une couleur du mélangeur), avec des erreurs qui nomment les zones.
+- Essais : noyau 106 (3 de plus : la musique qui baisse sous la parole d'une vidéo, les
+  passages d'une vidéo dans le temps de la page, l'étalonnage d'un noir et blanc), interface
+  194 (5 de plus) ; Chromium : shader contre le tableau 23 cas, étalonnage au panneau et
+  musique sous une vidéo qui parle 23 vérifications (l'analyse y est simulée), lots 2 à 4 et
+  étape 4 (lot 5) repassés ; Tauri par le pont : étalonnage et sépia, fenêtre contre export à
+  1,75 et 1,03 sur 255, et le MP4 où le la de la musique tombe à 0,30 de son amplitude pendant
+  la parole de la vidéo puis remonte, 9 vérifications ; lots 2 à 4 repassés. L'essai du son
+  de l'étape 4 dans WebKit (sortie muette de PulseAudio enregistrée) échoue sur deux points,
+  avec les mêmes chiffres qu'avant ces corrections (suites du lot 7 de l'étape 4) : un défaut
+  de l'enregistrement dans le conteneur, à revoir, pas de ce changement.
+
 ## 2026-10-16, étape 5, lot 4 : les clips vidéo au labo
 
 Accord d'Alexandre (« Ok, tu peux continuer »). Ce que Claude a fait et décidé :

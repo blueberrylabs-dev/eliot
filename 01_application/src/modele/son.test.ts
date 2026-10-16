@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { deplacerSon, dupliquerSon, normaliser, placerSon, rognerSon, scinderSons, supprimerSons } from "./frise";
-import { ATTAQUE_VOIX, creditsDesSons, gainClipSon, presenceVoix, RELACHE_VOIX, SOUS_LA_VOIX, tempsMediaSon } from "./son";
+import { ATTAQUE_VOIX, creditsDesSons, gainClipSon, parolesDesClips, presenceVoix, RELACHE_VOIX, SOUS_LA_VOIX, tempsMediaSon } from "./son";
 import type { ClipAudio, ElementVideo, PageEliot } from "./types";
 
 const base = { x: 0, y: 0, largeur: 100, hauteur: 100, rotation: 0, opacite: 1, visible: true, verrouille: false };
@@ -142,6 +142,28 @@ describe("son : la frise", () => {
   });
 });
 
+describe("la musique baisse là où l'on parle dans une vidéo (décision du 2026-10-16)", () => {
+  it("les passages de parole d'un clip mis à leur place dans la page, et réunis", () => {
+    // Les mêmes cas que `les_paroles_des_clips` du noyau.
+    const clip = { temps: { debut: 1000, fin: 8000 }, coupe: { debut: 2000 }, vitesse: 2, parole: [[3000, 4000], [5000, 6200], [9000, 11000], [16000, 20000]] as [number, number][] };
+    expect(parolesDesClips([clip])).toEqual([[1500, 3100], [4500, 5500]]);
+    expect(parolesDesClips([{ ...clip, volume: 0 }])).toEqual([]);
+    expect(parolesDesClips([{ ...clip, visible: false }])).toEqual([]);
+    expect(parolesDesClips([{ ...clip, temps: undefined }])).toEqual([]);
+    // Deux clips qui se suivent : leurs paroles proches se rejoignent.
+    expect(parolesDesClips([{ temps: { debut: 0, fin: 2000 }, parole: [[0, 1500]] }, { temps: { debut: 2000, fin: 4000 }, parole: [[300, 1000]] }])).toEqual([[0, 3000]]);
+  });
+
+  it("la musique garde 30 % sous la parole d'une vidéo, comme sous une voix", () => {
+    const musique: ClipAudio = { id: "m", ressource: "r", temps: { debut: 0, fin: 9000 }, piste: 0, role: "musique" };
+    const paroles = parolesDesClips([{ temps: { debut: 1000, fin: 8000 }, parole: [[2000, 3000]] }]);
+    expect(gainClipSon(musique, 500, [musique], paroles)).toBe(1);
+    expect(gainClipSon(musique, 3500, [musique], paroles)).toBeCloseTo(SOUS_LA_VOIX, 9);
+    expect(presenceVoix([musique], 3000 - ATTAQUE_VOIX / 2, "m", paroles)).toBeCloseTo(0.5, 9);
+    expect(gainClipSon(musique, 4000 + RELACHE_VOIX, [musique], paroles)).toBe(1);
+  });
+});
+
 // ---- Le tableau commun avec le Rust ----
 // `ECRIRE_ATTENDUS=1 npx vitest run src/modele/son.test.ts` le réécrit ; sinon, il est relu.
 
@@ -161,6 +183,12 @@ function casDuTableau() {
     for (const t of instants) {
       const sons = [c, ...voix];
       cas.push({ son: c, voix, t, dureeFichier: 4000, media: arrondi(tempsMediaSon(c, t, 4000)), presence: arrondi(presenceVoix(sons, t, c.id)), gain: arrondi(gainClipSon(c, t, sons)) });
+    }
+  // Une vidéo où l'on parle (décision du 2026-10-16) : ses passages de parole, à la page.
+  const paroles = parolesDesClips([{ temps: { debut: 1000, fin: 8000 }, coupe: { debut: 2000 }, vitesse: 2, parole: [[3000, 4000], [5000, 6200], [9000, 11000], [16000, 20000]] }]);
+  for (const c of clips.slice(1))
+    for (const t of [1000, 1300, 1499, 1500, 2100, 2500, 2600, 2700, 5299, 5300, 5800, 7999]) {
+      cas.push({ son: c, voix: [], paroles, t, dureeFichier: 4000, media: arrondi(tempsMediaSon(c, t, 4000)), presence: arrondi(presenceVoix([c], t, c.id, paroles)), gain: arrondi(gainClipSon(c, t, [c], paroles)) });
     }
   return cas;
 }

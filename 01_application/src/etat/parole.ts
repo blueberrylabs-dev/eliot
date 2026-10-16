@@ -20,7 +20,9 @@ import {
   type ModeleSousTitres,
   type ReglagesSousTitres,
 } from "../modele/sousTitres";
-import type { ElementTexte, PageEliot, Temps } from "../modele/types";
+import type { ElementTexte, ElementVideo, PageEliot, Ressource, Temps } from "../modele/types";
+import { parolesDesClips, type Passage } from "../modele/son";
+import { useMemo } from "react";
 import { analyserParole, annulerTranscription, etatWhisper, transcrireParole, type EtatWhisper } from "../pont/tauri";
 import { assurerPolice } from "../polices";
 import { dureesDe, pageCourante, useEditeur } from "./editeur";
@@ -297,4 +299,39 @@ export async function couperLesBlancs(id: string, options: OptionsBlancs): Promi
   if (encore.video) useEditeur.getState().selectionnerSeul(morceaux[0]);
   else useEditeur.getState().selectionnerSons(morceaux.slice(0, 1));
   return { morceaux: morceaux.length, retire, sousTitres };
+}
+
+// ----------------------------------------------------------------------------------------
+// La musique baisse là où l'on parle dans une vidéo (décision d'Alexandre du 2026-10-16)
+// ----------------------------------------------------------------------------------------
+
+/** Où l'on parle dans les vidéos d'une page vidéo, en ms de la page, d'après les analyses déjà
+ *  connues (une vidéo pas encore analysée ne compte pas encore). */
+export function parolesDeLaPage(page: PageEliot, ressources: Record<string, Ressource>, analyses: Record<string, AnalyseParole>): Passage[] {
+  if (page.duree === undefined) return [];
+  const videos = page.elements.filter((e): e is ElementVideo => e.type === "video");
+  return parolesDesClips(
+    videos.map((e) => ({ temps: e.temps, coupe: e.coupe, vitesse: e.vitesse, volume: e.volume, visible: e.visible, parole: ressources[e.ressource]?.video?.son ? analyses[e.ressource]?.parole : undefined })),
+  );
+}
+
+/** Une page vidéo qui a une musique : l'analyse de ses vidéos qu'on entend est demandée au
+ *  noyau (une fois par fichier, puis relue). */
+export function analyserLesVideosParlantes(page: PageEliot, ressources: Record<string, Ressource>): void {
+  if (page.duree === undefined || !page.audio?.some((c) => c.role === "musique")) return;
+  const parole = useParole.getState();
+  for (const e of page.elements) {
+    if (e.type !== "video" || (e.volume ?? 1) <= 0 || !ressources[e.ressource]?.video?.son || parole.analyses[e.ressource]) continue;
+    void parole.analyser(e.ressource).catch(() => undefined);
+  }
+}
+
+/** Les passages de parole des vidéos de la page affichée, tenus à jour ; le même tableau tant
+ *  qu'ils ne changent pas (la lecture n'est reprogrammée que s'ils changent). */
+export function useParolesDeLaPage(): Passage[] {
+  const page = useEditeur(pageCourante);
+  const ressources = useEditeur((s) => s.ressources);
+  const analyses = useParole((s) => s.analyses);
+  const cle = useMemo(() => JSON.stringify(parolesDeLaPage(page, ressources, analyses)), [page, ressources, analyses]);
+  return useMemo(() => JSON.parse(cle) as Passage[], [cle]);
 }

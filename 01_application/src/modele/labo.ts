@@ -21,6 +21,23 @@ export type PointCourbe = [number, number];
 /** Une liste absente ou vide : la diagonale, rien ne change. */
 export type CourbeTonalites = Partial<Record<CanalCourbe, PointCourbe[]>>;
 
+/** Les trois zones de l'étalonnage. */
+export const ZONES_ETALONNAGE = ["ombres", "tonsMoyens", "hautesLumieres"] as const;
+export type ZoneEtalonnage = (typeof ZONES_ETALONNAGE)[number];
+/** La teinte d'une zone (de 0 à 360°) et sa force (de 0 à 100). */
+export interface TeinteZone {
+  teinte?: number;
+  saturation?: number;
+}
+/** L'étalonnage, comme celui de Lightroom ; `equilibre` (de -100 à +100) déplace la frontière
+ *  entre ombres et hautes lumières (positif : plus de hautes lumières). */
+export interface Etalonnage {
+  ombres?: TeinteZone;
+  tonsMoyens?: TeinteZone;
+  hautesLumieres?: TeinteZone;
+  equilibre?: number;
+}
+
 export interface ReglagesPhoto {
   temperature?: number;
   teinte?: number;
@@ -34,6 +51,7 @@ export interface ReglagesPhoto {
   vibrance?: number;
   saturation?: number;
   melangeur?: Partial<Record<CouleurMelangeur, RetoucheCouleur>>;
+  etalonnage?: Etalonnage;
   courbe?: CourbeTonalites;
   texture?: number;
   clarte?: number;
@@ -46,7 +64,7 @@ export interface ReglagesPhoto {
   bruit?: number;
 }
 
-export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur" | "courbe">;
+export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur" | "courbe" | "etalonnage">;
 
 /** Un curseur du panneau : sa plage, son pas, son libellé. */
 export interface DefinitionCurseur {
@@ -195,6 +213,48 @@ export function tableCourbe(c: CourbeTonalites | undefined): Float32Array | null
   return table;
 }
 
+/** L'étalonnage normalisé : une zone sans force sort (sa teinte ne compte pas), la teinte de 0
+ *  à 359°, l'équilibre seulement s'il y a une zone ; `undefined` s'il ne reste rien. Les mêmes
+ *  règles que `Etalonnage::bornes` du noyau, en entiers. */
+export function normaliserEtalonnage(e: unknown): Etalonnage | undefined {
+  if (!e || typeof e !== "object") return undefined;
+  const brut = e as Record<string, unknown>;
+  const sortie: Etalonnage = {};
+  for (const z of ZONES_ETALONNAGE) {
+    const zone = brut[z] as TeinteZone | undefined;
+    if (!zone || typeof zone !== "object") continue;
+    const saturation = Math.round(borner(zone.saturation, 0, 100));
+    if (saturation <= 0) continue;
+    const t = typeof zone.teinte === "number" && Number.isFinite(zone.teinte) ? Math.round(((zone.teinte % 360) + 360) % 360) % 360 : 0;
+    sortie[z] = t ? { teinte: t, saturation } : { saturation };
+  }
+  if (!Object.keys(sortie).length) return undefined;
+  const equilibre = Math.round(borner(brut.equilibre, -100, 100));
+  if (equilibre) sortie.equilibre = equilibre;
+  return sortie;
+}
+
+/** La force de l'étalonnage à 100 (la même dans le noyau). */
+export const FORCE_ETALONNAGE = 1;
+
+/** L'écart de couleur d'une zone : la couleur pleine de la teinte, moins sa luminance, à la
+ *  force voulue (le même calcul que `vecteur_etalonnage` du noyau). */
+export function vecteurEtalonnage(teinte: number, saturation: number): [number, number, number] {
+  const f = (n: number) => {
+    const k = (((n + teinte / 60) % 6) + 6) % 6;
+    return 1 - Math.min(1, Math.max(0, Math.min(k, 4 - k)));
+  };
+  const c = [f(5), f(3), f(1)];
+  const y = c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
+  const force = (saturation / 100) * FORCE_ETALONNAGE;
+  return [(c[0] - y) * force, (c[1] - y) * force, (c[2] - y) * force];
+}
+
+/** La couleur d'une teinte à l'écran (pastilles et pistes du panneau). */
+export function couleurDeTeinte(teinte: number, saturation = 100): string {
+  return `hsl(${Math.round(teinte)}, ${Math.round(saturation)}%, 50%)`;
+}
+
 /** Chaque valeur dans sa plage, les zéros retirés ; `undefined` s'il ne reste rien. */
 export function normaliserReglages(r: ReglagesPhoto | undefined | null): ReglagesPhoto | undefined {
   if (!r || typeof r !== "object") return undefined;
@@ -217,6 +277,8 @@ export function normaliserReglages(r: ReglagesPhoto | undefined | null): Reglage
     if (Object.keys(t).length) melangeur[couleur] = t;
   }
   if (Object.keys(melangeur).length) sortie.melangeur = melangeur;
+  const etalonnage = normaliserEtalonnage(r.etalonnage);
+  if (etalonnage) sortie.etalonnage = etalonnage;
   const courbe = normaliserCourbe(r.courbe);
   if (courbe) sortie.courbe = courbe;
   return Object.keys(sortie).length ? sortie : undefined;

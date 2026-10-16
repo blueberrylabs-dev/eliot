@@ -5,8 +5,9 @@
 //
 // Un son a un rôle : musique, voix ou bruitage. La musique baisse toute seule pendant les clips
 // de voix (elle garde `sousLaVoix` de son volume, 30 % par défaut), en commençant un peu avant
-// la voix et en remontant un peu après. Une musique « jusqu'à la fin » couvre la page jusqu'au
-// bout et se répète au besoin.
+// la voix et en remontant un peu après ; elle baisse aussi là où l'on parle dans une vidéo de la
+// page (les passages de parole que le noyau y trouve, décision d'Alexandre du 2026-10-16). Une
+// musique « jusqu'à la fin » couvre la page jusqu'au bout et se répète au besoin.
 
 import type { ClipAudio, PageEliot, RoleSon } from "./types";
 
@@ -64,26 +65,79 @@ export function tempsMediaSon(c: ClipAudio, t: number, dureeFichier?: number): n
   return Math.max(debut, Math.min(fin, debut + depuis));
 }
 
+/** Un passage de la page, `[début, fin]` en ms. */
+export type Passage = readonly [number, number];
+
+/** Deux passages de parole d'une vidéo à moins de 1,2 s l'un de l'autre n'en font qu'un : la
+ *  musique ne remonte pas entre deux phrases. */
+export const FUSION_PAROLE = 1200;
+
+/** Ce qu'il faut savoir d'une vidéo de la page pour la baisse de la musique. */
+export interface ClipQuiParle {
+  temps?: { debut: number; fin: number };
+  coupe?: { debut: number; fin?: number };
+  vitesse?: number;
+  volume?: number;
+  visible?: boolean;
+  /** Les passages où l'on parle, en ms du fichier (l'analyse du noyau) ; absent : pas de son,
+   *  ou pas encore analysé. */
+  parole?: readonly Passage[];
+}
+
+/**
+ * Où l'on parle dans les vidéos d'une page, en ms de la page : chaque passage de parole de leur
+ * fichier mis à sa place (coupe, vitesse), dans le temps du clip, ceux à moins de
+ * `FUSION_PAROLE` l'un de l'autre réunis. Une vidéo cachée ou muette ne compte pas (l'export ne
+ * la mixe pas). Les mêmes règles que `paroles_des_clips` du noyau.
+ */
+export function parolesDesClips(clips: readonly ClipQuiParle[]): Passage[] {
+  const bruts: [number, number][] = [];
+  for (const c of clips) {
+    if (!c.temps || !c.parole?.length || (c.volume ?? 1) <= 0 || c.visible === false) continue;
+    const vitesse = Math.max(0.25, Math.min(4, c.vitesse ?? 1));
+    const depart = c.coupe?.debut ?? 0;
+    for (const [a, b] of c.parole) {
+      const debut = Math.max(c.temps.debut, c.temps.debut + (a - depart) / vitesse);
+      const fin = Math.min(c.temps.fin, c.temps.debut + (b - depart) / vitesse);
+      if (fin > debut) bruts.push([debut, fin]);
+    }
+  }
+  bruts.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  const sortie: [number, number][] = [];
+  for (const [debut, fin] of bruts) {
+    const dernier = sortie[sortie.length - 1];
+    if (dernier && debut - dernier[1] < FUSION_PAROLE) dernier[1] = Math.max(dernier[1], fin);
+    else sortie.push([debut, fin]);
+  }
+  return sortie;
+}
+
+/** La présence d'une voix de `debut` à `fin` à l'instant `t`, de 0 à 1, avec la montée avant et
+ *  la descente après. */
+function presence(debut: number, fin: number, t: number): number {
+  if (t < debut - ATTAQUE_VOIX || t >= fin + RELACHE_VOIX) return 0;
+  if (t < debut) return (t - (debut - ATTAQUE_VOIX)) / ATTAQUE_VOIX;
+  if (t < fin) return 1;
+  return 1 - (t - fin) / RELACHE_VOIX;
+}
+
 /** Une voix parle-t-elle à l'instant `t` ? De 0 à 1, avec la montée avant la voix et la
- *  descente après (`sauf` : un clip à ne pas compter). */
-export function presenceVoix(sons: readonly ClipAudio[], t: number, sauf?: string): number {
+ *  descente après (`sauf` : un clip à ne pas compter). `paroles` : où l'on parle dans les
+ *  vidéos de la page (`parolesDesClips`). */
+export function presenceVoix(sons: readonly ClipAudio[], t: number, sauf?: string, paroles: readonly Passage[] = []): number {
   let p = 0;
   for (const v of sons) {
     if (v.role !== "voix" || v.id === sauf || (v.volume ?? 1) <= 0) continue;
-    const { debut, fin } = v.temps;
-    let x = 0;
-    if (t < debut - ATTAQUE_VOIX || t >= fin + RELACHE_VOIX) x = 0;
-    else if (t < debut) x = (t - (debut - ATTAQUE_VOIX)) / ATTAQUE_VOIX;
-    else if (t < fin) x = 1;
-    else x = 1 - (t - fin) / RELACHE_VOIX;
-    if (x > p) p = x;
+    p = Math.max(p, presence(v.temps.debut, v.temps.fin, t));
   }
+  for (const [debut, fin] of paroles) p = Math.max(p, presence(debut, fin, t));
   return borne(p);
 }
 
 /** Le volume d'un son à l'instant `t` : son volume, ses fondus et, pour une musique, la baisse
- *  sous la voix. `sons` : tous les sons de la page. */
-export function gainClipSon(c: ClipAudio, t: number, sons: readonly ClipAudio[]): number {
+ *  sous la voix. `sons` : tous les sons de la page ; `paroles` : où l'on parle dans ses
+ *  vidéos. */
+export function gainClipSon(c: ClipAudio, t: number, sons: readonly ClipAudio[], paroles: readonly Passage[] = []): number {
   let v = c.volume ?? 1;
   const tr = t - c.temps.debut;
   const longueur = c.temps.fin - c.temps.debut;
@@ -91,7 +145,7 @@ export function gainClipSon(c: ClipAudio, t: number, sons: readonly ClipAudio[])
   const fo = c.fonduSortie ?? 0;
   if (fi > 0 && tr < fi) v *= borne(tr / fi);
   if (fo > 0 && tr > longueur - fo) v *= borne((longueur - tr) / fo);
-  if (c.role === "musique") v *= 1 - (1 - borne(c.sousLaVoix ?? SOUS_LA_VOIX)) * presenceVoix(sons, t, c.id);
+  if (c.role === "musique") v *= 1 - (1 - borne(c.sousLaVoix ?? SOUS_LA_VOIX)) * presenceVoix(sons, t, c.id, paroles);
   return borne(v);
 }
 

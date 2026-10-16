@@ -180,7 +180,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   fondus, « Jusqu'à la fin » pour une musique, « Répéter » pour un bruitage (tirer ensuite son
   bord droit pour la durée voulue), et montre son crédit.
 - La musique baisse toute seule quand un son au rôle Voix parle : elle garde 30 % de son
-  volume (réglable), en commençant un peu avant la voix et en remontant un peu après.
+  volume (réglable), en commençant un peu avant la voix et en remontant un peu après. Elle
+  baisse aussi là où l'on parle dans une vidéo qu'on entend (le noyau écoute le son de la
+  vidéo et y trouve la parole) ; sous une vidéo qui n'a que du bruit d'ambiance, elle joue à
+  plein. Deux paroles à moins de 1,2 s l'une de l'autre ne font qu'une baisse.
 - Le son d'une vidéo se détache (bulle Son, « Détacher le son », vitesse 1×) : il devient une
   voix sur une piste des sons, et la vidéo devient muette.
 - Freesound, dans l'onglet Audio : bruitages (30 s au plus), musiques (20 s et plus) ou tout,
@@ -270,8 +273,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 **Le labo photo (étape 5, lot 2)**
 - Une photo choisie, « Retoucher » dans la barre du haut : le panneau du labo s'ouvre à la
   place du panneau de gauche. Lumière (exposition en IL, contraste, hautes lumières, ombres,
-  blancs, noirs), Couleur (température, teinte, vibrance, saturation, et le mélangeur : teinte,
-  saturation et luminance de huit couleurs), Effets (texture, clarté, correction du voile,
+  blancs, noirs), Couleur (température, teinte, vibrance, saturation, le mélangeur : teinte,
+  saturation et luminance de huit couleurs, et l'étalonnage), Effets (texture, clarté, correction du voile,
   vignetage, grain), Détail (netteté, réduction du bruit). Un histogramme au-dessus.
 - La photo suit le curseur pendant qu'on le tire. Texture, clarté, voile, netteté et bruit
   regardent les pixels voisins : ils se calculent quand on relâche le curseur (le reste suit en
@@ -288,7 +291,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   la courbe y pose un point qu'on glisse ; un double-clic l'enlève (un bout revient à sa
   place) ; un point choisi bouge aux flèches (Maj : de 10) et part avec Suppr. Seize points au
   plus par courbe.
-- Les préréglages, en tête du panneau : 23 styles dessinés par Claude, rangés en Naturel,
+- L'étalonnage, sous le mélangeur : une teinte (de 0 à 360°) et sa force (de 0 à 100) pour
+  les ombres, les tons moyens et les hautes lumières, puis l'équilibre, qui donne plus de
+  place aux ombres ou aux hautes lumières. Une teinte choisie sans force en reçoit une de 25
+  pour qu'on la voie. Il vient après la saturation : il colore donc aussi une photo passée en
+  noir et blanc (sépia, noir et blanc bleuté).
+- Les préréglages, en tête du panneau : 25 styles dessinés par Claude, rangés en Naturel,
   Couleur, Film, Noir et blanc et Sujets. Chaque vignette montre ta photo avec le style ; la
   survoler le montre sur la page sans rien changer ; un clic l'applique (une étape
   d'annulation). Juste après, un curseur règle son intensité, de 0 à 100 %. Un préréglage
@@ -440,6 +448,22 @@ Dix minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13
 
 Ce qui m'aide le plus en retour : la fluidité de la lecture retouchée, le temps de l'export, et
 un écart entre ce que montre la page et le film exporté.
+
+## Essayer l'étalonnage et la musique sous une vidéo qui parle
+
+Cinq minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13).
+
+1. Une photo, « Retoucher », Couleur, Étalonnage : Ombres vers 210° (bleu), force 30 ; Hautes
+   lumières vers 35° (orange), force 25. Puis l'Équilibre : à gauche les ombres prennent plus de
+   place, à droite les hautes lumières.
+2. Préréglages, Noir et blanc : Sépia, puis Noir et blanc bleuté.
+3. Une story, une vidéo où tu parles (avec son), une musique de l'onglet Audio, puis Lire : la
+   musique baisse quand tu parles et remonte dans les silences. La première fois, l'analyse
+   du son de la vidéo prend un instant.
+4. Exporter en MP4 : la même baisse dans le film.
+
+Ce qui m'aide le plus en retour : la force de l'étalonnage (trop ou pas assez marquée vers 30),
+et une musique qui baisse trop souvent, ou pas assez tôt.
 
 ## Raccourcis
 

@@ -27,7 +27,7 @@ import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
-import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, type CanalCourbe, type CouleurMelangeur, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
+import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, ZONES_ETALONNAGE, type CanalCourbe, type CouleurMelangeur, type Etalonnage, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
 import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
 import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrereglages } from "../labo/prereglages";
 import { normaliser } from "../bibliotheque/recherche";
@@ -72,7 +72,7 @@ function designOuvert() {
 
 /** Les réglages demandés au labo se tiennent (noms connus, nombres, points de courbe). */
 function verifierReglages(demandes: Record<string, unknown>): void {
-  const connus = new Set<string>([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe"]);
+  const connus = new Set<string>([...CURSEURS_LABO.map((c) => c.cle), "melangeur", "courbe", "etalonnage"]);
   for (const [k, v] of Object.entries(demandes)) {
     exiger(connus.has(k), `réglage inconnu : ${k} (connus : ${[...connus].join(", ")})`);
     if (k === "melangeur") {
@@ -88,6 +88,17 @@ function verifierReglages(demandes: Record<string, unknown>): void {
         exiger((CANAUX_COURBE as readonly string[]).includes(c), `courbe : canal inconnu ${c} (${CANAUX_COURBE.join(", ")})`);
         exiger(Array.isArray(points) && points.every((q) => Array.isArray(q) && q.length === 2 && q.every((n) => typeof n === "number" && Number.isFinite(n))), `courbe.${c} : des points [entrée, sortie] de 0 à 255, par exemple [[0, 20], [255, 240]]`);
         exiger((points as unknown[]).length <= 16, `courbe.${c} : 16 points au plus`);
+      }
+    } else if (k === "etalonnage") {
+      exiger(typeof v === "object" && v !== null && !Array.isArray(v), "etalonnage : un objet, par exemple { ombres: { teinte: 210, saturation: 30 }, hautesLumieres: { teinte: 35, saturation: 25 }, equilibre: 0 }");
+      for (const [z, t] of Object.entries(v as Record<string, unknown>)) {
+        if (z === "equilibre") {
+          exiger(typeof t === "number" && Number.isFinite(t), "etalonnage.equilibre : un nombre de -100 à 100");
+          continue;
+        }
+        exiger((ZONES_ETALONNAGE as readonly string[]).includes(z), `etalonnage : zone inconnue ${z} (${ZONES_ETALONNAGE.join(", ")}, equilibre)`);
+        exiger(typeof t === "object" && t !== null && Object.keys(t).every((x) => ["teinte", "saturation"].includes(x)), `etalonnage.${z} : teinte (0 à 360°) et saturation (0 à 100)`);
+        for (const x of Object.values(t as Record<string, unknown>)) exiger(typeof x === "number" && Number.isFinite(x), `etalonnage.${z} : des nombres, teinte de 0 à 360°, saturation de 0 à 100`);
       }
     } else {
       exiger(typeof v === "number" && Number.isFinite(v), `${k} : un nombre`);
@@ -1631,7 +1642,12 @@ const OUTILS: Record<string, Outil> = {
     const melangeur = { ...depart.melangeur } as NonNullable<ReglagesPhoto["melangeur"]>;
     for (const [c, m] of Object.entries((demandes.melangeur ?? {}) as Record<CouleurMelangeur, RetoucheCouleur>)) melangeur[c as CouleurMelangeur] = { ...melangeur[c as CouleurMelangeur], ...m };
     const courbe = { ...depart.courbe, ...((demandes.courbe ?? {}) as Partial<Record<CanalCourbe, PointCourbe[]>>) };
-    const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur, courbe });
+    // L'étalonnage se fond zone par zone, comme le mélangeur couleur par couleur.
+    const demandeEtal = (demandes.etalonnage ?? {}) as Etalonnage;
+    const etalonnage: Etalonnage = { ...depart.etalonnage };
+    for (const z of ZONES_ETALONNAGE) if (demandeEtal[z]) etalonnage[z] = { ...etalonnage[z], ...demandeEtal[z] };
+    if (demandeEtal.equilibre !== undefined) etalonnage.equilibre = demandeEtal.equilibre;
+    const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur, courbe, etalonnage });
     etat().modifierElements({ [id]: { reglages } as Partial<ElementPage> });
     return { donnees: { id, reglages: reglages ?? {}, prereglage, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
   },

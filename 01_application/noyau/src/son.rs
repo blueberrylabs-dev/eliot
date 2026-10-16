@@ -90,30 +90,78 @@ pub fn temps_media_son(c: &ClipAudio, t: f64, duree_fichier: Option<f64>) -> f64
     (debut + depuis).clamp(debut, fin)
 }
 
+/// Deux passages de parole d'une vidéo à moins de 1,2 s l'un de l'autre n'en font qu'un : la
+/// musique ne remonte pas entre deux phrases.
+pub const FUSION_PAROLE: f64 = 1200.0;
+
+/// Une vidéo de la page, pour la baisse de la musique : son temps dans la page, sa coupe, sa
+/// vitesse et les passages où l'on parle dans son fichier (ms).
+pub struct ClipQuiParle<'a> {
+    pub debut: f64,
+    pub fin: f64,
+    pub coupe_debut: f64,
+    pub vitesse: f64,
+    pub parole: &'a [[u64; 2]],
+}
+
+/// Où l'on parle dans les vidéos d'une page, en ms de la page : chaque passage mis à sa place
+/// (coupe, vitesse), dans le temps du clip, ceux à moins de `FUSION_PAROLE` réunis. Les mêmes
+/// règles que `parolesDesClips` de la fenêtre (décision d'Alexandre du 2026-10-16).
+pub fn paroles_des_clips(clips: &[ClipQuiParle]) -> Vec<[f64; 2]> {
+    let mut bruts: Vec<[f64; 2]> = Vec::new();
+    for c in clips {
+        let vitesse = c.vitesse.clamp(0.25, 4.0);
+        for p in c.parole {
+            let debut = c.debut.max(c.debut + (p[0] as f64 - c.coupe_debut) / vitesse);
+            let fin = c.fin.min(c.debut + (p[1] as f64 - c.coupe_debut) / vitesse);
+            if fin > debut {
+                bruts.push([debut, fin]);
+            }
+        }
+    }
+    bruts.sort_by(|a, b| a[0].total_cmp(&b[0]).then(a[1].total_cmp(&b[1])));
+    let mut sortie: Vec<[f64; 2]> = Vec::new();
+    for [debut, fin] in bruts {
+        match sortie.last_mut() {
+            Some(d) if debut - d[1] < FUSION_PAROLE => d[1] = d[1].max(fin),
+            _ => sortie.push([debut, fin]),
+        }
+    }
+    sortie
+}
+
+/// La présence d'une voix de `debut` à `fin` à l'instant `t`, de 0 à 1.
+fn presence(debut: f64, fin: f64, t: f64) -> f64 {
+    if t < debut - ATTAQUE_VOIX || t >= fin + RELACHE_VOIX {
+        0.0
+    } else if t < debut {
+        (t - (debut - ATTAQUE_VOIX)) / ATTAQUE_VOIX
+    } else if t < fin {
+        1.0
+    } else {
+        1.0 - (t - fin) / RELACHE_VOIX
+    }
+}
+
 /// Une voix parle-t-elle à l'instant `t` ? De 0 à 1 (`sauf` : un clip à ne pas compter).
-pub fn presence_voix(sons: &[ClipAudio], t: f64, sauf: Option<&str>) -> f64 {
+/// `paroles` : où l'on parle dans les vidéos de la page (`paroles_des_clips`).
+pub fn presence_voix(sons: &[ClipAudio], t: f64, sauf: Option<&str>, paroles: &[[f64; 2]]) -> f64 {
     let mut p: f64 = 0.0;
     for v in sons {
         if v.role != "voix" || Some(v.id.as_str()) == sauf || v.volume.unwrap_or(1.0) <= 0.0 {
             continue;
         }
-        let (debut, fin) = (v.temps.debut, v.temps.fin);
-        let x = if t < debut - ATTAQUE_VOIX || t >= fin + RELACHE_VOIX {
-            0.0
-        } else if t < debut {
-            (t - (debut - ATTAQUE_VOIX)) / ATTAQUE_VOIX
-        } else if t < fin {
-            1.0
-        } else {
-            1.0 - (t - fin) / RELACHE_VOIX
-        };
-        p = p.max(x);
+        p = p.max(presence(v.temps.debut, v.temps.fin, t));
+    }
+    for [debut, fin] in paroles {
+        p = p.max(presence(*debut, *fin, t));
     }
     borne(p)
 }
 
-/// Le volume d'un son à l'instant `t` : son volume, ses fondus, la baisse sous la voix.
-pub fn gain_clip_son(c: &ClipAudio, t: f64, sons: &[ClipAudio]) -> f64 {
+/// Le volume d'un son à l'instant `t` : son volume, ses fondus, la baisse sous la voix et sous
+/// la parole des vidéos.
+pub fn gain_clip_son(c: &ClipAudio, t: f64, sons: &[ClipAudio], paroles: &[[f64; 2]]) -> f64 {
     let mut v = c.volume.unwrap_or(1.0);
     let tr = t - c.temps.debut;
     let longueur = c.temps.fin - c.temps.debut;
@@ -126,7 +174,7 @@ pub fn gain_clip_son(c: &ClipAudio, t: f64, sons: &[ClipAudio]) -> f64 {
         v *= borne((longueur - tr) / fo);
     }
     if c.est_musique() {
-        v *= 1.0 - (1.0 - borne(c.sous_la_voix.unwrap_or(SOUS_LA_VOIX))) * presence_voix(sons, t, Some(&c.id));
+        v *= 1.0 - (1.0 - borne(c.sous_la_voix.unwrap_or(SOUS_LA_VOIX))) * presence_voix(sons, t, Some(&c.id), paroles);
     }
     borne(v)
 }
@@ -151,7 +199,8 @@ mod tests {
             let duree = c["dureeFichier"].as_f64();
             let mut sons = vec![son.clone()];
             sons.extend(voix);
-            for (nom, calcule) in [("media", temps_media_son(&son, t, duree)), ("presence", presence_voix(&sons, t, Some(&son.id))), ("gain", gain_clip_son(&son, t, &sons))] {
+            let paroles: Vec<[f64; 2]> = serde_json::from_value(c.get("paroles").cloned().unwrap_or(Value::Array(vec![]))).unwrap();
+            for (nom, calcule) in [("media", temps_media_son(&son, t, duree)), ("presence", presence_voix(&sons, t, Some(&son.id), &paroles)), ("gain", gain_clip_son(&son, t, &sons, &paroles))] {
                 let attendu = c[nom].as_f64().unwrap();
                 if (calcule - attendu).abs() > 2e-6 {
                     ecarts.push(format!("cas {i} ({} à {t}) : {nom} {calcule} au lieu de {attendu}", son.id));
@@ -159,5 +208,16 @@ mod tests {
             }
         }
         assert!(ecarts.is_empty(), "{}", ecarts.join("\n"));
+    }
+
+    #[test]
+    fn les_paroles_des_clips() {
+        // Les mêmes cas que dans `src/modele/son.test.ts`.
+        let parole = [[3000, 4000], [5000, 6200], [9000, 11000], [16000, 20000]];
+        let clip = ClipQuiParle { debut: 1000.0, fin: 8000.0, coupe_debut: 2000.0, vitesse: 2.0, parole: &parole };
+        assert_eq!(paroles_des_clips(&[clip]), vec![[1500.0, 3100.0], [4500.0, 5500.0]]);
+        let (a, b) = ([[0, 1500]], [[300, 1000]]);
+        let deux = [ClipQuiParle { debut: 0.0, fin: 2000.0, coupe_debut: 0.0, vitesse: 1.0, parole: &a }, ClipQuiParle { debut: 2000.0, fin: 4000.0, coupe_debut: 0.0, vitesse: 1.0, parole: &b }];
+        assert_eq!(paroles_des_clips(&deux), vec![[0.0, 3000.0]]);
     }
 }

@@ -3,7 +3,11 @@
 Cadrage, écrit une fois. Version du 2026-10-16, révision 9, avec une correction du 2026-10-15
 (l'exemple des images clés du § 6 en temps du clip, accord d'Alexandre : « tu as mon accord pour
 corriger l'exemple ») et une du 2026-10-16 (la coupe des silences en morceaux de la frise, § 6,
-« Le son » ; accord d'Alexandre : « je valide »). La révision 9 ajoute le studio 3D
+« Le son » ; accord d'Alexandre : « je valide »), puis quatre autres du 2026-10-16 : les plages
+du grain et de la réduction du bruit, le PDF par `krilla` au lieu de `svg2pdf`, l'étalonnage
+ajouté au labo photo, la musique qui baisse là où l'on parle dans une vidéo (accords
+d'Alexandre : « Oui, pour ton point 1 », « Deux, ta recommandation », « oui, pour
+l'étalonnage »). La révision 9 ajoute le studio 3D
 (§ 6, « Le studio 3D ») : principe **validé par Alexandre le 2026-10-15** (« tu le places là
 où c'est le mieux pour toi »), place choisie par Claude (étape 6, § 7), texte à relire par
 lui. La révision 8 ajoute le son (voix,
@@ -107,7 +111,7 @@ d'Alexandre (règle 12) : les mots d'une recherche de photos, et, s'il branche C
 | Banc d'essai sur le poste principal (mesuré, écran 60 Hz) | Tauri : 62 images/s pour redessiner 200 objets, mais 42 à 45 pendant un geste qui redessine la page ; 62 avec l'objet glissé sur un calque à part. Chrome 152 (navigateur intégré de Claude) : 60 partout. Coût de dessin de la page : 8,7 ms dans Tauri, 1,0 ms dans Chrome. Vidéo H.264 lue au ralenti dans Tauri, normale dans Chrome. Réduction d'une photo 24 Mpx : Rust 230 ms, Chrome 234 ms, Tauri 301 ms | `00_banc_essai/resultats/2026-10-14_152859_tauri-webkitgtk.json`, `2026-10-14_153221_navigateur-claude.json` ; détail au JOURNAL |
 | Rust dans Electron | `@napi-rs/cli` 3.10.8 (MIT) : un module Node écrit en Rust, natif, sans WebAssembly | `npm view @napi-rs/cli` |
 | Briques Rust | `svg2pdf` 0.13.0, `resvg` 0.45.1, `image` 0.25.10, `sha2` 0.10.9, `fast_image_resize` 6.1.0 ; les quatre premières compilent aussi pour WebAssembly (mesuré) | `cargo search` ; compilation `wasm32-unknown-unknown` dans le conteneur Claude |
-| Licences des dépendances prévues | MIT : `konva`, `react-konva`, `react`, `zustand`, `tailwindcss`, `vite`. ISC : `lucide-react`. MIT ou Apache-2.0 : `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `tauri`, `image`, `fast_image_resize`, `svg2pdf`, `resvg`, `sha2`, `serde` | `npm view <paquet> license`, `cargo info <crate>` |
+| Licences des dépendances prévues | MIT : `konva`, `react-konva`, `react`, `zustand`, `tailwindcss`, `vite`. ISC : `lucide-react`. MIT ou Apache-2.0 : `@tauri-apps/api`, `@tauri-apps/plugin-dialog`, `tauri`, `image`, `fast_image_resize`, `svg2pdf` (remplacé par `krilla` et `krilla-svg`, MIT ou Apache-2.0, le 2026-10-16), `resvg`, `sha2`, `serde` | `npm view <paquet> license`, `cargo info <crate>` |
 | FFmpeg | LGPL 2.1 ou ultérieure par défaut, GPL si compilé avec des composants comme libx264 ; la page ne traite pas le cas d'un programme qui appelle l'exécutable `ffmpeg` sans s'y lier | https://ffmpeg.org/legal.html |
 | Nom « Eliot » | déjà pris sur npm (`eliot` 0.1.33, « Next generation JavaScript, simplified ») et sur PyPI (`eliot` 1.18.0) ; aucun paquet Ubuntu de ce nom ; aucun logiciel de mise en page de ce nom trouvé par une recherche rapide (marques non vérifiées) | `npm view eliot`, `pip index versions eliot`, `apt-cache search` |
 | Icônes libres | `@tabler/icons` 3.49.0, MIT : 5 184 icônes au trait et 1 054 pleines ; `@phosphor-icons/core` 2.1.1, MIT : 1 512 icônes en six épaisseurs | `npm view`, fichiers SVG des paquets comptés le 2026-10-14 |
@@ -264,11 +268,16 @@ panneau de gauche, comme « Modifier l'image » chez Canva.
   noirs ; courbe des tonalités.
 - **Couleur** : température, teinte, vibrance, saturation ; mélangeur de couleurs (teinte,
   saturation et luminance pour huit couleurs : rouge, orange, jaune, vert, cyan, bleu, violet,
-  magenta).
+  magenta) ; étalonnage, comme celui de Lightroom (une teinte et sa force pour les ombres, les
+  tons moyens et les hautes lumières, et l'équilibre entre ombres et hautes lumières), qui
+  colore aussi une photo passée en noir et blanc (sépia, virages ; correction du 2026-10-16).
 - **Effets** : texture, clarté, correction du voile, vignetage, grain.
 - **Détail** : netteté, réduction du bruit.
-- Chaque curseur va de −100 à +100 autour de zéro (sauf l'exposition) ; double-clic pour le
-  remettre à zéro ; valeur modifiable au clavier. Un histogramme surmonte les curseurs.
+- Chaque curseur va de −100 à +100 autour de zéro, sauf l'exposition (de −5 à +5 IL), le grain
+  et la réduction du bruit (de 0 à 100, comme dans Lightroom : un négatif n'y voudrait rien
+  dire ; correction du 2026-10-16), et sauf l'étalonnage (teinte de 0 à 360°, force de 0 à
+  100) ; double-clic pour le remettre à zéro ; valeur modifiable au clavier. Un histogramme
+  surmonte les curseurs.
 - **Avant et après** : un bouton maintenu montre l'original. **Préréglages** : une vingtaine
   fournis (dessinés par Claude), ceux qu'Alexandre enregistre, appliqués en un clic ; copier
   les réglages d'une image et les coller sur une autre.
@@ -276,7 +285,8 @@ panneau de gauche, comme « Modifier l'image » chez Canva.
 
 Fonctionnement. Les réglages sont des valeurs du document (règle 13). Le Rust les calcule en
 nombres à virgule, en lumière linéaire, dans un ordre fixe écrit dans le noyau : balance des
-blancs, exposition, tonalités, courbe, couleurs, détail, effets. L'aperçu affiché est
+blancs, exposition, tonalités, courbe, couleurs (l'étalonnage en dernier, après la saturation
+et le mélangeur), détail, effets. L'aperçu affiché est
 recalculé depuis l'aperçu de 2560 px, l'export depuis l'original (règles 5 et 7).
 
 Aperçu en direct, pendant qu'on tire un curseur : deux voies, départagées par un petit banc au
@@ -358,7 +368,9 @@ frise, il entre donc dans l'étape 4. Tout se calcule sur le processeur (règle 
   la plateforme choisie (autour de -14 LUFS, valeurs vérifiées au moment de les écrire), crête
   plafonnée pour éviter la saturation.
 - **Le mixage** : volume et fondus par clip ; la musique baisse toute seule quand la voix
-  parle (réglable) ; forme d'onde dans la frise.
+  parle (réglable), et là où l'on parle dans une vidéo de la page : les passages de parole que
+  le noyau trouve dans son son, à leur place (correction du 2026-10-16) ; forme d'onde dans la
+  frise.
 - **Musique et jingles** : un jingle d'ouverture et un de fin rangés dans le kit de marque,
   posés d'un clic au début ou à la fin de la vidéo ; une musique trop courte se répète pour
   couvrir la durée, avec un fondu de fin automatique.
@@ -706,8 +718,9 @@ des images nettes.
 
 Étapes 4 et 5 : le Rust rend lui-même la page depuis le document, avec les images originales et
 les mêmes fichiers de police : les calques d'une vidéo (étape 4), puis PDF vectoriel
-(`svg2pdf`) et PNG haute définition (`resvg`) pour les grands formats comme l'A4 à 300 dpi
-(étape 5). Point à surveiller : le texte doit tomber au même endroit qu'à l'écran. L'interface
+(`krilla` et `krilla-svg`, des auteurs de `svg2pdf`, qui font un seul PDF de plusieurs pages ;
+correction du 2026-10-16, JOURNAL) et PNG haute définition (`resvg`) pour les grands formats
+comme l'A4 à 300 dpi (étape 5). Point à surveiller : le texte doit tomber au même endroit qu'à l'écran. L'interface
 transmet donc ses coupures de lignes, et on compare les deux rendus pixel par pixel avant de
 s'y fier.
 

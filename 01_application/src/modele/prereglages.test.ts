@@ -29,6 +29,18 @@ describe("préréglages du labo (étape 5, lot 3)", () => {
     expect(appliquerPrereglage({ exposition: 0.5 }, p, 0)).toEqual({ exposition: 0.5 });
     expect(appliquerPrereglage(undefined, p, 0)).toBeUndefined();
     expect(echelonner({ grain: 30 }, 2 / 3)).toEqual({ grain: 20 });
+    // L'étalonnage : la force suit l'intensité, la teinte et l'équilibre restent.
+    expect(echelonner({ etalonnage: { ombres: { teinte: 30, saturation: 50 }, equilibre: 40 } }, 0.5)).toEqual({ etalonnage: { ombres: { teinte: 30, saturation: 25 }, equilibre: 40 } });
+    expect(echelonner({ etalonnage: { ombres: { teinte: 30, saturation: 50 } } }, 0)).toBeUndefined();
+  });
+
+  it("les préréglages sépia et bleuté colorent un noir et blanc", () => {
+    for (const id of ["sepia", "noir-blanc-bleute"]) {
+      const p = PREREGLAGES_FOURNIS.find((x) => x.id === id)!;
+      expect(p.categorie).toBe("Noir et blanc");
+      expect(p.reglages.saturation).toBe(-100);
+      expect(p.reglages.etalonnage?.ombres?.saturation).toBeGreaterThan(0);
+    }
   });
 
   it("même style à l'exposition près ; recherche par nom sans accents", () => {

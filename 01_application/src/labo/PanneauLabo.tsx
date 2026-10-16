@@ -12,7 +12,9 @@ import { useImageRessource } from "../editeur/images";
 import {
   aDesVoisins,
   cleReglages,
+  couleurDeTeinte,
   COULEURS_MELANGEUR,
+  ZONES_ETALONNAGE,
   lireValeur,
   normaliserReglages,
   SECTIONS_LABO,
@@ -24,6 +26,7 @@ import {
   type DefinitionCurseur,
   type PointCourbe,
   type ReglagesPhoto,
+  type ZoneEtalonnage,
 } from "../modele/labo";
 import type { ElementImage, ElementVideo } from "../modele/types";
 import { EditeurCourbe } from "./EditeurCourbe";
@@ -72,12 +75,13 @@ function debutGeste() {
   useLabo.setState({ geste: true });
 }
 
-/** Un curseur du labo : libellé, valeur modifiable au clavier, double-clic qui remet à zéro. */
-function CurseurReglage({ def, valeur, changer, libelle, nom, fond }: { def: DefinitionCurseur; valeur: number; changer: (v: number) => void; libelle?: string; nom?: string; fond?: string }) {
+/** Un curseur du labo : libellé, valeur modifiable au clavier, double-clic qui remet à zéro.
+ *  `format` et `lire` : pour un curseur qui n'est pas de -100 à +100 (une teinte en degrés). */
+function CurseurReglage({ def, valeur, changer, libelle, nom, fond, format, lire }: { def: DefinitionCurseur; valeur: number; changer: (v: number) => void; libelle?: string; nom?: string; fond?: string; format?: (v: number) => string; lire?: (t: string) => number | undefined }) {
   const [saisie, setSaisie] = useState<string | null>(null);
   const valider = () => {
     if (saisie !== null) {
-      const v = lireValeur(def.cle, saisie);
+      const v = lire ? lire(saisie) : lireValeur(def.cle, saisie);
       if (v !== undefined) changer(v);
     }
     setSaisie(null);
@@ -91,7 +95,7 @@ function CurseurReglage({ def, valeur, changer, libelle, nom, fond }: { def: Def
         </span>
         <input
           aria-label={`${nom ?? libelle ?? def.libelle}, valeur`}
-          value={saisie ?? texteValeur(def.cle, valeur)}
+          value={saisie ?? (format ? format(valeur) : texteValeur(def.cle, valeur))}
           onFocus={(e) => {
             setSaisie(def.pas < 1 ? String(valeur).replace(".", ",") : String(valeur));
             requestAnimationFrame(() => e.target.select());
@@ -231,6 +235,45 @@ function Melangeur({ reglages, changer }: { reglages: ReglagesPhoto | undefined;
   );
 }
 
+const NOMS_ZONES: Record<ZoneEtalonnage, string> = { ombres: "Ombres", tonsMoyens: "Tons moyens", hautesLumieres: "Hautes lumières" };
+const PISTE_TEINTES = "linear-gradient(90deg, hsl(0,80%,55%), hsl(60,80%,55%), hsl(120,80%,55%), hsl(180,80%,55%), hsl(240,80%,55%), hsl(300,80%,55%), hsl(360,80%,55%))";
+const DEF_TEINTE: DefinitionCurseur = { cle: "teinte", libelle: "Teinte", min: 0, max: 359, pas: 1 };
+const DEF_FORCE: DefinitionCurseur = { cle: "grain", libelle: "Force", min: 0, max: 100, pas: 1 };
+const DEF_EQUILIBRE: DefinitionCurseur = { cle: "contraste", libelle: "Équilibre", min: -100, max: 100, pas: 1 };
+
+/** Une valeur tapée de 0 à 359 (en degrés). */
+function lireDegres(texte: string): number | undefined {
+  const propre = texte.replace(/\s|°/g, "").replace(",", ".");
+  if (!/^\d*\.?\d+$/.test(propre)) return undefined;
+  return Math.round(Number(propre)) % 360;
+}
+
+/** L'étalonnage : une teinte et sa force pour les ombres, les tons moyens et les hautes
+ *  lumières, puis l'équilibre ; il colore aussi une photo passée en noir et blanc. */
+function Etalonnage({ reglages, changer }: { reglages: ReglagesPhoto | undefined; changer: (zone: ZoneEtalonnage | "equilibre", k: "teinte" | "saturation" | null, v: number) => void }) {
+  const e = reglages?.etalonnage;
+  return (
+    <div className="mt-2 rounded-lg bg-neutral-50 p-2.5" data-etalonnage>
+      <p className="mb-2 text-xs font-medium text-neutral-600">Étalonnage</p>
+      {ZONES_ETALONNAGE.map((z) => {
+        const teinte = e?.[z]?.teinte ?? 0;
+        const force = e?.[z]?.saturation ?? 0;
+        return (
+          <div key={z} className="mb-2" data-zone={z}>
+            <p className="mb-1 flex items-center gap-1.5 text-xs text-neutral-700">
+              <span className="inline-block h-3 w-3 rounded-full border border-neutral-300" style={{ background: force > 0 ? couleurDeTeinte(teinte, 30 + force * 0.7) : "#e5e7eb" }} />
+              {NOMS_ZONES[z]}
+            </p>
+            <CurseurReglage def={DEF_TEINTE} nom={`${z}-teinte`} libelle="Teinte" fond={PISTE_TEINTES} valeur={teinte} changer={(v) => changer(z, "teinte", v)} format={(v) => `${Math.round(v)}°`} lire={lireDegres} />
+            <CurseurReglage def={DEF_FORCE} nom={`${z}-force`} libelle="Force" fond={`linear-gradient(90deg, #d4d4d4, ${couleurDeTeinte(teinte)})`} valeur={force} changer={(v) => changer(z, "saturation", v)} />
+          </div>
+        );
+      })}
+      <CurseurReglage def={DEF_EQUILIBRE} nom="equilibre" libelle="Équilibre" valeur={e?.equilibre ?? 0} changer={(v) => changer("equilibre", null, v)} />
+    </div>
+  );
+}
+
 export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
@@ -247,6 +290,15 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const changerCouleur = (couleur: CouleurMelangeur, k: "teinte" | "saturation" | "luminance", v: number) => {
     const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
     modifier({ ...actuel, melangeur: { ...actuel?.melangeur, [couleur]: { ...actuel?.melangeur?.[couleur], [k]: v } } }, `${couleur}-${k}`);
+  };
+  const changerEtalonnage = (zone: ZoneEtalonnage | "equilibre", k: "teinte" | "saturation" | null, v: number) => {
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
+    const e = { ...actuel?.etalonnage };
+    if (zone === "equilibre") e.equilibre = v;
+    else e[zone] = { ...e[zone], [k!]: v };
+    // Une teinte choisie sans force encore : une force de départ, pour qu'on la voie.
+    if (zone !== "equilibre" && k === "teinte" && !(e[zone]?.saturation ?? 0)) e[zone] = { ...e[zone], saturation: 25 };
+    modifier({ ...actuel, etalonnage: e }, `etalonnage-${zone}-${k ?? ""}`);
   };
   const changerCourbe = (canal: CanalCourbe, points: PointCourbe[]) => {
     const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
@@ -321,6 +373,7 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
           ))}
           {s.titre === "Lumière" && <EditeurCourbe courbe={el.reglages?.courbe} changer={changerCourbe} source={source} />}
           {s.titre === "Couleur" && <Melangeur reglages={el.reglages} changer={changerCouleur} />}
+          {s.titre === "Couleur" && <Etalonnage reglages={el.reglages} changer={changerEtalonnage} />}
         </Section>
       ))}
       <p className="mt-2 text-[11px] text-neutral-400">

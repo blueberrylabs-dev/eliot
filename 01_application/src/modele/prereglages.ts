@@ -3,10 +3,10 @@
 // `labo/prereglages.ts`). Un préréglage est un style : il ne touche ni à l'exposition, ni à la
 // netteté, ni à la réduction du bruit, qui restent propres à chaque photo. L'appliquer remplace
 // tout le reste de la retouche ; son intensité, de 0 à 100 %, rapproche chaque valeur de zéro
-// (et chaque point de la courbe de la diagonale).
+// (chaque point de la courbe de la diagonale, la force de chaque teinte de l'étalonnage de zéro).
 
 import fournis from "./prereglages.json";
-import { CANAUX_COURBE, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, type CourbeTonalites, type ReglagesPhoto } from "./labo";
+import { CANAUX_COURBE, cleReglages, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, ZONES_ETALONNAGE, type CourbeTonalites, type Etalonnage, type ReglagesPhoto } from "./labo";
 
 export interface Prereglage {
   id: string;
@@ -57,6 +57,16 @@ export function echelonner(r: ReglagesPhoto | undefined, k: number): ReglagesPho
       if (p) courbe[canal] = p.map(([x, y]) => [x, x + (y - x) * k]);
     }
     sortie.courbe = courbe;
+  }
+  if (r.etalonnage) {
+    // La force de chaque zone suit l'intensité ; la teinte et l'équilibre restent.
+    const e: Etalonnage = {};
+    for (const z of ZONES_ETALONNAGE) {
+      const t = r.etalonnage[z];
+      if (t) e[z] = { teinte: t.teinte ?? 0, saturation: (t.saturation ?? 0) * k };
+    }
+    if (r.etalonnage.equilibre !== undefined) e.equilibre = r.etalonnage.equilibre;
+    sortie.etalonnage = e;
   }
   return normaliserReglages(sortie);
 }

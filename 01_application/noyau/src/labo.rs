@@ -7,7 +7,9 @@
 //! 2. tonalités (contraste, hautes lumières, ombres, blancs, noirs), sur la luminance perçue ;
 //! 3. courbe des tonalités (une pour l'image entière, une par canal), sur l'image telle
 //!    qu'elle s'affiche (en sRGB, de 0 à 1) ;
-//! 4. couleurs : saturation, vibrance, puis le mélangeur de huit couleurs ;
+//! 4. couleurs : saturation, vibrance, le mélangeur de huit couleurs, puis l'étalonnage (une
+//!    teinte pour les ombres, les tons moyens et les hautes lumières, qui colore aussi une photo
+//!    passée en noir et blanc) ;
 //! 5. détail : réduction du bruit, netteté ;
 //! 6. effets : texture, clarté, correction du voile, puis vignetage et grain.
 //!
@@ -218,6 +220,59 @@ fn lire_courbe(table: &[[f32; 3]], canal: usize, e: f32) -> f32 {
     table[i][canal] * (1.0 - t) + table[i + 1][canal] * t
 }
 
+/// Une zone de l'étalonnage : une teinte (de 0 à 360°) et sa force (de 0 à 100).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Zone {
+    pub teinte: f32,
+    pub saturation: f32,
+}
+
+/// L'étalonnage, comme celui de Lightroom : une teinte pour les ombres, les tons moyens et les
+/// hautes lumières ; l'équilibre (de -100 à +100) déplace la frontière entre ombres et hautes
+/// lumières (positif : plus de hautes lumières).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Deserialize, Serialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Etalonnage {
+    pub ombres: Zone,
+    pub tons_moyens: Zone,
+    pub hautes_lumieres: Zone,
+    pub equilibre: f32,
+}
+
+/// La force de l'étalonnage à 100 : la teinte, sans luminance, multiplie la lumière d'autant.
+const FORCE_ETALONNAGE: f32 = 1.0;
+
+impl Etalonnage {
+    pub fn bornes(&self) -> Etalonnage {
+        let z = |x: Zone| {
+            let s = borne(x.saturation, 0.0, 100.0);
+            Zone { teinte: if s > 0.0 && x.teinte.is_finite() { x.teinte.rem_euclid(360.0) } else { 0.0 }, saturation: s }
+        };
+        let (o, m, h) = (z(self.ombres), z(self.tons_moyens), z(self.hautes_lumieres));
+        let actif = o.saturation > 0.0 || m.saturation > 0.0 || h.saturation > 0.0;
+        Etalonnage { ombres: o, tons_moyens: m, hautes_lumieres: h, equilibre: if actif { borne(self.equilibre, -100.0, 100.0) } else { 0.0 } }
+    }
+
+    pub fn neutre(&self) -> bool {
+        self.ombres.saturation <= 0.0 && self.tons_moyens.saturation <= 0.0 && self.hautes_lumieres.saturation <= 0.0
+    }
+}
+
+/// La couleur d'une teinte (pleine, de valeur 1), moins sa luminance : un écart de couleur qui ne
+/// change pas la lumière d'un gris, à la force `saturation` (0 à 100). Le même calcul dans la
+/// fenêtre (`vecteurEtalonnage`).
+pub fn vecteur_etalonnage(teinte: f32, saturation: f32) -> [f32; 3] {
+    let f = |n: f32| {
+        let k = (n + teinte / 60.0).rem_euclid(6.0);
+        1.0 - k.min(4.0 - k).clamp(0.0, 1.0)
+    };
+    let c = [f(5.0), f(3.0), f(1.0)];
+    let y = c[0] * LUMA[0] + c[1] * LUMA[1] + c[2] * LUMA[2];
+    let force = saturation / 100.0 * FORCE_ETALONNAGE;
+    [(c[0] - y) * force, (c[1] - y) * force, (c[2] - y) * force]
+}
+
 /// Les réglages d'une photo, tels que le document les garde (seulement ceux qui ne sont pas à
 /// zéro ; un absent vaut zéro). Exposition en IL de -5 à +5 ; réduction du bruit et grain de 0 à
 /// 100 ; les autres de -100 à +100 ; la courbe en points de 0 à 255.
@@ -235,6 +290,7 @@ pub struct Reglages {
     pub vibrance: f32,
     pub saturation: f32,
     pub melangeur: Melangeur,
+    pub etalonnage: Etalonnage,
     pub courbe: Courbe,
     pub texture: f32,
     pub clarte: f32,
@@ -268,6 +324,7 @@ impl Reglages {
             vibrance: c(self.vibrance),
             saturation: c(self.saturation),
             melangeur: Melangeur { rouge: m(g.rouge), orange: m(g.orange), jaune: m(g.jaune), vert: m(g.vert), cyan: m(g.cyan), bleu: m(g.bleu), violet: m(g.violet), magenta: m(g.magenta) },
+            etalonnage: self.etalonnage.bornes(),
             courbe: self.courbe.bornes(),
             texture: c(self.texture),
             clarte: c(self.clarte),
@@ -342,6 +399,9 @@ pub struct Prepares {
     melange: bool,
     /// Des tonalités à régler (sinon l'étape est sautée : deux puissances de moins par pixel).
     tonal: bool,
+    /// L'étalonnage : les écarts de couleur des trois zones et la frontière (en lumière perçue)
+    /// entre ombres et hautes lumières, s'il y en a un.
+    etalonnage: Option<([[f32; 3]; 3], f32)>,
     /// La table de la courbe et le retour du sRGB à la lumière linéaire, s'il y a une courbe.
     courbe: Option<(Vec<[f32; 3]>, Table)>,
     /// Le grand côté de l'image (vignetage et grain suivent sa taille).
@@ -369,7 +429,12 @@ impl Prepares {
         let cote = largeur.max(hauteur).max(1) as f32;
         let courbe = table_courbe(&r.courbe).map(|t| (t, Table::new(srgb_vers_lineaire)));
         let tonal = [r.contraste, r.hautes_lumieres, r.ombres, r.blancs, r.noirs].iter().any(|v| *v != 0.0);
-        Prepares { entree, sortie, gains, r, melangeur, melange, tonal, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote, graine: 0 }
+        let e = &r.etalonnage;
+        let etalonnage = (!e.neutre()).then(|| {
+            let v = |z: &Zone| vecteur_etalonnage(z.teinte, z.saturation);
+            ([v(&e.ombres), v(&e.tons_moyens), v(&e.hautes_lumieres)], 0.5 - 0.25 * e.equilibre / 100.0)
+        });
+        Prepares { entree, sortie, gains, r, melangeur, melange, tonal, etalonnage, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote, graine: 0 }
     }
 
     /// La graine du grain d'une image d'un clip.
@@ -471,6 +536,18 @@ impl Prepares {
             let ks = 1.0 + ds * chroma;
             let kl = (dl * chroma).exp2();
             l = [(y2 + (l[0] - y2) * ks) * kl, (y2 + (l[1] - y2) * ks) * kl, (y2 + (l[2] - y2) * ks) * kl];
+        }
+        // Étalonnage : chaque zone (selon la lumière perçue) teinte la lumière sans changer celle
+        // d'un gris ; il vient après la saturation, il colore donc aussi un noir et blanc.
+        if let Some((v, frontiere)) = &self.etalonnage {
+            let y3 = (l[0] * LUMA[0] + l[1] * LUMA[1] + l[2] * LUMA[2]).clamp(0.0, 1.0);
+            let p = y3.powf(1.0 / 2.2);
+            let wo = 1.0 - smoothstep(0.0, *frontiere, p);
+            let wh = smoothstep(*frontiere, 1.0, p);
+            let wm = 1.0 - wo - wh;
+            for (c, x) in l.iter_mut().enumerate() {
+                *x *= 1.0 + wo * v[0][c] + wm * v[1][c] + wh * v[2][c];
+            }
         }
         [l[0].max(0.0), l[1].max(0.0), l[2].max(0.0)]
     }
@@ -911,6 +988,9 @@ mod tests {
             ("courbes par canal".into(), r(json!({ "courbe": { "rouge": [[0, 0], [128, 150], [255, 255]], "vert": [[60, 50]], "bleu": [[0, 30], [255, 220]] } }))),
             ("courbe et exposition".into(), r(json!({ "exposition": 1.2, "contraste": 20, "courbe": { "rgb": [[0, 20], [96, 80], [200, 215], [255, 240]], "bleu": [[0, 12], [255, 245]] }, "saturation": 15 }))),
             ("grain 70, image 37 d'un clip".into(), r(json!({ "grain": 70, "contraste": 10 }))),
+            ("étalonnage sarcelle et orange".into(), r(json!({ "etalonnage": { "ombres": { "teinte": 190, "saturation": 45 }, "hautesLumieres": { "teinte": 35, "saturation": 40 } } }))),
+            ("sépia".into(), r(json!({ "saturation": -100, "etalonnage": { "ombres": { "teinte": 30, "saturation": 35 }, "tonsMoyens": { "teinte": 35, "saturation": 30 }, "hautesLumieres": { "teinte": 45, "saturation": 25 } } }))),
+            ("étalonnage et équilibre".into(), r(json!({ "vibrance": 20, "etalonnage": { "tonsMoyens": { "teinte": 300, "saturation": 60 }, "hautesLumieres": { "teinte": 60, "saturation": 80 }, "equilibre": 70 } }))),
         ]
     }
 
@@ -1051,6 +1131,31 @@ mod tests {
     }
 
     #[test]
+    fn l_etalonnage_colore_meme_un_noir_et_blanc() {
+        let p = |r: Value| Prepares::new(&serde_json::from_value::<Reglages>(r).unwrap(), 64, 48);
+        // Un écart sans luminance : la lumière d'un gris ne bouge pas (à l'arrondi près).
+        for (t, s) in [(0.0, 100.0), (35.0, 40.0), (200.0, 70.0), (300.0, 100.0)] {
+            let v = vecteur_etalonnage(t, s);
+            assert!((v[0] * LUMA[0] + v[1] * LUMA[1] + v[2] * LUMA[2]).abs() < 1e-6, "{t}° : {v:?}");
+        }
+        // Sépia : un gris devient brun clair, le noir et le blanc restent proches d'eux-mêmes.
+        let sepia = p(json!({ "saturation": -100, "etalonnage": { "ombres": { "teinte": 30, "saturation": 35 }, "tonsMoyens": { "teinte": 35, "saturation": 30 }, "hautesLumieres": { "teinte": 45, "saturation": 25 } } }));
+        let g = sepia.pixel([200, 60, 60], 3, 3);
+        assert!(g[0] > g[1] + 4 && g[1] > g[2] + 4, "{g:?}");
+        assert_eq!(sepia.pixel([0, 0, 0], 3, 3), [0, 0, 0]);
+        // Ombres bleues, hautes lumières orange : le sombre bleuit, le clair se réchauffe.
+        let virage = p(json!({ "etalonnage": { "ombres": { "teinte": 220, "saturation": 60 }, "hautesLumieres": { "teinte": 35, "saturation": 60 } } }));
+        let (sombre, clair) = (virage.pixel([50, 50, 50], 3, 3), virage.pixel([210, 210, 210], 3, 3));
+        assert!(sombre[2] > sombre[0] + 3 && clair[0] > clair[2] + 3, "{sombre:?} {clair:?}");
+        // L'équilibre vers les hautes lumières : un ton moyen prend leur teinte.
+        let e = |eq: f32| p(json!({ "etalonnage": { "hautesLumieres": { "teinte": 35, "saturation": 80 }, "equilibre": eq } })).pixel([128, 128, 128], 3, 3);
+        assert!(e(80.0)[0] - e(80.0)[2] > e(-80.0)[0] - e(-80.0)[2] + 6, "{:?} {:?}", e(80.0), e(-80.0));
+        // Sans force, l'étalonnage sort du document.
+        let r: Reglages = serde_json::from_value(json!({ "etalonnage": { "ombres": { "teinte": 120 }, "equilibre": 40 } })).unwrap();
+        assert!(r.bornes().neutres());
+    }
+
+    #[test]
     fn le_grain_d_un_clip_change_d_une_image_a_l_autre() {
         assert_eq!(graine_du_temps(0.0), 0);
         assert_eq!(graine_du_temps(41.0), 0);
@@ -1095,7 +1200,7 @@ mod tests {
     fn les_prereglages_fournis_sont_valides_et_distincts() {
         let liste: Value = serde_json::from_str(include_str!("../../src/modele/prereglages.json")).unwrap();
         let liste = liste["prereglages"].as_array().unwrap();
-        assert!((18..=24).contains(&liste.len()), "{} préréglages", liste.len());
+        assert!((18..=28).contains(&liste.len()), "{} préréglages", liste.len());
         let image = essai(160, 100);
         let mut rendus: Vec<(String, Vec<u8>)> = Vec::new();
         for p in liste {

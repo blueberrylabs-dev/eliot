@@ -13,7 +13,7 @@
 // repos les deux réglages se confondent et l'image est celle du noyau ; pendant qu'on tire un
 // curseur, l'écart suit en direct.
 
-import { COULEURS_MELANGEUR, normaliserCourbe, PAS_COURBE, tableCourbe, type ReglagesPhoto } from "../modele/labo";
+import { COULEURS_MELANGEUR, normaliserCourbe, PAS_COURBE, tableCourbe, vecteurEtalonnage, ZONES_ETALONNAGE, type ReglagesPhoto, type ZoneEtalonnage } from "../modele/labo";
 
 const SOMMETS = `#version 300 es
 void main() {
@@ -31,6 +31,9 @@ struct Reglages {
   bool courbe;
   bool melange;
   vec3 melangeur[8];
+  bool etal;
+  vec3 etalO, etalM, etalH;
+  float frontiere;
 };
 uniform sampler2D u_source;
 uniform sampler2D u_base;
@@ -108,6 +111,14 @@ vec3 reglagesPixel(vec3 c, Reglages r, int ligne) {
     float kl = exp2(m.z / 100.0 * chroma);
     l = (y2 + (l - y2) * ks) * kl;
   }
+  if (r.etal) {
+    float y3 = clamp(dot(l, LUMA), 0.0, 1.0);
+    float p3 = pow(y3, 1.0 / 2.2);
+    float wo = 1.0 - smoothstep(0.0, r.frontiere, p3);
+    float wh = smoothstep(r.frontiere, 1.0, p3);
+    float wm = 1.0 - wo - wh;
+    l *= 1.0 + wo * r.etalO + wm * r.etalM + wh * r.etalH;
+  }
   return max(l, vec3(0.0));
 }
 void main() {
@@ -140,7 +151,7 @@ export interface PixelsBruts {
   hauteur: number;
 }
 
-const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "tonal", "courbe", "melange", "melangeur"] as const;
+const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "tonal", "courbe", "melange", "melangeur", "etal", "etalO", "etalM", "etalH", "frontiere"] as const;
 
 /** La diagonale : la ligne d'une texture de courbe quand il n'y a pas de courbe. */
 function tableNeutre(): Float32Array {
@@ -251,6 +262,16 @@ export class MoteurLabo {
     const m = COULEURS_MELANGEUR.flatMap((c) => [r.melangeur?.[c]?.teinte ?? 0, r.melangeur?.[c]?.saturation ?? 0, r.melangeur?.[c]?.luminance ?? 0]);
     gl.uniform1i(u("melange"), m.some((v) => v !== 0) ? 1 : 0);
     gl.uniform3fv(u("melangeur[0]"), new Float32Array(m));
+    // L'étalonnage (le tableau commun le donne tel que le noyau l'écrit, zones sans force
+    // comprises).
+    const et = r.etalonnage;
+    const zone = (z: ZoneEtalonnage) => vecteurEtalonnage(et?.[z]?.teinte ?? 0, Math.max(0, Math.min(100, et?.[z]?.saturation ?? 0)));
+    const actif = ZONES_ETALONNAGE.some((z) => (et?.[z]?.saturation ?? 0) > 0);
+    gl.uniform1i(u("etal"), actif ? 1 : 0);
+    gl.uniform3fv(u("etalO"), zone("ombres"));
+    gl.uniform3fv(u("etalM"), zone("tonsMoyens"));
+    gl.uniform3fv(u("etalH"), zone("hautesLumieres"));
+    gl.uniform1f(u("frontiere"), 0.5 - (0.25 * Math.max(-100, Math.min(100, et?.equilibre ?? 0))) / 100);
   }
 
   /**
