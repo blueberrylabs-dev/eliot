@@ -377,10 +377,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (WebKitGTK), une page riche à 0,72, son PDF rendu par poppler à 1,04, son SVG rendu par
       Chromium à 0,49 (JOURNAL). Essai d'Alexandre : « Essayer les exports (étape 5, lot 1) »
       du `01_application/LISEZMOI.md`.
-- [ ] Lot 2 : le labo : moteur des réglages dans le noyau, bouton Retoucher, panneau (Lumière,
+- [x] Lot 2 : le labo : moteur des réglages dans le noyau, bouton Retoucher, panneau (Lumière,
       Couleur avec mélangeur, Effets, Détail), histogramme, aperçu en direct par la voie du lot
       0, avant et après, double-clic qui remet à zéro, valeur au clavier ; export depuis
-      l'original.
+      l'original. Livré le 2026-10-16 (`noyau/src/labo.rs`, `src/labo/`, outil `retoucher` du
+      pont) : shader et noyau à 1 sur 255 au plus sur le tableau commun, fenêtre et export à
+      2,3 sur 255 (réglages d'un pixel) et 3,2 (réglages voisins, l'aperçu étant un JPEG)
+      (JOURNAL). Reste pour plus tard : les photos des cadres et des maquettes. Essai
+      d'Alexandre : « Essayer le labo photo (étape 5, lot 2) » du `01_application/LISEZMOI.md`.
 - [ ] Lot 3 : courbe des tonalités, une vingtaine de préréglages dessinés par Claude, préréglages
       d'Alexandre, copier et coller les réglages d'une image à l'autre.
 - [ ] Lot 4 : les clips vidéo dans le labo : réglages qui suivent la lecture, export image par
@@ -392,7 +396,7 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
       document (l'original intact), pinceau pour reprendre les bords.
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
-      WebP, PDF, SVG et l'échelle).
+      WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

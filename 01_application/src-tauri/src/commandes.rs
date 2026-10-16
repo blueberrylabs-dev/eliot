@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, freesound, images, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
+use noyau::{export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -1143,6 +1143,23 @@ pub async fn exporter_document(
     })
     .await
     .map_err(|e| format!("export interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Le labo photo (étape 5, lot 2)
+// ----------------------------------------------------------------------------------------
+
+/// La base de l'aperçu en direct d'une photo retouchée : son aperçu de 2560 px passé par les
+/// réglages (ceux qui regardent les pixels voisins compris), sans vignetage ni grain. Réponse
+/// binaire : largeur et hauteur (deux entiers de 32 bits, petit-boutistes), puis les pixels
+/// RGBA.
+#[tauri::command]
+pub async fn labo_base(app: AppHandle, rayon_nom: String, projet_id: String, id: String, reglages: labo::Reglages) -> Result<Response, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let chemin = images::chemin_ressource(&dossier, &id, images::Genre::Apercu).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || labo::base_apercu(&chemin, &reglages).map(Response::new))
+        .await
+        .map_err(|e| format!("retouche interrompue : {e}"))?
 }
 
 // ----------------------------------------------------------------------------------------

@@ -18,7 +18,7 @@ import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vue
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
 import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
+import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
@@ -27,6 +27,7 @@ import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
+import { aDesVoisins, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, type CouleurMelangeur, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
 import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
@@ -1569,6 +1570,37 @@ const OUTILS: Record<string, Outil> = {
     etat().modifierElements(modifs);
     const apres = new Map(elementsCourants(etat()).map((e) => [e.id, e]));
     return { donnees: Object.keys(modifs).map((id) => apres.get(id)) };
+  },
+
+  retoucher(args) {
+    designOuvert();
+    const id = texte(args.id) ?? "";
+    const el = elementsCourants(etat()).find((e) => e.id === id);
+    exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
+    exiger(el.type === "image", "retoucher : une photo seulement (élément de type image) ; les clips vidéo passeront au labo plus tard");
+    const r = args.reglages ?? {};
+    exiger(typeof r === "object" && r !== null && !Array.isArray(r), "reglages : un objet, par exemple { exposition: 0.3, contraste: 15 }");
+    const demandes = r as Record<string, unknown>;
+    const connus = new Set<string>([...CURSEURS_LABO.map((c) => c.cle), "melangeur"]);
+    for (const [k, v] of Object.entries(demandes)) {
+      exiger(connus.has(k), `réglage inconnu : ${k} (connus : ${[...connus].join(", ")})`);
+      if (k === "melangeur") {
+        exiger(typeof v === "object" && v !== null && !Array.isArray(v), "melangeur : un objet par couleur, par exemple { bleu: { saturation: 30 } }");
+        for (const [c, m] of Object.entries(v as Record<string, unknown>)) {
+          exiger((COULEURS_MELANGEUR as readonly string[]).includes(c), `melangeur : couleur inconnue ${c} (${COULEURS_MELANGEUR.join(", ")})`);
+          exiger(typeof m === "object" && m !== null && Object.keys(m).every((x) => ["teinte", "saturation", "luminance"].includes(x)), `melangeur.${c} : teinte, saturation, luminance`);
+          for (const x of Object.values(m as Record<string, unknown>)) exiger(typeof x === "number" && Number.isFinite(x), `melangeur.${c} : des nombres de -100 à 100`);
+        }
+      } else {
+        exiger(typeof v === "number" && Number.isFinite(v), `${k} : un nombre`);
+      }
+    }
+    const depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage).reglages ?? {});
+    const melangeur = { ...depart.melangeur } as NonNullable<ReglagesPhoto["melangeur"]>;
+    for (const [c, m] of Object.entries((demandes.melangeur ?? {}) as Record<CouleurMelangeur, RetoucheCouleur>)) melangeur[c as CouleurMelangeur] = { ...melangeur[c as CouleurMelangeur], ...m };
+    const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur });
+    etat().modifierElements({ [id]: { reglages } as Partial<ElementPage> });
+    return { donnees: { id, reglages: reglages ?? {}, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
   },
 
   supprimer(args) {

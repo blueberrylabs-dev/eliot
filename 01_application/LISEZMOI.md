@@ -6,8 +6,8 @@ d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixa
 marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
 leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et
 les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG,
-JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, et l'export des vidéos en MP4 ou en
-GIF.
+JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, l'export des vidéos en MP4 ou en
+GIF, et un labo pour retoucher les photos comme dans Lightroom.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -267,6 +267,21 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   légende ; le cadre pointillé est la zone sûre pour les textes. Un calque d'aide seulement :
   il ne passe jamais dans l'export.
 
+**Le labo photo (étape 5, lot 2)**
+- Une photo choisie, « Retoucher » dans la barre du haut : le panneau du labo s'ouvre à la
+  place du panneau de gauche. Lumière (exposition en IL, contraste, hautes lumières, ombres,
+  blancs, noirs), Couleur (température, teinte, vibrance, saturation, et le mélangeur : teinte,
+  saturation et luminance de huit couleurs), Effets (texture, clarté, correction du voile,
+  vignetage, grain), Détail (netteté, réduction du bruit). Un histogramme au-dessus.
+- La photo suit le curseur pendant qu'on le tire. Texture, clarté, voile, netteté et bruit
+  regardent les pixels voisins : ils se calculent quand on relâche le curseur (le reste suit en
+  direct pendant ce temps).
+- Double-clic sur un curseur ou sur son nom : retour à zéro. La valeur se tape au clavier (un
+  clic dessus, puis Entrée). « Avant (maintenir) » montre la photo sans retouche ; « Tout »
+  remet tout à zéro. Tirer un curseur fait une seule étape d'annulation.
+- L'original n'est jamais modifié : les réglages sont gardés dans le design, et chaque export
+  (image, PDF, SVG, film) refait la retouche depuis l'original.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -277,11 +292,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
-  tableaux, partir d'un modèle de départ, regarder une capture de la page et exporter (en
-  PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo, avec la version sans
-  musique). On la voit
-  travailler dans la fenêtre, et Ctrl+Z défait chacune de ses actions. Mise en place :
-  commandes 13 à 15 bis du `CLAUDE.md`.
+  tableaux, partir d'un modèle de départ, retoucher une photo au labo, regarder une capture de
+  la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
+  avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
+  chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
 ## Essayer la vidéo (étape 4)
 
@@ -335,6 +349,26 @@ la commande 13 du `CLAUDE.md` (le pont IA apprend les nouveaux formats).
 Ce qui m'aide le plus en retour : un texte qui ne tombe pas au même endroit qu'à l'écran (un
 mot, une ligne qui change), une couleur différente, et le temps d'un PDF de plusieurs pages.
 
+## Essayer le labo photo (étape 5, lot 2)
+
+Dix minutes, Eliot lancé à la main, carte graphique libre (commande 10). Avant, une fois :
+recompiler l'application (commande 9) et le pont (commande 13).
+
+1. Un post carré, une photo de ton appareil (onglet Importer), plutôt un peu terne ou à
+   contre-jour. La choisir, « Retoucher ».
+2. Tirer Exposition, puis Ombres et Hautes lumières : la photo suit le curseur sans à-coups.
+   Noter si ça accroche.
+3. Température vers le jaune, Vibrance : une ambiance plus chaude. Maintenir « Avant » pour
+   comparer.
+4. Clarté et Texture, puis relâcher : le détail ressort après un court instant. Noter ce temps.
+5. Le mélangeur : le bleu du ciel plus profond (Saturation, Luminance), sans toucher au reste.
+6. Double-clic sur un curseur : il revient à zéro. Ctrl+Z : le geste d'avant revient, d'un coup.
+7. Exporter en PNG ×2, puis en PDF : la retouche est dans les deux, et la photo est nette (elle
+   vient de l'original).
+
+Ce qui m'aide le plus en retour : un curseur qui accroche, le temps après avoir relâché Clarté,
+une retouche qui ne ressemble pas à ce que fait Lightroom, et un export qui diffère de l'écran.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -386,7 +420,7 @@ mot, une ligne qui change), une couleur différente, et le temps d'un PDF de plu
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -394,11 +428,12 @@ mot, une ligne qui change), une couleur différente, et le temps d'un PDF de plu
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
+│   ├── labo/         le labo photo : le panneau Retoucher, le shader de l'aperçu en direct (shader.ts), les photos retouchées affichées (retouche.ts)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

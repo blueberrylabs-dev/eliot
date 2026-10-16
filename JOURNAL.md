@@ -5,6 +5,61 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 2 : le labo photo
+
+Accord d'Alexandre pour continuer (« Tu peux continuer »). Ce que Claude a fait et décidé :
+
+- Le moteur dans le noyau (`noyau/src/labo.rs`) : les réglages en nombres à virgule, en lumière
+  linéaire, dans l'ordre du BRIEF : balance des blancs et exposition (des gains par canal),
+  tonalités sur la luminance perçue, couleurs (saturation, vibrance, puis le mélangeur de huit
+  couleurs, rotation de teinte autour de l'axe des gris), détail (réduction du bruit de la
+  couleur et de la luminance en gardant les bords, puis netteté), effets (texture, clarté sur
+  les tons moyens, correction du voile par le canal sombre, puis vignetage et grain). Les
+  rayons des réglages voisins comptent en pixels d'une image de 2560 px et suivent sa taille :
+  l'aperçu et l'original donnent le même dessin (essai : écart moyen sous 4 sur 255 entre
+  « retoucher puis réduire » et « réduire puis retoucher »). Le grain est un bruit de valeur sur
+  la même grille, pour la même raison.
+- Plages : chaque curseur de -100 à +100 autour de zéro comme le dit le BRIEF, sauf
+  l'exposition (de -5 à +5 IL), et sauf la réduction du bruit et le grain, de 0 à 100 comme dans
+  Lightroom (un négatif n'y voudrait rien dire). Écart au texte du BRIEF, à valider par
+  Alexandre.
+- L'aperçu en direct, par la voie retenue au lot 0 : les réglages d'un pixel dans un shader
+  WebGL 2 (`src/labo/shader.ts`, mêmes formules ligne pour ligne). Les réglages voisins viennent
+  du noyau (commande `labo_base`), calculés sur l'aperçu de 2560 px au relâchement du curseur :
+  une base sans vignetage ni grain ; le shader y ajoute l'écart entre les réglages d'un pixel du
+  moment et ceux de la base, puis le vignetage et le grain. Au repos l'image est celle du
+  noyau ; pendant qu'on tire un curseur, elle suit en direct. Pendant le geste, la page affiche
+  la toile du shader elle-même, sans la recopier à chaque image (règle 11) ; elle est recopiée
+  dans la toile de la photo au relâchement.
+- Tableau commun `src/modele/labo.attendus.json` : quinze cas de réglages, 96 pixels chacun,
+  calculés par le noyau, relus par le noyau (`cargo test`) et par le shader dans Chromium : au
+  plus 1 sur 255 d'écart, sur deux cas, aucun ailleurs.
+- L'export : le film, le PNG, le JPEG et le WebP retouchent la photo réduite à sa taille dans
+  l'export (depuis l'original) ; le PDF et le SVG emportent la photo retouchée à la définition
+  de l'original. Mesuré dans Tauri : fenêtre et export à 2,3 sur 255 en moyenne pour les
+  réglages d'un pixel ; 3,2 avec la clarté, la texture, la netteté, le voile et le bruit, la
+  fenêtre partant de l'aperçu (un JPEG) et l'export de l'original : la netteté relève un peu
+  les traces de compression de l'aperçu. Base des réglages voisins sur un aperçu de 2560 px :
+  1,5 s sur les deux cœurs du conteneur (le banc du lot 0 en annonçait environ 150 ms sur les 32
+  fils du poste).
+- Le panneau (`src/labo/PanneauLabo.tsx`), à la place du panneau de gauche : histogramme (rouge,
+  vert, bleu), « Avant (maintenir) », « Tout » pour tout remettre à zéro, Lumière, Couleur avec
+  le mélangeur (pastilles des huit couleurs), Effets, Détail ; pistes colorées pour la
+  température, la teinte, la vibrance, la saturation, l'exposition et le mélangeur, repère du
+  zéro au milieu des autres. Double-clic : zéro ; valeur au clavier ; un geste, une étape
+  d'annulation. Le labo suit la photo choisie et se ferme par un onglet du rail.
+- Le document : `reglages` sur un élément `image`, seulement les curseurs différents de zéro
+  (même version 4). Pont IA : outil `retoucher` (les réglages s'ajoutent, 0 en retire un,
+  `remettre` repart de zéro), 62 outils.
+- Reste pour plus tard : la retouche des photos posées dans un cadre ou une maquette (elles
+  n'ont pas encore de bouton Retoucher), les clips vidéo (lot 4), la courbe, les préréglages et
+  le copier-coller des réglages (lot 3).
+- Essais : noyau 96 (6 de plus, dont l'export d'une page retouchée), interface 179 (5 de plus) ;
+  Chromium : shader contre le tableau 15 cas, panneau 16 ; Tauri : labo 14 (fenêtre contre
+  export, réglages voisins, PDF et SVG retouchés, original intact, annuler, remettre à zéro),
+  et dans la fenêtre de WebKitGTK la température tirée à la souris : la photo suit, valeur par
+  valeur.
+
 ## 2026-10-16, étape 5, lot 1 : les exports depuis le document
 
 - Le noyau rend lui-même la page pour tous les exports en image et en document, comme pour le

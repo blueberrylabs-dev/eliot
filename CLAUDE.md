@@ -68,8 +68,12 @@ lourd. Détail : `BRIEF.md`.
   la vidéo), le Rust calcule les réglages qui regardent les voisins et l'export. Lot 1, les
   exports depuis le document (PNG, JPEG, WebP de ×1 à ×4 ou en dpi, PDF vectoriel de toutes les
   pages, SVG, rendus par le noyau depuis les originaux), livré et vérifié le 2026-10-16 ; essai
-  d'Alexandre : « Essayer les exports (étape 5, lot 1) » du `01_application/LISEZMOI.md`. Après
-  cette livraison : recompiler l'application (commande 9) et le pont (commande 13).
+  d'Alexandre : « Essayer les exports (étape 5, lot 1) » du `01_application/LISEZMOI.md`. Lot 2,
+  le labo photo (bouton Retoucher, panneau Lumière, Couleur avec mélangeur, Effets, Détail,
+  histogramme, aperçu en direct par le shader, export depuis l'original, outil `retoucher` du
+  pont, 62 outils), livré et vérifié le 2026-10-16 ; essai d'Alexandre : « Essayer le labo
+  photo (étape 5, lot 2) ». Après ces livraisons : recompiler l'application (commande 9) et le
+  pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -278,7 +282,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 90 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+Vérifier : `test result: ok. 96 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
@@ -290,7 +294,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  174 passed`.
+Vérifier : `Tests  179 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

@@ -212,7 +212,7 @@ function enBase64(octets: ArrayBuffer): string {
 
 /** Décrit une page vidéo pour le noyau : fond, calques de chaque élément au repos, polices. */
 export async function decrirePage(page: PageEliot, format: Format): Promise<DescriptionPage> {
-  await prechargerPage(page);
+  await prechargerPage(page, { retouches: false });
   const support = document.createElement("div");
   const racine = createRoot(support);
   try {

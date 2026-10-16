@@ -2248,6 +2248,202 @@
     }
   },
   {
+    "name": "retoucher",
+    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs. Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original. Juger le résultat avec capture. Renvoie les réglages de la photo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de la photo (voir etat)."
+        },
+        "reglages": {
+          "type": "object",
+          "properties": {
+            "exposition": {
+              "type": "number",
+              "description": "En IL, de -5 à +5."
+            },
+            "contraste": {
+              "type": "number"
+            },
+            "hautesLumieres": {
+              "type": "number"
+            },
+            "ombres": {
+              "type": "number"
+            },
+            "blancs": {
+              "type": "number"
+            },
+            "noirs": {
+              "type": "number"
+            },
+            "temperature": {
+              "type": "number"
+            },
+            "teinte": {
+              "type": "number"
+            },
+            "vibrance": {
+              "type": "number"
+            },
+            "saturation": {
+              "type": "number"
+            },
+            "melangeur": {
+              "type": "object",
+              "properties": {
+                "rouge": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "orange": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "jaune": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "vert": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "cyan": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "bleu": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "violet": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "magenta": {
+                  "type": "object",
+                  "properties": {
+                    "teinte": {
+                      "type": "number"
+                    },
+                    "saturation": {
+                      "type": "number"
+                    },
+                    "luminance": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            },
+            "texture": {
+              "type": "number"
+            },
+            "clarte": {
+              "type": "number"
+            },
+            "voile": {
+              "type": "number"
+            },
+            "vignetage": {
+              "type": "number"
+            },
+            "grain": {
+              "type": "number",
+              "description": "De 0 à 100."
+            },
+            "nettete": {
+              "type": "number"
+            },
+            "bruit": {
+              "type": "number",
+              "description": "Réduction du bruit, de 0 à 100."
+            }
+          }
+        },
+        "remettre": {
+          "type": "boolean",
+          "description": "Vrai : enlève d'abord tous les réglages de la photo."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "supprimer",
     "description": "Supprime des éléments ou des sons de la page affichée (un élément verrouillé est gardé).",
     "inputSchema": {

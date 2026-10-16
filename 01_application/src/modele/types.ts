@@ -10,6 +10,9 @@
 // que de numéro (noyau/src/projet.rs). Lot 3 : animations, images clés, transitions et fondus
 // du son, tous facultatifs eux aussi (même version 4). Lot 5 : les sons de la page (`audio`),
 // facultatifs eux aussi (même version 4).
+// Étape 5, lot 2 : les réglages du labo d'une photo (`reglages`), facultatifs (même version 4).
+
+import type { ReglagesPhoto } from "./labo";
 
 export const VERSION_DOCUMENT = 4 as const;
 
@@ -238,6 +241,9 @@ export interface ElementImage extends ElementBase {
   arrondi?: number;
   /** Bordure autour de la photo. */
   bordure?: { couleur: string; epaisseur: number };
+  /** Les réglages du labo photo (étape 5), seulement ceux qui ne sont pas à zéro ; l'original
+   *  n'est jamais touché (règle 13). */
+  reglages?: ReglagesPhoto;
 }
 
 /**

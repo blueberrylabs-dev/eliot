@@ -3,7 +3,7 @@
 // Le même rendu sert à la zone de travail, aux vignettes des pages et aux exports.
 
 import type Konva from "konva";
-import { memo, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } from "react-konva";
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
@@ -22,6 +22,7 @@ import { visibleA } from "../modele/frise";
 import { aDesUnites, contextesTransitions, ecrireFenetre, estAnime, etatAnime, etatUnite, lireFenetre, type Effet, type EtatAnime, type Pose, type Unites } from "../modele/animation";
 import { useEditeur } from "../etat/editeur";
 import { useApercuAnimation } from "./apercuAnimation";
+import { abonnerRetouche, imageRetouchee, useLabo } from "../labo/retouche";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
@@ -183,9 +184,20 @@ function Forme({ el }: { el: ElementForme }) {
   }
 }
 
+/** Une photo : son aperçu, ou sa toile retouchée par le labo (étape 5). Le bouton « Avant » du
+ *  labo, maintenu, la montre sans retouche. */
 function Photo({ el }: { el: ElementImage }) {
-  const image = useImageRessource(el.ressource);
-  return <Plaque el={el} image={image} />;
+  const source = useImageRessource(el.ressource);
+  const avant = useLabo((s) => s.avant && s.ouvert === el.id);
+  const [, rafraichir] = useState(0);
+  const noeud = useRef<Konva.Image>(null);
+  useEffect(() => abonnerRetouche(el.id, () => rafraichir((v) => v + 1)), [el.id]);
+  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, el.reglages) : source;
+  // La toile reste le même objet quand on la redessine : Konva doit en être prévenu.
+  useLayoutEffect(() => {
+    noeud.current?.getLayer()?.batchDraw();
+  });
+  return <Plaque el={el} image={image} noeud={noeud} />;
 }
 
 /**

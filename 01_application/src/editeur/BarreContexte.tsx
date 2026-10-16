@@ -61,6 +61,7 @@ import { ReglagesSon } from "./ReglagesSon";
 import { ReglagesAnimation } from "./ReglagesAnimation";
 import { useTemps } from "../etat/temps";
 import { poseA } from "../modele/animation";
+import { useLabo } from "../labo/retouche";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -575,6 +576,19 @@ export function BarreContexte() {
       {choisis.length === 1 && videos.length === 1 && (
         <>
           <ReglagesVideo v={videos[0]} />
+          {separateur}
+        </>
+      )}
+      {choisis.length === 1 && choisis[0].type === "image" && (
+        <>
+          <button
+            data-retoucher
+            title="Retoucher la photo : lumière, couleur, effets, détail"
+            onClick={() => useLabo.setState({ ouvert: choisis[0].id })}
+            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+          >
+            <SlidersHorizontal size={16} /> Retoucher
+          </button>
           {separateur}
         </>
       )}

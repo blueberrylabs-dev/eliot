@@ -48,9 +48,24 @@ async function imageDeRessource(ref: RefProjet | null, id: string, genre: GenreI
   return chargerImage(url);
 }
 
-/** La ressource du design qu'une image affichée représente (son aperçu), s'il y en a une. */
+/** Les toiles des photos retouchées par le labo (étape 5) : l'export y lit la ressource et pose
+ *  l'original à sa place (le noyau refait la retouche). */
+const ressourcesParToile = new WeakMap<object, string>();
+
+export function marquerToile(toile: HTMLCanvasElement, ressource: string): void {
+  ressourcesParToile.set(toile, ressource);
+}
+
+/** La ressource du design qu'une image affichée représente (son aperçu, ou sa version
+ *  retouchée), s'il y en a une. */
 export function ressourceDeImage(image: unknown): string | undefined {
-  return image instanceof HTMLImageElement ? ressourcesParAdresse.get(image.src) : undefined;
+  if (image instanceof HTMLImageElement) return ressourcesParAdresse.get(image.src);
+  return typeof image === "object" && image ? ressourcesParToile.get(image) : undefined;
+}
+
+/** L'aperçu d'une ressource du design ouvert, chargé au besoin. */
+export function apercuRessource(id: string): Promise<HTMLImageElement> {
+  return imageDeRessource(useEditeur.getState().projet, id, "apercu");
 }
 
 /** L'image décodée d'une ressource du design ouvert, ou `undefined` le temps qu'elle arrive. */
@@ -81,7 +96,7 @@ export function useImageRessource(id: string | undefined, genre: GenreImage = "a
 
 /** Charge tout ce qu'une page dessine avant un rendu hors écran (export, miniature) : images
  *  du design, icônes, emojis et personnages de la bibliothèque, polices des textes. */
-export async function prechargerPage(page: PageEliot): Promise<void> {
+export async function prechargerPage(page: PageEliot, options: { retouches?: boolean } = {}): Promise<void> {
   const projet = useEditeur.getState().projet;
   const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" || e.type === "video" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
   await Promise.all([
@@ -90,6 +105,11 @@ export async function prechargerPage(page: PageEliot): Promise<void> {
     prechargerPersonnages(page.elements),
     assurerPolicesElements(page.elements),
   ]);
+  // Les photos retouchées par le labo : leur base (réglages voisins), calculée par le noyau.
+  // L'export par le noyau n'en a pas besoin : il refait la retouche depuis l'original.
+  if (options.retouches === false) return;
+  const { assurerRetouches } = await import("../labo/retouche");
+  await assurerRetouches(page);
 }
 
 /** L'adresse d'une image du design ouvert (pour une balise `<img>`), une fois connue. */

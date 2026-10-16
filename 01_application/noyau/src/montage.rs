@@ -34,6 +34,7 @@ use crate::animation::{self, Contexte, ElementAnime, Format, GenreUnites, Repere
 use crate::sous_titres::{self, SousTitre};
 use crate::fichiers::{chemin_libre, chemin_temporaire};
 use crate::images::{self, Genre};
+use crate::labo;
 use crate::son::{self, ClipAudio};
 use crate::sons::{self, Niveau};
 use crate::voix;
@@ -756,8 +757,18 @@ fn rendre_fin(a: &usvg::Tree, boite: &Boite, s: f64) -> Option<(Pixmap, f64)> {
     Some((pixmap, s))
 }
 
-/// Une photo du design, depuis l'original redressé, réduite à `largeur` × `hauteur` au plus.
-fn charger_photo(dossier: &Path, id: &str, largeur: f64, hauteur: f64) -> Result<Pixmap, ErreurMontage> {
+/// Les réglages du labo d'un élément (étape 5, lot 2), s'il en a qui changent quelque chose.
+pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
+    if element.get("type").and_then(Value::as_str) != Some("image") {
+        return None;
+    }
+    let r: labo::Reglages = serde_json::from_value(element.get("reglages")?.clone()).ok()?;
+    (!r.bornes().neutres()).then_some(r)
+}
+
+/// Une photo du design, depuis l'original redressé, réduite à `largeur` × `hauteur` au plus,
+/// puis retouchée par le labo à cette taille (les rayons des réglages suivent la taille).
+fn charger_photo(dossier: &Path, id: &str, largeur: f64, hauteur: f64, reglages: Option<&labo::Reglages>) -> Result<Pixmap, ErreurMontage> {
     let chemin = images::chemin_ressource(dossier, id, Genre::Original).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
     let octets = fs::read(chemin)?;
     let image = images::decoder_redresse(&octets).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
@@ -773,7 +784,11 @@ fn charger_photo(dossier: &Path, id: &str, largeur: f64, hauteur: f64) -> Result
         fast_image_resize::Resizer::new().resize(&source, &mut cible, &options).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
         image::RgbaImage::from_raw(l, h, cible.into_vec()).ok_or_else(|| ErreurMontage::Calque("réduction".into()))?
     };
-    premultiplier(rgba.into_raw(), l, h).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
+    let mut rgba = rgba.into_raw();
+    if let Some(r) = reglages {
+        labo::appliquer(&mut rgba, l, h, r, true);
+    }
+    premultiplier(rgba, l, h).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
 }
 
 /// La chaîne `atempo` d'une vitesse (chaque maillon entre 0,5 et 2).
@@ -865,7 +880,7 @@ impl Scene {
             .collect::<Result<_, _>>()?;
         let transitions = animation::contextes_transitions(&animes);
         let echelle_film = (largeur as f64 / format.largeur).max(hauteur as f64 / format.hauteur);
-        let mut photos: HashMap<(String, u32, u32), Arc<Pixmap>> = HashMap::new();
+        let mut photos: HashMap<(String, u32, u32, String), Arc<Pixmap>> = HashMap::new();
         let mut elements = Vec::new();
         for (e, el) in description.elements.iter().zip(animes) {
             let (entree, sortie_tr) = transitions.get(&el.id).cloned().unwrap_or((None, None));
@@ -878,6 +893,8 @@ impl Scene {
                 .filter(|_| el.genre == "video")
                 .and_then(|id| images::infos(dossier, id).ok())
                 .and_then(|r| r.video.map(|v| v.duree as f64));
+            let retouche = reglages_labo(&e.element);
+            let cle_retouche = retouche.map(|r| serde_json::to_string(&r).unwrap_or_default()).unwrap_or_default();
             let mut calques = Vec::new();
             for c in &e.calques {
                 let (rendu, decoupes) = match c {
@@ -885,11 +902,11 @@ impl Scene {
                     Calque::Image { ressource, matrice: m, decoupes, .. } => {
                         let (fx, fy) = Affine(*m).facteurs();
                         let (l, h) = ((fx * finesse).ceil() as u32, (fy * finesse).ceil() as u32);
-                        let cle = (ressource.clone(), l, h);
+                        let cle = (ressource.clone(), l, h, cle_retouche.clone());
                         let pixmap = match photos.get(&cle) {
                             Some(p) => p.clone(),
                             None => {
-                                let p = Arc::new(charger_photo(dossier, ressource, l as f64, h as f64)?);
+                                let p = Arc::new(charger_photo(dossier, ressource, l as f64, h as f64, retouche.as_ref())?);
                                 photos.insert(cle, p.clone());
                                 p
                             }

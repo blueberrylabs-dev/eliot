@@ -5,6 +5,7 @@
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { ReglagesPhoto } from "../modele/labo";
 import type { AnalyseParole, LangueParole } from "../modele/parole";
 
 export const dansTauri = isTauri();
@@ -347,6 +348,16 @@ export async function urlCopieNeuve(ref: RefRessources, ressource: Ressource): P
   if (navigateur?.urls.copie) return { url: navigateur.urls.copie, liberer: () => undefined };
   const url = URL.createObjectURL(await blobCopie(ref, ressource));
   return { url, liberer: () => URL.revokeObjectURL(url) };
+}
+
+/** La base de l'aperçu en direct d'une photo retouchée (étape 5, lot 2) : son aperçu de 2560 px
+ *  passé par le labo du noyau, réglages voisins compris, sans vignetage ni grain. `null` hors
+ *  de l'application (le noyau n'est pas là). */
+export async function baseLabo(ref: RefRessources, id: string, reglages: ReglagesPhoto): Promise<{ pixels: Uint8Array; largeur: number; hauteur: number } | null> {
+  if (!dansTauri) return null;
+  const octets = new Uint8Array(await invoke<ArrayBuffer>("labo_base", { rayonNom: ref.rayon, projetId: ref.id, id, reglages }));
+  const vue = new DataView(octets.buffer, octets.byteOffset, 8);
+  return { largeur: vue.getUint32(0, true), hauteur: vue.getUint32(4, true), pixels: octets.subarray(8) };
 }
 
 /** L'image d'une vidéo à l'instant `ms` de son fichier (JPEG), tirée de la copie d'aperçu par

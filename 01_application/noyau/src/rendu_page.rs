@@ -33,6 +33,7 @@ use thiserror::Error;
 
 use crate::export::{self, ErreurExport, Format};
 use crate::images::{self, Genre};
+use crate::labo;
 use crate::montage::{self, Affine, Calque, DescriptionPage, ErreurMontage, FaceEliot, PoliceCalques};
 
 #[derive(Debug, Error)]
@@ -227,16 +228,32 @@ fn ouvrir_groupe(sortie: &mut String, m: &Affine, opacite: f64, fusion: Option<&
     sortie.push('>');
 }
 
+/// Une clé courte pour des réglages du labo (empreinte FNV-1a de leur JSON).
+fn cle_reglages(r: &labo::Reglages) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for o in serde_json::to_string(r).unwrap_or_default().bytes() {
+        h = (h ^ o as u64).wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{h:016x}")
+}
+
 /// La page à l'instant `t`, en un seul document SVG. Les photos y sont désignées par
-/// `eliot:original/<empreinte>`, l'image d'une vidéo par `eliot:video/<empreinte>/<ms>` :
-/// `Images::lire` sait les lire.
+/// `eliot:original/<empreinte>`, une photo retouchée par le labo par
+/// `eliot:retouche/<empreinte>/<clé des réglages>`, l'image d'une vidéo par
+/// `eliot:video/<empreinte>/<ms>` : `Images::lire` sait les lire.
 pub fn composer_svg(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<String, ErreurRendu> {
+    Ok(composer_svg_retouches(description, t, dossier_ressources)?.0)
+}
+
+/// Le même, avec les réglages du labo que le SVG désigne par leur clé.
+fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<(String, Vec<(String, labo::Reglages)>), ErreurRendu> {
     let poses = montage::poses_vectorielles(description, t, dossier_ressources)?;
+    let mut retouches: Vec<(String, labo::Reglages)> = Vec::new();
     let (l, h) = (description.largeur, description.hauteur);
     let mut corps = String::new();
     let mut defs = String::new();
     let mut n = 0usize;
-    let mut poser = |corps: &mut String, defs: &mut String, c: &Calque, element: &Affine, opacite_el: f64, echelle_ombre: f64, instant_video: Option<f64>| -> Result<(), ErreurRendu> {
+    let mut poser = |corps: &mut String, defs: &mut String, c: &Calque, element: &Affine, opacite_el: f64, echelle_ombre: f64, instant_video: Option<f64>, retouche: Option<&(String, labo::Reglages)>| -> Result<(), ErreurRendu> {
         match c {
             Calque::Svg { svg, boite, ombre, opacite, fusion, unite } => {
                 // Un sous-titre garde ses lettres ordinaires ; la variante du mot prononcé ne
@@ -274,7 +291,10 @@ pub fn composer_svg(description: &DescriptionPage, t: f64, dossier_ressources: &
                 let href = match (c, instant_video) {
                     (Calque::Video { .. }, Some(ms)) => format!("eliot:video/{ressource}/{}", ms.max(0.0).round() as u64),
                     (Calque::Video { .. }, None) => return Ok(()),
-                    _ => format!("eliot:original/{ressource}"),
+                    _ => match retouche {
+                        Some((cle, _)) => format!("eliot:retouche/{ressource}/{cle}"),
+                        None => format!("eliot:original/{ressource}"),
+                    },
                 };
                 let _ = write!(corps, "<image width=\"1\" height=\"1\" preserveAspectRatio=\"none\" transform=\"{}\" xlink:href=\"{href}\"/>", matrice_svg(&Affine(*matrice)));
                 for _ in decoupes {
@@ -286,22 +306,29 @@ pub fn composer_svg(description: &DescriptionPage, t: f64, dossier_ressources: &
         Ok(())
     };
     for c in &description.fond {
-        poser(&mut corps, &mut defs, c, &Affine::IDENTITE, 1.0, 1.0, None)?;
+        poser(&mut corps, &mut defs, c, &Affine::IDENTITE, 1.0, 1.0, None, None)?;
     }
     for (e, pose) in description.elements.iter().zip(poses) {
         let Some(p) = pose else { continue };
         if p.opacite <= 0.001 {
             continue;
         }
+        let retouche = montage::reglages_labo(&e.element).map(|r| (cle_reglages(&r), r));
         for c in &e.calques {
-            poser(&mut corps, &mut defs, c, &p.matrice, p.opacite, p.echelle_ombre, p.instant_video)?;
+            poser(&mut corps, &mut defs, c, &p.matrice, p.opacite, p.echelle_ombre, p.instant_video, retouche.as_ref())?;
+        }
+        if let Some(r) = retouche
+            && !retouches.iter().any(|(c, _)| *c == r.0)
+        {
+            retouches.push(r);
         }
     }
-    Ok(format!(
+    let svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\"><defs>{defs}</defs>{corps}</svg>",
         w = nombre(l),
         h = nombre(h)
-    ))
+    );
+    Ok((svg, retouches))
 }
 
 // ----------------------------------------------------------------------------------------
@@ -319,12 +346,13 @@ enum Codage {
 type Lue = Option<(Codage, Arc<Vec<u8>>)>;
 
 /// Une photo telle que le PDF et le SVG l'emportent : le JPEG d'origine s'il est droit
-/// (aucune rotation demandée par l'appareil photo), sinon l'image redressée, en JPEG (qualité
-/// 95) ou en PNG si elle a de la transparence.
-fn photo_vectorielle(dossier: &Path, id: &str) -> Result<(Codage, Vec<u8>), ErreurRendu> {
+/// (aucune rotation demandée par l'appareil photo) et sans retouche, sinon l'image redressée
+/// et retouchée par le labo, à la définition de l'original, en JPEG (qualité 95) ou en PNG si
+/// elle a de la transparence.
+fn photo_vectorielle(dossier: &Path, id: &str, reglages: Option<&labo::Reglages>) -> Result<(Codage, Vec<u8>), ErreurRendu> {
     let chemin = images::chemin_ressource(dossier, id, Genre::Original).map_err(|e| ErreurRendu::Photo(id.into(), e.to_string()))?;
     let octets = fs::read(&chemin)?;
-    if octets.starts_with(&[0xFF, 0xD8, 0xFF]) {
+    if reglages.is_none() && octets.starts_with(&[0xFF, 0xD8, 0xFF]) {
         let droit = image::ImageReader::new(Cursor::new(&octets))
             .with_guessed_format()
             .ok()
@@ -335,10 +363,16 @@ fn photo_vectorielle(dossier: &Path, id: &str) -> Result<(Codage, Vec<u8>), Erre
             return Ok((Codage::Jpeg, octets));
         }
     }
-    if octets.starts_with(&[0x89, b'P', b'N', b'G']) {
+    if reglages.is_none() && octets.starts_with(&[0x89, b'P', b'N', b'G']) {
         return Ok((Codage::Png, octets));
     }
-    let image = images::decoder_redresse(&octets).map_err(|e| ErreurRendu::Photo(id.into(), e.to_string()))?;
+    let mut image = images::decoder_redresse(&octets).map_err(|e| ErreurRendu::Photo(id.into(), e.to_string()))?;
+    if let Some(r) = reglages {
+        let mut rgba = image.to_rgba8();
+        let (l, h) = rgba.dimensions();
+        labo::appliquer(&mut rgba, l, h, r, true);
+        image = if image.color().has_alpha() { image::DynamicImage::ImageRgba8(rgba) } else { image::DynamicImage::ImageRgb8(image::DynamicImage::ImageRgba8(rgba).to_rgb8()) };
+    }
     let mut sortie = Vec::new();
     if image.color().has_alpha() {
         image.write_to(&mut Cursor::new(&mut sortie), image::ImageFormat::Png).map_err(|e| ErreurRendu::Photo(id.into(), e.to_string()))?;
@@ -372,11 +406,19 @@ struct Images {
     dossier: PathBuf,
     lues: std::sync::Mutex<HashMap<String, Lue>>,
     erreurs: std::sync::Mutex<Vec<String>>,
+    /// Les réglages du labo désignés par les adresses `eliot:retouche/…/<clé>`.
+    retouches: std::sync::Mutex<HashMap<String, labo::Reglages>>,
 }
 
 impl Images {
     fn nouvelles(dossier: &Path) -> Arc<Self> {
-        Arc::new(Images { dossier: dossier.to_path_buf(), lues: Default::default(), erreurs: Default::default() })
+        Arc::new(Images { dossier: dossier.to_path_buf(), lues: Default::default(), erreurs: Default::default(), retouches: Default::default() })
+    }
+
+    fn connaitre(&self, retouches: Vec<(String, labo::Reglages)>) {
+        if let Ok(mut m) = self.retouches.lock() {
+            m.extend(retouches);
+        }
     }
 
     /// La première photo qui n'a pas pu être lue.
@@ -402,7 +444,17 @@ impl Images {
             return lu.clone();
         }
         let lu = if let Some(id) = href.strip_prefix("eliot:original/") {
-            match photo_vectorielle(&self.dossier, id) {
+            match photo_vectorielle(&self.dossier, id, None) {
+                Ok((g, o)) => Some((g, Arc::new(o))),
+                Err(e) => {
+                    self.erreurs.lock().ok()?.push(e.to_string());
+                    None
+                }
+            }
+        } else if let Some(reste) = href.strip_prefix("eliot:retouche/") {
+            let (id, cle) = reste.split_once('/')?;
+            let r = self.retouches.lock().ok()?.get(cle).copied()?;
+            match photo_vectorielle(&self.dossier, id, Some(&r)) {
                 Ok((g, o)) => Some((g, Arc::new(o))),
                 Err(e) => {
                     self.erreurs.lock().ok()?.push(e.to_string());
@@ -437,9 +489,10 @@ impl Images {
 
 /// La page en SVG autonome : textes en tracés, photos et images de vidéos dedans (base64).
 pub fn svg(description: &DescriptionPage, t: f64, dossier_ressources: &Path) -> Result<Vec<u8>, ErreurRendu> {
-    let compose = composer_svg(description, t, dossier_ressources)?;
+    let (compose, retouches) = composer_svg_retouches(description, t, dossier_ressources)?;
     let mut options = montage::options_rendu(&description.polices, dossier_ressources)?;
     let images = Images::nouvelles(dossier_ressources);
+    images.connaitre(retouches);
     let lecteur = images.clone();
     options.image_href_resolver = usvg::ImageHrefResolver {
         resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
@@ -547,7 +600,8 @@ pub fn pdf_suivi(pages: &[(DescriptionPage, f64)], dossier_ressources: &Path, av
     let options = options_pdf(&polices_du_document(pages), images.clone())?;
     let mut document = krilla::Document::new();
     for (rang, (description, t)) in pages.iter().enumerate() {
-        let compose = composer_svg(description, *t, dossier_ressources)?;
+        let (compose, retouches) = composer_svg_retouches(description, *t, dossier_ressources)?;
+        images.connaitre(retouches);
         let arbre = usvg_pdf::Tree::from_str(&compose, &options).map_err(|e| ErreurRendu::Svg(e.to_string()))?;
         images.verifier()?;
         let k = points_par_pixel(description.largeur, description.hauteur);
@@ -903,6 +957,33 @@ mod tests {
         let e = pdf(&[(p.clone(), 0.0)], &dossier).unwrap_err();
         assert!(matches!(e, ErreurRendu::Photo(..)), "{e}");
         assert!(matches!(svg(&p, 0.0, &dossier), Err(ErreurRendu::Photo(..))));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    #[test]
+    fn les_reglages_du_labo_passent_dans_l_export() {
+        let dossier = dossier_de_test("labo");
+        let id = photo(&dossier);
+        let brute = page(&id);
+        let mut retouchee = brute.clone();
+        retouchee.elements[1].element["reglages"] = json!({ "exposition": -2, "saturation": -100 });
+        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        // La moitié rouge de la photo, à demi transparente sur le blanc : sans réglages elle est
+        // rouge pâle ; plus sombre de deux IL et sans couleur, elle devient grise.
+        let a = pixel(&png(&brute), 350, 250);
+        let b = pixel(&png(&retouchee), 350, 250);
+        assert!(a[0] > a[1] + 60, "{a:?}");
+        assert!(b[0].abs_diff(b[1]) <= 3 && b[0] < a[0], "{b:?}");
+        // Le PDF et le SVG emportent la photo retouchée.
+        let octets = pdf(&[(retouchee.clone(), 0.0)], &dossier).unwrap();
+        let chemin = dossier.join("labo.pdf");
+        fs::write(&chemin, &octets).unwrap();
+        if Command::new("pdftoppm").args(["-r", "96", "-png", "-singlefile"]).arg(&chemin).arg(dossier.join("labo")).status().is_ok_and(|s| s.success()) {
+            let c = image::open(dossier.join("labo.png")).unwrap().to_rgba8().get_pixel(350, 250).0;
+            assert!(c[0].abs_diff(c[1]) <= 4 && proche(c, b, 6), "{c:?} contre {b:?}");
+        }
+        let texte = String::from_utf8(svg(&retouchee, 0.0, &dossier).unwrap()).unwrap();
+        assert!(texte.contains("data:image/jpeg;base64,") && !texte.contains("eliot:"));
         let _ = fs::remove_dir_all(&dossier);
     }
 }
