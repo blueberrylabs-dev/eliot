@@ -2555,6 +2555,62 @@
     }
   },
   {
+    "name": "recadrer",
+    "description": "Recadrer et redresser une photo (élément de type image) ou un clip vidéo (type video) de la page affichée, comme le recadrage de Lightroom. Le cadre gardé ne montre jamais de coin vide : redresser le resserre autant qu'il le faut. Ordre : remettre (toute l'image, droite), puis angle ou auto, puis proportions, puis zone. angle : le redressement en degrés, de -45 à 45 (positif : l'image tourne dans le sens des aiguilles d'une montre) ; l'image tourne autour du cadre, la boîte de l'élément garde sa place et sa taille. auto : le noyau cherche l'horizon ou une verticale nette et la remet droite (renvoie l'angle trouvé, ou dit qu'il n'y a pas de ligne assez nette). proportions : libre, original, page (les proportions de la page), 1:1, 4:5, 3:2, 4:3, 16:9, ou largeur:hauteur (5:4, 2:3, 9:16) ; le plus grand cadre de ces proportions, au plus près du cadre actuel. zone : le cadre exact, { x, y, largeur, hauteur } en fractions de l'image redressée (0, 0 : son coin haut gauche ; 1 : toute sa largeur ou sa hauteur). Avec proportions et zone, la photo reste à sa place sur la page : la boîte de l'élément devient le cadre gardé. L'original n'est jamais modifié ; l'export suit le recadrage. Juger le cadre avec capture. Renvoie le recadrage et la boîte de l'élément.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de la photo ou du clip (voir etat)."
+        },
+        "remettre": {
+          "type": "boolean",
+          "description": "Vrai : toute l'image, droite (la boîte garde son centre et l'échelle de la photo)."
+        },
+        "angle": {
+          "type": "number",
+          "description": "Le redressement, de -45 à 45 degrés."
+        },
+        "auto": {
+          "type": "boolean",
+          "description": "Vrai : redresser d'après l'horizon ou une verticale que le noyau trouve."
+        },
+        "proportions": {
+          "type": "string",
+          "description": "libre, original, page, 1:1, 4:5, 3:2, 4:3, 16:9, ou largeur:hauteur."
+        },
+        "zone": {
+          "type": "object",
+          "description": "Le cadre gardé, en fractions de l'image redressée.",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "largeur": {
+              "type": "number"
+            },
+            "hauteur": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "largeur",
+            "hauteur"
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "prereglages",
     "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo ou d'un clip (depuis) ou des réglages donnés, sans l'exposition, la netteté ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
     "inputSchema": {

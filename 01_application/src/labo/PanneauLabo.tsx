@@ -5,7 +5,7 @@
 // l'exposition, en IL) ; un double-clic le remet à zéro ; sa valeur se tape au clavier. Un geste
 // sur un curseur ou sur la courbe fait une seule étape d'annulation.
 
-import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Eye, RotateCcw, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Crop, Eye, RotateCcw, RotateCw, Ruler, Wand2, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { elementsCourants, useEditeur } from "../etat/editeur";
 import { useImageRessource } from "../editeur/images";
@@ -32,6 +32,8 @@ import type { ElementImage, ElementVideo } from "../modele/types";
 import { EditeurCourbe } from "./EditeurCourbe";
 import { Prereglages } from "./Prereglages";
 import { abonnerApercuClip, abonnerRetouche, collerReglages, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
+import { PROPORTIONS, type Rognage } from "../modele/rognage";
+import { choisirProportions, commencerRecadrage, finirRecadrage, photoOuClip, pivoterProportions, redresserAuto, redresserElement, remettreRognage, useRecadrage } from "./recadrage";
 
 /** La teinte de chaque couleur du mélangeur, pour sa pastille. */
 const TEINTES: Record<CouleurMelangeur, string> = {
@@ -274,6 +276,124 @@ function Etalonnage({ reglages, changer }: { reglages: ReglagesPhoto | undefined
   );
 }
 
+const DEF_ANGLE: DefinitionCurseur = { cle: "contraste", libelle: "Redresser", min: -45, max: 45, pas: 0.1 };
+
+/** Un angle tapé au clavier, de -45 à 45°. */
+function lireAngle(texte: string): number | undefined {
+  const propre = texte.replace(/\s|°/g, "").replace("−", "-").replace(",", ".");
+  if (!/^[-+]?\d*\.?\d+$/.test(propre)) return undefined;
+  return Math.max(-45, Math.min(45, Math.round(Number(propre) * 100) / 100));
+}
+
+const texteAngle = (v: number) => `${v < 0 ? "−" : ""}${Math.abs(v).toFixed(1).replace(".", ",")}°`;
+
+/** Recadrer et redresser (lot 5) : le mode recadrage de la page, les proportions prêtes, l'angle
+ *  (curseur, « Auto », tracer l'horizon), remettre toute l'image. */
+function Recadrer({ el }: { el: ElementImage | ElementVideo }) {
+  const enCours = useRecadrage((s) => s.id === el.id);
+  const proportions = useRecadrage((s) => s.proportions);
+  const portrait = useRecadrage((s) => s.portrait);
+  const niveau = useRecadrage((s) => s.niveau && s.id === el.id);
+  const geste = useLabo((s) => s.geste);
+  const [cherche, setCherche] = useState(false);
+  // Le recadrage au début d'un geste sur le curseur d'angle : y revenir rend le cadre d'avant.
+  const depart = useRef<{ rognage: Rognage | undefined; etiquette: string } | null>(null);
+  useEffect(() => {
+    if (!geste) {
+      depart.current = null;
+      useRecadrage.setState({ redressement: false });
+    }
+  }, [geste]);
+  const changerAngle = (v: number) => {
+    commencerRecadrage(el.id);
+    const enGeste = useLabo.getState().geste;
+    if (!depart.current) depart.current = { rognage: photoOuClip(el.id)?.rognage, etiquette: `rogner-angle:${el.id}:${Date.now()}` };
+    useRecadrage.setState({ redressement: enGeste });
+    redresserElement(el.id, v, depart.current.rognage, depart.current.etiquette);
+    if (!enGeste) depart.current = null;
+  };
+  const auto = async () => {
+    commencerRecadrage(el.id);
+    setCherche(true);
+    try {
+      const angle = await redresserAuto(el.id);
+      useEditeur.getState().notifier(angle === null ? "Pas de ligne assez nette pour redresser seul : essaie « Tracer l'horizon »." : angle === 0 ? "L'horizon est déjà droit." : `Redressée de ${texteAngle(angle)}.`);
+    } catch (e) {
+      useEditeur.getState().notifier(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCherche(false);
+    }
+  };
+  const bouton = "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-40";
+  return (
+    <div data-recadrage>
+      <div className="mb-2 flex gap-2">
+        <button
+          data-recadrer
+          aria-pressed={enCours}
+          onClick={() => (enCours ? finirRecadrage() : commencerRecadrage(el.id))}
+          className={`${bouton} flex-1 ${enCours ? "border-accent-600 bg-accent-600 text-white hover:bg-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`}
+          title={enCours ? "Finir le recadrage (Entrée)" : "Recadrer sur la page (ou double-clic sur la photo)"}
+        >
+          <Crop size={14} /> {enCours ? "Terminer" : "Recadrer"}
+        </button>
+        <button data-remettre-recadrage disabled={!el.rognage} onClick={() => remettreRognage(el.id)} className={`${bouton} border-neutral-300 text-neutral-700 hover:bg-neutral-50`} title="Toute l'image, droite">
+          <RotateCcw size={14} /> Remettre
+        </button>
+      </div>
+      <p className="mb-1 text-xs text-neutral-600">Proportions</p>
+      <div className="mb-2.5 flex flex-wrap gap-1" role="group" aria-label="Proportions">
+        {PROPORTIONS.map((p) => (
+          <button
+            key={p.id}
+            data-proportions={p.id}
+            aria-pressed={proportions === p.id}
+            onClick={() => {
+              commencerRecadrage(el.id);
+              if (p.id === "libre") useRecadrage.setState({ proportions: "libre" });
+              else choisirProportions(el.id, p.id);
+            }}
+            className={`rounded-md border px-2 py-0.5 text-xs ${proportions === p.id ? "border-accent-600 bg-accent-50 text-accent-800" : "border-neutral-200 text-neutral-700 hover:bg-neutral-50"}`}
+          >
+            {p.nom}
+          </button>
+        ))}
+        <button
+          data-pivoter
+          onClick={() => {
+            commencerRecadrage(el.id);
+            pivoterProportions(el.id);
+          }}
+          className="rounded-md border border-neutral-200 px-1.5 py-0.5 text-neutral-700 hover:bg-neutral-50"
+          title={portrait ? "Passer en largeur" : "Passer en hauteur"}
+          aria-label="Pivoter les proportions"
+        >
+          <RotateCw size={13} />
+        </button>
+      </div>
+      <CurseurReglage def={DEF_ANGLE} nom="Redresser" valeur={el.rognage?.angle ?? 0} changer={changerAngle} format={texteAngle} lire={lireAngle} />
+      <div className="mb-1 flex gap-2">
+        <button data-redresser-auto disabled={cherche} onClick={() => void auto()} className={`${bouton} flex-1 border-neutral-300 text-neutral-700 hover:bg-neutral-50`} title="Trouver l'horizon ou une verticale et la remettre droite">
+          <Wand2 size={14} /> {cherche ? "Analyse" : "Auto"}
+        </button>
+        <button
+          data-tracer-horizon
+          aria-pressed={niveau}
+          onClick={() => {
+            commencerRecadrage(el.id);
+            useRecadrage.setState({ niveau: !niveau });
+          }}
+          className={`${bouton} flex-1 ${niveau ? "border-accent-600 bg-accent-50 text-accent-800" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`}
+          title="Tracer sur la page une ligne qui devrait être droite"
+        >
+          <Ruler size={14} /> Tracer l'horizon
+        </button>
+      </div>
+      <p className="text-[11px] text-neutral-500">{niveau ? "Trace sur la photo, d'un bout à l'autre, une ligne qui devrait être horizontale ou verticale." : "Double-clic sur la photo pour recadrer. La grille des tiers aide à placer le sujet."}</p>
+    </div>
+  );
+}
+
 export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
@@ -365,6 +485,9 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
       )}
       <Section titre="Préréglages" ouverte={!fermees.has("Préréglages")} basculer={() => basculer("Préréglages")}>
         <Prereglages el={el} source={source} modifier={modifier} />
+      </Section>
+      <Section titre="Recadrer et redresser" ouverte={!fermees.has("Recadrer et redresser")} basculer={() => basculer("Recadrer et redresser")}>
+        <Recadrer el={el} />
       </Section>
       {SECTIONS_LABO.map((s) => (
         <Section key={s.titre} titre={s.titre} ouverte={!fermees.has(s.titre)} basculer={() => basculer(s.titre)}>

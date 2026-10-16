@@ -413,8 +413,16 @@ Choix par défaut de Claude, modifiables sur simple demande :
       noyau et le shader, même tableau, écart nul ; préréglages Sépia et Noir et blanc bleuté
       (25 en tout) (JOURNAL). Essai d'Alexandre : « Essayer l'étalonnage et la musique sous une
       vidéo qui parle » du `01_application/LISEZMOI.md`.
-- [ ] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
-      prêtes, grille des tiers).
+- [x] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
+      prêtes, grille des tiers). Livré le 2026-10-16 : un recadrage gardé sur l'élément
+      (`rognage`, le cadre dans l'image redressée et l'angle), jamais de coin vide ; mode
+      recadrage sur la page (double-clic, poignées, glisser, molette, flèches, Entrée, Échap),
+      proportions prêtes et leur sens, curseur d'angle et grille fine, « Auto » (horizon ou
+      verticale trouvés par le noyau, `noyau/src/horizon.rs`, à 0,1° près sur des images
+      dessinées), tracer l'horizon ; le vignetage suit le cadre (noyau et shader, écart nul) ;
+      fenêtre et export à 1,5 sur 255 (photo redressée), PDF à 1,96, clip recadré dans le MP4 à
+      1,76 (JOURNAL). Essai d'Alexandre : « Essayer le recadrage (étape 5, lot 5) » du
+      `01_application/LISEZMOI.md`.
 - [ ] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
       biais), à l'écran et à l'export.
 - [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
@@ -423,7 +431,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
       WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils ; lot 3 : `retoucher` prend la
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
       `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips ;
-      corrections du 2026-10-16 : `retoucher` prend l'étalonnage).
+      corrections du 2026-10-16 : `retoucher` prend l'étalonnage ; lot 5 : `recadrer`, 64
+      outils).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

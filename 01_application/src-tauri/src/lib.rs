@@ -85,6 +85,7 @@ pub fn lancer() {
             commandes::exporter_document,
             commandes::labo_base,
             commandes::labo_base_pixels,
+            commandes::labo_horizon,
             commandes::prereglages_lire,
             commandes::prereglages_enregistrer,
             commandes::autotest_demande,

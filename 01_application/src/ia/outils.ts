@@ -27,6 +27,8 @@ import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
 import { MODELES_DEPART } from "../modeles/depart";
+import { PROPORTIONS, proportionner, rapportDe, redresser } from "../modele/rognage";
+import { photoOuClip, poserRognage, remettreRognage } from "../labo/recadrage";
 import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, ZONES_ETALONNAGE, type CanalCourbe, type CouleurMelangeur, type Etalonnage, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
 import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
 import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrereglages } from "../labo/prereglages";
@@ -37,7 +39,7 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
@@ -1650,6 +1652,59 @@ const OUTILS: Record<string, Outil> = {
     const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur, courbe, etalonnage });
     etat().modifierElements({ [id]: { reglages } as Partial<ElementPage> });
     return { donnees: { id, reglages: reglages ?? {}, prereglage, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
+  },
+
+  async recadrer(args) {
+    designOuvert();
+    const id = texte(args.id) ?? "";
+    const el = elementsCourants(etat()).find((e) => e.id === id);
+    exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
+    exiger(el.type === "image" || el.type === "video", "recadrer : une photo ou un clip vidéo (élément de type image ou video)");
+    exiger(!el.verrouille, `${id} est verrouillé : déverrouille-le d'abord (modifier, verrouille: false)`);
+    const ressource = etat().ressources[el.ressource];
+    exiger(ressource && ressource.largeur > 0 && ressource.hauteur > 0, "recadrer : les dimensions de l'original manquent");
+    const [W, H] = [ressource.largeur, ressource.hauteur];
+    const etiquette = `recadrer:${id}:${Date.now()}`;
+    const actuel = () => photoOuClip(id)!;
+    // Dans l'ordre : remettre, l'angle (ou auto), les proportions, la zone.
+    if (booleen(args.remettre)) remettreRognage(id);
+    let horizon: number | null | undefined;
+    if (booleen(args.auto)) {
+      const projet = etat().projet!;
+      try {
+        horizon = await horizonLabo(projet, el.ressource);
+      } catch (e) {
+        throw new ErreurOutil(`auto : ${e instanceof Error ? e.message : String(e)}`);
+      }
+      if (horizon !== null) poserRognage(actuel(), redresser(actuel().rognage, horizon, W, H), "centre", etiquette);
+    } else if (args.angle !== undefined) {
+      const angle = nombre(args.angle);
+      exiger(angle !== undefined && Math.abs(angle) <= 45, "angle : de -45 à 45 degrés (positif : dans le sens des aiguilles d'une montre)");
+      poserRognage(actuel(), redresser(actuel().rognage, angle, W, H), "centre", etiquette);
+    }
+    const proportions = texte(args.proportions);
+    if (proportions !== undefined) {
+      const rapport = rapportDe(proportions, W, H, etat().document.format);
+      exiger(rapport !== null || proportions === "libre", `proportions : ${PROPORTIONS.map((p) => p.id).join(", ")}, ou largeur:hauteur (par exemple 5:4, 2:3, 9:16)`);
+      if (rapport !== null) poserRognage(actuel(), proportionner(actuel().rognage, rapport, W, H), "contenu", etiquette);
+    }
+    if (args.zone !== undefined) {
+      const z = args.zone as Record<string, unknown>;
+      exiger(z && typeof z === "object" && ["x", "y", "largeur", "hauteur"].every((k) => typeof z[k] === "number" && Number.isFinite(z[k] as number)), "zone : { x, y, largeur, hauteur }, en fractions de l'image redressée (de 0 à 1)");
+      exiger((z.largeur as number) > 0 && (z.hauteur as number) > 0, "zone : une largeur et une hauteur plus grandes que 0");
+      const angle = actuel().rognage?.angle ?? 0;
+      poserRognage(actuel(), { x: z.x as number, y: z.y as number, largeur: z.largeur as number, hauteur: z.hauteur as number, angle }, "contenu", etiquette);
+    }
+    const apres = actuel();
+    return {
+      donnees: {
+        id,
+        rognage: apres.rognage ?? null,
+        boite: { x: Math.round(apres.x * 100) / 100, y: Math.round(apres.y * 100) / 100, largeur: Math.round(apres.largeur * 100) / 100, hauteur: Math.round(apres.hauteur * 100) / 100 },
+        horizon: booleen(args.auto) ? (horizon ?? "pas de ligne assez nette : donne angle") : undefined,
+        conseil: "juger le cadre avec capture",
+      },
+    };
   },
 
   async prereglages(args) {

@@ -5,7 +5,9 @@
 // La courbe arrive en table (1024 pas par canal, calculée par `tableCourbe`, comme dans le
 // noyau), dans une texture de deux lignes : celle des réglages d'aujourd'hui, celle de la base.
 // Un clip vidéo (lot 4) passe par un second moteur, image après image ; son grain change avec
-// sa graine (`graineDuTemps`, 24 fois par seconde du fichier), comme dans le noyau.
+// sa graine (`graineDuTemps`, 24 fois par seconde du fichier), comme dans le noyau. Une image
+// recadrée (lot 5) a son vignetage dans le cadre gardé (`reglages.rognage`, le repère de
+// `Rognage::repere` du noyau).
 //
 // Les réglages qui regardent les voisins (bruit, netteté, texture, clarté, voile) viennent du
 // noyau : une « base », l'aperçu retouché sans vignetage ni grain. Le shader la complète :
@@ -13,6 +15,7 @@
 // repos les deux réglages se confondent et l'image est celle du noyau ; pendant qu'on tire un
 // curseur, l'écart suit en direct.
 
+import { matriceRognage } from "../modele/rognage";
 import { COULEURS_MELANGEUR, normaliserCourbe, PAS_COURBE, tableCourbe, vecteurEtalonnage, ZONES_ETALONNAGE, type ReglagesPhoto, type ZoneEtalonnage } from "../modele/labo";
 
 const SOMMETS = `#version 300 es
@@ -44,6 +47,8 @@ uniform Reglages u_ref;
 uniform vec2 u_taille;
 uniform float u_vignetage, u_grain, u_echelleGrain;
 uniform uint u_graine;
+uniform bool u_rogne;
+uniform vec3 u_repereU, u_repereV;
 out vec4 sortie;
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 const float CENTRES[8] = float[8](0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0);
@@ -132,7 +137,11 @@ void main() {
     l = max(b + (l - reglagesPixel(c, u_ref, 1)), vec3(0.0));
   }
   if (u_vignetage != 0.0) {
-    vec2 uv = vec2((float(px) + 0.5) / u_taille.x * 2.0 - 1.0, (float(py) + 0.5) / u_taille.y * 2.0 - 1.0);
+    vec2 uv;
+    if (u_rogne) {
+      vec3 q = vec3(float(px) + 0.5, float(py) + 0.5, 1.0);
+      uv = vec2(dot(u_repereU, q), dot(u_repereV, q)) * 2.0 - 1.0;
+    } else uv = vec2((float(px) + 0.5) / u_taille.x * 2.0 - 1.0, (float(py) + 0.5) / u_taille.y * 2.0 - 1.0);
     float dd = sqrt((uv.x * uv.x + uv.y * uv.y) / 2.0);
     l *= exp2(u_vignetage / 100.0 * 1.5 * smoothstep(0.35, 1.0, dd));
   }
@@ -196,7 +205,7 @@ export class MoteurLabo {
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(`programme du labo : ${gl.getProgramInfoLog(prog)}`);
     this.prog = prog;
-    const noms = ["u_source", "u_base", "u_courbe", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain", "u_graine"];
+    const noms = ["u_source", "u_base", "u_courbe", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain", "u_graine", "u_rogne", "u_repereU", "u_repereV"];
     for (const ensemble of ["u_cur", "u_ref"]) for (const champ of CHAMPS) noms.push(champ === "melangeur" ? `${ensemble}.melangeur[0]` : `${ensemble}.${champ}`);
     for (const nom of noms) this.u.set(nom, gl.getUniformLocation(prog, nom));
     const texture = () => {
@@ -312,6 +321,13 @@ export class MoteurLabo {
     this.reglages("u_ref", avecBase ? base!.reglages : r);
     gl.uniform2f(this.u.get("u_taille")!, largeur, hauteur);
     gl.uniform1f(this.u.get("u_vignetage")!, r.vignetage ?? 0);
+    const g = r.vignetage ? r.rognage : undefined;
+    gl.uniform1i(this.u.get("u_rogne")!, g ? 1 : 0);
+    if (g) {
+      const m = matriceRognage(g, largeur, hauteur, 1, 1);
+      gl.uniform3f(this.u.get("u_repereU")!, m[0], m[2], m[4]);
+      gl.uniform3f(this.u.get("u_repereV")!, m[1], m[3], m[5]);
+    }
     gl.uniform1f(this.u.get("u_grain")!, r.grain ?? 0);
     gl.uniform1f(this.u.get("u_echelleGrain")!, 2560 / Math.max(largeur, hauteur, 1));
     gl.uniform1ui(this.u.get("u_graine")!, graine >>> 0);

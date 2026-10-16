@@ -5,6 +5,61 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 5 : recadrer et redresser
+
+Accord d'Alexandre (« Tu peux passer au lot 5 »). Ce que Claude a fait et décidé :
+
+- Le recadrage est une valeur de l'élément (`rognage`), pas un réglage du labo : copier et
+  coller les réglages d'une photo à une autre de la série, ou appliquer un préréglage, ne
+  l'emporte pas, et la boîte de l'objet change avec lui. Il garde le rectangle gardé dans
+  l'image redressée, en fractions de l'original (les mêmes nombres valent pour l'aperçu,
+  l'original et la copie d'un clip), et l'angle, de -45 à +45°.
+- Jamais de coin vide, comme Lightroom quand le cadre est contraint à l'image : chaque geste
+  s'arrête au bord de l'image, et redresser resserre le cadre autour de son centre juste ce qu'il
+  faut. Écarté : laisser des coins vides, qu'il faudrait ensuite combler à la main.
+- Deux façons de bouger. Les poignées et les proportions laissent la photo en place sur la page
+  et la boîte devient le cadre, comme dans Canva ; glisser dans le cadre, la molette, les
+  flèches et l'angle laissent la boîte en place, la photo bouge dessous. Redresser ne dérange
+  donc pas la mise en page.
+- La fenêtre pose le recadrage en dessinant la photo : sans angle, la partie gardée de la source
+  étirée sur la boîte (l'ombre suit encore la transparence de l'image) ; redressée, l'image
+  tournée, découpée par la boîte (l'ombre passe alors par une plaque, comme pour des coins
+  arrondis). L'export n'a rien à ajouter : l'enregistrement de la page en SVG porte la découpe
+  et la rotation, et le noyau pose l'original dedans (PNG, PDF, SVG, film).
+- Le vignetage suit le cadre gardé, comme le vignetage après recadrage de Lightroom : sans
+  cela, une photo recadrée sur sa moitié gauche n'aurait qu'un côté assombri. Le repère du cadre
+  accompagne les réglages vers le shader et le noyau, seulement quand il y a un vignetage (sans
+  vignetage, recadrer ne change aucun pixel et ne refait aucune retouche). Deux cas au tableau
+  commun (25 cas), écart nul.
+- « Auto » (`noyau/src/horizon.rs`) : l'aperçu réduit à 640 px, les bords les plus nets
+  (Sobel), une transformée de Hough limitée aux droites à moins de 20° de l'horizontale ou de
+  la verticale, chaque bord votant pour les droites à moins de 8° de sa direction ; la droite
+  la plus forte donne l'angle, une horizontale l'emportant sur une verticale de même force. Sur
+  des horizons et des murs dessinés penchés de -2,5 à 7,25° : à 0,1° près. Une droite qui ne
+  court pas sur le cinquième de l'image ne compte pas : sans ligne nette, pas de réponse, et le
+  panneau propose de tracer l'horizon. Écarté : un modèle d'IA, inutile pour trouver une droite.
+- « Tracer l'horizon » : une ligne tracée sur la photo devient horizontale, ou verticale si
+  elle en est plus proche. La grille des tiers accompagne le cadre ; pendant qu'on tire le
+  curseur d'angle, une grille fine aide à juger les droites.
+- Un défaut du lot 3 corrigé au passage : une photo dessinée pendant qu'une autre était en
+  direct (un préréglage survolé) prévenait l'autre pendant son propre rendu, ce que React
+  signale ; elle la prévient maintenant juste après.
+- Pont IA : `recadrer` (remettre, angle ou auto, proportions, zone exacte), 64 outils.
+- Mesures dans Tauri, post carré : photo en 1:1, fenêtre contre export à 1,53 sur 255 ;
+  redressée de 7°, 1,51 ; son PDF rendu par poppler, 1,96 ; avec un vignetage de -80, 1,36, et
+  les quatre coins du cadre assombris du même facteur (0,44 en lumière linéaire), le centre
+  intact ; son SVG rendu par Chromium, le même que le PNG ; « auto » sur un horizon dessiné
+  penché de 4° : -4,0° ; un clip en 4:5 redressé de -5° : capture contre export à 1,82, image du
+  MP4 à 1,76.
+- Limites : l'histogramme reste celui de l'image entière ; le grain garde l'échelle de l'image ;
+  « Auto » regarde les droites, pas le sujet ; pour un clip, il analyse sa couverture.
+- Essais : noyau 111 (5 de plus : trois pour l'horizon, le vignetage qui suit le cadre, le
+  recadrage dans les réglages de l'export), interface 200 (6 de plus, la géométrie du
+  recadrage) ; Chromium : lot 5 en 27 vérifications, shader contre le tableau 25 cas, lots 1 à
+  4 et corrections repassés ; Tauri par le pont : lot 5 en 17 vérifications, exports du lot 1
+  (62), lots 2 à 4 et corrections repassés ; dans la fenêtre de WebKitGTK : le mode recadrage
+  au double-clic, une poignée tirée, l'angle.
+
 ## 2026-10-16, corrections du BRIEF : la musique sous une vidéo qui parle, l'étalonnage
 
 Réponses d'Alexandre au compte rendu du lot 4 : « Oui, pour ton point 1. Deux, ta

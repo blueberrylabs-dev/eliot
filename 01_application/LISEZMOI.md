@@ -322,6 +322,28 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   l'instant voulu pour un PNG, un JPEG, un PDF ou un SVG. Les vignettes de la frise restent
   sans retouche.
 
+**Recadrer et redresser (étape 5, lot 5)**
+- Une photo ou un clip : double-clic dessus, ou « Recadrer » dans la barre du haut, ou la
+  section « Recadrer et redresser » du labo. Le reste de l'image se devine, assombri, autour du
+  cadre gardé, avec la grille des tiers pour placer le sujet.
+- Les huit poignées tirent les bords et les coins du cadre (la photo ne bouge pas) ; Maj garde
+  les proportions. Glisser dans le cadre fait glisser la photo dessous ; la molette la rapproche
+  ou l'éloigne ; les flèches la poussent d'un pixel (Maj : de dix). Le cadre s'arrête toujours au
+  bord de l'image : jamais de coin vide.
+- Proportions prêtes : Libre, Original, Page (celles du format du design), 1:1, 4:5, 3:2, 4:3,
+  16:9, et le bouton qui les passe en hauteur ou en largeur. Un clic donne le plus grand cadre
+  de ces proportions, au plus près du cadre actuel ; les poignées les gardent ensuite.
+- Redresser : le curseur (de -45 à +45°, au dixième de degré, ou la valeur tapée) tourne la
+  photo autour du cadre, qui se resserre juste assez pour ne pas montrer de coin vide ; une
+  grille fine aide pendant qu'on le tire. « Auto » cherche l'horizon, ou une verticale nette, et
+  la remet droite. « Tracer l'horizon » : tracer sur la photo une ligne qui devrait être droite.
+- Entrée finit, Échap revient au cadre d'avant, Ctrl+Z défait geste par geste. « Remettre »
+  rend toute l'image, droite. La boîte de l'objet sur la page devient le cadre gardé : coins
+  arrondis, bordure et ombre le suivent ; le vignetage aussi (il assombrit les bords du cadre,
+  pas ceux de l'image entière).
+- L'original n'est jamais modifié : le recadrage est gardé dans le design, et l'export le
+  refait depuis l'original (image, PDF, SVG, film).
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -333,7 +355,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
   tableaux, partir d'un modèle de départ, retoucher une photo ou un clip au labo (courbe et
-  préréglages compris, enregistrer un préréglage), regarder une capture de
+  préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
+  angle, horizon trouvé seul), regarder une capture de
   la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -465,6 +488,26 @@ Cinq minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 1
 Ce qui m'aide le plus en retour : la force de l'étalonnage (trop ou pas assez marquée vers 30),
 et une musique qui baisse trop souvent, ou pas assez tôt.
 
+## Essayer le recadrage (étape 5, lot 5)
+
+Dix minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13).
+
+1. Un post carré, une photo de paysage de ton appareil où l'horizon penche un peu. Double-clic
+   dessus : le mode recadrage.
+2. « Auto » : la photo se redresse ; noter si l'angle est juste. Sinon « Tracer l'horizon », et
+   tracer le long de l'horizon.
+3. Tirer le coin bas droit vers l'intérieur, puis glisser la photo dans le cadre pour placer
+   l'horizon sur la ligne du tiers bas de la grille.
+4. 4:5, puis le bouton qui pivote : le cadre passe en largeur. Entrée pour finir.
+5. Double-clic encore, tirer le curseur Redresser jusqu'à 10°, puis Échap : tout revient.
+6. Effets, Vignetage vers -50 : les bords du cadre s'assombrissent.
+7. Une story, un clip, « Recadrer », 9:16 : le clip remplit la story ; Lire, puis exporter en
+   MP4.
+8. Exporter le post en PNG et en PDF : le recadrage et l'angle y sont.
+
+Ce qui m'aide le plus en retour : une photo où « Auto » se trompe (à m'envoyer si possible), la
+sensation des poignées (trop petites, trop sensibles), et les proportions qui te manquent.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -478,6 +521,7 @@ et une musique qui baisse trop souvent, ou pas assez tôt.
 | Ctrl+G, Ctrl+Maj+G | grouper, dégrouper |
 | Ctrl+Alt+C, Ctrl+Alt+V | copier le style, le coller sur la sélection |
 | Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo ou d'un clip, les coller sur ceux choisis |
+| Double-clic sur une photo ou un clip | recadrer ; puis Entrée pour finir, Échap pour revenir au cadre d'avant, flèches pour pousser la photo, molette pour la rapprocher |
 | Entrée | écrire dans le texte sélectionné |
 | Ctrl+Entrée | ajouter une page |
 | Page préc., Page suiv. | page précédente, suivante |
@@ -519,7 +563,7 @@ et une musique qui baisse trop souvent, ou pas assez tôt.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -527,12 +571,12 @@ et une musique qui baisse trop souvent, ou pas assez tôt.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts)
+│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

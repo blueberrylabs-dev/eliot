@@ -369,6 +369,21 @@ export async function baseLaboPixels(largeur: number, hauteur: number, pixels: U
   return new Uint8Array(octets);
 }
 
+/** Dans le navigateur, pour les essais : un faux noyau qui trouve l'horizon,
+ *  `window.__horizonEssai` (développement seulement). */
+type HorizonEssai = (id: string) => Promise<number | null>;
+const horizonEssai = (): HorizonEssai | undefined => (!dansTauri && import.meta.env.DEV ? (window as unknown as { __horizonEssai?: HorizonEssai }).__horizonEssai : undefined);
+
+/** L'angle qui redresse une photo ou un clip (étape 5, lot 5, bouton « Auto ») : la ligne la
+ *  plus marquée de son aperçu, presque horizontale ou presque verticale, trouvée par le noyau ;
+ *  en degrés, positif dans le sens des aiguilles d'une montre ; `null` sans ligne assez nette. */
+export async function horizonLabo(ref: RefRessources, id: string): Promise<number | null> {
+  const essai = horizonEssai();
+  if (essai) return essai(id);
+  if (!dansTauri) throw new Error("le redressement automatique se fait dans la fenêtre Eliot");
+  return (await invoke<number | null>("labo_horizon", { rayonNom: ref.rayon, projetId: ref.id, id })) ?? null;
+}
+
 /** L'image d'une vidéo à l'instant `ms` de son fichier (JPEG), tirée de la copie d'aperçu par
  *  le noyau, retouchée par le labo si `reglages` sont donnés (étape 5, lot 4) ; dans le
  *  navigateur, par une balise vidéo, sans retouche (la fenêtre s'en charge). */

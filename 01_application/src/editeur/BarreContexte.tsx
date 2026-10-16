@@ -18,6 +18,7 @@ import {
   Bold,
   ClipboardPaste,
   CopyPlus,
+  Crop,
   FlipHorizontal2,
   FlipVertical2,
   ImageOff,
@@ -63,6 +64,7 @@ import { ReglagesAnimation } from "./ReglagesAnimation";
 import { useTemps } from "../etat/temps";
 import { poseA } from "../modele/animation";
 import { collerReglages, useLabo } from "../labo/retouche";
+import { commencerRecadrage } from "../labo/recadrage";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -590,6 +592,15 @@ export function BarreContexte() {
             className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
           >
             <SlidersHorizontal size={16} /> Retoucher
+          </button>
+          <button
+            data-recadrer-barre
+            title={choisis[0].type === "video" ? "Recadrer et redresser le clip (double-clic sur le clip)" : "Recadrer et redresser la photo (double-clic sur la photo)"}
+            disabled={choisis[0].verrouille}
+            onClick={() => commencerRecadrage(choisis[0].id)}
+            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-40"
+          >
+            <Crop size={16} /> Recadrer
           </button>
           {separateur}
         </>

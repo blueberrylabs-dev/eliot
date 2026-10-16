@@ -6,7 +6,7 @@
 import { create } from "zustand";
 import { marquerToile } from "../editeur/images";
 import { elementsCourants, elementsSelectionnes, useEditeur } from "../etat/editeur";
-import { aDesVoisins, cleReglages, normaliserReglages, type ReglagesPhoto } from "../modele/labo";
+import { aDesVoisins, cleReglages, normaliserReglages, sansRognage, type ReglagesPhoto } from "../modele/labo";
 import type { ElementImage, ElementPage, ElementVideo, PageEliot } from "../modele/types";
 import { baseLabo, baseLaboPixels } from "../pont/tauri";
 import { graineDuTemps, moteurLabo, moteurVideo, type PixelsBruts } from "./shader";
@@ -103,7 +103,9 @@ function finirAttentes(r: Retouche): void {
 }
 
 /** Demande au noyau la base des réglages `reglages` (pas pendant qu'on tire un curseur). */
-function planifierBase(id: string, r: Retouche, reglages: ReglagesPhoto, tout_de_suite = false): void {
+function planifierBase(id: string, r: Retouche, avecRognage: ReglagesPhoto, tout_de_suite = false): void {
+  // La base n'a ni vignetage ni grain : le cadre du vignetage n'y change rien.
+  const reglages = sansRognage(avecRognage)!;
   const cle = cleReglages(reglages);
   if (r.base?.cle === cle || r.enCours === cle || r.ratee === cle) return;
   clearTimeout(r.minuteur);
@@ -155,7 +157,9 @@ function recopier(r: Retouche, largeur: number, hauteur: number, dessine: string
   r.version++;
 }
 
-/** La photo en direct rend la toile du moteur : sa propre toile reçoit ce qui y est dessiné. */
+/** La photo en direct rend la toile du moteur : sa propre toile reçoit ce qui y est dessiné.
+ *  Elle est prévenue après coup : on est souvent en train de dessiner une autre photo, et React
+ *  ne veut pas qu'un composant en change un autre pendant son rendu. */
 function figerEnDirect(): void {
   if (!enDirect) return;
   const id = enDirect;
@@ -163,7 +167,7 @@ function figerEnDirect(): void {
   const r = retouches.get(id);
   const moteur = moteurLabo();
   if (r && moteur && dansLeMoteur.startsWith(`${id}|`)) recopier(r, moteur.toile.width, moteur.toile.height, dansLeMoteur.slice(id.length + 1));
-  prevenir(id);
+  queueMicrotask(() => prevenir(id));
 }
 
 /**
@@ -288,7 +292,8 @@ export function abonnerApercuClip(id: string, f: () => void): () => void {
 
 /** Demande au noyau la base de l'image affichée d'un clip à l'arrêt (pas pendant qu'on tire
  *  un curseur : au relâchement). */
-function planifierBaseClip(id: string, c: Clip, video: HTMLVideoElement, reglages: ReglagesPhoto): void {
+function planifierBaseClip(id: string, c: Clip, video: HTMLVideoElement, avecRognage: ReglagesPhoto): void {
+  const reglages = sansRognage(avecRognage)!;
   const temps = video.currentTime;
   const cle = `${cleReglages(reglages)}@${temps}`;
   if (c.base?.cle === cle || c.demande === cle || c.ratee === cle) return;

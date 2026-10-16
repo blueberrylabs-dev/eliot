@@ -23,6 +23,10 @@
 //!
 //! Un clip vidéo (lot 4) passe image par image dans les mêmes formules ; son grain change 24 fois
 //! par seconde du fichier (`graine_du_temps`), comme celui d'un film.
+//!
+//! Le recadrage (lot 5) est une valeur de l'élément, que la fenêtre pose en dessinant la page
+//! (le SVG de la page le porte, le noyau n'a rien à recadrer) ; le noyau ne s'en sert que pour
+//! le vignetage, qui suit le cadre gardé, comme le vignetage après recadrage de Lightroom.
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -273,6 +277,50 @@ pub fn vecteur_etalonnage(teinte: f32, saturation: f32) -> [f32; 3] {
     [(c[0] - y) * force, (c[1] - y) * force, (c[2] - y) * force]
 }
 
+/// Le recadrage d'une photo ou d'un clip (lot 5), tel que l'élément le garde : le rectangle
+/// gardé dans l'image redressée (qui a le même centre que l'original), en fractions de la
+/// largeur et de la hauteur de l'original (`x`, `y` : son coin haut gauche), et le redressement
+/// en degrés, de -45 à 45 (positif : l'image tourne dans le sens des aiguilles d'une montre).
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Rognage {
+    pub x: f32,
+    pub y: f32,
+    pub largeur: f32,
+    pub hauteur: f32,
+    #[serde(default)]
+    pub angle: f32,
+}
+
+impl Rognage {
+    /// Un recadrage lisible : des nombres, un rectangle qui a une taille.
+    fn valide(&self) -> bool {
+        [self.x, self.y, self.largeur, self.hauteur, self.angle].iter().all(|v| v.is_finite()) && self.largeur > 1e-4 && self.hauteur > 1e-4
+    }
+
+    /// Du centre `(X, Y)` d'un pixel d'une image de `largeur` × `hauteur` (`X` = x + 0,5) aux
+    /// coordonnées du cadre gardé, de 0 à 1 : `[a, b, c, d, e, f]`, u = a X + c Y + e,
+    /// v = b X + d Y + f (comme une matrice de canevas). Le même calcul dans la fenêtre
+    /// (`matriceRognage` vers un cadre de 1 × 1).
+    pub fn repere(&self, largeur: f32, hauteur: f32) -> [f32; 6] {
+        let (l, h) = (largeur as f64, hauteur as f64);
+        let t = (self.angle as f64).to_radians();
+        let (co, si) = (t.cos(), t.sin());
+        let gauche = (self.x as f64 - 0.5) * l;
+        let haut = (self.y as f64 - 0.5) * h;
+        let sx = 1.0 / (self.largeur as f64 * l);
+        let sy = 1.0 / (self.hauteur as f64 * h);
+        [
+            (sx * co) as f32,
+            (sy * si) as f32,
+            (-sx * si) as f32,
+            (sy * co) as f32,
+            (sx * (-co * l / 2.0 + si * h / 2.0 - gauche)) as f32,
+            (sy * (-si * l / 2.0 - co * h / 2.0 - haut)) as f32,
+        ]
+    }
+}
+
 /// Les réglages d'une photo, tels que le document les garde (seulement ceux qui ne sont pas à
 /// zéro ; un absent vaut zéro). Exposition en IL de -5 à +5 ; réduction du bruit et grain de 0 à
 /// 100 ; les autres de -100 à +100 ; la courbe en points de 0 à 255.
@@ -299,6 +347,10 @@ pub struct Reglages {
     pub grain: f32,
     pub nettete: f32,
     pub bruit: f32,
+    /// Le recadrage de l'élément, que la fenêtre et `montage::reglages_labo` posent ici quand il
+    /// y a un vignetage (jamais dans les réglages du document) : le vignetage suit le cadre gardé.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rognage: Option<Rognage>,
 }
 
 fn borne(v: f32, a: f32, b: f32) -> f32 {
@@ -333,12 +385,14 @@ impl Reglages {
             grain: p(self.grain),
             nettete: c(self.nettete),
             bruit: p(self.bruit),
+            rognage: self.rognage.filter(Rognage::valide).map(|g| Rognage { angle: g.angle.clamp(-45.0, 45.0), ..g }),
         }
     }
 
-    /// Rien à faire : l'image sort telle qu'elle est entrée.
+    /// Rien à faire : l'image sort telle qu'elle est entrée (le recadrage seul ne touche à aucun
+    /// pixel).
     pub fn neutres(&self) -> bool {
-        *self == Reglages::default()
+        Reglages { rognage: None, ..self.clone() } == Reglages::default()
     }
 
     /// Des réglages qui regardent les pixels voisins (calculés par le noyau seulement).
@@ -407,6 +461,8 @@ pub struct Prepares {
     /// Le grand côté de l'image (vignetage et grain suivent sa taille).
     largeur: u32,
     hauteur: u32,
+    /// Le repère du cadre gardé (`Rognage::repere`), s'il y a un recadrage : le vignetage le suit.
+    repere: Option<[f32; 6]>,
     echelle_grain: f32,
     /// La graine du grain (0 pour une photo ; un clip : `graine_du_temps`).
     graine: u32,
@@ -434,7 +490,8 @@ impl Prepares {
             let v = |z: &Zone| vecteur_etalonnage(z.teinte, z.saturation);
             ([v(&e.ombres), v(&e.tons_moyens), v(&e.hautes_lumieres)], 0.5 - 0.25 * e.equilibre / 100.0)
         });
-        Prepares { entree, sortie, gains, r, melangeur, melange, tonal, etalonnage, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote, graine: 0 }
+        let repere = r.rognage.map(|g| g.repere(largeur.max(1) as f32, hauteur.max(1) as f32));
+        Prepares { entree, sortie, gains, r, melangeur, melange, tonal, etalonnage, courbe, largeur, hauteur, repere, echelle_grain: COTE_REFERENCE / cote, graine: 0 }
     }
 
     /// La graine du grain d'une image d'un clip.
@@ -557,8 +614,14 @@ impl Prepares {
         let r = &self.r;
         let mut l = l;
         if r.vignetage != 0.0 {
-            let u = (x as f32 + 0.5) / self.largeur as f32 * 2.0 - 1.0;
-            let v = (y as f32 + 0.5) / self.hauteur as f32 * 2.0 - 1.0;
+            let (u, v) = match self.repere {
+                // Recadrée : la position dans le cadre gardé.
+                Some(m) => {
+                    let (px, py) = (x as f32 + 0.5, y as f32 + 0.5);
+                    ((m[0] * px + m[2] * py + m[4]) * 2.0 - 1.0, (m[1] * px + m[3] * py + m[5]) * 2.0 - 1.0)
+                }
+                None => ((x as f32 + 0.5) / self.largeur as f32 * 2.0 - 1.0, (y as f32 + 0.5) / self.hauteur as f32 * 2.0 - 1.0),
+            };
             let d = ((u * u + v * v) / 2.0).sqrt();
             let f = (r.vignetage / 100.0 * 1.5 * smoothstep(0.35, 1.0, d)).exp2();
             l = [l[0] * f, l[1] * f, l[2] * f];
@@ -848,6 +911,13 @@ pub fn base_apercu(chemin: &std::path::Path, r: &Reglages) -> Result<Vec<u8>, St
     Ok(sortie)
 }
 
+/// L'angle qui redresse une photo du design (lot 5, bouton « Auto ») : la ligne la plus marquée
+/// de son aperçu (`horizon::redressement`), ou `None` sans ligne assez nette. Un clip passe par
+/// sa couverture, son aperçu.
+pub fn horizon_apercu(chemin: &std::path::Path) -> Result<Option<crate::horizon::Horizon>, String> {
+    Ok(crate::horizon::redressement(apercu_decode(chemin)?.as_ref()))
+}
+
 /// La base de l'aperçu en direct d'un clip à l'arrêt (lot 4) : l'image que la fenêtre montre,
 /// envoyée telle quelle (RGBA), retouchée sans vignetage ni grain. Même rôle que
 /// `base_apercu` pour une photo ; la fenêtre et le noyau partent ainsi des mêmes pixels.
@@ -991,6 +1061,8 @@ mod tests {
             ("étalonnage sarcelle et orange".into(), r(json!({ "etalonnage": { "ombres": { "teinte": 190, "saturation": 45 }, "hautesLumieres": { "teinte": 35, "saturation": 40 } } }))),
             ("sépia".into(), r(json!({ "saturation": -100, "etalonnage": { "ombres": { "teinte": 30, "saturation": 35 }, "tonsMoyens": { "teinte": 35, "saturation": 30 }, "hautesLumieres": { "teinte": 45, "saturation": 25 } } }))),
             ("étalonnage et équilibre".into(), r(json!({ "vibrance": 20, "etalonnage": { "tonsMoyens": { "teinte": 300, "saturation": 60 }, "hautesLumieres": { "teinte": 60, "saturation": 80 }, "equilibre": 70 } }))),
+            ("vignetage d'un recadrage".into(), r(json!({ "vignetage": -70, "rognage": { "x": 0.1, "y": 0.15, "largeur": 0.5, "hauteur": 0.6, "angle": 0 } }))),
+            ("vignetage d'un recadrage redressé".into(), r(json!({ "vignetage": 50, "contraste": 10, "rognage": { "x": 0.2, "y": 0.1, "largeur": 0.55, "hauteur": 0.7, "angle": 12.5 } }))),
         ]
     }
 
@@ -1056,6 +1128,38 @@ mod tests {
             }
             assert_eq!(a["nom"], c["nom"]);
         }
+    }
+
+    #[test]
+    fn le_vignetage_suit_le_cadre_garde() {
+        // Le cadre gardé : la moitié droite de l'image (de x = 32 à 64), toute la hauteur.
+        let g = Rognage { x: 0.5, y: 0.0, largeur: 0.5, hauteur: 1.0, angle: 0.0 };
+        let r = Reglages { vignetage: -100.0, rognage: Some(g), ..Default::default() };
+        let p = Prepares::new(&r, 64, 48);
+        let gris = [128u8, 128, 128];
+        // Le centre du cadre gardé ne bouge pas ; le centre de l'image, au bord gauche du cadre,
+        // s'assombrit comme un bord ; un coin du cadre plus encore.
+        assert_eq!(p.pixel(gris, 47, 23)[0], 128);
+        let bord = p.pixel(gris, 32, 23)[0];
+        let coin = p.pixel(gris, 63, 47)[0];
+        assert!(bord < 120 && coin < bord, "bord {bord}, coin {coin}");
+        // Sans recadrage, le centre de l'image ne bouge pas.
+        let sans = Prepares::new(&Reglages { vignetage: -100.0, ..Default::default() }, 64, 48);
+        assert_eq!(sans.pixel(gris, 31, 23)[0], 128);
+        // Le repère : les coins du cadre vont en (0, 0) et (1, 1), redressé ou non.
+        for angle in [0.0f32, 12.5, -30.0] {
+            let g = Rognage { x: 0.2, y: 0.1, largeur: 0.5, hauteur: 0.6, angle };
+            let m = g.repere(1000.0, 800.0);
+            let t = angle.to_radians();
+            // Le coin haut gauche du cadre, dans l'original : centre + rotation inverse.
+            let (gx, gy) = ((0.2 - 0.5) * 1000.0, (0.1 - 0.5) * 800.0);
+            let (ox, oy) = (gx * t.cos() + gy * t.sin() + 500.0, -gx * t.sin() + gy * t.cos() + 400.0);
+            let u = m[0] * ox + m[2] * oy + m[4];
+            let v = m[1] * ox + m[3] * oy + m[5];
+            assert!(u.abs() < 1e-4 && v.abs() < 1e-4, "{angle} : ({u}, {v})");
+        }
+        // Un recadrage seul ne touche à aucun pixel.
+        assert!(Reglages { rognage: Some(g), ..Default::default() }.neutres());
     }
 
     #[test]

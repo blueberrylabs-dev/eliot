@@ -6,6 +6,7 @@ import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur"
 import { useTemps } from "../etat/temps";
 import { scene } from "./scene";
 import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
+import { finirRecadrage, glisserImage, photoOuClip, useRecadrage } from "../labo/recadrage";
 
 const PAS_ZOOM = 1.25;
 
@@ -28,6 +29,25 @@ export function useRaccourcis(): void {
       const page = pageCourante(etat);
       const pageVideo = page.duree !== undefined;
       let traite = true;
+
+      // En recadrant (étape 5, lot 5) : Entrée finit, Échap revient au cadre d'avant, les flèches
+      // font glisser la photo sous le cadre ; Suppr ne supprime rien.
+      const rogne = useRecadrage.getState().id;
+      if (rogne && !ctrl && !e.altKey) {
+        const el = photoOuClip(rogne);
+        if (e.key === "Enter") finirRecadrage();
+        else if (e.key === "Escape") finirRecadrage(true);
+        else if (e.key === "Delete" || e.key === "Backspace") traite = true;
+        else if (e.key.startsWith("Arrow") && el) {
+          const pas = e.shiftKey ? 10 : 1;
+          glisserImage(el, e.key === "ArrowLeft" ? -pas : e.key === "ArrowRight" ? pas : 0, e.key === "ArrowUp" ? -pas : e.key === "ArrowDown" ? pas : 0, `rogner-fleches:${rogne}`);
+        } else traite = false;
+        if (traite) {
+          e.preventDefault();
+          return;
+        }
+        traite = true;
+      }
 
       if (ctrl && e.shiftKey && !e.altKey && touche === "c") traite = copierReglages();
       else if (ctrl && e.shiftKey && !e.altKey && touche === "v" && useLabo.getState().copie) collerReglages();

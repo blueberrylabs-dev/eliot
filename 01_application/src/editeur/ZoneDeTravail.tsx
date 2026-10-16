@@ -31,6 +31,8 @@ import { scene, signalerGeste } from "./scene";
 import { surDepotFichiers } from "../pont/tauri";
 import { useTemps } from "../etat/temps";
 import { CalqueZonesSures } from "./ZonesSures";
+import { CadreRognage } from "../labo/CadreRognage";
+import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
 
 /** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
  *  centrée ; plus grande, elle suit la position voulue sans quitter la zone. */
@@ -100,6 +102,9 @@ export function ZoneDeTravail() {
   const selection = useEditeur((s) => s.selection);
   const enEdition = useEditeur((s) => s.enEdition);
   const enAjustement = useEditeur((s) => s.enAjustement);
+  // Une photo ou un clip en cours de recadrage (étape 5, lot 5) : son cadre remplace le
+  // Transformer, et il ne se déplace pas.
+  const enRecadrage = useRecadrage((s) => s.id);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
   const dessin = useEditeur((s) => s.dessin);
@@ -183,6 +188,12 @@ export function ZoneDeTravail() {
       if (ajuste && recoitPhoto(ajuste) && !e.ctrlKey) {
         const zoom = Math.max(1, Math.min(5, ajuste.recadrage.zoom * Math.exp(-e.deltaY * 0.0015)));
         etat.modifierElements({ [ajuste.id]: { recadrage: { ...ajuste.recadrage, zoom } } as Partial<ElementPage> }, `zoom-photo:${ajuste.id}`);
+        return;
+      }
+      // En recadrant, la molette rapproche la photo sous le cadre, ou l'éloigne.
+      const rogne = useRecadrage.getState().id;
+      if (rogne && !e.ctrlKey && !e.metaKey) {
+        zoomerSousLeCadre(rogne, Math.exp(e.deltaY * 0.0015));
         return;
       }
       const { echelle: ech, ox: x, oy: y } = cadrage.current;
@@ -299,12 +310,12 @@ export function ZoneDeTravail() {
     const gp = groupePageRef.current;
     if (!tr || !gp || geste.current) return;
     const noeuds = selection
-      .filter((id) => id !== enEdition && id !== enAjustement)
+      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
       .filter((n): n is Konva.Group => !!n && n.isVisible());
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
-  }, [selection, elements, enEdition, enAjustement]);
+  }, [selection, elements, enEdition, enAjustement, enRecadrage]);
 
   // ---- Gestes : glisser et transformer ----
 
@@ -717,8 +728,10 @@ export function ZoneDeTravail() {
       if (c) etat.commencerCellule(el.id, c.ligne, c.colonne);
       return;
     }
-    // Double-clic sur un cadre rempli : on ajuste la photo ; sur un texte : on l'écrit.
+    // Double-clic sur un cadre rempli : on ajuste la photo ; sur une photo ou un clip : on le
+    // recadre ; sur un texte : on l'écrit.
     if (el && recoitPhoto(el) && el.ressource) etat.commencerAjustement(el.id);
+    else if (el && (el.type === "image" || el.type === "video") && !el.verrouille) commencerRecadrage(el.id);
     else etat.commencerEdition(g.id());
   };
 
@@ -773,7 +786,7 @@ export function ZoneDeTravail() {
                 key={el.id}
                 el={el}
                 enEdition={el.id === enEdition}
-                enAjustement={el.id === enAjustement}
+                enAjustement={el.id === enAjustement || el.id === enRecadrage}
                 fige={!!dessin}
                 celluleMasquee={celluleEnEdition?.id === el.id ? celluleEnEdition : null}
                 transEntree={transitions.get(el.id)?.entree}
@@ -814,6 +827,9 @@ export function ZoneDeTravail() {
             anchorStyleFunc={stylerPoignee}
             boundBoxFunc={(ancienne, nouvelle) => (Math.abs(nouvelle.width) < 8 || Math.abs(nouvelle.height) < 8 ? ancienne : nouvelle)}
           />
+          <Group {...transformationPage}>
+            <CadreRognage echelle={echelle} />
+          </Group>
           <Rect ref={rectangleRef} visible={false} fill="rgba(79,70,229,0.08)" stroke={ACCENT} strokeWidth={1} listening={false} />
           <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
         </Layer>
@@ -826,6 +842,11 @@ export function ZoneDeTravail() {
       {enAjustement && (
         <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Glisse la photo dans son cadre, molette pour l'agrandir. Échap ou un clic ailleurs pour finir.
+        </div>
+      )}
+      {enRecadrage && (
+        <div data-aide-recadrage className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Tire les poignées pour recadrer, glisse la photo dans le cadre, molette pour la rapprocher. Entrée pour finir, Échap pour annuler.
         </div>
       )}
       {dessin && (

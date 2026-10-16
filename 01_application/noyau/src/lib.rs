@@ -9,6 +9,7 @@ pub mod animation;
 pub mod export;
 pub mod fichiers;
 pub mod freesound;
+pub mod horizon;
 pub mod images;
 pub mod labo;
 pub mod marque;

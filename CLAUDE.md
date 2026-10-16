@@ -78,8 +78,13 @@ lourd. Détail : `BRIEF.md`.
   essai d'Alexandre : « Essayer la courbe et les préréglages (étape 5, lot 3) ». Lot 4, les clips
   vidéo au labo (retouche qui suit la lecture, réglages voisins à l'arrêt, grain qui bouge,
   export image par image), livré et vérifié le 2026-10-16 ; essai d'Alexandre : « Essayer les
-  clips au labo (étape 5, lot 4) ». Après ces livraisons : recompiler l'application (commande
-  9) et le pont (commande 13).
+  clips au labo (étape 5, lot 4) ». Corrections du BRIEF du 2026-10-16 (l'étalonnage, Sépia et
+  Noir et blanc bleuté, la musique qui baisse là où l'on parle dans une vidéo) ; essai :
+  « Essayer l'étalonnage et la musique sous une vidéo qui parle ». Lot 5, recadrer et redresser
+  (mode recadrage sur la page, proportions prêtes, grille des tiers, angle, « Auto », tracer
+  l'horizon, outil `recadrer` du pont, 64 outils), livré et vérifié le 2026-10-16 ; essai :
+  « Essayer le recadrage (étape 5, lot 5) ». Après ces livraisons : recompiler l'application
+  (commande 9) et le pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -288,7 +293,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 106 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 111 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
@@ -300,7 +305,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  194 passed`.
+Vérifier : `Tests  200 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

@@ -11,7 +11,7 @@ import { useEditeur } from "../etat/editeur";
 import { tempsMedia, visibleA } from "../modele/frise";
 import type { Format, PageEliot } from "../modele/types";
 import { dansTauri, imageVideo } from "../pont/tauri";
-import { normaliserReglages } from "../modele/labo";
+import { reglagesDeRendu } from "../modele/labo";
 import { retoucherFixe } from "../labo/retouche";
 import { graineDuTemps } from "../labo/shader";
 
@@ -45,7 +45,7 @@ async function imagesDesVideos(page: PageEliot, instant: number): Promise<Map<st
         const ms = tempsMedia(e, instant, ressource.video?.duree);
         // Un clip retouché (étape 5, lot 4) : le noyau rend l'image retouchée en entier ; dans
         // le navigateur, le shader la retouche ici (réglages d'un pixel seulement).
-        const reglages = normaliserReglages(e.reglages);
+        const reglages = reglagesDeRendu(e.reglages, e.rognage);
         const bitmap = await createImageBitmap(await imageVideo(projet, ressource, ms, reglages));
         images.set(e.id, reglages && !dansTauri ? retoucherFixe(bitmap, reglages, graineDuTemps(ms)) : bitmap);
       } catch {

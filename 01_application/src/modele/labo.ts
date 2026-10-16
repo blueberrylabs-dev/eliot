@@ -3,6 +3,8 @@
 // touché). Le noyau les calcule (`noyau/src/labo.rs`), la fenêtre en refait une partie dans un
 // shader pour l'aperçu en direct (`labo/shader.ts`).
 
+import type { Rognage } from "./rognage";
+
 export const COULEURS_MELANGEUR = ["rouge", "orange", "jaune", "vert", "cyan", "bleu", "violet", "magenta"] as const;
 export type CouleurMelangeur = (typeof COULEURS_MELANGEUR)[number];
 
@@ -62,9 +64,13 @@ export interface ReglagesPhoto {
   nettete?: number;
   /** Réduction du bruit, de 0 à 100. */
   bruit?: number;
+  /** Jamais dans le document (le recadrage est une valeur de l'élément) : posé au moment de
+   *  rendre une image recadrée qui a un vignetage, pour que le vignetage suive le cadre gardé
+   *  (`reglagesDeRendu`), dans le shader comme dans le noyau. */
+  rognage?: Rognage;
 }
 
-export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur" | "courbe" | "etalonnage">;
+export type CurseurLabo = Exclude<keyof ReglagesPhoto, "melangeur" | "courbe" | "etalonnage" | "rognage">;
 
 /** Un curseur du panneau : sa plage, son pas, son libellé. */
 export interface DefinitionCurseur {
@@ -281,7 +287,26 @@ export function normaliserReglages(r: ReglagesPhoto | undefined | null): Reglage
   if (etalonnage) sortie.etalonnage = etalonnage;
   const courbe = normaliserCourbe(r.courbe);
   if (courbe) sortie.courbe = courbe;
-  return Object.keys(sortie).length ? sortie : undefined;
+  if (!Object.keys(sortie).length) return undefined;
+  // Le cadre du vignetage : seulement s'il y a un vignetage (sinon il ne change aucun pixel).
+  const g = r.rognage;
+  if (sortie.vignetage && g && [g.x, g.y, g.largeur, g.hauteur, g.angle].every((v) => typeof v === "number" && Number.isFinite(v)) && g.largeur > 1e-4 && g.hauteur > 1e-4) {
+    sortie.rognage = { x: g.x, y: g.y, largeur: g.largeur, hauteur: g.hauteur, angle: g.angle };
+  }
+  return sortie;
+}
+
+/** Les réglages d'un élément tels qu'ils se rendent : ceux du document, avec le recadrage de
+ *  l'élément pour le vignetage (voir `ReglagesPhoto.rognage`). */
+export function reglagesDeRendu(reglages: ReglagesPhoto | undefined, rognage: Rognage | undefined): ReglagesPhoto | undefined {
+  return normaliserReglages(rognage && reglages?.vignetage ? { ...reglages, rognage } : reglages);
+}
+
+/** Les réglages sans le cadre du vignetage (la base du noyau n'a ni vignetage ni grain). */
+export function sansRognage(r: ReglagesPhoto | undefined): ReglagesPhoto | undefined {
+  if (!r?.rognage) return r;
+  const { rognage: _, ...reste } = r;
+  return reste;
 }
 
 export function valeurReglage(r: ReglagesPhoto | undefined, cle: CurseurLabo): number {

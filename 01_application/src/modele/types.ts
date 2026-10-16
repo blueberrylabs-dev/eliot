@@ -13,6 +13,7 @@
 // Étape 5, lot 2 : les réglages du labo d'une photo (`reglages`), facultatifs (même version 4).
 
 import type { ReglagesPhoto } from "./labo";
+import type { Rognage } from "./rognage";
 
 export const VERSION_DOCUMENT = 4 as const;
 
@@ -244,6 +245,9 @@ export interface ElementImage extends ElementBase {
   /** Les réglages du labo photo (étape 5), seulement ceux qui ne sont pas à zéro ; l'original
    *  n'est jamais touché (règle 13). */
   reglages?: ReglagesPhoto;
+  /** Le recadrage et le redressement (étape 5, lot 5) ; absent : toute l'image, droite. La
+   *  boîte de l'élément a les proportions du rectangle gardé. */
+  rognage?: Rognage;
 }
 
 /**
@@ -272,6 +276,8 @@ export interface ElementVideo extends ElementBase {
   /** Les réglages du labo (étape 5, lot 4), les mêmes que ceux d'une photo, appliqués à chaque
    *  image du clip ; le fichier n'est jamais touché (règle 13). */
   reglages?: ReglagesPhoto;
+  /** Le recadrage et le redressement (étape 5, lot 5), comme une photo. */
+  rognage?: Rognage;
 }
 
 /**

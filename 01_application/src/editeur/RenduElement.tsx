@@ -23,7 +23,9 @@ import { aDesUnites, contextesTransitions, ecrireFenetre, estAnime, etatAnime, e
 import { useEditeur } from "../etat/editeur";
 import { useApercuAnimation } from "./apercuAnimation";
 import { abonnerRetouche, cleCouverture, dessinerClipRetouche, imageRetouchee, useLabo } from "../labo/retouche";
-import { normaliserReglages } from "../modele/labo";
+import { imagesAffichees } from "../labo/recadrage";
+import { normaliserReglages, reglagesDeRendu } from "../modele/labo";
+import { matriceRognage, type Rognage } from "../modele/rognage";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
@@ -187,7 +189,7 @@ function Forme({ el }: { el: ElementForme }) {
 
 /** Une photo : son aperçu, ou sa toile retouchée par le labo (étape 5). Le bouton « Avant » du
  *  labo, maintenu, la montre sans retouche. */
-function Photo({ el }: { el: ElementImage }) {
+function Photo({ el, vivant }: { el: ElementImage; vivant: boolean }) {
   const source = useImageRessource(el.ressource);
   const avant = useLabo((s) => s.avant && s.ouvert === el.id);
   // Un préréglage survolé dans le labo : la photo le montre, le document ne change pas.
@@ -195,10 +197,11 @@ function Photo({ el }: { el: ElementImage }) {
   const [, rafraichir] = useState(0);
   const noeud = useRef<Konva.Image>(null);
   useEffect(() => abonnerRetouche(el.id, () => rafraichir((v) => v + 1)), [el.id]);
-  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, essai ? essai.reglages : el.reglages, !!essai) : source;
+  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, reglagesDeRendu(essai ? essai.reglages : el.reglages, el.rognage), !!essai) : source;
   // La toile reste le même objet quand on la redessine : Konva doit en être prévenu.
   useLayoutEffect(() => {
     noeud.current?.getLayer()?.batchDraw();
+    if (vivant && image) imagesAffichees.set(el.id, image);
   });
   return <Plaque el={el} image={image} noeud={noeud} />;
 }
@@ -217,7 +220,7 @@ function Video({ el, statique, anime, image }: { el: ElementVideo; statique: boo
   // survolé le montre sans changer le document.
   const avant = useLabo((s) => s.avant && s.ouvert === el.id);
   const essai = useLabo((s) => (s.essai?.id === el.id ? s.essai : null));
-  const reglages = essai ? essai.reglages : el.reglages;
+  const reglages = reglagesDeRendu(essai ? essai.reglages : el.reglages, el.rognage);
   const retouche = !avant && (!!essai || !!normaliserReglages(reglages));
   const [, rafraichir] = useState(0);
   useEffect(() => abonnerRetouche(el.id, () => noeud.current?.getLayer()?.batchDraw()), [el.id]);
@@ -232,17 +235,60 @@ function Video({ el, statique, anime, image }: { el: ElementVideo; statique: boo
   // couverture.
   if (statique && !anime) return <Plaque el={el} image={image ?? couvertureRetouchee()} />;
   const dessiner = video && retouche ? (ctx: Konva.Context, l: number, h: number) => dessinerClipRetouche(ctx, el.id, video, reglages, l, h, !!essai) : undefined;
-  return <Plaque el={el} image={video ?? couvertureRetouchee()} noeud={noeud} dessiner={dessiner} />;
+  const montree = video ?? couvertureRetouchee();
+  if (montree) imagesAffichees.set(el.id, montree);
+  return <Plaque el={el} image={montree} noeud={noeud} dessiner={dessiner} />;
 }
 
-/** Une photo ou l'image courante d'une vidéo dans sa boîte : retournée, coins arrondis,
- *  bordure, ombre. */
+/** Les dimensions d'une image source (photo, toile, vidéo). */
+function tailleSource(i: CanvasImageSource): [number, number] {
+  const s = i as { naturalWidth?: number; naturalHeight?: number; videoWidth?: number; videoHeight?: number; width?: number; height?: number };
+  return [s.naturalWidth || s.videoWidth || s.width || 1, s.naturalHeight || s.videoHeight || s.height || 1];
+}
+
+/**
+ * Pose une image dans la boîte `w` × `h` d'une photo ou d'un clip, recadrée et redressée comme le
+ * dit `rognage` (lot 5) : sans angle, la partie gardée de la source, étirée sur la boîte (l'ombre
+ * suit encore la transparence de l'image) ; redressée, l'image entière tournée, découpée par la
+ * boîte. `W` × `H` : les proportions de l'original (une vidéo marquée pour l'export n'a pas les
+ * siennes). L'export lit les mêmes gestes : le SVG de la page porte la découpe et la rotation.
+ */
+export function poserRecadree(ctx: { drawImage(...a: unknown[]): void; save(): void; restore(): void; beginPath(): void; rect(x: number, y: number, l: number, h: number): void; clip(): void; transform(a: number, b: number, c: number, d: number, e: number, f: number): void }, image: CanvasImageSource, rognage: Rognage | undefined, W: number, H: number, w: number, h: number): void {
+  if (!rognage) {
+    ctx.drawImage(image, 0, 0, w, h);
+    return;
+  }
+  if (Math.abs(rognage.angle) < 1e-9) {
+    const [iw, ih] = tailleSource(image);
+    ctx.drawImage(image, rognage.x * iw, rognage.y * ih, rognage.largeur * iw, rognage.hauteur * ih, 0, 0, w, h);
+    return;
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w, h);
+  ctx.clip();
+  const m = matriceRognage(rognage, W, H, w, h);
+  ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+  ctx.drawImage(image, 0, 0, W, H);
+  ctx.restore();
+}
+
+/** Une photo ou l'image courante d'une vidéo dans sa boîte : recadrée, retournée, coins
+ *  arrondis, bordure, ombre. */
 function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVideo; image: CanvasImageSource | undefined; noeud?: React.Ref<Konva.Image>; dessiner?: (ctx: Konva.Context, largeur: number, hauteur: number) => boolean }) {
   const arrondi = Math.min(el.arrondi ?? 0, el.largeur / 2, el.hauteur / 2);
+  const original = useEditeur((s) => s.ressources[el.ressource]);
   if (!image) {
     // En attendant l'aperçu (ou s'il manque), une plaque grise à la bonne taille.
     return <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#d9d6ce" />;
   }
+  const [iw, ih] = tailleSource(image);
+  const W = original?.largeur || iw;
+  const H = original?.hauteur || ih;
+  const rognage = el.rognage;
+  // Redressée : l'image est découpée par la boîte, qui découperait aussi son ombre ; l'ombre
+  // passe alors par une plaque de même forme, comme pour des coins arrondis.
+  const decoupee = arrondi > 0 || (!!rognage && Math.abs(rognage.angle) >= 1e-9);
   const photo = (
     <ImageKonva
       ref={noeud}
@@ -254,12 +300,16 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
       scaleX={el.retourneH ? -1 : 1}
       scaleY={el.retourneV ? -1 : 1}
       perfectDrawEnabled={false}
-      {...(arrondi > 0 ? {} : ombreKonva(el.ombre))}
-      {...(dessiner
+      {...(decoupee ? {} : ombreKonva(el.ombre))}
+      {...(dessiner || rognage
         ? {
-            // Un clip retouché : son image passe par le shader au moment du dessin.
+            // Un clip retouché : son image passe par le shader au moment du dessin ; une image
+            // recadrée est posée par `poserRecadree`.
             sceneFunc: (ctx: Konva.Context, forme: Konva.Shape) => {
-              if (!dessiner(ctx, forme.width(), forme.height())) ctx.drawImage(image, 0, 0, forme.width(), forme.height());
+              const w = forme.width();
+              const h = forme.height();
+              const poser = (i: CanvasImageSource) => poserRecadree(ctx as unknown as Parameters<typeof poserRecadree>[0], i, rognage, W, H, w, h);
+              if (!dessiner || !dessiner({ drawImage: (i: CanvasImageSource) => poser(i) } as unknown as Konva.Context, w, h)) poser(image);
             },
           }
         : {})}
@@ -268,7 +318,7 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
   const bordure = el.bordure && el.bordure.epaisseur > 0 && (
     <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} stroke={el.bordure.couleur} strokeWidth={el.bordure.epaisseur} listening={false} perfectDrawEnabled={false} />
   );
-  if (arrondi <= 0) {
+  if (!decoupee) {
     return (
       <>
         {photo}
@@ -276,11 +326,12 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
       </>
     );
   }
-  // Coins arrondis : la photo est découpée ; l'ombre est portée par une plaque de même forme.
+  // Coins arrondis ou image redressée : la photo est découpée ; l'ombre est portée par une
+  // plaque de même forme.
   return (
     <>
       {el.ombre && <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#ffffff" {...ombreKonva(el.ombre)} listening={false} />}
-      <Group clipFunc={(ctx) => tracerRectangleArrondi(ctx as unknown as Parameters<typeof tracerRectangleArrondi>[0], 0, 0, el.largeur, el.hauteur, arrondi)}>{photo}</Group>
+      {arrondi > 0 ? <Group clipFunc={(ctx) => tracerRectangleArrondi(ctx as unknown as Parameters<typeof tracerRectangleArrondi>[0], 0, 0, el.largeur, el.hauteur, arrondi)}>{photo}</Group> : photo}
       {bordure}
     </>
   );
@@ -736,7 +787,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       <>
         {el.type === "texte" && <Texte el={el} masque={enEdition} unites={unites} instant={instant} />}
         {el.type === "forme" && <Forme el={el} />}
-        {el.type === "image" && <Photo el={el} />}
+        {el.type === "image" && <Photo el={el} vivant={!statique} />}
         {el.type === "video" && <Video el={el} statique={statique} anime={anime} image={imageVideo} />}
         {(el.type === "icone" || el.type === "emoji") && <Vecteur el={el} />}
         {el.type === "personnage" && <Personnage el={el} />}

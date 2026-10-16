@@ -774,8 +774,17 @@ pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
     if !matches!(element.get("type").and_then(Value::as_str), Some("image" | "video")) {
         return None;
     }
-    let r: labo::Reglages = serde_json::from_value(element.get("reglages")?.clone()).ok()?;
-    (!r.bornes().neutres()).then_some(r)
+    let mut r: labo::Reglages = serde_json::from_value(element.get("reglages")?.clone()).ok()?;
+    if r.bornes().neutres() {
+        return None;
+    }
+    // Recadrée (lot 5) : le vignetage suit le cadre gardé ; sans vignetage, le recadrage ne
+    // change aucun pixel et reste hors de la clé de la retouche.
+    r.rognage = None;
+    if r.vignetage != 0.0 {
+        r.rognage = element.get("rognage").and_then(|g| serde_json::from_value(g.clone()).ok());
+    }
+    Some(r)
 }
 
 /// Une photo du design, depuis l'original redressé, réduite à `largeur` × `hauteur` au plus,
@@ -1888,6 +1897,19 @@ mod tests {
 
     /// Une vidéo où l'on parle (décision d'Alexandre du 2026-10-16) : la musique baisse là où
     /// l'analyse trouve de la parole dans son son, et seulement là.
+    #[test]
+    fn le_vignetage_d_une_photo_recadree_suit_son_cadre() {
+        let g = json!({ "x": 0.1, "y": 0.2, "largeur": 0.5, "hauteur": 0.6, "angle": 4.5 });
+        let avec = reglages_labo(&json!({ "type": "image", "reglages": { "vignetage": -40, "contraste": 10 }, "rognage": g })).unwrap();
+        assert_eq!(avec.rognage, Some(labo::Rognage { x: 0.1, y: 0.2, largeur: 0.5, hauteur: 0.6, angle: 4.5 }));
+        // Sans vignetage, le recadrage ne change aucun pixel : il reste hors de la retouche.
+        let sans = reglages_labo(&json!({ "type": "video", "reglages": { "contraste": 10 }, "rognage": g })).unwrap();
+        assert_eq!(sans.rognage, None);
+        // Un recadrage seul n'est pas une retouche ; un recadrage glissé dans les réglages non plus.
+        assert!(reglages_labo(&json!({ "type": "image", "rognage": g })).is_none());
+        assert!(reglages_labo(&json!({ "type": "image", "reglages": { "rognage": g } })).is_none());
+    }
+
     #[test]
     fn la_musique_baisse_la_ou_l_on_parle_dans_une_video() {
         if !ffmpeg_present() || !x264_present().unwrap_or(false) {

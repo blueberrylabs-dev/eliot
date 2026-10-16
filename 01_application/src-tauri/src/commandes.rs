@@ -1169,6 +1169,18 @@ pub async fn labo_base(app: AppHandle, rayon_nom: String, projet_id: String, id:
         .map_err(|e| format!("retouche interrompue : {e}"))?
 }
 
+/// L'angle qui redresse une photo ou un clip (étape 5, lot 5, bouton « Auto ») : en degrés,
+/// positif dans le sens des aiguilles d'une montre ; `None` si l'image n'a pas de ligne assez
+/// nette.
+#[tauri::command]
+pub async fn labo_horizon(app: AppHandle, rayon_nom: String, projet_id: String, id: String) -> Result<Option<f32>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let chemin = images::chemin_ressource(&dossier, &id, images::Genre::Apercu).map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || labo::horizon_apercu(&chemin).map(|h| h.map(|h| h.angle)))
+        .await
+        .map_err(|e| format!("analyse interrompue : {e}"))?
+}
+
 /// La base de l'aperçu en direct d'un clip à l'arrêt (étape 5, lot 4) : l'image affichée par la
 /// fenêtre (corps : ses pixels RGBA ; en-têtes `x-largeur`, `x-hauteur` et `x-reglages`, les
 /// réglages en JSON), retouchée sans vignetage ni grain. Réponse : les pixels RGBA.
