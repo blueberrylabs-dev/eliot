@@ -333,13 +333,14 @@ et les maquettes de produits », « L'export, de bout en bout ») et § 7.
 
 Choix par défaut de Claude, modifiables sur simple demande :
 
-- Aperçu en direct : la voie (Rust en direct ou shader WebGL) se choisit par le banc du lot 0,
-  comme le BRIEF le prévoit. Règle de décision écrite avant la mesure : le shader l'emporte s'il
-  tient 55 images par seconde sur la photo et sur une vidéo qui joue, et si son rendu s'écarte
-  de celui du Rust de 2 sur 255 au plus en moyenne ; le Rust en direct l'emporte s'il tient 30
-  images par seconde à la taille de l'écran avec moins de 50 ms entre le curseur et l'image.
-  Si les deux passent, le shader, parce qu'il vaut aussi pour les clips qui jouent. Le mini PC
-  confirmera quand il sera là.
+- Aperçu en direct : le shader WebGL, décidé le 2026-10-16 par le banc du lot 0 (JOURNAL). La
+  voie (Rust en direct ou shader WebGL) se choisissait par ce banc, comme le BRIEF le prévoit.
+  Règle de décision écrite avant la mesure : le shader l'emporte s'il tient 55 images par
+  seconde sur la photo et sur une vidéo qui joue, et si son rendu s'écarte de celui du Rust de 2
+  sur 255 au plus en moyenne ; le Rust en direct l'emporte s'il tient 30 images par seconde à la
+  taille de l'écran avec moins de 50 ms entre le curseur et l'image. Si les deux passent, le
+  shader, parce qu'il vaut aussi pour les clips qui jouent. Le mini PC confirmera quand il sera
+  là.
 - Réglages : des valeurs du document (`reglages`, seulement les curseurs différents de zéro,
   même champ pour une photo et un clip, règle 13). Le noyau les calcule en lumière linéaire,
   dans l'ordre fixe du BRIEF : balance des blancs, exposition, tonalités, courbe, couleurs,
@@ -355,12 +356,15 @@ Choix par défaut de Claude, modifiables sur simple demande :
   licence (libre pour un usage commercial de préférence) et sa qualité sur des photos de
   produits.
 
-- [ ] Lot 0 : banc de l'aperçu en direct dans `00_banc_essai/` (bouton « Labo photo (étape
+- [x] Lot 0 : banc de l'aperçu en direct dans `00_banc_essai/` (bouton « Labo photo (étape
       5) ») : Rust en direct à 1280, 1920 et 2560 px (pixels bruts par l'IPC binaire de
       Tauri) ; shader WebGL sur la photo dessinée dans Konva, puis posée sur la page, puis sur
       une vidéo qui joue ; écart entre les deux rendus ; coût des réglages qui regardent les
       pixels voisins (clarté, texture, netteté, bruit, voile) sur l'aperçu de 2560 px et sur
-      l'original de 24 Mpx. Série d'Alexandre sur le poste, puis décision au JOURNAL.
+      l'original de 24 Mpx. Série d'Alexandre sur le poste le 2026-10-16
+      (`00_banc_essai/resultats/2026-10-16_091151_tauri-webkitgtk_labo.json`) : shader à 62
+      images par seconde sur la photo et la vidéo, écart de 0,044 sur 255 avec le Rust ; le
+      shader est retenu (JOURNAL).
 - [ ] Lot 1 : exports depuis le document : PNG haute définition (×1 à ×4, ou 150 et 300 dpi
       pour l'A4 et l'A5), JPEG, WebP, PDF vectoriel (toutes les pages), SVG (une page) ;
       fenêtre d'export revue ; comparaison au pixel entre l'écran et l'export ; `exporter` du

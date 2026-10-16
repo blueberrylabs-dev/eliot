@@ -63,8 +63,9 @@ lourd. Détail : `BRIEF.md`.
   de deux outils change. Pour la voix de synthèse, une fois : commandes 16 et 17 ; pour les
   sous-titres, une fois : commandes 18 et 19.
 - Étape 5, le labo photo et les exports de qualité : ouverte le 2026-10-16 (plan, lots et règle
-  de décision de l'aperçu en direct dans `PLAN.md`) ; lot 0, banc de l'aperçu en direct, prêt
-  dans `00_banc_essai/`, à lancer par Alexandre (commande 6 ter).
+  de décision de l'aperçu en direct dans `PLAN.md`) ; lot 0, banc de l'aperçu en direct, passé
+  sur le poste le 2026-10-16 : le shader WebGL est retenu (62 images par seconde sur la photo et
+  la vidéo), le Rust calcule les réglages qui regardent les voisins et l'export.
 
 Suite : `PLAN.md`.
 

@@ -5,6 +5,30 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, banc de l'aperçu en direct : le shader WebGL
+
+- Série d'Alexandre sur le poste principal (`00_banc_essai/resultats/2026-10-16_091151_tauri-webkitgtk_labo.json`),
+  fenêtre Tauri, écran à 63 Hz et à 125 %, page affichée à 0,604 (la photo y fait 815 px de
+  large), 7950X3D (32 fils), carte NVIDIA.
+- Shader WebGL : 62,2 images par seconde, sans un à-coup, la photo dessinée dans Konva (2,7 ms
+  de dessin par image) comme posée sur la page ; la vidéo VP9 720p qui joue sous le shader :
+  fluide, aucune image perdue, vitesse 1, 3 ms par image pour la texture et le dessin.
+- Rust en direct : 35,5 images réglées par seconde à 1280 px, 18 ms entre le curseur et l'image
+  (calcul 5,5 ms, transfert 11,9 ms pour 4,4 Mo) ; 22,3 par seconde à 1920 px (38 ms) ; 12,3 à
+  2560 px (71 ms). Le transfert pèse plus que le calcul.
+- Écart entre les deux rendus des mêmes pixels : 0,044 sur 255 en moyenne, 1 au plus, aucun
+  pixel au-delà de 2.
+- Réglages qui regardent les voisins, par le Rust : 157 ms pour les cinq sur l'aperçu de
+  2560 px (clarté 30, texture 19, netteté 23, bruit 37, voile 37) ; tout le labo sur l'original
+  de 24 Mpx : 1,4 s (décodage compris), ce que coûtera l'export d'une photo réglée.
+- Décision par la règle écrite avant la mesure (`PLAN.md`) : les deux voies passent (shader à 62
+  images par seconde sur la photo et la vidéo, écart 0,044 ; Rust à 35,5 avec 18 ms), donc le
+  shader, qui vaut aussi pour les clips qui jouent. Le labo du lot 2 : les réglages d'un pixel
+  dans un shader WebGL pendant qu'on tire un curseur, ceux qui regardent les voisins calculés
+  par le Rust sur l'aperçu de 2560 px au relâchement, l'export depuis l'original par le Rust ;
+  les mêmes formules des deux côtés, contrôlées par un tableau de valeurs attendues commun. Le
+  mini PC confirmera quand il sera là. Lot 0 coché dans `PLAN.md`.
+
 ## 2026-10-16, étape 5 ouverte : plan et banc de l'aperçu en direct
 
 - Alexandre valide la vérification de l'étape 4 et les propositions de fin de livraison (« Ok,
