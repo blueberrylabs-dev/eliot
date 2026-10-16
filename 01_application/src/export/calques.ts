@@ -13,7 +13,9 @@ import { Group, Layer, Rect, Stage } from "react-konva";
 import { remplissageKonva } from "../editeur/couleurs";
 import { prechargerPage, ressourceDeImage } from "../editeur/images";
 import { compteurMorceaux, etenduesDesMots, RenduElement } from "../editeur/RenduElement";
-import type { ClipAudio, ElementPage, Format, PageEliot, SousTitre } from "../modele/types";
+import { recoitPhoto, type ClipAudio, type ElementPage, type Format, type PageEliot, type SousTitre } from "../modele/types";
+import { partieVisible, zonePhoto } from "../modele/cadres";
+import { useEditeur } from "../etat/editeur";
 import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
 import { silhouetteDetouree } from "../labo/detourage";
@@ -70,6 +72,18 @@ const sources = {
     return undefined;
   },
 };
+
+/** L'élément tel que le noyau le lit. La photo d'un cadre ou d'une maquette retouchée avec un
+ *  vignetage porte la partie qui se voit (`rognage`, en fractions de l'original) : le noyau y
+ *  pose le vignetage, comme pour une photo recadrée, et comme la fenêtre (vérification de
+ *  l'étape 5). */
+function elementPourLeNoyau(el: ElementPage): ElementPage {
+  if (!recoitPhoto(el) || !el.ressource || !el.reglages?.vignetage) return el;
+  const r = useEditeur.getState().ressources[el.ressource];
+  if (!r?.largeur || !r.hauteur) return el;
+  const zone = zonePhoto(el);
+  return { ...el, rognage: partieVisible(r.largeur, r.hauteur, zone.largeur, zone.hauteur, el.recadrage) } as unknown as ElementPage;
+}
 
 /** L'élément au repos, dans son propre repère : ni position, ni rotation, ni opacité, ni temps
  *  (ce que le noyau applique lui-même), mais ses animations (un texte par morceaux se dessine
@@ -248,7 +262,7 @@ export async function decrirePage(page: PageEliot, format: Format): Promise<Desc
         const groupe = (porteurs[i] as Konva.Group | undefined)?.getChildren()[0];
         if (!groupe) return;
         const { calques, totaux } = enregistrer(groupe, `e${i}_`, el.type === "texte" && el.sousTitre?.actif && el.temps ? el.sousTitre.actif : undefined);
-        elements.push({ element: el, calques, ...(totaux ? { totaux } : {}) });
+        elements.push({ element: elementPourLeNoyau(el), calques, ...(totaux ? { totaux } : {}) });
       });
       if (fond) fondCalques = enregistrer(fond, "f_").calques;
     } finally {

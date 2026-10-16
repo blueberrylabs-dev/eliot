@@ -5,6 +5,41 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5 : le labo sur les photos des cadres et des maquettes
+
+Demande d'Alexandre (« On termine l'étape 5 avant l'étape 6 ») : le dernier point laissé de
+côté au lot 2. Ce que Claude a fait et décidé :
+
+- Un cadre ou une maquette qui a sa photo se retouche comme une photo posée : « Retoucher » dans
+  sa barre, le même panneau (préréglages, lumière, couleur avec la courbe, le mélangeur et
+  l'étalonnage, effets, détail, histogramme, « Avant »). Les réglages sont un champ du cadre
+  (`reglages`, même forme que pour une photo) ; ils restent quand sa photo change, comme pour
+  « Remplacer » d'une photo posée.
+- Pas de recadrage, de perspective ni de détourage dans ce panneau : la photo d'un cadre se
+  place déjà avec « Ajuster » (glisser, molette), et une forme découpe déjà le fond. Une note le
+  dit à leur place.
+- Le vignetage suit la partie de la photo qui se voit dans le cadre ou l'écran, comme il suit le
+  cadre gardé d'une photo recadrée au lot 5 : la fenêtre la calcule (`partieVisible`, d'après le
+  cadrage) et la donne au noyau dans la description de la page ; le noyau n'a rien d'autre à
+  apprendre (`reglages_labo` accepte les cadres et les maquettes).
+- Copier et coller les réglages, « Copier le style » et le pont (`retoucher`, avec `depuis`, et
+  `prereglages` pour enregistrer) passent d'une photo à un cadre et inversement ; `retoucher`
+  sur un cadre vide dit d'abord de le remplir. Toujours 66 outils.
+- Défaut trouvé en route et corrigé : la boîte de sélection d'un cadre rempli prenait la taille
+  de sa photo, qui déborde du cadre (une photo en largeur dans un cadre carré donnait une
+  sélection plus large que le cadre, et des poignées hors de lui). Depuis l'étape 3, lot 2. La
+  page ne dessine plus que la partie de la photo qui se voit ; la photo entière ne se montre
+  que pendant « Ajuster ». Rien ne change à l'image.
+- Mesures dans Tauri, le modèle « Avant / après » rempli, la photo de droite retouchée (« Couleurs
+  vives », clarté calculée par le noyau, vignetage) : fenêtre contre export 1,09 sur 255, PDF
+  1,23 ; un cadre au gris uni et une maquette en noir et blanc : 0,17, le vignetage à 142 sur 170
+  au bord gauche comme au bord droit ; design rouvert, 1,09.
+- Vérifié dans le conteneur : noyau 125 (la retouche d'un cadre dans l'export, `reglages_labo`),
+  interface 216 (2 de plus), `npm run build` ; Chromium : cadres retouchés 15, cadres et grilles
+  de l'étape 3 (18, 29), page décrite pour le noyau de l'étape 4 (18), labo 16, vérification 15 ;
+  Tauri : cadres retouchés 10, exports du lot 1 (62, dont les 42 modèles de départ), pont de
+  l'étape 3 (14, 27), la publicité de la vérification 23, labo 14.
+
 ## 2026-10-16, les essais d'Alexandre à la fin du produit
 
 Décision d'Alexandre (« Les tests se feront une fois que le produit est fini. Je vais l'essayer

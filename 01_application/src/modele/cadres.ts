@@ -2,6 +2,7 @@
 // pures, testées (`cadres.test.ts`) ; le dessin Konva est dans `editeur/RenduElement.tsx`.
 
 import { recoitPhoto, type Appareil, type ElementAPhoto, type ElementPage, type FormeCadre, type Recadrage } from "./types";
+import type { Rognage } from "./rognage";
 
 /** Ce dont un tracé a besoin : le contexte du canvas, ou celui de Konva. */
 export interface Traceur {
@@ -109,6 +110,26 @@ export function placerPhoto(il: number, ih: number, l: number, h: number, r: Rec
   const borne = (v: number) => Math.max(0, Math.min(1, v));
   // « + 0 » : jamais de zéro négatif dans le document.
   return { x: (l - largeur) * borne(r.x) + 0, y: (h - hauteur) * borne(r.y) + 0, largeur, hauteur };
+}
+
+/**
+ * La partie de la photo qui se voit dans la zone `l` × `h` d'un cadre ou d'un écran (en
+ * fractions de l'image, à la façon d'un recadrage, sans angle) : le vignetage du labo la suit,
+ * comme il suit le cadre gardé d'une photo recadrée.
+ */
+export function partieVisible(il: number, ih: number, l: number, h: number, r: Recadrage = RECADRAGE_PAR_DEFAUT): Rognage {
+  const p = placerPhoto(il, ih, l, h, r);
+  // « + 0 » : jamais de zéro négatif.
+  return { x: -p.x / p.largeur + 0, y: -p.y / p.hauteur + 0, largeur: Math.min(1, l / p.largeur), hauteur: Math.min(1, h / p.hauteur), angle: 0 };
+}
+
+/** La zone de la photo d'un cadre (sa boîte) ou d'une maquette (son écran), en pixels de la page. */
+export function zonePhoto(el: ElementAPhoto): { largeur: number; hauteur: number } {
+  if (el.type === "maquette") {
+    const e = ecranAppareil(el.appareil, el.largeur, el.hauteur);
+    return { largeur: e.largeur, hauteur: e.hauteur };
+  }
+  return { largeur: el.largeur, hauteur: el.hauteur };
 }
 
 /** Déplace le cadrage de `dx`, `dy` pixels de la page (glisser la photo dans son cadre). */

@@ -9,8 +9,8 @@ import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { useImagePersonnage } from "../bibliotheque/personnages";
 import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
-import { ecranAppareil, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type Recadrage, type SousTitre } from "../modele/types";
+import { ecranAppareil, partieVisible, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
+import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type SousTitre } from "../modele/types";
 import { motActif, nombreDeMots } from "../modele/sousTitres";
 import { pilePolice, useVersionPolices } from "../polices";
 import { remplissageKonva } from "./couleurs";
@@ -360,12 +360,39 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
   );
 }
 
-/** Une photo qui couvre une zone, cadrée comme le dit `recadrage`. */
-function PhotoCadree({ ressource, largeur, hauteur, recadrage }: { ressource: string; largeur: number; hauteur: number; recadrage: Recadrage }) {
-  const image = useImageRessource(ressource);
-  if (!image) return <Rect width={largeur} height={hauteur} fill="#d9d6ce" />;
-  const p = placerPhoto(image.naturalWidth || image.width, image.naturalHeight || image.height, largeur, hauteur, recadrage);
-  return <ImageKonva image={image} x={p.x} y={p.y} width={p.largeur} height={p.hauteur} perfectDrawEnabled={false} />;
+/**
+ * La photo d'un cadre ou de l'écran d'une maquette : elle couvre la zone `largeur` × `hauteur`,
+ * cadrée comme le dit son `recadrage`, retouchée par le labo comme une photo posée
+ * (vérification de l'étape 5) ; le vignetage suit la partie qui se voit. « Avant » maintenu
+ * la montre sans retouche, un préréglage survolé avec.
+ */
+function PhotoCadree({ el, ressource, largeur, hauteur, entiere = false }: { el: ElementCadre | ElementMaquette; ressource: string; largeur: number; hauteur: number; entiere?: boolean }) {
+  const source = useImageRessource(ressource);
+  const original = useEditeur((s) => s.ressources[ressource]);
+  const avant = useLabo((s) => s.avant && s.ouvert === el.id);
+  const essai = useLabo((s) => (s.essai?.id === el.id ? s.essai : null));
+  const [, rafraichir] = useState(0);
+  const noeud = useRef<Konva.Image>(null);
+  useEffect(() => abonnerRetouche(el.id, () => rafraichir((v) => v + 1)), [el.id]);
+  // La toile retouchée reste le même objet quand on la redessine : Konva doit en être prévenu.
+  useLayoutEffect(() => {
+    noeud.current?.getLayer()?.batchDraw();
+  });
+  if (!source) return <Rect width={largeur} height={hauteur} fill="#d9d6ce" />;
+  const il = source.naturalWidth || source.width;
+  const ih = source.naturalHeight || source.height;
+  const visible = partieVisible(original?.largeur || il, original?.hauteur || ih, largeur, hauteur, el.recadrage);
+  const reglages = reglagesDeRendu(essai ? essai.reglages : el.reglages, visible);
+  const image = avant ? source : imageRetouchee(el.id, ressource, source, reglages, !!essai);
+  if (entiere) {
+    // Pendant l'ajustement : toute la photo, qui se devine autour du cadre.
+    const p = placerPhoto(il, ih, largeur, hauteur, el.recadrage);
+    return <ImageKonva ref={noeud} image={image} x={p.x} y={p.y} width={p.largeur} height={p.hauteur} perfectDrawEnabled={false} listening={false} />;
+  }
+  // La seule partie qui se voit, posée sur la zone : la boîte de l'élément (sa sélection, ses
+  // repères) reste celle du cadre, pas celle de la photo qui déborde.
+  const v = partieVisible(il, ih, largeur, hauteur, el.recadrage);
+  return <ImageKonva ref={noeud} image={image} width={largeur} height={hauteur} crop={{ x: v.x * il, y: v.y * ih, width: v.largeur * il, height: v.hauteur * ih }} perfectDrawEnabled={false} />;
 }
 
 /** L'invitation d'un cadre vide : une petite montagne et, à l'écran, « Glisse une photo ». */
@@ -413,11 +440,11 @@ function Cadre({ el, statique, ajustement }: { el: ElementCadre; statique: boole
       {/* Pendant l'ajustement, toute la photo se devine autour du cadre, comme dans Canva. */}
       {ajustement && el.ressource && (
         <Group opacity={0.35} listening={false}>
-          <PhotoCadree ressource={el.ressource} largeur={l} hauteur={h} recadrage={el.recadrage} />
+          <PhotoCadree el={el} ressource={el.ressource} largeur={l} hauteur={h} entiere />
         </Group>
       )}
       <Group clipFunc={decouper}>
-        {el.ressource ? <PhotoCadree ressource={el.ressource} largeur={l} hauteur={h} recadrage={el.recadrage} /> : <CadreVide largeur={l} hauteur={h} fond={el.fond} statique={statique} />}
+        {el.ressource ? <PhotoCadree el={el} ressource={el.ressource} largeur={l} hauteur={h} /> : <CadreVide largeur={l} hauteur={h} fond={el.fond} statique={statique} />}
       </Group>
       {el.bordure && el.bordure.epaisseur > 0 && (
         <Shape
@@ -453,12 +480,12 @@ function Maquette({ el, statique, ajustement }: { el: ElementMaquette; statique:
     <>
       {ajustement && el.ressource && (
         <Group x={ecran.x} y={ecran.y} opacity={0.35} listening={false}>
-          <PhotoCadree ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} recadrage={el.recadrage} />
+          <PhotoCadree el={el} ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} entiere />
         </Group>
       )}
       <Group x={ecran.x} y={ecran.y} clipFunc={decouperEcran}>
         {el.ressource ? (
-          <PhotoCadree ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} recadrage={el.recadrage} />
+          <PhotoCadree el={el} ressource={el.ressource} largeur={ecran.largeur} hauteur={ecran.hauteur} />
         ) : (
           <CadreVide largeur={ecran.largeur} hauteur={ecran.hauteur} fond="#2a2f3a" statique={statique} sombre />
         )}

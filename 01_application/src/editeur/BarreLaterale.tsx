@@ -8,7 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { elementsCourants, useEditeur } from "../etat/editeur";
 import { useLabo } from "../labo/retouche";
 import { PanneauLabo } from "../labo/PanneauLabo";
-import type { ElementImage, ElementVideo } from "../modele/types";
+import { estRetouchable, type ElementRetouchable } from "../modele/types";
 import { PanneauAudio } from "./panneaux/PanneauAudio";
 import { PanneauCalques } from "./panneaux/PanneauCalques";
 import { PanneauDessin } from "./panneaux/PanneauDessin";
@@ -36,9 +36,10 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
 export function BarreLaterale() {
   const [onglet, setOnglet] = useState<Onglet | null>("elements");
   const ouvert = useLabo((s) => s.ouvert);
-  const photo = useEditeur((s) => (ouvert ? (elementsCourants(s).find((e) => e.id === ouvert && (e.type === "image" || e.type === "video")) as ElementImage | ElementVideo | undefined) : undefined));
+  // Une photo, un clip, ou la photo d'un cadre ou d'une maquette (vérification de l'étape 5).
+  const photo = useEditeur((s) => (ouvert ? elementsCourants(s).find((e) => e.id === ouvert && estRetouchable(e)) as ElementRetouchable | undefined : undefined));
   const selection = useEditeur(useShallow((s) => s.selection));
-  const seulePhoto = useEditeur((s) => (s.selection.length === 1 ? elementsCourants(s).find((e) => e.id === s.selection[0] && (e.type === "image" || e.type === "video"))?.id : undefined));
+  const seulePhoto = useEditeur((s) => (s.selection.length === 1 ? elementsCourants(s).find((e) => e.id === s.selection[0] && estRetouchable(e))?.id : undefined));
   // Le labo suit la photo choisie ; il se ferme si sa photo disparaît (autre page, supprimée).
   useEffect(() => {
     if (ouvert && seulePhoto && seulePhoto !== ouvert) useLabo.setState({ ouvert: seulePhoto });

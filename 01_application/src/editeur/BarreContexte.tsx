@@ -49,7 +49,7 @@ import type { SensAlignement } from "../modele/geometrie";
 import type { Alignement, ElementForme, ElementPage, ElementTexte } from "../modele/types";
 import { estTrait } from "../modele/fabriques";
 import { APPAREILS, COULEURS_APPAREIL } from "../modele/cadres";
-import { couleurPrincipale, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPersonnage, type ElementQr, type ElementTableau, type ElementVideo, type FormeCadre, type Ombre } from "../modele/types";
+import { couleurPrincipale, estRetouchable, type ElementCadre, type ElementDessin, type ElementGraphique, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPersonnage, type ElementQr, type ElementTableau, type ElementVideo, type FormeCadre, type Ombre } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { SelecteurCouleur } from "./SelecteurCouleur";
 import { SelecteurPolice } from "./SelecteurPolice";
@@ -458,6 +458,14 @@ function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
     );
   return (
     <>
+      <button
+        data-retoucher
+        title={el.type === "cadre" ? "Retoucher la photo du cadre : préréglages, lumière, couleur, effets, détail" : "Retoucher la capture de l'écran : préréglages, lumière, couleur, effets, détail"}
+        onClick={() => useLabo.setState({ ouvert: el.id })}
+        className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+      >
+        <SlidersHorizontal size={16} /> Retoucher
+      </button>
       <Bouton titre="Remplacer la photo par une image de tes fichiers (le cadrage revient au centre)" surClic={() => void remplacerDepuisFichier(el.id)}>
         <Replace size={16} />
         <span className="ml-1 text-sm">Remplacer</span>
@@ -649,7 +657,7 @@ export function BarreContexte() {
           {separateur}
         </>
       )}
-      {copieReglages && choisis.length > 0 && choisis.every((e) => e.type === "image" || e.type === "video") && (
+      {copieReglages && choisis.length > 0 && choisis.every(estRetouchable) && (
         <>
           <Bouton titre={choisis.length > 1 ? `Coller les réglages copiés sur ces ${choisis.length} images (Ctrl+Maj+V)` : "Coller les réglages copiés (Ctrl+Maj+V)"} surClic={() => collerReglages()}>
             <ClipboardPaste size={16} />

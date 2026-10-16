@@ -94,9 +94,10 @@ lourd. Détail : `BRIEF.md`.
   commandes 20 et 21 (une fois). Vérification de toute l'étape le 2026-10-16 (relecture contre
   le BRIEF, trois manques comblés : le flou au labo, la qualité du JPEG et du WebP, remplacer une
   photo en gardant sa place ; une publicité de produit faite de bout en bout par le pont dans
-  Tauri) ; reste l'essai d'Alexandre, parcours « Essayer l'étape 5 en entier : une publicité de
-  produit » du `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application
-  (commande 9) et le pont (commande 13).
+  Tauri), puis le labo sur les photos des cadres et des maquettes (le même jour) ; reste l'essai
+  d'Alexandre, parcours « Essayer l'étape 5 en entier : une publicité de produit » du
+  `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application (commande 9)
+  et le pont (commande 13).
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -322,7 +323,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  214 passed`.
+Vérifier : `Tests  216 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

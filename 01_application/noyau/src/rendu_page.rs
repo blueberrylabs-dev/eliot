@@ -1107,6 +1107,10 @@ mod tests {
         let b = pixel(&png(&retouchee), 350, 250);
         assert!(a[0] > a[1] + 60, "{a:?}");
         assert!(b[0].abs_diff(b[1]) <= 3 && b[0] < a[0], "{b:?}");
+        // La même photo dans un cadre (vérification de l'étape 5) : la même retouche.
+        let mut cadre = retouchee.clone();
+        cadre.elements[1].element["type"] = json!("cadre");
+        assert_eq!(pixel(&png(&cadre), 350, 250), b);
         // Le PDF et le SVG emportent la photo retouchée.
         let octets = pdf(&[(retouchee.clone(), 0.0)], &dossier).unwrap();
         let chemin = dossier.join("labo.pdf");

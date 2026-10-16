@@ -329,6 +329,9 @@ export interface ElementCadre extends ElementBase {
   /** Couleur montrée tant que le cadre est vide. */
   fond: string;
   bordure?: { couleur: string; epaisseur: number };
+  /** Les réglages du labo photo pour sa photo (vérification de l'étape 5), comme ceux d'un
+   *  élément image ; ils restent quand la photo change. */
+  reglages?: ReglagesPhoto;
 }
 
 export type Appareil = "telephone" | "tablette" | "ordinateur" | "montre";
@@ -341,6 +344,8 @@ export interface ElementMaquette extends ElementBase {
   couleur: string;
   ressource?: string;
   recadrage: Recadrage;
+  /** Les réglages du labo photo pour la capture de l'écran, comme pour un cadre. */
+  reglages?: ReglagesPhoto;
 }
 
 export type OutilDessin = "stylo" | "marqueur" | "surligneur";
@@ -416,6 +421,14 @@ export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVi
 /** Les éléments qui reçoivent une photo glissée dessus. */
 export type ElementAPhoto = ElementCadre | ElementMaquette;
 export const recoitPhoto = (e: ElementPage): e is ElementAPhoto => e.type === "cadre" || e.type === "maquette";
+
+/** Ce que le labo photo retouche (étape 5) : une photo, un clip, et depuis la vérification de
+ *  l'étape la photo d'un cadre ou de l'écran d'une maquette. */
+export type ElementRetouchable = ElementImage | ElementVideo | ElementAPhoto;
+
+/** Un élément que le labo peut retoucher : une photo, un clip, un cadre ou une maquette qui a
+ *  sa photo. */
+export const estRetouchable = (e: ElementPage | undefined): e is ElementRetouchable => !!e && (e.type === "image" || e.type === "video" || (recoitPhoto(e) && !!e.ressource));
 
 /** Le rôle d'un son : la musique baisse toute seule sous la voix. */
 export type RoleSon = "musique" | "voix" | "bruitage";

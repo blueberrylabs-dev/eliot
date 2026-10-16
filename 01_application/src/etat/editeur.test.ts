@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { creerImage, documentVide } from "../modele/fabriques";
-import type { ElementForme, ElementImage } from "../modele/types";
+import { creerCadre, creerImage, documentVide } from "../modele/fabriques";
+import type { ElementCadre, ElementForme, ElementImage } from "../modele/types";
 import { elementsCourants, etiquetteDeGeste, pageCourante, useEditeur } from "./editeur";
 import { useTemps } from "./temps";
 import { voixUtilisees } from "./nettoyage";
@@ -323,5 +323,26 @@ describe("remplacer une photo en gardant sa place (vérification de l'étape 5)"
     expect(etat().remplacerPhoto("p", large.id)).toBe(false);
     etat().modifierElements({ p: { verrouille: true } });
     expect(etat().remplacerPhoto("p", haute.id)).toBe(false);
+  });
+});
+
+describe("le labo sur la photo d'un cadre (vérification de l'étape 5)", () => {
+  it("copier le style d'un cadre retouché vers une photo emporte la retouche ; remplacer la photo du cadre la garde", () => {
+    const photo = { id: "c".repeat(64), nom: "p.jpg", largeur: 800, hauteur: 600, transparence: false };
+    const autre = { id: "d".repeat(64), nom: "q.jpg", largeur: 600, hauteur: 800, transparence: false };
+    etat().ajouterRessources([photo, autre]);
+    const cadre: ElementCadre = { ...creerCadre({ largeur: 1080, hauteur: 1080 }, "cercle", photo.id), id: "c", reglages: { saturation: -100, vignetage: -30 } };
+    const image: ElementImage = { ...creerImage({ largeur: 1080, hauteur: 1080 }, photo), id: "i", arrondi: 8 };
+    etat().ajouterElements([cadre, image]);
+    etat().selectionner(["c"]);
+    etat().copierStyle();
+    etat().appliquerStyle("i");
+    const i = elementsCourants(etat()).find((e) => e.id === "i") as ElementImage;
+    expect(i.reglages).toEqual({ saturation: -100, vignetage: -30 });
+    expect(i.arrondi).toBe(8);
+    etat().remplirPhoto("c", autre.id);
+    const c = elementsCourants(etat()).find((e) => e.id === "c") as ElementCadre;
+    expect(c.ressource).toBe(autre.id);
+    expect(c.reglages).toEqual({ saturation: -100, vignetage: -30 });
   });
 });

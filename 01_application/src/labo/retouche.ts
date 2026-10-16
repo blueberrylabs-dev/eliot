@@ -7,7 +7,7 @@ import { create } from "zustand";
 import { marquerToile } from "../editeur/images";
 import { elementsCourants, elementsSelectionnes, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { aDesVoisins, cleReglages, normaliserReglages, sansRognage, type ReglagesPhoto } from "../modele/labo";
-import type { ElementImage, ElementPage, ElementVideo, PageEliot } from "../modele/types";
+import { estRetouchable, type ElementPage, type PageEliot } from "../modele/types";
 import { baseLabo, baseLaboPixels } from "../pont/tauri";
 import { graineDuTemps, moteurLabo, moteurVideo, type PixelsBruts } from "./shader";
 
@@ -253,7 +253,8 @@ export function finGeste(): void {
 export async function assurerRetouches(page: PageEliot): Promise<void> {
   const attentes: Promise<void>[] = [];
   for (const e of page.elements) {
-    if (e.type !== "image" && e.type !== "video") continue;
+    // Les photos, les clips, et les photos des cadres et des maquettes.
+    if (!estRetouchable(e) || !e.ressource) continue;
     const n = normaliserReglages(e.reglages);
     if (!n || !aDesVoisins(n)) continue;
     // Un clip montré figé l'est par sa couverture (lot 4), retouchée comme une photo.
@@ -411,10 +412,11 @@ export function cleCouverture(id: string): string {
   return `${id}#couverture`;
 }
 
-/** Copie les réglages d'une photo ou d'un clip (`id`, ou le seul choisi). */
+/** Copie les réglages d'une photo, d'un clip ou de la photo d'un cadre (`id`, ou le seul
+ *  choisi). */
 export function copierReglages(id?: string): boolean {
   const etat = useEditeur.getState();
-  const photos = (id ? elementsCourants(etat).filter((e) => e.id === id) : elementsSelectionnes(etat)).filter((e): e is ElementImage | ElementVideo => e.type === "image" || e.type === "video");
+  const photos = (id ? elementsCourants(etat).filter((e) => e.id === id) : elementsSelectionnes(etat)).filter(estRetouchable);
   if (photos.length !== 1) return false;
   const reglages = normaliserReglages(photos[0].reglages);
   useLabo.setState({ copie: { reglages } });
@@ -428,7 +430,7 @@ export function collerReglages(ids?: string[]): number {
   const { copie } = useLabo.getState();
   if (!copie) return 0;
   const etat = useEditeur.getState();
-  const cibles = (ids ? elementsCourants(etat).filter((e) => ids.includes(e.id)) : elementsSelectionnes(etat)).filter((e) => (e.type === "image" || e.type === "video") && !e.verrouille);
+  const cibles = (ids ? elementsCourants(etat).filter((e) => ids.includes(e.id)) : elementsSelectionnes(etat)).filter((e) => estRetouchable(e) && !e.verrouille);
   if (!cibles.length) return 0;
   etat.modifierElements(Object.fromEntries(cibles.map((e) => [e.id, { reglages: copie.reglages } as Partial<ElementPage>])));
   etat.notifier(cibles.length === 1 ? "Réglages collés. Ctrl+Z pour revenir." : `Réglages collés sur ${cibles.length} images. Ctrl+Z pour revenir.`);

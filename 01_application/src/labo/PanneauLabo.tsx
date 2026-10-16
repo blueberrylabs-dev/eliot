@@ -28,7 +28,7 @@ import {
   type ReglagesPhoto,
   type ZoneEtalonnage,
 } from "../modele/labo";
-import type { ElementImage, ElementVideo } from "../modele/types";
+import type { ElementImage, ElementRetouchable, ElementVideo } from "../modele/types";
 import { EditeurCourbe } from "./EditeurCourbe";
 import { Prereglages } from "./Prereglages";
 import { abonnerApercuClip, abonnerRetouche, collerReglages, commencerGeste, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
@@ -136,7 +136,7 @@ function CurseurReglage({ def, valeur, changer, libelle, nom, fond, format, lire
 }
 
 /** L'histogramme de la photo telle qu'elle s'affiche (rouge, vert, bleu superposés). */
-function Histogramme({ el }: { el: ElementImage | ElementVideo }) {
+function Histogramme({ el }: { el: ElementRetouchable }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const source = useImageRessource(el.ressource);
   const [version, setVersion] = useState(0);
@@ -576,7 +576,7 @@ function Detourer({ el }: { el: ElementImage | ElementVideo }) {
   );
 }
 
-export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
+export function PanneauLabo({ el }: { el: ElementRetouchable }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
   const source = useImageRessource(el.ressource) ?? null;
@@ -587,15 +587,15 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   };
   const changer = (cle: CurseurLabo, v: number) => {
     // Le dernier état du document : plusieurs changements peuvent arriver dans la même image.
-    const actuel = elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined;
+    const actuel = elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementRetouchable | undefined;
     modifier({ ...actuel?.reglages, [cle]: v }, cle);
   };
   const changerCouleur = (couleur: CouleurMelangeur, k: "teinte" | "saturation" | "luminance", v: number) => {
-    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementRetouchable | undefined)?.reglages;
     modifier({ ...actuel, melangeur: { ...actuel?.melangeur, [couleur]: { ...actuel?.melangeur?.[couleur], [k]: v } } }, `${couleur}-${k}`);
   };
   const changerEtalonnage = (zone: ZoneEtalonnage | "equilibre", k: "teinte" | "saturation" | null, v: number) => {
-    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementRetouchable | undefined)?.reglages;
     const e = { ...actuel?.etalonnage };
     if (zone === "equilibre") e.equilibre = v;
     else e[zone] = { ...e[zone], [k!]: v };
@@ -604,7 +604,7 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
     modifier({ ...actuel, etalonnage: e }, `etalonnage-${zone}-${k ?? ""}`);
   };
   const changerCourbe = (canal: CanalCourbe, points: PointCourbe[]) => {
-    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementRetouchable | undefined)?.reglages;
     const suivant = { ...actuel, courbe: { ...actuel?.courbe, [canal]: points } };
     // Un point posé sur la diagonale ne change rien : pas d'étape d'annulation pour si peu.
     if (cleReglages(suivant) === cleReglages(actuel)) return;
@@ -669,15 +669,24 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
       <Section titre="Préréglages" ouverte={!fermees.has("Préréglages")} basculer={() => basculer("Préréglages")}>
         <Prereglages el={el} source={source} modifier={modifier} />
       </Section>
-      <Section titre="Recadrer et redresser" ouverte={!fermees.has("Recadrer et redresser")} basculer={() => basculer("Recadrer et redresser")}>
-        <Recadrer el={el} />
-      </Section>
-      <Section titre="Perspective" ouverte={!fermees.has("Perspective")} basculer={() => basculer("Perspective")}>
-        <MettreEnPerspective el={el} />
-      </Section>
-      <Section titre="Détourage" ouverte={!fermees.has("Détourage")} basculer={() => basculer("Détourage")}>
-        <Detourer el={el} />
-      </Section>
+      {el.type === "image" || el.type === "video" ? (
+        <>
+          <Section titre="Recadrer et redresser" ouverte={!fermees.has("Recadrer et redresser")} basculer={() => basculer("Recadrer et redresser")}>
+            <Recadrer el={el} />
+          </Section>
+          <Section titre="Perspective" ouverte={!fermees.has("Perspective")} basculer={() => basculer("Perspective")}>
+            <MettreEnPerspective el={el} />
+          </Section>
+          <Section titre="Détourage" ouverte={!fermees.has("Détourage")} basculer={() => basculer("Détourage")}>
+            <Detourer el={el} />
+          </Section>
+        </>
+      ) : (
+        // La photo d'un cadre ou d'un écran se cadre dans sa forme : « Ajuster » (double-clic).
+        <p data-note-cadre className="border-t border-neutral-200 py-2 text-[11px] text-neutral-500">
+          {el.type === "cadre" ? "La photo de ce cadre" : "La capture de cet écran"} se place avec « Ajuster » dans la barre du haut, ou un double-clic : la glisser, puis la molette pour l'agrandir. Le vignetage suit la partie qui se voit.
+        </p>
+      )}
       {SECTIONS_LABO.map((s) => (
         <Section key={s.titre} titre={s.titre} ouverte={!fermees.has(s.titre)} basculer={() => basculer(s.titre)}>
           {s.curseurs.map((d) => (

@@ -295,6 +295,12 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   remet tout à zéro. Tirer un curseur fait une seule étape d'annulation.
 - L'original n'est jamais modifié : les réglages sont gardés dans le design, et chaque export
   (image, PDF, SVG, film) refait la retouche depuis l'original.
+- La photo d'un cadre ou l'écran d'une maquette se retouche aussi : « Retoucher » dans la barre
+  du haut, une fois la photo posée (les cadres des modèles de départ compris). Le même panneau,
+  sans « Recadrer », « Perspective » ni « Détourage » : la photo se place dans son cadre avec
+  « Ajuster ». Le vignetage suit la partie qui se voit. Les réglages restent quand on remplace
+  la photo ; copier et coller, « Copier le style » et les préréglages passent d'une photo à un
+  cadre et inversement.
 
 **Courbe, préréglages, copier et coller (étape 5, lot 3)**
 - La courbe des tonalités, sous les curseurs de Lumière : une courbe pour l'image entière
@@ -403,8 +409,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
-  tableaux, partir d'un modèle de départ, retoucher une photo ou un clip au labo (courbe et
-  préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
+  tableaux, partir d'un modèle de départ, retoucher une photo, un clip, ou la photo d'un cadre ou
+  d'une maquette au labo (courbe et préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
   pinceau), remplacer une photo à sa place, regarder une capture de la page et exporter (en
@@ -626,8 +632,11 @@ Vingt minutes, après les essais des lots (ou à leur place). Avant : recompiler
    comparer le poids des deux fichiers et l'image, zoomée.
 6. Une deuxième page : une photo d'écran d'ordinateur, un visuel posé dessus en perspective
    (lot 6), puis « Remplacer » ce visuel : les coins restent.
-7. Exporter en PDF, toutes les pages, puis en WebP : tout y est, depuis les originaux.
-8. Fermer le design (retour à l'accueil), le rouvrir : tout est là, à l'identique.
+7. Une troisième page, depuis le modèle « Avant / après » : une photo dans chaque cadre,
+   « Retoucher » celle de droite (un préréglage, un peu de vignetage) ; « Avant (maintenir) »
+   la montre sans retouche.
+8. Exporter en PDF, toutes les pages, puis en WebP : tout y est, depuis les originaux.
+9. Fermer le design (retour à l'accueil), le rouvrir : tout est là, à l'identique.
 
 Ce qui m'aide le plus en retour : ce qui manque pour une vraie publicité, les gestes qui
 coincent, et la qualité de JPEG que tu retiens pour tes réseaux.

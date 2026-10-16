@@ -8,7 +8,7 @@ import { Check, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { cleReglages, type ReglagesPhoto } from "../modele/labo";
 import { appliquerPrereglage, CATEGORIE_MIENS, CATEGORIES_FOURNIES, gardes, memeStyle, PREREGLAGES_FOURNIS, style, type Prereglage } from "../modele/prereglages";
-import type { ElementImage, ElementVideo } from "../modele/types";
+import type { ElementRetouchable } from "../modele/types";
 import { useEditeur } from "../etat/editeur";
 import { chargerPrereglages, enregistrerPrereglage, supprimerPrereglage, usePrereglages } from "./prereglages";
 import { commencerGeste, finGeste, useLabo, vignettesRetouchees } from "./retouche";
@@ -16,7 +16,7 @@ import { commencerGeste, finGeste, useLabo, vignettesRetouchees } from "./retouc
 /** La catégorie ouverte reste d'une photo à l'autre. */
 let categorieRetenue = CATEGORIES_FOURNIES[0];
 
-export function Prereglages({ el, source, modifier }: { el: ElementImage | ElementVideo; source: HTMLImageElement | null; modifier: (r: ReglagesPhoto | undefined, etiquette: string) => void }) {
+export function Prereglages({ el, source, modifier }: { el: ElementRetouchable; source: HTMLImageElement | null; modifier: (r: ReglagesPhoto | undefined, etiquette: string) => void }) {
   const miens = usePrereglages((s) => s.miens);
   const erreur = usePrereglages((s) => s.erreur);
   const applique = useLabo((s) => (s.applique?.photo === el.id ? s.applique : null));

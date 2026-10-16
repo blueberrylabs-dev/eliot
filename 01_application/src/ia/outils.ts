@@ -18,7 +18,7 @@ import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vue
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
 import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
 import type { SensAlignement } from "../modele/geometrie";
-import { FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
+import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
@@ -1633,18 +1633,19 @@ const OUTILS: Record<string, Outil> = {
     const id = texte(args.id) ?? "";
     const el = elementsCourants(etat()).find((e) => e.id === id);
     exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
-    exiger(el.type === "image" || el.type === "video", "retoucher : une photo ou un clip vidéo (élément de type image ou video)");
+    exiger(el.type === "image" || el.type === "video" || recoitPhoto(el), "retoucher : une photo, un clip vidéo, ou la photo d'un cadre ou d'une maquette (élément de type image, video, cadre ou maquette)");
+    exiger(estRetouchable(el), `${id} n'a pas encore de photo : remplir_photo d'abord`);
     const r = args.reglages ?? {};
     exiger(typeof r === "object" && r !== null && !Array.isArray(r), "reglages : un objet, par exemple { exposition: 0.3, contraste: 15 }");
     const demandes = r as Record<string, unknown>;
     verifierReglages(demandes);
     // Le point de départ : rien, les réglages d'une autre photo, ou ceux de la photo.
-    let depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage | ElementVideo).reglages ?? {});
+    let depart: ReglagesPhoto = booleen(args.remettre) ? {} : (el.reglages ?? {});
     const depuis = texte(args.depuis);
     if (depuis) {
       const source = elementsCourants(etat()).find((e) => e.id === depuis);
-      exiger(source && (source.type === "image" || source.type === "video"), `depuis : ${depuis} n'est ni une photo ni un clip de la page affichée (voir etat)`);
-      depart = (source as ElementImage | ElementVideo).reglages ?? {};
+      exiger(estRetouchable(source), `depuis : ${depuis} n'est ni une photo, ni un clip, ni un cadre ou une maquette avec sa photo, sur la page affichée (voir etat)`);
+      depart = source.reglages ?? {};
     }
     const nomPrereglage = texte(args.prereglage);
     let prereglage: string | undefined;
@@ -1830,8 +1831,8 @@ const OUTILS: Record<string, Outil> = {
     if (depuis) {
       designOuvert();
       const source = elementsCourants(etat()).find((e) => e.id === depuis);
-      exiger(source && (source.type === "image" || source.type === "video"), `depuis : ${depuis} n'est ni une photo ni un clip de la page affichée (voir etat)`);
-      reglages = (source as ElementImage | ElementVideo).reglages;
+      exiger(estRetouchable(source), `depuis : ${depuis} n'est ni une photo, ni un clip, ni un cadre ou une maquette avec sa photo, sur la page affichée (voir etat)`);
+      reglages = source.reglages;
     } else {
       exiger(args.reglages && typeof args.reglages === "object" && !Array.isArray(args.reglages), "enregistrer : depuis (une photo) ou reglages (un objet)");
       verifierReglages(args.reglages as Record<string, unknown>);

@@ -60,8 +60,9 @@ const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   emoji: ["opacite", "ombre", "animations"],
   personnage: ["couleurs", "opacite", "ombre", "animations"],
   qr: ["couleur", "fond", "opacite", "animations"],
-  cadre: ["forme", "bordure", "opacite", "ombre", "animations"],
-  maquette: ["couleur", "opacite", "ombre", "animations"],
+  // La photo d'un cadre ou d'une maquette a aussi sa retouche (vérification de l'étape 5).
+  cadre: ["forme", "bordure", "opacite", "ombre", "animations", "reglages"],
+  maquette: ["couleur", "opacite", "ombre", "animations", "reglages"],
   dessin: ["couleur", "epaisseur", "opacite", "ombre", "animations"],
   graphique: ["police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "opacite", "ombre", "animations"],
   tableau: ["police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "opacite", "ombre", "animations"],
@@ -658,9 +659,16 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const cible = parId(elementsCourants(get())).get(id);
     if (!style || !cible || cible.verrouille) return;
     // Entre deux types différents, seule la transparence passe ; une photo et une vidéo
-    // partagent leurs coins, leur bordure et leur ombre.
+    // partagent leurs coins, leur bordure et leur ombre ; une photo, un clip, un cadre et une
+    // maquette, leur retouche du labo.
     const photoEtVideo = (t: string) => t === "image" || t === "video";
-    const valeurs: Record<string, unknown> = cible.type === style.type || (photoEtVideo(cible.type) && photoEtVideo(style.type)) ? { ...style.valeurs } : { opacite: style.valeurs.opacite };
+    const retouchable = (t: string) => photoEtVideo(t) || t === "cadre" || t === "maquette";
+    const valeurs: Record<string, unknown> =
+      cible.type === style.type || (photoEtVideo(cible.type) && photoEtVideo(style.type))
+        ? { ...style.valeurs }
+        : retouchable(cible.type) && retouchable(style.type)
+          ? { opacite: style.valeurs.opacite, reglages: style.valeurs.reglages }
+          : { opacite: style.valeurs.opacite };
     get().modifierElements({ [id]: valeurs as Partial<ElementPage> });
     set({ styleCopie: null, selection: avecGroupes([id], elementsCourants(get())) });
   },

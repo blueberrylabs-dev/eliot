@@ -783,11 +783,13 @@ fn rendre_fin(a: &usvg::Tree, boite: &Boite, s: f64) -> Option<(Pixmap, f64)> {
     Some((pixmap, s))
 }
 
-/// Les réglages du labo d'une photo (étape 5, lot 2) ou d'un clip vidéo (lot 4), s'il en a qui
-/// changent quelque chose.
-/// Une photo détourée (lot 7) en a aussi : son détourage y est posé, réglages neutres ou non.
+/// Les réglages du labo d'une photo (étape 5, lot 2), d'un clip vidéo (lot 4), ou de la photo
+/// d'un cadre ou de l'écran d'une maquette (vérification de l'étape 5), s'il en a qui changent
+/// quelque chose. Une photo détourée (lot 7) en a aussi : son détourage y est posé, réglages
+/// neutres ou non. Pour un cadre ou une maquette, la fenêtre pose dans `rognage` la partie de la
+/// photo qui se voit, que le vignetage suit.
 pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
-    if !matches!(element.get("type").and_then(Value::as_str), Some("image" | "video")) {
+    if !matches!(element.get("type").and_then(Value::as_str), Some("image" | "video" | "cadre" | "maquette")) {
         return None;
     }
     let detourage = crate::detourage::de_l_element(element);
@@ -2010,6 +2012,12 @@ mod tests {
         // Un recadrage seul n'est pas une retouche ; un recadrage glissé dans les réglages non plus.
         assert!(reglages_labo(&json!({ "type": "image", "rognage": g })).is_none());
         assert!(reglages_labo(&json!({ "type": "image", "reglages": { "rognage": g } })).is_none());
+        // La photo d'un cadre ou d'une maquette (vérification de l'étape 5) : ses réglages, et
+        // le vignetage sur la partie qui se voit ; un texte n'en a jamais.
+        let cadre = reglages_labo(&json!({ "type": "cadre", "reglages": { "vignetage": -40 }, "rognage": g })).unwrap();
+        assert_eq!(cadre.rognage.as_ref().map(|r| r.largeur), Some(0.5));
+        assert!(reglages_labo(&json!({ "type": "maquette", "reglages": { "saturation": -100 } })).is_some_and(|r| r.saturation == -100.0 && r.rognage.is_none()));
+        assert!(reglages_labo(&json!({ "type": "texte", "reglages": { "contraste": 10 } })).is_none());
     }
 
     #[test]

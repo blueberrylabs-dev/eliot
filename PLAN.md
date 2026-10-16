@@ -395,8 +395,9 @@ Choix par défaut de Claude, modifiables sur simple demande :
       l'original. Livré le 2026-10-16 (`noyau/src/labo.rs`, `src/labo/`, outil `retoucher` du
       pont) : shader et noyau à 1 sur 255 au plus sur le tableau commun, fenêtre et export à
       2,3 sur 255 (réglages d'un pixel) et 3,2 (réglages voisins, l'aperçu étant un JPEG)
-      (JOURNAL). Reste pour plus tard : les photos des cadres et des maquettes. Essai
-      d'Alexandre : « Essayer le labo photo (étape 5, lot 2) » du `01_application/LISEZMOI.md`.
+      (JOURNAL). Les photos des cadres et des maquettes, laissées pour plus tard, ont leur labo
+      depuis le 2026-10-16 (ligne de la vérification de l'étape). Essai d'Alexandre : « Essayer
+      le labo photo (étape 5, lot 2) » du `01_application/LISEZMOI.md`.
 - [x] Lot 3 : courbe des tonalités, une vingtaine de préréglages dessinés par Claude, préréglages
       d'Alexandre, copier et coller les réglages d'une image à l'autre. Livré le 2026-10-16 :
       courbe de points (RVB, rouge, vert, bleu) dans le noyau et le shader, même table, écart nul
@@ -466,8 +467,12 @@ Choix par défaut de Claude, modifiables sur simple demande :
       JOURNAL. Livrée sur le poste.
 - [ ] Essai par Alexandre : « Essayer l'étape 5 en entier : une publicité de produit » du
       `01_application/LISEZMOI.md` (avant : commandes 9 et 13 du `CLAUDE.md`).
-- [ ] Plus tard, si utile : le labo sur les photos des cadres et des maquettes (noté au lot 2) ;
-      l'aperçu en direct confirmé sur le mini PC, quand il sera là.
+- [x] Le labo sur les photos des cadres et des maquettes (noté au lot 2), fait le 2026-10-16 à
+      la demande d'Alexandre pour finir l'étape : « Retoucher » dans leur barre, le même panneau
+      sans recadrage, perspective ni détourage, le vignetage sur la partie qui se voit, copier et
+      coller, préréglages, le pont (`retoucher`), l'export depuis l'original ; la boîte de
+      sélection d'un cadre rempli ramenée à celle du cadre. Détail au JOURNAL.
+- [ ] Plus tard : l'aperçu en direct confirmé sur le mini PC, quand il sera là.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)
 

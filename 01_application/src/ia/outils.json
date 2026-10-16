@@ -121,7 +121,7 @@
   },
   {
     "name": "utiliser_modele_depart",
-    "description": "Pose un modèle de départ : sur la page affichée si elle est vide, sinon sur une nouvelle page juste après (mis à l'échelle si le format diffère). Avec nouveau_design à vrai, ou sans design ouvert, crée un design au format du modèle. Ensuite : remplacer les textes avec modifier, remplir les cadres avec ajouter_photo_pixabay ou remplir_photo.",
+    "description": "Pose un modèle de départ : sur la page affichée si elle est vide, sinon sur une nouvelle page juste après (mis à l'échelle si le format diffère). Avec nouveau_design à vrai, ou sans design ouvert, crée un design au format du modèle. Ensuite : remplacer les textes avec modifier, remplir les cadres avec ajouter_photo_pixabay ou remplir_photo, retoucher leurs photos avec retoucher.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2249,13 +2249,13 @@
   },
   {
     "name": "retoucher",
-    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) ou un clip vidéo (type video) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain, le flou et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta), etalonnage (une teinte de 0 à 360° et sa force de 0 à 100 pour ombres, tonsMoyens, hautesLumieres, puis equilibre de -100 à +100 ; appliqué après la saturation, il colore aussi un noir et blanc : saturation -100 puis ombres { teinte: 30, saturation: 50 } donne un sépia ; ombres froides et hautes lumières chaudes, par exemple 210 et 35, font le sarcelle et orange du cinéma). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), flou (toute la photo, de 0 à 100 ; pour un fond flou derrière un sujet net, poser la même photo par-dessus, sans flou, et la détourer), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original (un clip : chaque image du film, son grain change d'une image à l'autre). Juger le résultat avec capture. Renvoie les réglages de la photo.",
+    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image), un clip vidéo (type video), ou la photo d'un cadre ou de l'écran d'une maquette (types cadre et maquette, une fois remplis ; le vignetage suit alors la partie qui se voit) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain, le flou et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta), etalonnage (une teinte de 0 à 360° et sa force de 0 à 100 pour ombres, tonsMoyens, hautesLumieres, puis equilibre de -100 à +100 ; appliqué après la saturation, il colore aussi un noir et blanc : saturation -100 puis ombres { teinte: 30, saturation: 50 } donne un sépia ; ombres froides et hautes lumières chaudes, par exemple 210 et 35, font le sarcelle et orange du cinéma). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), flou (toute la photo, de 0 à 100 ; pour un fond flou derrière un sujet net, poser la même photo par-dessus, sans flou, et la détourer), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original (un clip : chaque image du film, son grain change d'une image à l'autre). Juger le résultat avec capture. Renvoie les réglages de la photo.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Identifiant de la photo ou du clip (voir etat)."
+          "description": "Identifiant de la photo, du clip, du cadre ou de la maquette (voir etat)."
         },
         "reglages": {
           "type": "object",
@@ -2542,7 +2542,7 @@
         },
         "depuis": {
           "type": "string",
-          "description": "Identifiant d'une autre photo ou d'un autre clip de la page : ses réglages sont copiés d'abord (tous, exposition comprise)."
+          "description": "Identifiant d'une autre photo, d'un autre clip, d'un cadre ou d'une maquette de la page : ses réglages sont copiés d'abord (tous, exposition comprise)."
         },
         "prereglage": {
           "type": "string",
@@ -2750,7 +2750,7 @@
         },
         "depuis": {
           "type": "string",
-          "description": "enregistrer : l'identifiant de la photo ou du clip dont le style est gardé."
+          "description": "enregistrer : l'identifiant de la photo, du clip, du cadre ou de la maquette dont le style est gardé."
         },
         "reglages": {
           "type": "object",

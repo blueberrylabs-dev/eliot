@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { casesDeGrille, deplacerRecadrage, DISPOSITIONS, ecranAppareil, elementAPhotoSous, placerPhoto } from "./cadres";
-import { creerCadre, creerForme } from "./fabriques";
+import { casesDeGrille, deplacerRecadrage, DISPOSITIONS, ecranAppareil, elementAPhotoSous, partieVisible, placerPhoto, zonePhoto } from "./cadres";
+import { creerCadre, creerForme, creerMaquette } from "./fabriques";
+import { estRetouchable } from "./types";
 
 describe("cadres et grilles", () => {
   it("une photo couvre toujours son cadre, centrée par défaut", () => {
@@ -59,5 +60,22 @@ describe("cadres et grilles", () => {
     const tourne = { ...dessous, rotation: 90 };
     expect(elementAPhotoSous([tourne], { x: -100, y: 100 })?.id).toBe(dessous.id);
     expect(elementAPhotoSous([tourne], { x: 100, y: 100 })).toBeNull();
+  });
+
+  it("le labo d'un cadre ou d'une maquette : la partie de la photo qui se voit (vérification de l'étape 5)", () => {
+    // Photo 2000 × 1000 dans un cadre carré, centrée : la moitié du milieu se voit.
+    expect(partieVisible(2000, 1000, 500, 500)).toEqual({ x: 0.25, y: 0, largeur: 0.5, hauteur: 1, angle: 0 });
+    // Poussée à gauche et agrandie deux fois : le quart haut gauche.
+    expect(partieVisible(2000, 1000, 500, 500, { zoom: 2, x: 0, y: 0 })).toEqual({ x: 0, y: 0, largeur: 0.25, hauteur: 0.5, angle: 0 });
+    // Une maquette : la zone est son écran, pas sa boîte.
+    const m = creerMaquette({ largeur: 1080, hauteur: 1080 }, "telephone");
+    const e = ecranAppareil("telephone", m.largeur, m.hauteur);
+    expect(zonePhoto(m)).toEqual({ largeur: e.largeur, hauteur: e.hauteur });
+    // Le labo retouche un cadre ou une maquette qui a sa photo, pas un cadre vide.
+    const c = creerCadre({ largeur: 1080, hauteur: 1080 }, "cercle");
+    expect(estRetouchable(c)).toBe(false);
+    expect(estRetouchable({ ...c, ressource: "a".repeat(64) })).toBe(true);
+    expect(estRetouchable({ ...m, ressource: "a".repeat(64) })).toBe(true);
+    expect(estRetouchable(creerForme({ largeur: 1080, hauteur: 1080 }, "rectangle"))).toBe(false);
   });
 });
