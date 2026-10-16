@@ -546,6 +546,11 @@ struct LecteurVideo {
     premiere: u64,
     courante: Option<(u64, Pixmap)>,
     fini: bool,
+    /// Le labo (étape 5, lot 4) : chaque image retouchée, son grain tiré de son instant dans
+    /// le fichier (`debut` + rang × `pas`, en ms).
+    retouche: Option<labo::Reglages>,
+    debut: f64,
+    pas: f64,
 }
 
 impl LecteurVideo {
@@ -565,6 +570,10 @@ impl LecteurVideo {
             match self.sortie.read_exact(&mut tampon) {
                 Ok(()) => {
                     let r = self.courante.as_ref().map_or(0, |(r, _)| r + 1);
+                    if let Some(reglages) = &self.retouche {
+                        let graine = labo::graine_du_temps(self.debut + r as f64 * self.pas);
+                        labo::appliquer_graine(&mut tampon, self.largeur, self.hauteur, reglages, true, graine);
+                    }
                     let pixmap = premultiplier(tampon, self.largeur, self.hauteur).ok_or_else(|| ErreurMontage::Video("image de taille inattendue".into()))?;
                     self.courante = Some((r, pixmap));
                 }
@@ -638,6 +647,8 @@ struct ElementEnPlace {
     finesse: f64,
     /// Vidéo : durée du fichier, en ms.
     duree_fichier: Option<f64>,
+    /// Les réglages du labo d'un clip vidéo (une photo est retouchée une fois pour toutes).
+    retouche: Option<labo::Reglages>,
 }
 
 const LOIN: f64 = 1e5;
@@ -757,9 +768,10 @@ fn rendre_fin(a: &usvg::Tree, boite: &Boite, s: f64) -> Option<(Pixmap, f64)> {
     Some((pixmap, s))
 }
 
-/// Les réglages du labo d'un élément (étape 5, lot 2), s'il en a qui changent quelque chose.
+/// Les réglages du labo d'une photo (étape 5, lot 2) ou d'un clip vidéo (lot 4), s'il en a qui
+/// changent quelque chose.
 pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
-    if element.get("type").and_then(Value::as_str) != Some("image") {
+    if !matches!(element.get("type").and_then(Value::as_str), Some("image" | "video")) {
         return None;
     }
     let r: labo::Reglages = serde_json::from_value(element.get("reglages")?.clone()).ok()?;
@@ -821,7 +833,7 @@ struct OuvertureVideo {
 
 /// Lance le décodage d'une vidéo : `ffmpeg` sort, une par une, les images du fichier aux
 /// instants des images du film à partir de l'image `rang`, à la taille utile.
-fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &OuvertureVideo, rang: u64) -> Result<LecteurVideo, ErreurMontage> {
+fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &OuvertureVideo, rang: u64, retouche: Option<&labo::Reglages>) -> Result<LecteurVideo, ErreurMontage> {
     let Calque::Video { ressource, matrice: m, .. } = calque else {
         return Err(ErreurMontage::Video("calque inattendu".into()));
     };
@@ -845,7 +857,7 @@ fn ouvrir_video(dossier: &Path, images_par_seconde: f64, calque: &Calque, o: &Ou
     let mut processus = programme("ffmpeg").args(&a).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(lancer_erreur)?;
     let erreurs = Some(lire_erreurs(&mut processus));
     let sortie = processus.stdout.take().expect("sortie redirigée");
-    Ok(LecteurVideo { processus, sortie, erreurs, largeur, hauteur, premiere: rang, courante: None, fini: false })
+    Ok(LecteurVideo { processus, sortie, erreurs, largeur, hauteur, premiere: rang, courante: None, fini: false, retouche: retouche.cloned(), debut: o.debut, pas: 1000.0 / cadence })
 }
 
 impl Scene {
@@ -918,7 +930,7 @@ impl Scene {
                 calques.push(CalqueEnPlace { calque: c.clone(), rendu, decoupes });
             }
             let sous_titre = e.element.get("sousTitre").and_then(|v| serde_json::from_value::<SousTitre>(v.clone()).ok());
-            elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier });
+            elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier, retouche });
         }
         Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: images_par_seconde as f64 })
     }
@@ -961,6 +973,7 @@ impl Scene {
                 finesse: el.finesse,
             };
             let (totaux, finesse) = (el.totaux, el.finesse);
+            let retouche = el.retouche.clone();
             // Un sous-titre : le mot prononcé maintenant et à l'image suivante.
             let sous_titre = el.sous_titre.clone();
             let debut_clip = el.el.temps.as_ref().map_or(0.0, |tp| tp.debut);
@@ -1043,7 +1056,7 @@ impl Scene {
                             Rendu::Image(im) => Some(im.pixmap.as_ref()),
                             Rendu::Video(lecteur) => {
                                 if lecteur.is_none() {
-                                    *lecteur = Some(ouvrir_video(&self.dossier, self.images_par_seconde, &calque.calque, &ouverture, rang)?);
+                                    *lecteur = Some(ouvrir_video(&self.dossier, self.images_par_seconde, &calque.calque, &ouverture, rang, retouche.as_ref())?);
                                 }
                                 match lecteur.as_mut() {
                                     Some(l) => l.image(rang)?,
@@ -1544,7 +1557,7 @@ pub(crate) fn poses_vectorielles(description: &DescriptionPage, t: f64, dossier:
         let (entree, sortie) = transitions.get(&el.id).cloned().unwrap_or((None, None));
         let clip: Clip = serde_json::from_value(e.element.clone()).unwrap_or_default();
         let duree_fichier = clip.ressource.as_deref().filter(|_| el.genre == "video").and_then(|id| images::infos(dossier, id).ok()).and_then(|r| r.video.map(|v| v.duree as f64));
-        let place = ElementEnPlace { el, clip, ctx: Contexte { format, transition_entree: entree, transition_sortie: sortie }, calques: Vec::new(), totaux: e.totaux, sous_titre: None, finesse: 1.0, duree_fichier };
+        let place = ElementEnPlace { el, clip, ctx: Contexte { format, transition_entree: entree, transition_sortie: sortie }, calques: Vec::new(), totaux: e.totaux, sous_titre: None, finesse: 1.0, duree_fichier, retouche: None };
         if !place.visible_a(t) {
             poses.push(None);
             continue;
@@ -1735,6 +1748,42 @@ mod tests {
         // Rien ne traîne à côté du film.
         let restes: Vec<_> = fs::read_dir(cible.parent().unwrap()).unwrap().flatten().map(|e| e.file_name()).collect();
         assert_eq!(restes.len(), 1, "{restes:?}");
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Un clip retouché par le labo (étape 5, lot 4) : chaque image du film l'est, depuis
+    /// l'original ; le grain change d'une image à l'autre.
+    #[test]
+    fn un_clip_retouche_l_est_image_par_image() {
+        if !ffmpeg_present() || !x264_present().unwrap_or(false) {
+            eprintln!("ffmpeg ou x264 absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("labo");
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let ressource = videos::importer(&video_rouge_puis_bleue(&dossier), &ressources, &videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        let film = |retouche: Value, nom: &str| {
+            let mut page = page_de_test(&ressource.id);
+            page.elements[0].element["reglages"] = retouche;
+            let cible = dossier.join(nom).join("film.mp4");
+            exporter(&page, &reglages(FormatVideo::Mp4, 320, 180, 25), &ressources, &cible, &mut |_| {}, &AtomicBool::new(false)).unwrap();
+            cible
+        };
+        // Sans couleur et plus clair : le rouge, puis le bleu, deviennent des gris.
+        let gris = film(json!({ "saturation": -100, "exposition": 1 }), "gris");
+        for t in [0.5, 1.5] {
+            let p = image_a(&gris, t).get_pixel(160, 50).0;
+            assert!(p[0].abs_diff(p[1]) <= 6 && p[1].abs_diff(p[2]) <= 6 && p[0] > 60, "{t} s : {p:?}");
+        }
+        // Le grain : deux images voisines d'un rouge uni diffèrent ; sans grain, elles se valent.
+        let ecart = |f: &Path| {
+            let (a, b) = (image_a(f, 0.40), image_a(f, 0.52));
+            let zone = |i: &image::RgbImage| (40..120).flat_map(|y| (60..260).map(move |x| (x, y))).map(|(x, y)| i.get_pixel(x, y).0[0] as f32).collect::<Vec<_>>();
+            zone(&a).iter().zip(zone(&b)).map(|(x, y)| (x - y).abs()).sum::<f32>() / (80.0 * 200.0)
+        };
+        let (avec, sans) = (ecart(&film(json!({ "grain": 100, "exposition": -1 }), "grain")), ecart(&film(json!({ "exposition": -1 }), "sans")));
+        assert!(avec > sans + 1.5, "grain : {avec} contre {sans}");
         let _ = fs::remove_dir_all(&dossier);
     }
 

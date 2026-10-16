@@ -1,4 +1,4 @@
-// Les photos retouchées par le labo (étape 5, lots 2 et 3), dans la fenêtre : une toile par élément,
+// Les photos et les clips retouchés par le labo (étape 5, lots 2 à 4), dans la fenêtre. Une photo : une toile par élément,
 // dessinée par le shader (`shader.ts`) à partir de l'aperçu de 2560 px et, quand il y a des
 // réglages qui regardent les voisins, de la base que le noyau calcule. L'export reconnaît la
 // toile (`marquerToile`) et pose l'original à sa place : le noyau refait la retouche.
@@ -7,9 +7,9 @@ import { create } from "zustand";
 import { marquerToile } from "../editeur/images";
 import { elementsCourants, elementsSelectionnes, useEditeur } from "../etat/editeur";
 import { aDesVoisins, cleReglages, normaliserReglages, type ReglagesPhoto } from "../modele/labo";
-import type { ElementImage, ElementPage, PageEliot } from "../modele/types";
-import { baseLabo } from "../pont/tauri";
-import { moteurLabo, type PixelsBruts } from "./shader";
+import type { ElementImage, ElementPage, ElementVideo, PageEliot } from "../modele/types";
+import { baseLabo, baseLaboPixels } from "../pont/tauri";
+import { graineDuTemps, moteurLabo, moteurVideo, type PixelsBruts } from "./shader";
 
 interface EtatLabo {
   /** La photo dont le panneau du labo est ouvert. */
@@ -68,6 +68,8 @@ useEditeur.subscribe((s, avant) => {
   if (s.projet !== avant.projet) {
     for (const r of retouches.values()) clearTimeout(r.minuteur);
     retouches.clear();
+    for (const c of clips.values()) clearTimeout(c.minuteur);
+    clips.clear();
     enDirect = null;
     dansLeMoteur = "";
     moteurLabo()?.oublier();
@@ -207,8 +209,11 @@ export function imageRetouchee(id: string, ressource: string, source: HTMLImageE
   return r.toile;
 }
 
-/** La toile retouchée d'une photo telle qu'elle s'affiche (histogramme, essais). */
+/** La toile retouchée d'une photo telle qu'elle s'affiche, ou la dernière image d'un clip
+ *  dessinée à l'arrêt (histogramme, essais). */
 export function toileRetouchee(id: string): HTMLCanvasElement | undefined {
+  const c = clips.get(id);
+  if (c?.apercu) return c.apercu;
   if (enDirect === id) return moteurLabo()?.toile;
   const r = retouches.get(id);
   return r && r.version > 0 ? r.toile : undefined;
@@ -226,40 +231,184 @@ export function finGeste(): void {
 export async function assurerRetouches(page: PageEliot): Promise<void> {
   const attentes: Promise<void>[] = [];
   for (const e of page.elements) {
-    if (e.type !== "image") continue;
+    if (e.type !== "image" && e.type !== "video") continue;
     const n = normaliserReglages(e.reglages);
     if (!n || !aDesVoisins(n)) continue;
-    const r = retouche(e.id, e.ressource);
+    // Un clip montré figé l'est par sa couverture (lot 4), retouchée comme une photo.
+    const id = e.type === "video" ? cleCouverture(e.id) : e.id;
+    const r = retouche(id, e.ressource);
     const cle = cleReglages(n);
     if (r.base?.cle === cle || r.ratee === cle) continue;
     attentes.push(new Promise<void>((fini) => r.attentes.push({ cle, fini })));
-    planifierBase(e.id, r, n, true);
+    planifierBase(id, r, n, true);
   }
   // Pas plus de vingt secondes : une base qui n'arrive pas ne bloque pas la capture.
   await Promise.race([Promise.all(attentes), new Promise((ok) => setTimeout(ok, 20_000))]);
 }
 
-/** Copie les réglages d'une photo (`id`, ou la seule photo choisie). */
-export function copierReglages(id?: string): boolean {
-  const etat = useEditeur.getState();
-  const photos = (id ? elementsCourants(etat).filter((e) => e.id === id) : elementsSelectionnes(etat)).filter((e): e is ElementImage => e.type === "image");
-  if (photos.length !== 1) return false;
-  const reglages = normaliserReglages(photos[0].reglages);
-  useLabo.setState({ copie: { reglages } });
-  etat.notifier(reglages ? "Réglages copiés : Ctrl+Maj+V les colle sur les photos choisies." : "Cette photo n'a pas de retouche : coller remettra à zéro les photos choisies.");
+// ----------------------------------------------------------------------------------------
+// Les clips vidéo (lot 4)
+// ----------------------------------------------------------------------------------------
+
+interface BaseClip {
+  cle: string;
+  /** L'instant du fichier (s) de l'image d'où la base a été calculée. */
+  temps: number;
+  image: PixelsBruts;
+  reglages: ReglagesPhoto;
+}
+
+interface Clip {
+  base?: BaseClip;
+  demande?: string;
+  ratee?: string;
+  minuteur?: ReturnType<typeof setTimeout>;
+  /** La dernière image dessinée à l'arrêt, réduite (l'histogramme). */
+  apercu?: HTMLCanvasElement;
+}
+
+const clips = new Map<string, Clip>();
+const abonnesApercu = new Map<string, Set<() => void>>();
+
+function clip(id: string): Clip {
+  let c = clips.get(id);
+  if (!c) {
+    c = {};
+    clips.set(id, c);
+  }
+  return c;
+}
+
+/** Prévenu quand la dernière image d'un clip à l'arrêt change (l'histogramme du labo). */
+export function abonnerApercuClip(id: string, f: () => void): () => void {
+  if (!abonnesApercu.has(id)) abonnesApercu.set(id, new Set());
+  abonnesApercu.get(id)!.add(f);
+  return () => abonnesApercu.get(id)?.delete(f);
+}
+
+/** Demande au noyau la base de l'image affichée d'un clip à l'arrêt (pas pendant qu'on tire
+ *  un curseur : au relâchement). */
+function planifierBaseClip(id: string, c: Clip, video: HTMLVideoElement, reglages: ReglagesPhoto): void {
+  const temps = video.currentTime;
+  const cle = `${cleReglages(reglages)}@${temps}`;
+  if (c.base?.cle === cle || c.demande === cle || c.ratee === cle) return;
+  clearTimeout(c.minuteur);
+  if (useLabo.getState().geste) return;
+  c.minuteur = setTimeout(() => {
+    // La lecture a repris, ou la tête a bougé : la demande ne sert plus.
+    if (!video.paused || video.currentTime !== temps) return;
+    const largeur = video.videoWidth;
+    const hauteur = video.videoHeight;
+    // Les pixels mêmes que la page montre : le noyau et le shader partent de la même image.
+    const toile = document.createElement("canvas");
+    toile.width = largeur;
+    toile.height = hauteur;
+    const ctx = toile.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(video, 0, 0);
+    const pixels = new Uint8Array(ctx.getImageData(0, 0, largeur, hauteur).data.buffer);
+    c.demande = cle;
+    baseLaboPixels(largeur, hauteur, pixels, reglages).then(
+      (image) => {
+        if (c.demande === cle) c.demande = undefined;
+        if (image) c.base = { cle, temps, image: { pixels: image, largeur, hauteur }, reglages };
+        else c.ratee = cle;
+        prevenir(id);
+      },
+      (e) => {
+        console.warn(`retouche du clip : ${String(e)}`);
+        if (c.demande === cle) c.demande = undefined;
+        c.ratee = cle;
+      },
+    );
+  }, 150);
+}
+
+/**
+ * Dessine dans `ctx` (le canevas de la page) l'image courante d'un clip, retouchée, à la taille
+ * `largeur` × `hauteur`. Le moteur des clips la passe au shader au moment même où la page la
+ * dessine : rien n'est recopié (règle 11), et plusieurs clips y passent l'un après l'autre. À
+ * l'arrêt, les réglages qui regardent les voisins viennent d'une base que le noyau calcule sur
+ * l'image affichée ; pendant la lecture, seuls les réglages d'un pixel suivent. Le grain change
+ * avec l'instant du fichier. `essai` : un préréglage survolé, sans demande au noyau. Renvoie
+ * faux si l'image n'a pas pu être dessinée.
+ */
+export function dessinerClipRetouche(ctx: { drawImage(image: CanvasImageSource, x: number, y: number, l: number, h: number): void }, id: string, video: HTMLVideoElement, reglages: ReglagesPhoto | undefined, largeur: number, hauteur: number, essai = false): boolean {
+  const moteur = moteurVideo();
+  const l = video.videoWidth;
+  const h = video.videoHeight;
+  if (!moteur || !l || !h || video.readyState < 2) return false;
+  const n = normaliserReglages(reglages) ?? {};
+  const c = clip(id);
+  let base: BaseClip | undefined;
+  if (video.paused) {
+    const voisins = aDesVoisins(n);
+    if ((voisins || essai) && c.base && c.base.temps === video.currentTime && c.base.image.largeur === l && c.base.image.hauteur === h) base = c.base;
+    if (voisins && !essai) planifierBaseClip(id, c, video, n);
+  }
+  moteur.dessiner(video, l, h, n, base ? { image: base.image, reglages: base.reglages } : undefined, graineDuTemps(video.currentTime * 1000));
+  ctx.drawImage(moteur.toile, 0, 0, largeur, hauteur);
+  if (video.paused && useLabo.getState().ouvert === id) {
+    // L'histogramme du labo : une copie réduite, prévenue après le dessin.
+    const a = c.apercu ?? document.createElement("canvas");
+    a.width = 256;
+    a.height = Math.max(1, Math.round((h / l) * 256));
+    a.getContext("2d")!.drawImage(moteur.toile, 0, 0, a.width, a.height);
+    c.apercu = a;
+    setTimeout(() => {
+      for (const f of abonnesApercu.get(id) ?? []) f();
+    }, 0);
+  }
   return true;
 }
 
-/** Colle les réglages copiés sur les photos `ids` (ou les photos choisies), en une seule étape
- *  d'annulation. Renvoie le nombre de photos retouchées. */
+/**
+ * Une image fixe retouchée par le shader des photos (réglages d'un pixel seulement), dans une
+ * toile à elle : l'image d'un clip à un instant dans le navigateur, où le noyau n'est pas là
+ * pour la retoucher. `graine` : celle de l'instant.
+ */
+export function retoucherFixe(source: CanvasImageSource & { width: number; height: number }, reglages: ReglagesPhoto | undefined, graine: number): CanvasImageSource {
+  const n = normaliserReglages(reglages);
+  const moteur = moteurLabo();
+  if (!n || !moteur) return source;
+  if (enDirect) figerEnDirect();
+  const l = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+  const h = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+  moteur.dessiner(source as TexImageSource, l, h, n, undefined, graine);
+  const toile = document.createElement("canvas");
+  toile.width = l;
+  toile.height = h;
+  toile.getContext("2d")!.drawImage(moteur.toile, 0, 0);
+  dansLeMoteur = "";
+  return toile;
+}
+
+/** La clé de la couverture retouchée d'un clip (ses vignettes, son image en attendant la
+ *  copie d'aperçu) : à part de celle du clip qui joue. */
+export function cleCouverture(id: string): string {
+  return `${id}#couverture`;
+}
+
+/** Copie les réglages d'une photo ou d'un clip (`id`, ou le seul choisi). */
+export function copierReglages(id?: string): boolean {
+  const etat = useEditeur.getState();
+  const photos = (id ? elementsCourants(etat).filter((e) => e.id === id) : elementsSelectionnes(etat)).filter((e): e is ElementImage | ElementVideo => e.type === "image" || e.type === "video");
+  if (photos.length !== 1) return false;
+  const reglages = normaliserReglages(photos[0].reglages);
+  useLabo.setState({ copie: { reglages } });
+  etat.notifier(reglages ? "Réglages copiés : Ctrl+Maj+V les colle sur les photos et les clips choisis." : "Pas de retouche ici : coller remettra à zéro les photos et les clips choisis.");
+  return true;
+}
+
+/** Colle les réglages copiés sur les photos et les clips `ids` (ou ceux choisis), en une seule
+ *  étape d'annulation. Renvoie le nombre d'images retouchées. */
 export function collerReglages(ids?: string[]): number {
   const { copie } = useLabo.getState();
   if (!copie) return 0;
   const etat = useEditeur.getState();
-  const cibles = (ids ? elementsCourants(etat).filter((e) => ids.includes(e.id)) : elementsSelectionnes(etat)).filter((e) => e.type === "image" && !e.verrouille);
+  const cibles = (ids ? elementsCourants(etat).filter((e) => ids.includes(e.id)) : elementsSelectionnes(etat)).filter((e) => (e.type === "image" || e.type === "video") && !e.verrouille);
   if (!cibles.length) return 0;
   etat.modifierElements(Object.fromEntries(cibles.map((e) => [e.id, { reglages: copie.reglages } as Partial<ElementPage>])));
-  etat.notifier(cibles.length === 1 ? "Réglages collés. Ctrl+Z pour revenir." : `Réglages collés sur ${cibles.length} photos. Ctrl+Z pour revenir.`);
+  etat.notifier(cibles.length === 1 ? "Réglages collés. Ctrl+Z pour revenir." : `Réglages collés sur ${cibles.length} images. Ctrl+Z pour revenir.`);
   return cibles.length;
 }
 

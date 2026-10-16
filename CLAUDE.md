@@ -75,8 +75,11 @@ lourd. Détail : `BRIEF.md`.
   photo (étape 5, lot 2) ». Lot 3, courbe des tonalités, 23 préréglages dessinés par Claude, ceux
   d'Alexandre (rangés dans `~/Documents/Eliot/Préréglages/`), copier et coller les réglages
   (Ctrl+Maj+C et V), outil `prereglages` du pont (63 outils), livré et vérifié le 2026-10-16 ;
-  essai d'Alexandre : « Essayer la courbe et les préréglages (étape 5, lot 3) ». Après ces
-  livraisons : recompiler l'application (commande 9) et le pont (commande 13).
+  essai d'Alexandre : « Essayer la courbe et les préréglages (étape 5, lot 3) ». Lot 4, les clips
+  vidéo au labo (retouche qui suit la lecture, réglages voisins à l'arrêt, grain qui bouge,
+  export image par image), livré et vérifié le 2026-10-16 ; essai d'Alexandre : « Essayer les
+  clips au labo (étape 5, lot 4) ». Après ces livraisons : recompiler l'application (commande
+  9) et le pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -285,7 +288,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 99 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 103 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
@@ -297,7 +300,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  187 passed`.
+Vérifier : `Tests  189 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

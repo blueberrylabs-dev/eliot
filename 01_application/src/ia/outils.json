@@ -2249,13 +2249,13 @@
   },
   {
     "name": "retoucher",
-    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original. Juger le résultat avec capture. Renvoie les réglages de la photo.",
+    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) ou un clip vidéo (type video) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original (un clip : chaque image du film, son grain change d'une image à l'autre). Juger le résultat avec capture. Renvoie les réglages de la photo.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Identifiant de la photo (voir etat)."
+          "description": "Identifiant de la photo ou du clip (voir etat)."
         },
         "reglages": {
           "type": "object",
@@ -2489,7 +2489,7 @@
         },
         "depuis": {
           "type": "string",
-          "description": "Identifiant d'une autre photo de la page : ses réglages sont copiés d'abord (tous, exposition comprise)."
+          "description": "Identifiant d'une autre photo ou d'un autre clip de la page : ses réglages sont copiés d'abord (tous, exposition comprise)."
         },
         "prereglage": {
           "type": "string",
@@ -2507,7 +2507,7 @@
   },
   {
     "name": "prereglages",
-    "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo (depuis) ou des réglages donnés, sans l'exposition, la netteté ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
+    "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo ou d'un clip (depuis) ou des réglages donnés, sans l'exposition, la netteté ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2525,7 +2525,7 @@
         },
         "depuis": {
           "type": "string",
-          "description": "enregistrer : l'identifiant de la photo dont le style est gardé."
+          "description": "enregistrer : l'identifiant de la photo ou du clip dont le style est gardé."
         },
         "reglages": {
           "type": "object",

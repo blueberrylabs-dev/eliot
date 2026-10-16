@@ -581,11 +581,11 @@ export function BarreContexte() {
           {separateur}
         </>
       )}
-      {choisis.length === 1 && choisis[0].type === "image" && (
+      {choisis.length === 1 && (choisis[0].type === "image" || choisis[0].type === "video") && (
         <>
           <button
             data-retoucher
-            title="Retoucher la photo : préréglages, lumière, couleur, effets, détail"
+            title={choisis[0].type === "video" ? "Retoucher le clip : préréglages, lumière, couleur, effets, détail" : "Retoucher la photo : préréglages, lumière, couleur, effets, détail"}
             onClick={() => useLabo.setState({ ouvert: choisis[0].id })}
             className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
           >
@@ -594,9 +594,9 @@ export function BarreContexte() {
           {separateur}
         </>
       )}
-      {copieReglages && choisis.length > 0 && choisis.every((e) => e.type === "image") && (
+      {copieReglages && choisis.length > 0 && choisis.every((e) => e.type === "image" || e.type === "video") && (
         <>
-          <Bouton titre={choisis.length > 1 ? `Coller les réglages copiés sur ces ${choisis.length} photos (Ctrl+Maj+V)` : "Coller les réglages copiés (Ctrl+Maj+V)"} surClic={() => collerReglages()}>
+          <Bouton titre={choisis.length > 1 ? `Coller les réglages copiés sur ces ${choisis.length} images (Ctrl+Maj+V)` : "Coller les réglages copiés (Ctrl+Maj+V)"} surClic={() => collerReglages()}>
             <ClipboardPaste size={16} />
           </Bouton>
           {separateur}

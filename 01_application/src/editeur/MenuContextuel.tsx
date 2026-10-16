@@ -40,8 +40,8 @@ export function MenuContextuel({ x, y, fermer }: Proprietes) {
   };
   const aSelection = selection.length > 0;
   const verrouille = choisis.some((e) => e.verrouille);
-  // Le labo photo : copier et coller les réglages d'une photo à l'autre.
-  const photos = choisis.length > 0 && choisis.every((e) => e.type === "image");
+  // Le labo photo : copier et coller les réglages d'une photo ou d'un clip à l'autre.
+  const photos = choisis.length > 0 && choisis.every((e) => e.type === "image" || e.type === "video");
   const masque = choisis.length === 1 && !choisis[0].visible;
   const groupes = new Set(choisis.map((e) => e.groupe ?? e.id));
   const groupe = choisis.length > 1 && groupes.size === 1 && !!choisis[0].groupe;

@@ -22,7 +22,8 @@ import { visibleA } from "../modele/frise";
 import { aDesUnites, contextesTransitions, ecrireFenetre, estAnime, etatAnime, etatUnite, lireFenetre, type Effet, type EtatAnime, type Pose, type Unites } from "../modele/animation";
 import { useEditeur } from "../etat/editeur";
 import { useApercuAnimation } from "./apercuAnimation";
-import { abonnerRetouche, imageRetouchee, useLabo } from "../labo/retouche";
+import { abonnerRetouche, cleCouverture, dessinerClipRetouche, imageRetouchee, useLabo } from "../labo/retouche";
+import { normaliserReglages } from "../modele/labo";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
@@ -212,14 +213,31 @@ function Video({ el, statique, anime, image }: { el: ElementVideo; statique: boo
   const enLecture = useLecture((s) => !!s.enLecture[el.id]);
   const noeud = useRef<Konva.Image>(null);
   const video = useLecteurVideo(el, anime || enLecture, true, noeud, statique && !anime);
-  // Figée : l'image exacte de l'instant quand le rendu l'a préparée, sinon la couverture.
-  if (statique && !anime) return <Plaque el={el} image={image ?? couverture} />;
-  return <Plaque el={el} image={video ?? couverture} noeud={noeud} />;
+  // Le labo (étape 5, lot 4) : « Avant » maintenu montre le clip sans retouche ; un préréglage
+  // survolé le montre sans changer le document.
+  const avant = useLabo((s) => s.avant && s.ouvert === el.id);
+  const essai = useLabo((s) => (s.essai?.id === el.id ? s.essai : null));
+  const reglages = essai ? essai.reglages : el.reglages;
+  const retouche = !avant && (!!essai || !!normaliserReglages(reglages));
+  const [, rafraichir] = useState(0);
+  useEffect(() => abonnerRetouche(el.id, () => noeud.current?.getLayer()?.batchDraw()), [el.id]);
+  useEffect(() => abonnerRetouche(cleCouverture(el.id), () => rafraichir((v) => v + 1)), [el.id]);
+  // Un réglage change : l'image courante est redessinée (le clip peut être à l'arrêt).
+  useLayoutEffect(() => {
+    noeud.current?.getLayer()?.batchDraw();
+  });
+  // La couverture d'un clip retouché (vignettes, en attendant la copie d'aperçu), comme une photo.
+  const couvertureRetouchee = () => (couverture && retouche ? imageRetouchee(cleCouverture(el.id), el.ressource, couverture, reglages, !!essai) : couverture);
+  // Figée : l'image exacte de l'instant quand le rendu l'a préparée (déjà retouchée), sinon la
+  // couverture.
+  if (statique && !anime) return <Plaque el={el} image={image ?? couvertureRetouchee()} />;
+  const dessiner = video && retouche ? (ctx: Konva.Context, l: number, h: number) => dessinerClipRetouche(ctx, el.id, video, reglages, l, h, !!essai) : undefined;
+  return <Plaque el={el} image={video ?? couvertureRetouchee()} noeud={noeud} dessiner={dessiner} />;
 }
 
 /** Une photo ou l'image courante d'une vidéo dans sa boîte : retournée, coins arrondis,
  *  bordure, ombre. */
-function Plaque({ el, image, noeud }: { el: ElementImage | ElementVideo; image: CanvasImageSource | undefined; noeud?: React.Ref<Konva.Image> }) {
+function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVideo; image: CanvasImageSource | undefined; noeud?: React.Ref<Konva.Image>; dessiner?: (ctx: Konva.Context, largeur: number, hauteur: number) => boolean }) {
   const arrondi = Math.min(el.arrondi ?? 0, el.largeur / 2, el.hauteur / 2);
   if (!image) {
     // En attendant l'aperçu (ou s'il manque), une plaque grise à la bonne taille.
@@ -237,6 +255,14 @@ function Plaque({ el, image, noeud }: { el: ElementImage | ElementVideo; image: 
       scaleY={el.retourneV ? -1 : 1}
       perfectDrawEnabled={false}
       {...(arrondi > 0 ? {} : ombreKonva(el.ombre))}
+      {...(dessiner
+        ? {
+            // Un clip retouché : son image passe par le shader au moment du dessin.
+            sceneFunc: (ctx: Konva.Context, forme: Konva.Shape) => {
+              if (!dessiner(ctx, forme.width(), forme.height())) ctx.drawImage(image, 0, 0, forme.width(), forme.height());
+            },
+          }
+        : {})}
     />
   );
   const bordure = el.bordure && el.bordure.epaisseur > 0 && (

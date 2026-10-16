@@ -1,4 +1,5 @@
-//! Le labo photo (étape 5, lots 2 et 3) : les réglages d'une photo façon Lightroom, valeurs du
+//! Le labo photo (étape 5, lots 2 à 4) : les réglages d'une photo ou d'un clip vidéo façon
+//! Lightroom, valeurs du
 //! document (règle 13 : l'original n'est jamais touché), calculés en nombres à virgule, en
 //! lumière linéaire, dans l'ordre fixe du BRIEF (§ 6, « Ce que Eliot reprend de Lightroom ») :
 //!
@@ -17,6 +18,9 @@
 //! calcule au relâchement du curseur, sur l'aperçu de 2560 px, et à l'export, depuis l'original.
 //! Leurs rayons comptent en pixels d'une image de 2560 px de grand côté et suivent la taille de
 //! l'image : l'aperçu et l'original donnent le même dessin.
+//!
+//! Un clip vidéo (lot 4) passe image par image dans les mêmes formules ; son grain change 24 fois
+//! par seconde du fichier (`graine_du_temps`), comme celui d'un film.
 
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -306,13 +310,21 @@ pub fn hachage(x: u32, y: u32) -> u32 {
     h ^ (h >> 16)
 }
 
+/// La graine du grain d'une image prise à `ms` millisecondes de son fichier : elle change 24
+/// fois par seconde. Une photo a la graine 0.
+pub fn graine_du_temps(ms: f64) -> u32 {
+    if ms.is_finite() && ms > 0.0 { (ms * 24.0 / 1000.0 + 1e-6).floor() as u32 } else { 0 }
+}
+
 /// Le bruit du grain au point `(gx, gy)` de la grille de référence, de -0,5 à 0,5 : la valeur
-/// de chaque nœud vient du hachage, entre les nœuds elle se lit en ligne droite.
-fn bruit_valeur(gx: f32, gy: f32) -> f32 {
+/// de chaque nœud vient du hachage, entre les nœuds elle se lit en ligne droite. La graine
+/// décale la grille : un autre tirage, image après image (le même décalage en GLSL).
+fn bruit_valeur(gx: f32, gy: f32, graine: u32) -> f32 {
     let (x0, y0) = (gx.floor(), gy.floor());
     let (fx, fy) = (gx - x0, gy - y0);
     let (ix, iy) = (x0.max(0.0) as u32, y0.max(0.0) as u32);
-    let h = |x: u32, y: u32| (hachage(x, y) & 0xffff) as f32 / 65535.0 - 0.5;
+    let (ox, oy) = (graine.wrapping_mul(7919), graine.wrapping_mul(6271));
+    let h = |x: u32, y: u32| (hachage(x.wrapping_add(ox), y.wrapping_add(oy)) & 0xffff) as f32 / 65535.0 - 0.5;
     let haut = h(ix, iy) * (1.0 - fx) + h(ix + 1, iy) * fx;
     let bas = h(ix, iy + 1) * (1.0 - fx) + h(ix + 1, iy + 1) * fx;
     haut * (1.0 - fy) + bas * fy
@@ -328,12 +340,16 @@ pub struct Prepares {
     r: Reglages,
     melangeur: [[f32; 3]; 8],
     melange: bool,
+    /// Des tonalités à régler (sinon l'étape est sautée : deux puissances de moins par pixel).
+    tonal: bool,
     /// La table de la courbe et le retour du sRGB à la lumière linéaire, s'il y a une courbe.
     courbe: Option<(Vec<[f32; 3]>, Table)>,
     /// Le grand côté de l'image (vignetage et grain suivent sa taille).
     largeur: u32,
     hauteur: u32,
     echelle_grain: f32,
+    /// La graine du grain (0 pour une photo ; un clip : `graine_du_temps`).
+    graine: u32,
 }
 
 impl Prepares {
@@ -352,7 +368,14 @@ impl Prepares {
         let melange = melangeur.iter().flatten().any(|v| *v != 0.0);
         let cote = largeur.max(hauteur).max(1) as f32;
         let courbe = table_courbe(&r.courbe).map(|t| (t, Table::new(srgb_vers_lineaire)));
-        Prepares { entree, sortie, gains, r, melangeur, melange, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote }
+        let tonal = [r.contraste, r.hautes_lumieres, r.ombres, r.blancs, r.noirs].iter().any(|v| *v != 0.0);
+        Prepares { entree, sortie, gains, r, melangeur, melange, tonal, courbe, largeur, hauteur, echelle_grain: COTE_REFERENCE / cote, graine: 0 }
+    }
+
+    /// La graine du grain d'une image d'un clip.
+    pub fn avec_graine(mut self, graine: u32) -> Self {
+        self.graine = graine;
+        self
     }
 
     pub fn vers_lineaire(&self, c: u8) -> f32 {
@@ -379,7 +402,7 @@ impl Prepares {
         let mut l = [c[0] * self.gains[0], c[1] * self.gains[1], c[2] * self.gains[2]];
         // Tonalités, sur la luminance perçue.
         let y0 = l[0] * LUMA[0] + l[1] * LUMA[1] + l[2] * LUMA[2];
-        if y0 > 1e-6 {
+        if self.tonal && y0 > 1e-6 {
             let mut p = y0.powf(1.0 / 2.2);
             let f = if r.contraste >= 0.0 { 1.0 + r.contraste / 100.0 * 0.8 } else { 1.0 + r.contraste / 100.0 * 0.6 };
             p = 0.5 + (p - 0.5) * f;
@@ -466,7 +489,7 @@ impl Prepares {
         if r.grain != 0.0 {
             let gx = (x as f32 + 0.5) * self.echelle_grain - 0.5;
             let gy = (y as f32 + 0.5) * self.echelle_grain - 0.5;
-            let f = 1.0 + r.grain / 100.0 * 0.25 * bruit_valeur(gx, gy) * 2.0;
+            let f = 1.0 + r.grain / 100.0 * 0.25 * bruit_valeur(gx, gy, self.graine) * 2.0;
             l = [l[0] * f, l[1] * f, l[2] * f];
         }
         l
@@ -675,11 +698,16 @@ fn reglages_voisins(lin: &mut [f32], l: usize, h: usize, r: &Reglages) {
 /// pas). `effets` : avec le vignetage et le grain (l'export) ou sans (la base de l'aperçu en
 /// direct, que le shader complète).
 pub fn appliquer(rgba: &mut [u8], largeur: u32, hauteur: u32, r: &Reglages, effets: bool) {
+    appliquer_graine(rgba, largeur, hauteur, r, effets, 0);
+}
+
+/// Le même, pour une image d'un clip : `graine` tire son grain (`graine_du_temps`).
+pub fn appliquer_graine(rgba: &mut [u8], largeur: u32, hauteur: u32, r: &Reglages, effets: bool, graine: u32) {
     let r = r.bornes();
-    if r.neutres() || largeur == 0 || hauteur == 0 {
+    if r.neutres() || largeur == 0 || hauteur == 0 || rgba.len() < largeur as usize * hauteur as usize * 4 {
         return;
     }
-    let pr = Prepares::new(&r, largeur, hauteur);
+    let pr = Prepares::new(&r, largeur, hauteur).avec_graine(graine);
     let (l, h) = (largeur as usize, hauteur as usize);
     if !r.voisins() {
         rgba.par_chunks_mut(l * 4).enumerate().for_each(|(y, ligne)| {
@@ -740,6 +768,29 @@ pub fn base_apercu(chemin: &std::path::Path, r: &Reglages) -> Result<Vec<u8>, St
     sortie.extend_from_slice(&h.to_le_bytes());
     sortie.extend_from_slice(apercu.as_raw());
     appliquer(&mut sortie[8..], l, h, r, false);
+    Ok(sortie)
+}
+
+/// La base de l'aperçu en direct d'un clip à l'arrêt (lot 4) : l'image que la fenêtre montre,
+/// envoyée telle quelle (RGBA), retouchée sans vignetage ni grain. Même rôle que
+/// `base_apercu` pour une photo ; la fenêtre et le noyau partent ainsi des mêmes pixels.
+pub fn base_pixels(largeur: u32, hauteur: u32, mut rgba: Vec<u8>, r: &Reglages) -> Result<Vec<u8>, String> {
+    if largeur == 0 || hauteur == 0 || rgba.len() != largeur as usize * hauteur as usize * 4 {
+        return Err(format!("image de {} octets pour {largeur} × {hauteur} px", rgba.len()));
+    }
+    appliquer(&mut rgba, largeur, hauteur, r, false);
+    Ok(rgba)
+}
+
+/// Une image d'un clip en JPEG (la copie d'aperçu à un instant), retouchée en entier, grain de
+/// cet instant compris : la capture et les vignettes d'une page vidéo.
+pub fn retoucher_jpeg(jpeg: &[u8], r: &Reglages, graine: u32) -> Result<Vec<u8>, String> {
+    let mut img = image::load_from_memory(jpeg).map_err(|e| format!("image illisible : {e}"))?.to_rgba8();
+    let (l, h) = img.dimensions();
+    appliquer_graine(&mut img, l, h, r, true, graine);
+    let rgb = image::DynamicImage::ImageRgba8(img).to_rgb8();
+    let mut sortie = Vec::new();
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut sortie, 92).encode_image(&rgb).map_err(|e| format!("JPEG : {e}"))?;
     Ok(sortie)
 }
 
@@ -832,6 +883,11 @@ mod tests {
     const ATTENDUS: &str = include_str!("../../src/modele/labo.attendus.json");
 
     /// Les cas du tableau commun : chacun est une image de 64 × 48 px dont on lit 96 pixels.
+    /// La graine du grain de chaque cas (0 : une photo).
+    fn graine_du_cas(nom: &str) -> u32 {
+        if nom.contains("image 37") { 37 } else { 0 }
+    }
+
     fn cas() -> Vec<(String, Reglages)> {
         let r = |v: Value| serde_json::from_value::<Reglages>(v).unwrap();
         vec![
@@ -854,6 +910,7 @@ mod tests {
             ("courbe délavée".into(), r(json!({ "courbe": { "rgb": [[0, 40], [128, 128], [255, 228]] } }))),
             ("courbes par canal".into(), r(json!({ "courbe": { "rouge": [[0, 0], [128, 150], [255, 255]], "vert": [[60, 50]], "bleu": [[0, 30], [255, 220]] } }))),
             ("courbe et exposition".into(), r(json!({ "exposition": 1.2, "contraste": 20, "courbe": { "rgb": [[0, 20], [96, 80], [200, 215], [255, 240]], "bleu": [[0, 12], [255, 245]] }, "saturation": 15 }))),
+            ("grain 70, image 37 d'un clip".into(), r(json!({ "grain": 70, "contraste": 10 }))),
         ]
     }
 
@@ -889,9 +946,10 @@ mod tests {
         let cas: Vec<Value> = cas()
             .into_iter()
             .map(|(nom, r)| {
-                let p = Prepares::new(&r, 64, 48);
+                let graine = graine_du_cas(&nom);
+                let p = Prepares::new(&r, 64, 48).avec_graine(graine);
                 let pixels: Vec<Value> = positions().into_iter().map(|(x, y)| json!({ "x": x, "y": y, "entree": entree(x, y), "sortie": p.pixel(entree(x, y), x, y) })).collect();
-                json!({ "nom": nom, "reglages": r, "largeur": 64, "hauteur": 48, "pixels": pixels })
+                json!({ "nom": nom, "reglages": r, "graine": graine, "largeur": 64, "hauteur": 48, "pixels": pixels })
             })
             .collect();
         json!({ "note": "Calculé par le noyau (labo.rs, cargo test avec ELIOT_ECRIRE_ATTENDUS=1) ; relu par le noyau et par le shader de la fenêtre.", "cas": cas })
@@ -909,7 +967,7 @@ mod tests {
         assert_eq!(attendu["cas"].as_array().unwrap().len(), calcule["cas"].as_array().unwrap().len());
         for (a, c) in attendu["cas"].as_array().unwrap().iter().zip(calcule["cas"].as_array().unwrap()) {
             let r: Reglages = serde_json::from_value(a["reglages"].clone()).unwrap();
-            let p = Prepares::new(&r, 64, 48);
+            let p = Prepares::new(&r, 64, 48).avec_graine(a["graine"].as_u64().unwrap_or(0) as u32);
             for px in a["pixels"].as_array().unwrap() {
                 let (x, y) = (px["x"].as_u64().unwrap() as u32, px["y"].as_u64().unwrap() as u32);
                 let e: [u8; 3] = serde_json::from_value(px["entree"].clone()).unwrap();
@@ -990,6 +1048,47 @@ mod tests {
         let t = table_courbe(&Courbe { rgb: vec![[0.0, 0.0], [30.0, 120.0], [60.0, 130.0], [255.0, 255.0]], ..Default::default() }).unwrap();
         assert!(t.windows(2).all(|w| w[1][0] >= w[0][0] - 1e-6));
         assert!(t.iter().all(|v| (0.0..=1.0).contains(&v[0])));
+    }
+
+    #[test]
+    fn le_grain_d_un_clip_change_d_une_image_a_l_autre() {
+        assert_eq!(graine_du_temps(0.0), 0);
+        assert_eq!(graine_du_temps(41.0), 0);
+        assert_eq!(graine_du_temps(1000.0 / 24.0), 1);
+        assert_eq!(graine_du_temps(1000.0), 24);
+        assert_eq!(graine_du_temps(f64::NAN), 0);
+        let r = Reglages { grain: 80.0, ..Default::default() };
+        let tirer = |graine: u32| {
+            let mut img = vec![128u8; 200 * 120 * 4];
+            appliquer_graine(&mut img, 200, 120, &r, true, graine);
+            img
+        };
+        let (a, b, a2) = (tirer(3), tirer(4), tirer(3));
+        assert_eq!(a, a2, "même graine, même grain");
+        let differents = a.chunks(4).zip(b.chunks(4)).filter(|(x, y)| x[0] != y[0]).count();
+        assert!(differents > 200 * 120 / 2, "{differents} pixels changent d'une image à l'autre");
+        // La graine 0 reste celle d'une photo.
+        let mut photo = vec![128u8; 200 * 120 * 4];
+        appliquer(&mut photo, 200, 120, &r, true);
+        assert_eq!(photo, tirer(0));
+    }
+
+    #[test]
+    fn la_base_d_un_clip_et_son_image_retouchee() {
+        let r: Reglages = serde_json::from_value(json!({ "saturation": -100, "clarte": 40, "vignetage": -50 })).unwrap();
+        let pixels: Vec<u8> = (0..80 * 60).flat_map(|i| [200u8, (i % 256) as u8, 40, 255]).collect();
+        let base = base_pixels(80, 60, pixels.clone(), &r).unwrap();
+        // Sans vignetage : le coin et le centre ont le même gris pour une même entrée.
+        assert!(base.chunks(4).all(|c| c[0] == c[1] && c[1] == c[2]));
+        assert!(base_pixels(80, 60, vec![0; 10], &r).is_err());
+        // Le JPEG retouché : gris, et le vignetage assombrit les coins.
+        let mut jpeg = Vec::new();
+        let img = image::RgbImage::from_pixel(160, 120, image::Rgb([180, 120, 60]));
+        image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpeg, 95).encode_image(&img).unwrap();
+        let sortie = image::load_from_memory(&retoucher_jpeg(&jpeg, &r, 5).unwrap()).unwrap().to_rgb8();
+        let (coin, centre) = (sortie.get_pixel(1, 1), sortie.get_pixel(80, 60));
+        assert!(centre[0].abs_diff(centre[2]) <= 3, "{centre:?}");
+        assert!(coin[0] + 15 < centre[0], "{coin:?} contre {centre:?}");
     }
 
     #[test]

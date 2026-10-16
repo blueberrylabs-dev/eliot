@@ -1,6 +1,6 @@
 // Le rail d'onglets à gauche et son panneau, comme dans Canva. Un clic sur l'onglet actif
 // replie le panneau. Le labo photo (étape 5) s'ouvre à la place du panneau, comme « Modifier
-// l'image » chez Canva ; un onglet du rail le referme.
+// l'image » chez Canva, pour une photo ou un clip vidéo ; un onglet du rail le referme.
 
 import { Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -8,7 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { elementsCourants, useEditeur } from "../etat/editeur";
 import { useLabo } from "../labo/retouche";
 import { PanneauLabo } from "../labo/PanneauLabo";
-import type { ElementImage } from "../modele/types";
+import type { ElementImage, ElementVideo } from "../modele/types";
 import { PanneauAudio } from "./panneaux/PanneauAudio";
 import { PanneauCalques } from "./panneaux/PanneauCalques";
 import { PanneauDessin } from "./panneaux/PanneauDessin";
@@ -36,9 +36,9 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
 export function BarreLaterale() {
   const [onglet, setOnglet] = useState<Onglet | null>("elements");
   const ouvert = useLabo((s) => s.ouvert);
-  const photo = useEditeur((s) => (ouvert ? (elementsCourants(s).find((e) => e.id === ouvert && e.type === "image") as ElementImage | undefined) : undefined));
+  const photo = useEditeur((s) => (ouvert ? (elementsCourants(s).find((e) => e.id === ouvert && (e.type === "image" || e.type === "video")) as ElementImage | ElementVideo | undefined) : undefined));
   const selection = useEditeur(useShallow((s) => s.selection));
-  const seulePhoto = useEditeur((s) => (s.selection.length === 1 ? elementsCourants(s).find((e) => e.id === s.selection[0] && e.type === "image")?.id : undefined));
+  const seulePhoto = useEditeur((s) => (s.selection.length === 1 ? elementsCourants(s).find((e) => e.id === s.selection[0] && (e.type === "image" || e.type === "video"))?.id : undefined));
   // Le labo suit la photo choisie ; il se ferme si sa photo disparaît (autre page, supprimée).
   useEffect(() => {
     if (ouvert && seulePhoto && seulePhoto !== ouvert) useLabo.setState({ ouvert: seulePhoto });

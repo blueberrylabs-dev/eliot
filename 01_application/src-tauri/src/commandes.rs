@@ -384,11 +384,18 @@ pub async fn lire_ressource(app: AppHandle, rayon_nom: String, projet_id: String
 /// L'image d'une vidéo à l'instant `ms` de son fichier, en JPEG, tirée de la copie d'aperçu
 /// (capture et vignettes d'une page vidéo).
 #[tauri::command]
-pub async fn image_video(app: AppHandle, rayon_nom: String, projet_id: String, id: String, ms: u64) -> Result<Response, String> {
+pub async fn image_video(app: AppHandle, rayon_nom: String, projet_id: String, id: String, ms: u64, reglages: Option<labo::Reglages>) -> Result<Response, String> {
     let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
-    let octets = tauri::async_runtime::spawn_blocking(move || videos::image_de_copie(&dossier, &id, ms).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| format!("lecture interrompue : {e}"))??;
+    let octets = tauri::async_runtime::spawn_blocking(move || {
+        let jpeg = videos::image_de_copie(&dossier, &id, ms).map_err(|e| e.to_string())?;
+        // Un clip retouché par le labo (étape 5, lot 4) : l'image l'est aussi, en entier.
+        match reglages.filter(|r| !r.bornes().neutres()) {
+            Some(r) => labo::retoucher_jpeg(&jpeg, &r, labo::graine_du_temps(ms as f64)),
+            None => Ok(jpeg),
+        }
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))??;
     Ok(Response::new(octets))
 }
 
@@ -1158,6 +1165,20 @@ pub async fn labo_base(app: AppHandle, rayon_nom: String, projet_id: String, id:
     let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
     let chemin = images::chemin_ressource(&dossier, &id, images::Genre::Apercu).map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || labo::base_apercu(&chemin, &reglages).map(Response::new))
+        .await
+        .map_err(|e| format!("retouche interrompue : {e}"))?
+}
+
+/// La base de l'aperçu en direct d'un clip à l'arrêt (étape 5, lot 4) : l'image affichée par la
+/// fenêtre (corps : ses pixels RGBA ; en-têtes `x-largeur`, `x-hauteur` et `x-reglages`, les
+/// réglages en JSON), retouchée sans vignetage ni grain. Réponse : les pixels RGBA.
+#[tauri::command]
+pub async fn labo_base_pixels(requete: Request<'_>) -> Result<Response, String> {
+    let pixels = corps_brut(&requete)?;
+    let largeur: u32 = entete_requis(&requete, "x-largeur")?.parse().map_err(|_| "x-largeur : un entier".to_string())?;
+    let hauteur: u32 = entete_requis(&requete, "x-hauteur")?.parse().map_err(|_| "x-hauteur : un entier".to_string())?;
+    let reglages: labo::Reglages = serde_json::from_str(&entete_requis(&requete, "x-reglages")?).map_err(|e| format!("x-reglages : {e}"))?;
+    tauri::async_runtime::spawn_blocking(move || labo::base_pixels(largeur, hauteur, pixels, &reglages).map(Response::new))
         .await
         .map_err(|e| format!("retouche interrompue : {e}"))?
 }

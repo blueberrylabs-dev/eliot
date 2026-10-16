@@ -360,11 +360,21 @@ export async function baseLabo(ref: RefRessources, id: string, reglages: Reglage
   return { largeur: vue.getUint32(0, true), hauteur: vue.getUint32(4, true), pixels: octets.subarray(8) };
 }
 
+/** La base de l'aperçu en direct d'un clip à l'arrêt (étape 5, lot 4) : l'image affichée,
+ *  passée par le labo du noyau, réglages voisins compris, sans vignetage ni grain. `null` hors
+ *  de l'application. */
+export async function baseLaboPixels(largeur: number, hauteur: number, pixels: Uint8Array, reglages: ReglagesPhoto): Promise<Uint8Array | null> {
+  if (!dansTauri) return null;
+  const octets = await invoke<ArrayBuffer>("labo_base_pixels", pixels, { headers: enTetes({ "x-largeur": String(largeur), "x-hauteur": String(hauteur), "x-reglages": JSON.stringify(reglages) }) });
+  return new Uint8Array(octets);
+}
+
 /** L'image d'une vidéo à l'instant `ms` de son fichier (JPEG), tirée de la copie d'aperçu par
- *  le noyau ; dans le navigateur, par une balise vidéo. */
-export async function imageVideo(ref: RefRessources, ressource: Ressource, ms: number): Promise<Blob> {
+ *  le noyau, retouchée par le labo si `reglages` sont donnés (étape 5, lot 4) ; dans le
+ *  navigateur, par une balise vidéo, sans retouche (la fenêtre s'en charge). */
+export async function imageVideo(ref: RefRessources, ressource: Ressource, ms: number, reglages?: ReglagesPhoto): Promise<Blob> {
   if (dansTauri) {
-    const octets = await invoke<ArrayBuffer>("image_video", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, ms: Math.max(0, Math.round(ms)) });
+    const octets = await invoke<ArrayBuffer>("image_video", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, ms: Math.max(0, Math.round(ms)), reglages: reglages ?? null });
     return new Blob([octets], { type: "image/jpeg" });
   }
   const url = await urlCopie(ref, ressource);

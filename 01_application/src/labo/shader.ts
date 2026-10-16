@@ -1,9 +1,11 @@
-// L'aperçu en direct du labo photo (étape 5, lots 2 et 3), dans un shader WebGL 2 : les réglages
+// L'aperçu en direct du labo photo (étape 5, lots 2 à 4), dans un shader WebGL 2 : les réglages
 // qui ne regardent qu'un pixel (balance des blancs, exposition, tonalités, courbe, couleurs,
 // mélangeur, vignetage, grain), avec les formules de `noyau/src/labo.rs`, ligne pour ligne. Le
 // tableau commun `modele/labo.attendus.json` les contrôle (essai dans Chromium et dans Tauri).
 // La courbe arrive en table (1024 pas par canal, calculée par `tableCourbe`, comme dans le
 // noyau), dans une texture de deux lignes : celle des réglages d'aujourd'hui, celle de la base.
+// Un clip vidéo (lot 4) passe par un second moteur, image après image ; son grain change avec
+// sa graine (`graineDuTemps`, 24 fois par seconde du fichier), comme dans le noyau.
 //
 // Les réglages qui regardent les voisins (bruit, netteté, texture, clarté, voile) viennent du
 // noyau : une « base », l'aperçu retouché sans vignetage ni grain. Le shader la complète :
@@ -25,6 +27,7 @@ precision highp int;
 struct Reglages {
   vec3 gains;
   float contraste, hl, ombres, blancs, noirs, sat, vib;
+  bool tonal;
   bool courbe;
   bool melange;
   vec3 melangeur[8];
@@ -37,6 +40,7 @@ uniform Reglages u_cur;
 uniform Reglages u_ref;
 uniform vec2 u_taille;
 uniform float u_vignetage, u_grain, u_echelleGrain;
+uniform uint u_graine;
 out vec4 sortie;
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 const float CENTRES[8] = float[8](0.0, 30.0, 60.0, 120.0, 180.0, 240.0, 270.0, 300.0);
@@ -44,7 +48,7 @@ float versLin(float c) { return c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.0
 float versSrgb(float l) { l = clamp(l, 0.0, 1.0); return l <= 0.0031308 ? 12.92 * l : 1.055 * pow(l, 1.0 / 2.4) - 0.055; }
 vec3 lin3(vec3 c) { return vec3(versLin(c.r), versLin(c.g), versLin(c.b)); }
 uint hachage(uint x, uint y) { uint h = x * 374761393u + y * 668265263u; h = (h ^ (h >> 13u)) * 1274126177u; return h ^ (h >> 16u); }
-float noeud(uint x, uint y) { return float(hachage(x, y) & 0xffffu) / 65535.0 - 0.5; }
+float noeud(uint x, uint y) { return float(hachage(x + u_graine * 7919u, y + u_graine * 6271u) & 0xffffu) / 65535.0 - 0.5; }
 float bruitValeur(float gx, float gy) {
   float x0 = floor(gx), y0 = floor(gy);
   float fx = gx - x0, fy = gy - y0;
@@ -62,7 +66,7 @@ float lireCourbe(float e, int canal, int ligne) {
 vec3 reglagesPixel(vec3 c, Reglages r, int ligne) {
   vec3 l = c * r.gains;
   float y0 = dot(l, LUMA);
-  if (y0 > 1e-6) {
+  if (r.tonal && y0 > 1e-6) {
     float p = pow(y0, 1.0 / 2.2);
     float f = r.contraste >= 0.0 ? 1.0 + r.contraste / 100.0 * 0.8 : 1.0 + r.contraste / 100.0 * 0.6;
     p = 0.5 + (p - 0.5) * f;
@@ -136,7 +140,7 @@ export interface PixelsBruts {
   hauteur: number;
 }
 
-const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "courbe", "melange", "melangeur"] as const;
+const CHAMPS = ["gains", "contraste", "hl", "ombres", "blancs", "noirs", "sat", "vib", "tonal", "courbe", "melange", "melangeur"] as const;
 
 /** La diagonale : la ligne d'une texture de courbe quand il n'y a pas de courbe. */
 function tableNeutre(): Float32Array {
@@ -181,7 +185,7 @@ export class MoteurLabo {
     gl.linkProgram(prog);
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(`programme du labo : ${gl.getProgramInfoLog(prog)}`);
     this.prog = prog;
-    const noms = ["u_source", "u_base", "u_courbe", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain"];
+    const noms = ["u_source", "u_base", "u_courbe", "u_avecBase", "u_taille", "u_vignetage", "u_grain", "u_echelleGrain", "u_graine"];
     for (const ensemble of ["u_cur", "u_ref"]) for (const champ of CHAMPS) noms.push(champ === "melangeur" ? `${ensemble}.melangeur[0]` : `${ensemble}.${champ}`);
     for (const nom of noms) this.u.set(nom, gl.getUniformLocation(prog, nom));
     const texture = () => {
@@ -242,6 +246,7 @@ export class MoteurLabo {
     gl.uniform1f(u("noirs"), r.noirs ?? 0);
     gl.uniform1f(u("sat"), r.saturation ?? 0);
     gl.uniform1f(u("vib"), r.vibrance ?? 0);
+    gl.uniform1i(u("tonal"), [r.contraste, r.hautesLumieres, r.ombres, r.blancs, r.noirs].some((v) => (v ?? 0) !== 0) ? 1 : 0);
     gl.uniform1i(u("courbe"), normaliserCourbe(r.courbe) ? 1 : 0);
     const m = COULEURS_MELANGEUR.flatMap((c) => [r.melangeur?.[c]?.teinte ?? 0, r.melangeur?.[c]?.saturation ?? 0, r.melangeur?.[c]?.luminance ?? 0]);
     gl.uniform1i(u("melange"), m.some((v) => v !== 0) ? 1 : 0);
@@ -253,7 +258,7 @@ export class MoteurLabo {
    * retouché par le noyau (réglages voisins compris, sans vignetage ni grain) et les réglages
    * avec lesquels il l'a été.
    */
-  dessiner(source: TexImageSource | PixelsBruts, largeur: number, hauteur: number, r: ReglagesPhoto, base?: { image: PixelsBruts; reglages: ReglagesPhoto }): void {
+  dessiner(source: TexImageSource | PixelsBruts, largeur: number, hauteur: number, r: ReglagesPhoto, base?: { image: PixelsBruts; reglages: ReglagesPhoto }, graine = 0): void {
     const gl = this.gl;
     if (this.toile.width !== largeur || this.toile.height !== hauteur) {
       this.toile.width = largeur;
@@ -261,7 +266,8 @@ export class MoteurLabo {
     }
     gl.viewport(0, 0, largeur, hauteur);
     gl.useProgram(this.prog);
-    if (this.sourceChargee !== source) {
+    // Une vidéo change d'image sans changer d'objet : elle est rechargée à chaque dessin.
+    if (this.sourceChargee !== source || (typeof HTMLVideoElement !== "undefined" && source instanceof HTMLVideoElement)) {
       this.charger(this.texSource, 0, source);
       this.sourceChargee = source;
     }
@@ -287,12 +293,13 @@ export class MoteurLabo {
     gl.uniform1f(this.u.get("u_vignetage")!, r.vignetage ?? 0);
     gl.uniform1f(this.u.get("u_grain")!, r.grain ?? 0);
     gl.uniform1f(this.u.get("u_echelleGrain")!, 2560 / Math.max(largeur, hauteur, 1));
+    gl.uniform1ui(this.u.get("u_graine")!, graine >>> 0);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 
   /** Des pixels bruts, retouchés (essais : le tableau commun). */
-  dessinerPixels(source: PixelsBruts, r: ReglagesPhoto): void {
-    this.dessiner(source, source.largeur, source.hauteur, r);
+  dessinerPixels(source: PixelsBruts, r: ReglagesPhoto, graine = 0): void {
+    this.dessiner(source, source.largeur, source.hauteur, r, undefined, graine);
   }
 
   /** Les pixels dessinés, en RGBA, de haut en bas (essais). */
@@ -315,16 +322,32 @@ export class MoteurLabo {
 }
 
 let moteur: MoteurLabo | null | undefined;
+let moteurDesVideos: MoteurLabo | null | undefined;
 
-/** Le moteur partagé, créé au premier besoin ; `null` si le moteur web n'a pas WebGL 2. */
-export function moteurLabo(): MoteurLabo | null {
-  if (moteur === undefined) {
-    try {
-      moteur = new MoteurLabo();
-    } catch (e) {
-      console.warn(String(e));
-      moteur = null;
-    }
+function creer(): MoteurLabo | null {
+  try {
+    return new MoteurLabo();
+  } catch (e) {
+    console.warn(String(e));
+    return null;
   }
+}
+
+/** Le moteur des photos, créé au premier besoin ; `null` si le moteur web n'a pas WebGL 2. */
+export function moteurLabo(): MoteurLabo | null {
+  if (moteur === undefined) moteur = creer();
   return moteur;
+}
+
+/** Le moteur des clips vidéo (lot 4) : chaque clip retouché y passe au moment où la page le
+ *  dessine, l'un après l'autre ; à part, pour ne jamais toucher à ce qu'une photo affiche. */
+export function moteurVideo(): MoteurLabo | null {
+  if (moteurDesVideos === undefined) moteurDesVideos = creer();
+  return moteurDesVideos;
+}
+
+/** La graine du grain d'une image prise à `ms` de son fichier (comme `graine_du_temps` du
+ *  noyau) : elle change 24 fois par seconde ; 0 pour une photo. */
+export function graineDuTemps(ms: number): number {
+  return Number.isFinite(ms) && ms > 0 ? Math.floor((ms * 24) / 1000 + 1e-6) : 0;
 }

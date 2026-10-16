@@ -25,10 +25,10 @@ import {
   type PointCourbe,
   type ReglagesPhoto,
 } from "../modele/labo";
-import type { ElementImage } from "../modele/types";
+import type { ElementImage, ElementVideo } from "../modele/types";
 import { EditeurCourbe } from "./EditeurCourbe";
 import { Prereglages } from "./Prereglages";
-import { abonnerRetouche, collerReglages, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
+import { abonnerApercuClip, abonnerRetouche, collerReglages, copierReglages, finGeste, histogramme, toileRetouchee, useLabo } from "./retouche";
 
 /** La teinte de chaque couleur du mélangeur, pour sa pastille. */
 const TEINTES: Record<CouleurMelangeur, string> = {
@@ -130,11 +130,13 @@ function CurseurReglage({ def, valeur, changer, libelle, nom, fond }: { def: Def
 }
 
 /** L'histogramme de la photo telle qu'elle s'affiche (rouge, vert, bleu superposés). */
-function Histogramme({ el }: { el: ElementImage }) {
+function Histogramme({ el }: { el: ElementImage | ElementVideo }) {
   const toile = useRef<HTMLCanvasElement>(null);
   const source = useImageRessource(el.ressource);
   const [version, setVersion] = useState(0);
   useEffect(() => abonnerRetouche(el.id, () => setVersion((v) => v + 1)), [el.id]);
+  // Un clip : la dernière image dessinée à l'arrêt.
+  useEffect(() => abonnerApercuClip(el.id, () => setVersion((v) => v + 1)), [el.id]);
   useEffect(() => {
     let image = 0;
     image = requestAnimationFrame(() => {
@@ -229,7 +231,7 @@ function Melangeur({ reglages, changer }: { reglages: ReglagesPhoto | undefined;
   );
 }
 
-export function PanneauLabo({ el }: { el: ElementImage }) {
+export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
   const source = useImageRessource(el.ressource) ?? null;
@@ -239,15 +241,15 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
   };
   const changer = (cle: CurseurLabo, v: number) => {
     // Le dernier état du document : plusieurs changements peuvent arriver dans la même image.
-    const actuel = elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | undefined;
+    const actuel = elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined;
     modifier({ ...actuel?.reglages, [cle]: v }, cle);
   };
   const changerCouleur = (couleur: CouleurMelangeur, k: "teinte" | "saturation" | "luminance", v: number) => {
-    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | undefined)?.reglages;
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
     modifier({ ...actuel, melangeur: { ...actuel?.melangeur, [couleur]: { ...actuel?.melangeur?.[couleur], [k]: v } } }, `${couleur}-${k}`);
   };
   const changerCourbe = (canal: CanalCourbe, points: PointCourbe[]) => {
-    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | undefined)?.reglages;
+    const actuel = (elementsCourants(useEditeur.getState()).find((e) => e.id === el.id) as ElementImage | ElementVideo | undefined)?.reglages;
     const suivant = { ...actuel, courbe: { ...actuel?.courbe, [canal]: points } };
     // Un point posé sur la diagonale ne change rien : pas d'étape d'annulation pour si peu.
     if (cleReglages(suivant) === cleReglages(actuel)) return;
@@ -298,11 +300,17 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
         onPointerUp={() => useLabo.setState({ avant: false })}
         onPointerLeave={() => useLabo.setState({ avant: false })}
         className="mt-2 mb-1 flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 py-1.5 text-sm text-neutral-700 select-none hover:bg-neutral-50 active:bg-neutral-100 disabled:opacity-40"
-        title="Maintenir pour voir la photo sans retouche"
+        title={el.type === "video" ? "Maintenir pour voir le clip sans retouche" : "Maintenir pour voir la photo sans retouche"}
       >
         <Eye size={15} /> Avant (maintenir)
       </button>
-      {voisins && <p className="mb-1 text-[11px] text-neutral-500">Texture, clarté, voile, netteté et bruit se calculent quand on relâche le curseur.</p>}
+      {voisins && (
+        <p className="mb-1 text-[11px] text-neutral-500">
+          {el.type === "video"
+            ? "Texture, clarté, voile, netteté et bruit se calculent à l'arrêt, quand on relâche le curseur ; pendant la lecture, ils ne se voient qu'à l'export."
+            : "Texture, clarté, voile, netteté et bruit se calculent quand on relâche le curseur."}
+        </p>
+      )}
       <Section titre="Préréglages" ouverte={!fermees.has("Préréglages")} basculer={() => basculer("Préréglages")}>
         <Prereglages el={el} source={source} modifier={modifier} />
       </Section>
@@ -315,7 +323,11 @@ export function PanneauLabo({ el }: { el: ElementImage }) {
           {s.titre === "Couleur" && <Melangeur reglages={el.reglages} changer={changerCouleur} />}
         </Section>
       ))}
-      <p className="mt-2 text-[11px] text-neutral-400">L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original.</p>
+      <p className="mt-2 text-[11px] text-neutral-400">
+        {el.type === "video"
+          ? "Le fichier n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, image par image, depuis l'original."
+          : "L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original."}
+      </p>
     </div>
   );
 }

@@ -398,8 +398,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
       `~/Documents/Eliot/Préréglages/` ; Ctrl+Maj+C et Ctrl+Maj+V ; fenêtre et export à 1,35 à
       1,92 sur 255 avec une courbe (JOURNAL). Essai d'Alexandre : « Essayer la courbe et les
       préréglages (étape 5, lot 3) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 4 : les clips vidéo dans le labo : réglages qui suivent la lecture, export image par
-      image.
+- [x] Lot 4 : les clips vidéo dans le labo : réglages qui suivent la lecture, export image par
+      image. Livré le 2026-10-16 : un second moteur du shader pour les clips, qui passe chaque
+      image au moment où la page la dessine ; à l'arrêt, les réglages voisins calculés par le
+      noyau sur l'image affichée (commande `labo_base_pixels`) ; grain qui change 24 fois par
+      seconde du fichier ; film, image d'un instant, PDF et SVG retouchés depuis l'original ;
+      capture à 1,46 sur 255 de l'export (2,92 avec clarté et texture), image du MP4 à 1,66
+      (JOURNAL). Essai d'Alexandre : « Essayer les clips au labo (étape 5, lot 4) » du
+      `01_application/LISEZMOI.md`.
 - [ ] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
       prêtes, grille des tiers).
 - [ ] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
@@ -409,7 +415,7 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
       WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils ; lot 3 : `retoucher` prend la
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
-      `prereglages`, 63 outils).
+      `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

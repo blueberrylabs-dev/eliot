@@ -5,6 +5,50 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 4 : les clips vidéo au labo
+
+Accord d'Alexandre (« Ok, tu peux continuer »). Ce que Claude a fait et décidé :
+
+- Un clip a le même champ `reglages` qu'une photo (règle 13 : le fichier n'est jamais touché),
+  le même panneau, les mêmes préréglages ; copier et coller, et « Copier le style », passent
+  d'une photo à un clip et inversement.
+- La lecture : un second moteur du shader, réservé aux clips (le premier reste aux photos, que
+  rien ne doit déranger pendant qu'on tire un curseur). Chaque clip retouché y passe au moment
+  où la page le dessine, image après image, puis l'image est posée tout de suite dans la page :
+  rien n'est recopié (règle 11), et plusieurs clips y passent l'un après l'autre. La texture de
+  la vidéo est rechargée à chaque dessin.
+- Les réglages qui regardent les voisins (texture, clarté, voile, netteté, bruit) : à l'arrêt,
+  le noyau les calcule sur l'image même que la page montre, envoyée en pixels bruts (commande
+  `labo_base_pixels`), quand on relâche le curseur ; le shader y ajoute l'écart des réglages
+  d'un pixel, comme pour une photo. Pendant la lecture, ils ne se voient pas : il faudrait les
+  refaire dans le shader (des flous en plusieurs passes), écarté pour ce lot ; l'export les a
+  toujours. Le panneau le dit.
+- Le grain d'un clip change 24 fois par seconde du fichier (une graine tirée de l'instant
+  décale la grille du bruit, la même dans le noyau et dans le shader). Un grain figé sur une
+  image qui bouge ressemble à une vitre sale. Une photo garde la graine 0 : rien ne change
+  pour elle. Un cas de grain de clip ajouté au tableau commun (20 cas) : écart nul.
+- L'export : le film décode chaque image depuis l'original et la retouche à sa taille dans le
+  film, grain de son instant compris ; l'image d'un clip à un instant (PNG, JPEG, WebP, PDF,
+  SVG) aussi, à la définition de l'original. La capture et les vignettes d'une page vidéo
+  prennent l'image de la copie d'aperçu retouchée par le noyau (`image_video` reçoit les
+  réglages). Les vignettes de la frise restent sans retouche.
+- Accélération au passage : l'étape des tonalités est sautée quand aucun de ses réglages ne
+  bouge (deux puissances de moins par pixel, dans le noyau et dans le shader) ; une image de
+  1000 × 563 px passe de 45 à 23 ms sur les deux cœurs du conteneur.
+- Mesures dans Tauri (clip de 3 s en 1280 × 720, posé sur 1000 px d'un post carré) : capture
+  contre export à 1,46 sur 255 (réglages d'un pixel ; 2,05 sans retouche, la capture partant de
+  la copie d'aperçu en VP9), 2,92 avec clarté, texture et netteté ; l'image à 1 s du MP4 à 1,66
+  de l'export de la même image. Le film de 3 s : 6,7 s sans retouche, 14,9 s avec des réglages
+  d'un pixel, 21 s avec clarté, texture et netteté, sur les deux cœurs du conteneur, où le
+  codage x264 se partage les mêmes cœurs. Chez Alexandre, à mesurer.
+- Pont IA : `retoucher` et `prereglages` (enregistrer depuis) prennent les clips ; 63 outils.
+- Essais : noyau 103 (4 de plus : le grain d'un clip, la base d'un clip et son image retouchée,
+  un film retouché image par image, une page vidéo retouchée en PNG et en SVG), interface 189
+  (2 de plus) ; Chromium : shader contre le tableau 20 cas, clips au labo 13 vérifications,
+  lots 2 et 3 repassés, étape 4 (lots 1 et 2) repassée ; Tauri par le pont : clips 10
+  vérifications, lots 2 et 3 repassés ; dans la fenêtre de WebKitGTK : le clip retouché à
+  l'arrêt (avec la clarté du noyau) et pendant la lecture.
+
 ## 2026-10-16, étape 5, lot 3 : courbe des tonalités, préréglages, copier et coller
 
 Accord d'Alexandre (« Tu peux attaquer le lot 3 »). Ce que Claude a fait et décidé :

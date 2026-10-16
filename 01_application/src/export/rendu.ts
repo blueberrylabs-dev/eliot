@@ -10,7 +10,10 @@ import { PageStatique } from "../editeur/RenduElement";
 import { useEditeur } from "../etat/editeur";
 import { tempsMedia, visibleA } from "../modele/frise";
 import type { Format, PageEliot } from "../modele/types";
-import { imageVideo } from "../pont/tauri";
+import { dansTauri, imageVideo } from "../pont/tauri";
+import { normaliserReglages } from "../modele/labo";
+import { retoucherFixe } from "../labo/retouche";
+import { graineDuTemps } from "../labo/shader";
 
 export interface OptionsRendu {
   pixelRatio: number;
@@ -26,7 +29,8 @@ export interface OptionsRendu {
 }
 
 /** Les images exactes des vidéos qui se voient à l'instant `instant` d'une page vidéo, tirées
- *  de leurs copies d'aperçu ; une vidéo dont l'image manque garde sa couverture. */
+ *  de leurs copies d'aperçu (retouchées par le labo) ; une vidéo dont l'image manque garde sa
+ *  couverture. */
 async function imagesDesVideos(page: PageEliot, instant: number): Promise<Map<string, CanvasImageSource>> {
   const etat = useEditeur.getState();
   const images = new Map<string, CanvasImageSource>();
@@ -38,8 +42,12 @@ async function imagesDesVideos(page: PageEliot, instant: number): Promise<Map<st
       const ressource = etat.ressources[e.ressource];
       if (!ressource) return;
       try {
-        const blob = await imageVideo(projet, ressource, tempsMedia(e, instant, ressource.video?.duree));
-        images.set(e.id, await createImageBitmap(blob));
+        const ms = tempsMedia(e, instant, ressource.video?.duree);
+        // Un clip retouché (étape 5, lot 4) : le noyau rend l'image retouchée en entier ; dans
+        // le navigateur, le shader la retouche ici (réglages d'un pixel seulement).
+        const reglages = normaliserReglages(e.reglages);
+        const bitmap = await createImageBitmap(await imageVideo(projet, ressource, ms, reglages));
+        images.set(e.id, reglages && !dansTauri ? retoucherFixe(bitmap, reglages, graineDuTemps(ms)) : bitmap);
       } catch {
         // Couverture.
       }

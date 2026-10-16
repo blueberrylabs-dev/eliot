@@ -1604,18 +1604,18 @@ const OUTILS: Record<string, Outil> = {
     const id = texte(args.id) ?? "";
     const el = elementsCourants(etat()).find((e) => e.id === id);
     exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
-    exiger(el.type === "image", "retoucher : une photo seulement (élément de type image) ; les clips vidéo passeront au labo plus tard");
+    exiger(el.type === "image" || el.type === "video", "retoucher : une photo ou un clip vidéo (élément de type image ou video)");
     const r = args.reglages ?? {};
     exiger(typeof r === "object" && r !== null && !Array.isArray(r), "reglages : un objet, par exemple { exposition: 0.3, contraste: 15 }");
     const demandes = r as Record<string, unknown>;
     verifierReglages(demandes);
     // Le point de départ : rien, les réglages d'une autre photo, ou ceux de la photo.
-    let depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage).reglages ?? {});
+    let depart: ReglagesPhoto = booleen(args.remettre) ? {} : ((el as ElementImage | ElementVideo).reglages ?? {});
     const depuis = texte(args.depuis);
     if (depuis) {
       const source = elementsCourants(etat()).find((e) => e.id === depuis);
-      exiger(source && source.type === "image", `depuis : ${depuis} n'est pas une photo de la page affichée (voir etat)`);
-      depart = (source as ElementImage).reglages ?? {};
+      exiger(source && (source.type === "image" || source.type === "video"), `depuis : ${depuis} n'est ni une photo ni un clip de la page affichée (voir etat)`);
+      depart = (source as ElementImage | ElementVideo).reglages ?? {};
     }
     const nomPrereglage = texte(args.prereglage);
     let prereglage: string | undefined;
@@ -1652,8 +1652,8 @@ const OUTILS: Record<string, Outil> = {
     if (depuis) {
       designOuvert();
       const source = elementsCourants(etat()).find((e) => e.id === depuis);
-      exiger(source && source.type === "image", `depuis : ${depuis} n'est pas une photo de la page affichée (voir etat)`);
-      reglages = (source as ElementImage).reglages;
+      exiger(source && (source.type === "image" || source.type === "video"), `depuis : ${depuis} n'est ni une photo ni un clip de la page affichée (voir etat)`);
+      reglages = (source as ElementImage | ElementVideo).reglages;
     } else {
       exiger(args.reglages && typeof args.reglages === "object" && !Array.isArray(args.reglages), "enregistrer : depuis (une photo) ou reglages (un objet)");
       verifierReglages(args.reglages as Record<string, unknown>);

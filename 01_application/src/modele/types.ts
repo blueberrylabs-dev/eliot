@@ -269,6 +269,9 @@ export interface ElementVideo extends ElementBase {
    *  la fin. */
   fonduEntree?: number;
   fonduSortie?: number;
+  /** Les réglages du labo (étape 5, lot 4), les mêmes que ceux d'une photo, appliqués à chaque
+   *  image du clip ; le fichier n'est jamais touché (règle 13). */
+  reglages?: ReglagesPhoto;
 }
 
 /**

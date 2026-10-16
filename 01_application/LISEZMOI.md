@@ -297,10 +297,22 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - « Enregistrer comme préréglage » garde le style de la photo sous un nom, dans « Les miens »
   (rangés hors des designs, dans `~/Documents/Eliot/Préréglages/`). La corbeille d'une
   vignette, au survol, le supprime après confirmation.
-- Copier les réglages d'une photo (Ctrl+Maj+C, ou les boutons en haut du labo, ou le clic
-  droit) et les coller sur une ou plusieurs photos choisies (Ctrl+Maj+V, ou le bouton de la
-  barre du haut) : tous les réglages passent, exposition comprise, en une étape d'annulation.
-  « Copier le style » d'une photo (Ctrl+Alt+C) emporte aussi sa retouche.
+- Copier les réglages d'une photo ou d'un clip (Ctrl+Maj+C, ou les boutons en haut du labo, ou
+  le clic droit) et les coller sur une ou plusieurs images choisies (Ctrl+Maj+V, ou le bouton de
+  la barre du haut) : tous les réglages passent, exposition comprise, en une étape
+  d'annulation. « Copier le style » (Ctrl+Alt+C) emporte aussi la retouche.
+
+**Les clips vidéo au labo (étape 5, lot 4)**
+- Un clip choisi montre aussi « Retoucher » : le même panneau, les mêmes réglages, les mêmes
+  préréglages, copier et coller d'une photo à un clip et inversement.
+- Le clip suit les réglages à l'arrêt comme pendant la lecture : chaque image passe par le
+  shader au moment où la page la dessine. Texture, clarté, voile, netteté et bruit se voient à
+  l'arrêt (le noyau les calcule sur l'image affichée, quand on relâche le curseur) ; pendant la
+  lecture, seulement à l'export.
+- Le grain d'un clip change 24 fois par seconde, comme celui d'un film.
+- L'export retouche chaque image du film depuis l'original (MP4, GIF), et l'image d'un clip à
+  l'instant voulu pour un PNG, un JPEG, un PDF ou un SVG. Les vignettes de la frise restent
+  sans retouche.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
@@ -312,8 +324,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
   sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
-  tableaux, partir d'un modèle de départ, retoucher une photo au labo (courbe et préréglages
-  compris, enregistrer un préréglage), regarder une capture de
+  tableaux, partir d'un modèle de départ, retoucher une photo ou un clip au labo (courbe et
+  préréglages compris, enregistrer un préréglage), regarder une capture de
   la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -411,6 +423,24 @@ Dix minutes, mêmes conditions que le lot 2 (commande 10 ; avant, une fois, comm
 Ce qui m'aide le plus en retour : les préréglages à garder, à changer ou à jeter, la sensation
 de la courbe sous la souris (trop sensible, pas assez), et ce qui manque pour tes styles à toi.
 
+## Essayer les clips au labo (étape 5, lot 4)
+
+Dix minutes, mêmes conditions (commande 10 ; avant, une fois, commandes 9 et 13).
+
+1. Une story, un clip de ton appareil de quelques secondes (onglet Importer). Le choisir,
+   « Retoucher ».
+2. Un préréglage (Film chaud, par exemple), puis Lire (Espace) : la retouche suit la lecture.
+   Noter si la lecture saccade, et à partir de combien de clips sur la page.
+3. Pause, puis Clarté et Texture : le détail ressort à l'arrêt, après un court instant.
+4. Grain vers 40, Lire : le grain bouge avec le film.
+5. Ctrl+Maj+C sur le clip, choisir une photo de la page, Ctrl+Maj+V : la photo prend le même
+   style.
+6. Exporter en MP4 : le film est retouché du début à la fin. Noter le temps de l'export, avec
+   et sans la retouche.
+
+Ce qui m'aide le plus en retour : la fluidité de la lecture retouchée, le temps de l'export, et
+un écart entre ce que montre la page et le film exporté.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -423,7 +453,7 @@ de la courbe sous la souris (trop sensible, pas assez), et ce qui manque pour te
 | Ctrl+↑, Ctrl+↓ (avec Maj : tout devant, tout derrière) | ordre d'empilement |
 | Ctrl+G, Ctrl+Maj+G | grouper, dégrouper |
 | Ctrl+Alt+C, Ctrl+Alt+V | copier le style, le coller sur la sélection |
-| Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo, les coller sur les photos choisies |
+| Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo ou d'un clip, les coller sur ceux choisis |
 | Entrée | écrire dans le texte sélectionné |
 | Ctrl+Entrée | ajouter une page |
 | Page préc., Page suiv. | page précédente, suivante |
@@ -478,7 +508,7 @@ de la courbe sous la souris (trop sensible, pas assez), et ce qui manque pour te
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts), les photos retouchées affichées, copier et coller les réglages (retouche.ts)
+│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

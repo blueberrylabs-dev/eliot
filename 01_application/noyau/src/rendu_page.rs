@@ -289,7 +289,10 @@ fn composer_svg_retouches(description: &DescriptionPage, t: f64, dossier_ressour
                     let _ = write!(corps, "<g clip-path=\"url(#eliot_d{n})\">");
                 }
                 let href = match (c, instant_video) {
-                    (Calque::Video { .. }, Some(ms)) => format!("eliot:video/{ressource}/{}", ms.max(0.0).round() as u64),
+                    (Calque::Video { .. }, Some(ms)) => match retouche {
+                        Some((cle, _)) => format!("eliot:video/{ressource}/{}/{cle}", ms.max(0.0).round() as u64),
+                        None => format!("eliot:video/{ressource}/{}", ms.max(0.0).round() as u64),
+                    },
                     (Calque::Video { .. }, None) => return Ok(()),
                     _ => match retouche {
                         Some((cle, _)) => format!("eliot:retouche/{ressource}/{cle}"),
@@ -400,6 +403,20 @@ fn image_de_video(dossier: &Path, id: &str, ms: u64) -> Result<Vec<u8>, ErreurRe
     Ok(s.stdout)
 }
 
+/// L'image d'un clip retouchée par le labo (étape 5, lot 4), à la définition de l'original, le
+/// grain tiré de son instant.
+fn image_de_video_retouchee(png: &[u8], r: &labo::Reglages, ms: u64) -> Result<Vec<u8>, ErreurRendu> {
+    let mut img = image::load_from_memory(png).map_err(|e| ErreurRendu::Ffmpeg(format!("image de la vidéo : {e}")))?.to_rgba8();
+    let (l, h) = img.dimensions();
+    labo::appliquer_graine(&mut img, l, h, r, true, labo::graine_du_temps(ms as f64));
+    let mut sortie = Vec::new();
+    image::DynamicImage::ImageRgba8(img)
+        .to_rgb8()
+        .write_to(&mut std::io::Cursor::new(&mut sortie), image::ImageFormat::Png)
+        .map_err(|e| ErreurRendu::Ffmpeg(format!("image de la vidéo : {e}")))?;
+    Ok(sortie)
+}
+
 /// Lit une adresse `eliot:` du SVG composé ; garde ce qu'elle a déjà lu, et ce qui n'a pas pu
 /// l'être : une photo manquante fait échouer l'export plutôt que de laisser un trou.
 struct Images {
@@ -462,8 +479,17 @@ impl Images {
                 }
             }
         } else if let Some(reste) = href.strip_prefix("eliot:video/") {
-            let (id, ms) = reste.split_once('/')?;
-            match image_de_video(&self.dossier, id, ms.parse().ok()?) {
+            // `<empreinte>/<ms>`, ou `<empreinte>/<ms>/<clé des réglages>` pour un clip retouché.
+            let mut morceaux = reste.splitn(3, '/');
+            let (id, ms) = (morceaux.next()?, morceaux.next()?.parse::<u64>().ok()?);
+            let reglages = match morceaux.next() {
+                Some(cle) => Some(self.retouches.lock().ok()?.get(cle).cloned()?),
+                None => None,
+            };
+            match image_de_video(&self.dossier, id, ms).and_then(|png| match &reglages {
+                Some(r) => image_de_video_retouchee(&png, r, ms),
+                None => Ok(png),
+            }) {
                 Ok(o) => Some((Codage::Png, Arc::new(o))),
                 Err(e) => {
                     self.erreurs.lock().ok()?.push(e.to_string());
@@ -984,6 +1010,48 @@ mod tests {
         }
         let texte = String::from_utf8(svg(&retouchee, 0.0, &dossier).unwrap()).unwrap();
         assert!(texte.contains("data:image/jpeg;base64,") && !texte.contains("eliot:"));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Une page vidéo avec un clip retouché (étape 5, lot 4) : l'image, le PDF et le SVG
+    /// l'emportent retouché, à l'instant demandé.
+    #[test]
+    fn un_clip_retouche_passe_dans_l_export_d_une_page() {
+        if !ffmpeg_present() {
+            eprintln!("ffmpeg absent : essai sauté");
+            return;
+        }
+        let dossier = dossier_de_test("clip");
+        let video = dossier.join("rouge.mp4");
+        let s = Command::new("ffmpeg")
+            .args(["-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=red:size=160x90:rate=25:duration=1", "-c:v", "libx264", "-pix_fmt", "yuv420p"])
+            .arg(&video)
+            .output()
+            .unwrap();
+        if !s.status.success() {
+            eprintln!("x264 absent : essai sauté");
+            return;
+        }
+        let ressources = dossier.join("ressources");
+        fs::create_dir_all(&ressources).unwrap();
+        let r = crate::videos::importer(&video, &ressources, &crate::videos::ReglageCopie::default(), &mut |_| {}).unwrap();
+        let page = |reglages: serde_json::Value| -> DescriptionPage {
+            serde_json::from_value(json!({
+                "largeur": 320, "hauteur": 180, "duree": 1000,
+                "fond": [rectangle(320.0, 180.0, "#ffffff")],
+                "elements": [{ "element": { "id": "v", "type": "video", "x": 0, "y": 0, "largeur": 320, "hauteur": 180, "rotation": 0, "opacite": 1, "visible": true, "temps": { "debut": 0, "fin": 1000 }, "piste": 0, "ressource": r.id, "reglages": reglages },
+                               "calques": [{ "genre": "video", "ressource": r.id, "matrice": [320, 0, 0, 180, 0, 0], "decoupes": [], "boite": { "x0": 0, "y0": 0, "x1": 320, "y1": 180 }, "opacite": 1 }] }],
+                "polices": []
+            }))
+            .unwrap()
+        };
+        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 500.0 }, &ressources).unwrap();
+        let brut = pixel(&png(&page(json!(null))), 160, 90);
+        let gris = pixel(&png(&page(json!({ "saturation": -100 }))), 160, 90);
+        assert!(brut[0] > brut[1] + 100, "{brut:?}");
+        assert!(gris[0].abs_diff(gris[1]) <= 4 && gris[1].abs_diff(gris[2]) <= 4, "{gris:?}");
+        let texte = String::from_utf8(svg(&page(json!({ "saturation": -100 })), 500.0, &ressources).unwrap()).unwrap();
+        assert!(texte.contains("data:image/png;base64,") && !texte.contains("eliot:"));
         let _ = fs::remove_dir_all(&dossier);
     }
 }

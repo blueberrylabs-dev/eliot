@@ -86,3 +86,21 @@ describe("courbe des tonalités (étape 5, lot 3)", () => {
     expect(t[(PAS_COURBE - 1) * 4] * 255).toBeCloseTo(228, 4);
   });
 });
+
+describe("clips vidéo au labo (étape 5, lot 4)", () => {
+  it("la graine du grain change 24 fois par seconde, comme dans le noyau", async () => {
+    const { graineDuTemps } = await import("../labo/shader");
+    // Les mêmes cas que `le_grain_d_un_clip_change_d_une_image_a_l_autre` du noyau.
+    expect(graineDuTemps(0)).toBe(0);
+    expect(graineDuTemps(41)).toBe(0);
+    expect(graineDuTemps(1000 / 24)).toBe(1);
+    expect(graineDuTemps(1000)).toBe(24);
+    expect(graineDuTemps(Number.NaN)).toBe(0);
+  });
+
+  it("le tableau commun porte un cas de grain d'un clip", () => {
+    const tableau = JSON.parse(readFileSync(new URL("./labo.attendus.json", import.meta.url), "utf8")) as { cas: { nom: string; graine: number }[] };
+    expect(tableau.cas.some((c) => c.graine === 37)).toBe(true);
+    expect(tableau.cas.filter((c) => c.graine !== 0).length).toBe(1);
+  });
+});
