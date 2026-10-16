@@ -24,6 +24,8 @@ import type { ElementTexte, PageEliot, Temps } from "../modele/types";
 import { analyserParole, annulerTranscription, etatWhisper, transcrireParole, type EtatWhisper } from "../pont/tauri";
 import { assurerPolice } from "../polices";
 import { dureesDe, pageCourante, useEditeur } from "./editeur";
+import { useMarque } from "./marque";
+import { kitVide } from "../modele/marque";
 
 const CLE_LANGUE = "eliot-langue-parole";
 
@@ -65,6 +67,14 @@ interface EtatParole {
 
 let annule = false;
 const analysesEnCours = new Map<string, Promise<AnalyseParole>>();
+
+/** Les noms propres que Whisper doit bien écrire : le nom du kit de marque, s'il a été donné. */
+async function nomsAEcrire(): Promise<string[]> {
+  const marque = useMarque.getState();
+  if (!marque.charge) await marque.charger().catch(() => undefined);
+  const nom = useMarque.getState().kit.nom.trim();
+  return nom && nom !== kitVide().nom ? [nom] : [];
+}
 
 export const useParole = create<EtatParole>((set, get) => ({
   whisper: null,
@@ -117,6 +127,7 @@ export const useParole = create<EtatParole>((set, get) => ({
     const resultats: Record<string, AnalyseParole> = {};
     const langue = get().langue;
     const total = ressources.length;
+    const noms = await nomsAEcrire();
     try {
       for (const [rang, ressource] of ressources.entries()) {
         if (annule) throw new Error("transcription annulée");
@@ -127,7 +138,7 @@ export const useParole = create<EtatParole>((set, get) => ({
         }
         const nom = useEditeur.getState().ressources[ressource]?.nom ?? "son";
         set({ travail: { etape: "transcription", ressource, nom, rang, total, avancement: 0 } });
-        const a = await transcrireParole(projet, ressource, langue, forcer, (p) => set((s) => (s.travail?.ressource === ressource ? { travail: { ...s.travail, avancement: p } } : {})));
+        const a = await transcrireParole(projet, ressource, langue, noms, forcer, (p) => set((s) => (s.travail?.ressource === ressource ? { travail: { ...s.travail, avancement: p } } : {})));
         if (useEditeur.getState().projet !== projet) throw new Error("le design a changé pendant la transcription");
         resultats[ressource] = a;
         set((s) => ({ analyses: { ...s.analyses, [ressource]: a } }));

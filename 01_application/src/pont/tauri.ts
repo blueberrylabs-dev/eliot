@@ -1425,11 +1425,12 @@ export async function analyserParole(ref: RefRessources, ressource: string): Pro
 }
 
 /** Ce qui est dit, mot par mot (Whisper sur le processeur) ; `avancement` reçoit de 0 à 1. */
-export async function transcrireParole(ref: RefRessources, ressource: string, langue: LangueParole, forcer: boolean, avancement: (p: number) => void): Promise<AnalyseParole> {
+/** `noms` : les noms propres que Whisper doit bien écrire (le nom du kit de marque). */
+export async function transcrireParole(ref: RefRessources, ressource: string, langue: LangueParole, noms: string[], forcer: boolean, avancement: (p: number) => void): Promise<AnalyseParole> {
   if (dansTauri) {
     const canal = new Channel<number>();
     canal.onmessage = avancement;
-    return invoke<AnalyseParole>("parole_transcrire", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, langue, forcer, avancement: canal });
+    return invoke<AnalyseParole>("parole_transcrire", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, langue, noms, forcer, avancement: canal });
   }
   const essai = paroleEssai();
   if (!essai) throw new Error(HORS_FENETRE_PAROLE);

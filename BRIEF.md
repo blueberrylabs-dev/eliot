@@ -1,8 +1,9 @@
 # BRIEF.md — Eliot
 
-Cadrage, écrit une fois. Version du 2026-10-15, révision 9, avec une correction du même jour
+Cadrage, écrit une fois. Version du 2026-10-16, révision 9, avec une correction du 2026-10-15
 (l'exemple des images clés du § 6 en temps du clip, accord d'Alexandre : « tu as mon accord pour
-corriger l'exemple »). La révision 9 ajoute le studio 3D
+corriger l'exemple ») et une du 2026-10-16 (la coupe des silences en morceaux de la frise, § 6,
+« Le son » ; accord d'Alexandre : « je valide »). La révision 9 ajoute le studio 3D
 (§ 6, « Le studio 3D ») : principe **validé par Alexandre le 2026-10-15** (« tu le places là
 où c'est le mieux pour toi »), place choisie par Claude (étape 6, § 7), texte à relire par
 lui. La révision 8 ajoute le son (voix,
@@ -348,9 +349,11 @@ frise, il entre donc dans l'étape 4. Tout se calcule sur le processeur (règle 
   destinent à un usage personnel et à la recherche (§ 4), ce qui convient à Eliot tant qu'il
   reste un outil d'apprentissage (Q4 tranchée le 2026-10-14).
 - **Le nettoyage d'une voix**, en valeurs du document (règle 13, l'original n'est jamais
-  touché) : réduction du bruit de fond, coupe des silences et des hésitations repérées par la
-  transcription Whisper, filtre des graves sous 80 Hz, égaliseur simple (chaleur, présence),
-  compresseur, dé-esseur ; un bouton « Voix nette » applique un réglage prêt.
+  touché) : réduction du bruit de fond, filtre des graves sous 80 Hz, égaliseur simple
+  (chaleur, présence), compresseur, dé-esseur ; un bouton « Voix nette » applique un réglage
+  prêt. La coupe des silences et des hésitations repérées par la transcription Whisper se fait
+  en morceaux qui se suivent dans la frise, pour une voix comme pour une vidéo (correction du
+  2026-10-16, accord d'Alexandre).
 - **Le niveau sonore** : mesuré en LUFS (norme EBU R128) ; l'export se cale sur la cible de
   la plateforme choisie (autour de -14 LUFS, valeurs vérifiées au moment de les écrire), crête
   plafonnée pour éviter la saturation.
@@ -642,7 +645,7 @@ version, testée) :
   et passer un clip sur une piste plus haute le passe devant. Sur une même piste, deux clips
   ne se chevauchent jamais dans le temps.
 - Révision 8 : un clip `audio` porte aussi `role` (`musique`, `voix`, `bruitage` : la musique
-  baisse sous les clips `voix`), `traitement` (seulement les réglages actifs : bruit, silences,
+  baisse sous les clips `voix`), `traitement` (seulement les réglages actifs : bruit,
   graves, égaliseur, compresseur, dé-esseur) et, dans les ressources, le crédit du son.
 - Nouveaux types d'élément : `video`, `icone` et `emoji` (un dessin vectoriel de la
   bibliothèque, désigné par son nom et sa collection), `dessin` (tracés à main levée),

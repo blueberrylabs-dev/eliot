@@ -937,7 +937,8 @@ pub async fn whisper_etat(app: AppHandle) -> Result<EtatWhisper, String> {
 /// fait une fois puis relu ; `forcer` le refait). L'avancement, de 0 à 1, part par `avancement`.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn parole_transcrire(app: AppHandle, rayon_nom: String, projet_id: String, id: String, langue: String, forcer: bool, avancement: Channel<f32>) -> Result<parole::Analyse, String> {
+pub async fn parole_transcrire(app: AppHandle, rayon_nom: String, projet_id: String, id: String, langue: String, noms: Option<Vec<String>>, forcer: bool, avancement: Channel<f32>) -> Result<parole::Analyse, String> {
+    let noms = noms.unwrap_or_default();
     let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
     let programme = parole::trouver_whisper().ok_or_else(|| parole::ErreurParole::Absent.to_string())?;
     let modele = parole::trouver_modele(&dossiers_whisper(&app)).ok_or_else(|| parole::ErreurParole::SansModele.to_string())?;
@@ -956,7 +957,7 @@ pub async fn parole_transcrire(app: AppHandle, rayon_nom: String, projet_id: Str
                 let _ = avancement.send(p);
             }
         };
-        parole::transcrire(&dossier, &id, &programme, &modele, &langue, forcer, &etat.annule, &mut rapport).map_err(|e| e.to_string())
+        parole::transcrire(&dossier, &id, &programme, &modele, &langue, &noms, forcer, &etat.annule, &mut rapport).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("transcription interrompue : {e}"));

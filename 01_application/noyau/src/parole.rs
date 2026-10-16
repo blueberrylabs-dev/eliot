@@ -304,6 +304,39 @@ fn consigne(langue: &str) -> Option<&'static str> {
     }
 }
 
+/// L'amorce donnée à Whisper : celle de la langue, suivie des noms propres à bien écrire (le nom
+/// du kit de marque, d'habitude). Cinq noms au plus, de 40 lettres au plus, sans caractère de
+/// contrôle ; ils passent en argument du programme, jamais par un interpréteur de commandes.
+pub fn amorce(langue: &str, noms: &[String]) -> Option<String> {
+    let noms: Vec<String> = noms
+        .iter()
+        .map(|n| n.chars().filter(|c| !c.is_control()).take(40).collect::<String>().trim().to_string())
+        .filter(|n| !n.is_empty())
+        .take(5)
+        .collect();
+    if noms.is_empty() {
+        return consigne(langue).map(str::to_string);
+    }
+    // Une phrase qui cite les noms aide plus qu'une liste (essai du 2026-10-16 : « Eliot » dit par
+    // la voix de synthèse, écrit juste deux fois sur deux avec « On parle d'Eliot. », une fois sur
+    // deux avec « Eliot. »).
+    let phrase = match langue {
+        "fr" => {
+            let de = |n: &String| {
+                let voyelle = n.chars().next().is_some_and(|c| "aeiouyhàâéèêëîïôöùûüAEIOUYHÀÂÉÈÊËÎÏÔÖÙÛÜ".contains(c));
+                if voyelle { format!("d'{n}") } else { format!("de {n}") }
+            };
+            format!("On parle {}.", noms.iter().map(de).collect::<Vec<_>>().join(", "))
+        }
+        "en" => format!("We talk about {}.", noms.join(", ")),
+        _ => format!("{}.", noms.join(", ")),
+    };
+    Some(match consigne(langue) {
+        Some(base) => format!("{base} {phrase}"),
+        None => phrase,
+    })
+}
+
 /// L'instant de fin d'une ligne de Whisper (`[00:02.780 --> 00:06.420]  Euh, aujourd'hui`), en
 /// secondes.
 pub fn fin_de_ligne(ligne: &str) -> Option<f64> {
@@ -425,7 +458,7 @@ fn ecrire_wav(mono: &[f32], chemin: &Path) -> io::Result<()> {
 
 /// Lance Whisper sur `wav` ; `avancement` reçoit l'instant (s) atteint à chaque phrase.
 /// Renvoie la sortie JSON.
-fn lancer_whisper(programme: &Path, modele: &Path, wav: &Path, travail: &Path, langue: &str, annule: &AtomicBool, avancement: &mut dyn FnMut(f64)) -> Result<Value, ErreurParole> {
+fn lancer_whisper(programme: &Path, modele: &Path, wav: &Path, travail: &Path, langue: &str, noms: &[String], annule: &AtomicBool, avancement: &mut dyn FnMut(f64)) -> Result<Value, ErreurParole> {
     let coeurs = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2);
     let fils = coeurs.saturating_sub(1).clamp(1, 8);
     let mut c = Command::new(programme);
@@ -436,8 +469,8 @@ fn lancer_whisper(programme: &Path, modele: &Path, wav: &Path, travail: &Path, l
     if langue != "auto" {
         c.args(["--language", langue]);
     }
-    if let Some(p) = consigne(langue) {
-        c.args(["--initial_prompt", p]);
+    if let Some(p) = amorce(langue, noms) {
+        c.arg("--initial_prompt").arg(p);
     }
     // Aucune carte graphique visible, rien à chercher sur Internet, lignes écrites au fil de
     // l'eau.
@@ -487,7 +520,7 @@ fn lancer_whisper(programme: &Path, modele: &Path, wav: &Path, travail: &Path, l
 /// Ce qui est dit dans un son du design, mot par mot : fait par Whisper au besoin (`forcer` le
 /// refait), relu sinon. `langue` : `fr`, `en` ou `auto`. `avancement` reçoit de 0 à 1.
 #[allow(clippy::too_many_arguments)]
-pub fn transcrire(dossier: &Path, id: &str, programme: &Path, modele: &Path, langue: &str, forcer: bool, annule: &AtomicBool, avancement: &mut dyn FnMut(f32)) -> Result<Analyse, ErreurParole> {
+pub fn transcrire(dossier: &Path, id: &str, programme: &Path, modele: &Path, langue: &str, noms: &[String], forcer: bool, annule: &AtomicBool, avancement: &mut dyn FnMut(f32)) -> Result<Analyse, ErreurParole> {
     let langue = match langue {
         "fr" | "en" => langue,
         _ => "auto",
@@ -511,7 +544,7 @@ pub fn transcrire(dossier: &Path, id: &str, programme: &Path, modele: &Path, lan
         ecrire_wav(&mono, &wav)?;
         let duree = (analyse.duree as f64 / 1000.0).max(0.001);
         avancement(0.05);
-        let json = lancer_whisper(programme, modele, &wav, &travail, langue, annule, &mut |s| avancement((0.05 + 0.93 * (s / duree)).clamp(0.05, 0.98) as f32))?;
+        let json = lancer_whisper(programme, modele, &wav, &travail, langue, noms, annule, &mut |s| avancement((0.05 + 0.93 * (s / duree)).clamp(0.05, 0.98) as f32))?;
         let (reconnue, mots) = lire_sortie(&json);
         let langue = if langue == "auto" { reconnue.unwrap_or_else(|| "auto".into()) } else { langue.to_string() };
         let nom = modele.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -540,6 +573,18 @@ mod tests {
         let _ = fs::remove_dir_all(&dossier);
         fs::create_dir_all(&dossier).unwrap();
         dossier
+    }
+
+    #[test]
+    fn l_amorce_porte_les_noms_de_la_marque() {
+        assert_eq!(amorce("fr", &[]).as_deref(), Some("Euh, bon, alors, euh, hum, je pense que, ben, voilà."));
+        assert_eq!(amorce("fr", &["Eliot".into(), "  ".into()]).as_deref(), Some("Euh, bon, alors, euh, hum, je pense que, ben, voilà. On parle d'Eliot."));
+        assert_eq!(amorce("fr", &["Nimeria".into(), "Été".into()]).as_deref(), Some("Euh, bon, alors, euh, hum, je pense que, ben, voilà. On parle de Nimeria, d'Été."));
+        assert_eq!(amorce("auto", &["Nimeria".into()]).as_deref(), Some("Nimeria."));
+        assert_eq!(amorce("auto", &[]), None);
+        let long = "x".repeat(60) + "\n";
+        let a = amorce("en", &[long, "a".into(), "b".into(), "c".into(), "d".into(), "e".into()]).unwrap();
+        assert!(a.ends_with(&format!("We talk about {}, a, b, c, d.", "x".repeat(40))), "{a}");
     }
 
     #[test]
@@ -675,7 +720,7 @@ mod tests {
         let ressources = d.join("ressources");
         let r = importer(&phrase, &ressources, &mut |_| ()).unwrap();
         let mut etapes = Vec::new();
-        let a = transcrire(&ressources, &r.id, &programme, &modele, "fr", false, &AtomicBool::new(false), &mut |p| etapes.push(p)).unwrap();
+        let a = transcrire(&ressources, &r.id, &programme, &modele, "fr", &[], false, &AtomicBool::new(false), &mut |p| etapes.push(p)).unwrap();
         let t = a.transcription.clone().expect("une transcription");
         assert_eq!(t.langue, "fr");
         let textes: Vec<String> = t.mots.iter().map(|m| m.texte.to_lowercase()).collect();
@@ -689,10 +734,10 @@ mod tests {
         assert!(a.parole.iter().any(|r| r[0] == abord.debut) && abord.debut.abs_diff(9084) <= 150, "{abord:?} {:?}", a.parole);
         assert!(etapes.len() >= 3 && *etapes.last().unwrap() == 1.0, "{etapes:?}");
         // Relue : Whisper ne repart pas.
-        let encore = transcrire(&ressources, &r.id, Path::new("/nulle/part"), &modele, "fr", false, &AtomicBool::new(false), &mut |_| ()).unwrap();
+        let encore = transcrire(&ressources, &r.id, Path::new("/nulle/part"), &modele, "fr", &[], false, &AtomicBool::new(false), &mut |_| ()).unwrap();
         assert_eq!(encore, a);
         // Annulée d'avance : rien n'est fait.
-        let annulee = transcrire(&ressources, &r.id, &programme, &modele, "en", true, &AtomicBool::new(true), &mut |_| ());
+        let annulee = transcrire(&ressources, &r.id, &programme, &modele, "en", &[], true, &AtomicBool::new(true), &mut |_| ());
         assert!(matches!(annulee, Err(ErreurParole::Annulee)));
         let _ = fs::remove_dir_all(&d);
     }

@@ -6,6 +6,7 @@ import { activerSelection, creerScene } from "./scene";
 import { mesurerFrequence } from "./mesure";
 import { SCENARIOS, fichiersManquants, type Contexte, type Resultat, type Scenario } from "./scenarios";
 import { listeCopies, scenariosCopies, type ListeCopies } from "./copies";
+import { scenariosLabo } from "./labo";
 
 interface InfosSysteme {
   processeur: string;
@@ -15,6 +16,7 @@ interface InfosSysteme {
   session: string;
   variables: [string, string][];
   lancement_automatique: boolean;
+  serie_automatique: string;
 }
 
 const element = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -22,6 +24,7 @@ const etat = element<HTMLParagraphElement>("etat");
 const corpsTableau = element<HTMLTableElement>("tableau").tBodies[0];
 const boutonLancer = element<HTMLButtonElement>("bouton-lancer");
 const boutonCopies = element<HTMLButtonElement>("bouton-copies");
+const boutonLabo = element<HTMLButtonElement>("bouton-labo");
 const boutonLibre = element<HTMLButtonElement>("bouton-libre");
 const boutonCopier = element<HTMLButtonElement>("bouton-copier");
 const compteur = element<HTMLDivElement>("compteur");
@@ -112,10 +115,10 @@ function afficherResultat(r: Resultat): void {
   }
 }
 
-async function enregistrer(resultats: Resultat[], serie?: { nom: string; copies: ListeCopies }): Promise<void> {
+async function enregistrer(resultats: Resultat[], serie?: { nom: string; copies?: ListeCopies }): Promise<void> {
   const donnees = {
     version: 1,
-    ...(serie ? { serie: serie.nom, copies: serie.copies } : {}),
+    ...(serie ? { serie: serie.nom, ...(serie.copies ? { copies: serie.copies } : {}) } : {}),
     horodatage: horodatage(),
     moteur,
     navigateur: navigator.userAgent,
@@ -160,10 +163,11 @@ function basculerModeLibre(actif: boolean): void {
   boucleCompteur = requestAnimationFrame(tic);
 }
 
-async function lancerTests(liste: Scenario[] = SCENARIOS, serie?: { nom: string; copies: ListeCopies }): Promise<void> {
+async function lancerTests(liste: Scenario[] = SCENARIOS, serie?: { nom: string; copies?: ListeCopies }): Promise<void> {
   basculerModeLibre(false);
   boutonLancer.disabled = true;
   boutonCopies.disabled = true;
+  boutonLabo.disabled = true;
   boutonLibre.disabled = true;
   boutonCopier.hidden = true;
   corpsTableau.replaceChildren();
@@ -195,6 +199,7 @@ async function lancerTests(liste: Scenario[] = SCENARIOS, serie?: { nom: string;
   await enregistrer(resultats, serie);
   boutonLancer.disabled = false;
   boutonCopies.disabled = false;
+  boutonLabo.disabled = false;
   boutonLibre.disabled = false;
 }
 
@@ -210,6 +215,8 @@ async function lancerCopies(): Promise<void> {
 
 boutonLancer.addEventListener("click", () => void lancerTests());
 boutonCopies.addEventListener("click", () => void lancerCopies());
+// Étape 5, lot 0 : l'aperçu en direct du labo photo (environ une minute).
+boutonLabo.addEventListener("click", () => void lancerTests(scenariosLabo(), { nom: "labo" }));
 boutonLibre.addEventListener("click", () => basculerModeLibre(!modeLibre));
 boutonCopier.addEventListener("click", () => {
   void navigator.clipboard.writeText(dernierJson).then(
@@ -239,6 +246,9 @@ async function demarrer(): Promise<void> {
   if (auto) {
     await new Promise((r) => setTimeout(r, 1500));
     await lancerTests();
+  } else if (infos?.serie_automatique === "labo") {
+    await new Promise((r) => setTimeout(r, 1500));
+    await lancerTests(scenariosLabo(), { nom: "labo" });
   }
 }
 

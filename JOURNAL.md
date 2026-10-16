@@ -5,6 +5,30 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5 ouverte : plan et banc de l'aperçu en direct
+
+- Alexandre valide la vérification de l'étape 4 et les propositions de fin de livraison (« Ok,
+  c'est bon, je valide, tu peux continuer à l'étape 5 »). Lu par Claude :
+  - la coupe des silences et des hésitations en morceaux de la frise (lot 7) est retenue ; le
+    BRIEF est corrigé dans ce sens (§ 6, « Le son », et le modèle de document) ;
+  - le nom du kit de marque passe dans l'amorce donnée à Whisper, pour que les sous-titres
+    l'écrivent juste (fait le même jour : « On parle d'Eliot. » après la phrase des « euh » ;
+    une phrase qui cite le nom aide plus que le nom seul). Mesuré sur la voix de synthèse qui
+    dit deux fois « Eliot » : sans le nom, aucune fois écrit juste (« Gélio ») ; avec, une ou
+    deux fois selon l'enregistrement. Une aide, pas une garantie ; les « euh » restent écrits ;
+  - la musique sous une vidéo où l'on parle : deux façons étaient proposées, aucune n'est
+    choisie ; la question reste posée (rien ne change d'ici là, détacher le son suffit).
+- Plan de l'étape 5 écrit dans `PLAN.md` : huit lots (banc de l'aperçu en direct, exports depuis
+  le document, labo, préréglages et courbe, clips vidéo, recadrage, perspective, détourage) et
+  les choix par défaut de Claude, dont la règle qui départagera les deux voies de l'aperçu,
+  écrite avant la mesure.
+- Lot 0 : banc de l'aperçu en direct ajouté à `00_banc_essai/` (`src-tauri/src/labo.rs`,
+  `src/labo.ts`, bouton « Labo photo (étape 5) »). Les réglages d'un pixel (balance des
+  blancs, exposition, contraste, hautes lumières, ombres, blancs, noirs, saturation, vibrance,
+  mélangeur de huit couleurs, vignetage, grain) sont écrits en Rust et en GLSL, ligne pour
+  ligne, dans l'ordre du BRIEF ; ceux qui regardent les voisins (clarté, texture, netteté,
+  bruit, voile) en Rust seulement, chronométrés. Commande 6 ter du `CLAUDE.md`.
+
 ## 2026-10-15, étape 4 : vérification de l'étape
 
 Accord d'Alexandre pour continuer (« Fais la suite »). Ce que Claude a fait et décidé :

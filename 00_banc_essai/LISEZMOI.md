@@ -54,6 +54,28 @@ images par seconde pendant un glisser continu de la tête). Environ trois minute
 dans `resultats/AAAA-MM-JJ_HHMMSS_<moteur>_copies.json`, avec la liste des copies et la
 version de `ffmpeg`.
 
+## L'aperçu en direct du labo photo (étape 5, lot 0)
+
+Dans Eliot, la page devra suivre les curseurs du labo (exposition, contraste, couleurs) pendant
+qu'on les tire. Deux voies, à départager sur le poste (BRIEF § 6) : le Rust recalcule une copie
+à la taille de l'écran à chaque mouvement et renvoie les pixels bruts, ou un shader WebGL fait
+le même calcul dans la fenêtre. Les mêmes formules sont écrites des deux côtés
+(`src-tauri/src/labo.rs` et `src/labo.ts`). Le bouton « Labo photo (étape 5) » imite un curseur
+qu'on tire sans arrêt pendant 5 s, plusieurs réglages à la fois, le mélangeur, le vignetage et
+le grain posés :
+
+| Test | Ce qu'il mesure |
+| --- | --- |
+| Rust en direct, 1280, 1920 et 2560 px | images réglées par seconde, temps entre le curseur et l'image, part du calcul et du transfert |
+| Shader WebGL, photo dessinée dans Konva, puis posée sur la page | images par seconde de la fenêtre, coût d'une image |
+| Shader WebGL, vidéo qui joue | la même chose sur la copie VP9 720p (ou la vidéo VP9 des fichiers de test), images de la vidéo affichées et perdues |
+| Écart entre le Rust et le shader | les deux rendus des mêmes pixels, comparés (moyenne, maximum, part au-delà de 2 sur 255) |
+| Réglages voisins sur l'aperçu, tout le labo sur l'original | clarté, texture, netteté, bruit, voile, que le Rust calcule au relâchement du curseur ; puis tout sur la photo de 24 Mpx, comme à l'export |
+
+Environ une minute, carte graphique libre (le shader s'en sert, comme toute la fenêtre).
+Résultats dans `resultats/AAAA-MM-JJ_HHMMSS_<moteur>_labo.json`. Les mesures du Rust ne valent
+que dans la fenêtre Tauri ; dans Chrome, seul le shader tourne.
+
 ## Où vont les résultats
 
 Chaque série écrit un fichier `resultats/AAAA-MM-JJ_HHMMSS_<moteur>.json` (moteur :

@@ -1,8 +1,11 @@
 //! Banc d'essai de Eliot, côté Rust.
 //!
-//! Deux commandes seulement : décrire la machine (pour étiqueter les résultats) et mesurer ce
-//! que coûte en Rust natif le traitement d'une photo 24 Mpx (décodage, réduction à 2560 px,
-//! encodage JPEG), à comparer avec le même traitement fait par le moteur web.
+//! Décrire la machine (pour étiqueter les résultats) et mesurer ce que coûte en Rust natif le
+//! traitement d'une photo 24 Mpx (décodage, réduction à 2560 px, encodage JPEG), à comparer
+//! avec le même traitement fait par le moteur web. Étape 5, lot 0 : l'aperçu en direct du labo
+//! photo (`labo.rs`).
+
+mod labo;
 
 use std::fs;
 use std::path::PathBuf;
@@ -30,6 +33,8 @@ pub struct InfosSysteme {
     session: String,
     variables: Vec<(String, String)>,
     lancement_automatique: bool,
+    /// Série lancée d'office dans le conteneur de Claude (`BANC_AUTO=labo`), jamais sur le poste.
+    serie_automatique: String,
 }
 
 /// Première ligne de /proc/cpuinfo qui commence par `cle`.
@@ -104,6 +109,7 @@ fn infos_systeme() -> InfosSysteme {
         session: std::env::var("XDG_SESSION_TYPE").unwrap_or_else(|_| "?".to_string()),
         variables,
         lancement_automatique: std::env::var("BANC_AUTO").is_ok_and(|v| v == "1"),
+        serie_automatique: std::env::var("BANC_AUTO").unwrap_or_default(),
     }
 }
 
@@ -193,7 +199,15 @@ async fn mesurer_reduction_rust() -> Result<MesureReduction, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn lancer() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![infos_systeme, mesurer_reduction_rust])
+        .manage(labo::Cache::default())
+        .invoke_handler(tauri::generate_handler![
+            infos_systeme,
+            mesurer_reduction_rust,
+            labo::labo_preparer,
+            labo::labo_source,
+            labo::labo_rendre,
+            labo::labo_voisins
+        ])
         .run(tauri::generate_context!())
         .expect("échec du lancement du banc d'essai");
 }

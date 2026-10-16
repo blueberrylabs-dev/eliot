@@ -1,6 +1,6 @@
 # CLAUDE.md — Eliot
 
-Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-15.
+Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-16.
 Règles communes à tous mes projets : `/home/nushoko/Bureau/Projets/00_moi/CONVENTIONS.md`,
 `/home/nushoko/Bureau/Projets/00_moi/AUTONOMIE.md`. Qui je suis :
 `/home/nushoko/Bureau/Projets/00_moi/IDENTITE.md`.
@@ -12,7 +12,7 @@ de Canva, pour apprendre la création publicitaire en photos et en vidéos. Taur
 fenêtre, React et Konva pour l'interface et le dessin, un noyau Rust natif pour le travail
 lourd. Détail : `BRIEF.md`.
 
-## État au 2026-10-15
+## État au 2026-10-16
 
 - `BRIEF.md` : révision 7, **validée par Alexandre le 2026-10-14** : bibliothèque, Pixabay
   puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
@@ -62,6 +62,9 @@ lourd. Détail : `BRIEF.md`.
   livraison, recompiler le pont (commande 13, puis 15 bis si l'extension sert) : la description
   de deux outils change. Pour la voix de synthèse, une fois : commandes 16 et 17 ; pour les
   sous-titres, une fois : commandes 18 et 19.
+- Étape 5, le labo photo et les exports de qualité : ouverte le 2026-10-16 (plan, lots et règle
+  de décision de l'aperçu en direct dans `PLAN.md`) ; lot 0, banc de l'aperçu en direct, prêt
+  dans `00_banc_essai/`, à lancer par Alexandre (commande 6 ter).
 
 Suite : `PLAN.md`.
 
@@ -181,6 +184,25 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && npm run tauri dev
 
 Vérifier : un fichier qui finit par `_copies.json` dans `00_banc_essai/resultats/`.
 
+**6 ter. Banc de l'aperçu en direct du labo photo (étape 5, lot 0).** Il se sert de la photo de
+la commande 4 bis et de la copie VP9 720p de la commande 6 bis, déjà sur le poste. D'abord
+recompiler le banc (processeur seulement ; la première fois, `cargo` télécharge la
+bibliothèque `rayon`, qui répartit le calcul sur les cœurs) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai/src-tauri && cargo build -j 4
+```
+
+Ensuite, carte graphique libre (le shader WebGL s'en sert, comme toute la fenêtre), lancer le
+banc et cliquer « Labo photo (étape 5) » ; ne plus toucher à la fenêtre pendant environ une
+minute. Arrêter : `Ctrl+C`.
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/00_banc_essai && npm run tauri dev
+```
+
+Vérifier : un fichier qui finit par `_labo.json` dans `00_banc_essai/resultats/`.
+
 **7. Si la fenêtre reste blanche, scintille ou plante** (pilote NVIDIA) : `Ctrl+C`, puis
 relancer avec la première variable ; si ça ne suffit pas, avec la seconde. La variable
 utilisée est inscrite dans les résultats.
@@ -249,7 +271,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 83 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
+Vérifier : `test result: ok. 84 passed; 0 failed; 1 ignored` (l'essai ignoré sert aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter

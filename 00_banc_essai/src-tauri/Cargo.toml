@@ -18,6 +18,8 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 fast_image_resize = { version = "6", features = ["image"] }
+# Étape 5, lot 0 : l'aperçu en direct du labo photo calculé sur tous les cœurs.
+rayon = "1"
 
 # Tout est compilé optimisé, même en mode développement : sinon `tauri dev` mesurerait un
 # Rust bien plus lent qu'en vrai. Les bibliothèques ne suffisent pas : leur code générique

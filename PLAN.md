@@ -1,6 +1,6 @@
 # PLAN.md — Eliot
 
-Plan vivant, source de vérité de l'avancement. Version du 2026-10-15, alignée sur le
+Plan vivant, source de vérité de l'avancement. Version du 2026-10-16, alignée sur le
 `BRIEF.md` (révision 7, validée le 2026-10-14 ; la révision 5 ajoute la bibliothèque, le
 labo photo, le mode vidéo façon CapCut, le pont vers une IA, et renumérote les étapes 2 à 6 ;
 la révision 6 met Pixabay avant Pexels ; la révision 7 ajoute la création de contenu pour
@@ -320,11 +320,67 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [ ] Plus tard, si utile : l'original d'un son Freesound par la connexion au compte (OAuth2,
       BRIEF § 6) ; d'ici là, Eliot prend l'extrait de bonne qualité (environ 192 kbit/s).
 
-## Étape 5. Le labo photo et les exports de qualité
+## Étape 5. Le labo photo et les exports de qualité (ouverte le 2026-10-16)
 
-Banc de l'aperçu en direct, labo façon Lightroom et préréglages (photos et clips), recadrage,
-export depuis le document (PDF vectoriel, haute définition, WebP, SVG), perspective,
-détourage.
+Résultat visible attendu : une photo ou un clip choisi montre « Retoucher » ; le panneau du labo
+s'ouvre à gauche (lumière, couleur, effets, détail, histogramme, préréglages, recadrage et
+horizon) et la page suit les curseurs en direct ; un visuel se pose en perspective sur un écran
+ou une boîte ; le fond d'une photo de produit s'efface sur le processeur ; l'export sort, depuis
+le document et les originaux, un PNG haute définition (une affiche A4 à 300 dpi), un JPEG, un
+WebP, un PDF vectoriel de toutes les pages ou un SVG. Claude peut tout faire par le pont.
+Détail : `BRIEF.md` § 6 (« Ce que Eliot reprend de Lightroom », « Ce que demandent la publicité
+et les maquettes de produits », « L'export, de bout en bout ») et § 7.
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Aperçu en direct : la voie (Rust en direct ou shader WebGL) se choisit par le banc du lot 0,
+  comme le BRIEF le prévoit. Règle de décision écrite avant la mesure : le shader l'emporte s'il
+  tient 55 images par seconde sur la photo et sur une vidéo qui joue, et si son rendu s'écarte
+  de celui du Rust de 2 sur 255 au plus en moyenne ; le Rust en direct l'emporte s'il tient 30
+  images par seconde à la taille de l'écran avec moins de 50 ms entre le curseur et l'image.
+  Si les deux passent, le shader, parce qu'il vaut aussi pour les clips qui jouent. Le mini PC
+  confirmera quand il sera là.
+- Réglages : des valeurs du document (`reglages`, seulement les curseurs différents de zéro,
+  même champ pour une photo et un clip, règle 13). Le noyau les calcule en lumière linéaire,
+  dans l'ordre fixe du BRIEF : balance des blancs, exposition, tonalités, courbe, couleurs,
+  détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
+  tableau de valeurs attendues commun, comme pour l'animation et le son.
+- Exports : le noyau rend la page depuis la description en calques de l'étape 4 (les mêmes
+  SVG, les mêmes polices, les originaux des photos) avec `resvg` ; PDF vectoriel par `svg2pdf`
+  0.13 (MIT ou Apache-2.0, celui de Typst) ; WebP par le `ffmpeg` du système (encodeur libwebp,
+  déjà là) ; SVG avec ses images et ses polices dedans. L'export actuel par la fenêtre
+  (aperçus de 2560 px) laisse la place au rendu du noyau, comparé au pixel avant de s'y fier.
+- Détourage : un modèle d'IA sur le processeur, lancé comme Whisper (programme installé par
+  Alexandre, modèle téléchargé une fois dans `telechargements/`), choisi au lot 7 d'après sa
+  licence (libre pour un usage commercial de préférence) et sa qualité sur des photos de
+  produits.
+
+- [ ] Lot 0 : banc de l'aperçu en direct dans `00_banc_essai/` (bouton « Labo photo (étape
+      5) ») : Rust en direct à 1280, 1920 et 2560 px (pixels bruts par l'IPC binaire de
+      Tauri) ; shader WebGL sur la photo dessinée dans Konva, puis posée sur la page, puis sur
+      une vidéo qui joue ; écart entre les deux rendus ; coût des réglages qui regardent les
+      pixels voisins (clarté, texture, netteté, bruit, voile) sur l'aperçu de 2560 px et sur
+      l'original de 24 Mpx. Série d'Alexandre sur le poste, puis décision au JOURNAL.
+- [ ] Lot 1 : exports depuis le document : PNG haute définition (×1 à ×4, ou 150 et 300 dpi
+      pour l'A4 et l'A5), JPEG, WebP, PDF vectoriel (toutes les pages), SVG (une page) ;
+      fenêtre d'export revue ; comparaison au pixel entre l'écran et l'export ; `exporter` du
+      pont étendu.
+- [ ] Lot 2 : le labo : moteur des réglages dans le noyau, bouton Retoucher, panneau (Lumière,
+      Couleur avec mélangeur, Effets, Détail), histogramme, aperçu en direct par la voie du lot
+      0, avant et après, double-clic qui remet à zéro, valeur au clavier ; export depuis
+      l'original.
+- [ ] Lot 3 : courbe des tonalités, une vingtaine de préréglages dessinés par Claude, préréglages
+      d'Alexandre, copier et coller les réglages d'une image à l'autre.
+- [ ] Lot 4 : les clips vidéo dans le labo : réglages qui suivent la lecture, export image par
+      image.
+- [ ] Lot 5 : recadrage et redressement de l'horizon, dans le panneau du labo (proportions
+      prêtes, grille des tiers).
+- [ ] Lot 6 : perspective : poser un visuel sur quatre coins (écran incliné, boîte, affiche en
+      biais), à l'écran et à l'export.
+- [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
+      document (l'original intact), pinceau pour reprendre les bords.
+- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots.
+- [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)
 
