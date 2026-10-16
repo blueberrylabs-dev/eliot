@@ -9,6 +9,7 @@ import type { ReglagesDessin } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
 import { recalerPersonnage } from "../modele/personnages";
+import { proportionsDe, rognageDeRemplacement } from "../modele/rognage";
 import { catalogueConnu } from "../bibliotheque/personnages";
 import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type NettoyageVoix, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
 import { deplacerClip, deplacerSon, dupliquerDansLeTemps, dupliquerSon, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, placerSon, rogner, rognerSon, scinder, scinderSons, supprimerSons, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
@@ -163,6 +164,11 @@ interface EtatEditeur {
   /** Met une photo du design dans un cadre ou un écran de maquette (cadrage remis au centre). */
   remplirPhoto: (id: string, ressource: string) => void;
   retirerPhoto: (id: string) => void;
+  /** Remplace la photo d'un élément image par une autre image du design, à la même place : la
+   *  boîte, la retouche, la perspective et le style restent ; la nouvelle photo est recadrée au
+   *  centre aux proportions de l'ancienne ; le détourage, propre à l'ancienne, part. Une seule
+   *  étape d'annulation. Faux si rien ne change (verrou, image inconnue, vidéo, même photo). */
+  remplacerPhoto: (id: string, ressource: string) => boolean;
 
   ajouterRessources: (ressources: Ressource[]) => void;
 
@@ -805,6 +811,18 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     if (!e || !recoitPhoto(e) || e.verrouille) return;
     get().modifierElements({ [id]: { ressource, recadrage: { zoom: 1, x: 0.5, y: 0.5 } } as Partial<ElementPage> });
     set({ selection: [id] });
+  },
+
+  remplacerPhoto(id, ressource) {
+    const s = get();
+    const e = parId(elementsCourants(s)).get(id);
+    const nouvelle = s.ressources[ressource];
+    if (!e || e.type !== "image" || e.verrouille || !nouvelle || nouvelle.video || nouvelle.son || e.ressource === ressource) return false;
+    const ancienne = s.ressources[e.ressource];
+    const ratio = ancienne ? proportionsDe(e.rognage, ancienne.largeur, ancienne.hauteur) : e.largeur / e.hauteur;
+    get().modifierElements({ [id]: { ressource, rognage: rognageDeRemplacement(ratio, nouvelle.largeur, nouvelle.hauteur), detourage: undefined } as Partial<ElementPage> });
+    set({ selection: [id] });
+    return true;
   },
 
   retirerPhoto(id) {

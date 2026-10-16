@@ -19,6 +19,9 @@ export interface OptionsExport {
   echelle: number;
   /** PNG et WebP : le fond de la page n'est pas dessiné. */
   transparent: boolean;
+  /** JPEG et WebP : la qualité, de 1 à 100 (sans elle, `QUALITE_PAR_DEFAUT`). Plus basse, le
+   *  fichier est plus léger. */
+  qualite?: number;
   /** La page affichée, ou toutes les pages (une image par page, numérotées ; un seul PDF). Le
    *  SVG : la page affichée seulement. */
   pages: "courante" | "toutes";
@@ -33,6 +36,12 @@ export type Progression = (fait: number, total: number, etape: "description" | "
 export const FORMATS_DU_NOYAU: FormatExport[] = ["webp", "pdf", "svg"];
 
 export const LIBELLES_EXPORT: Record<FormatExport, string> = { png: "PNG", jpeg: "JPEG", webp: "WebP", pdf: "PDF", svg: "SVG" };
+
+/** La qualité d'un JPEG et d'un WebP quand rien n'est demandé (celle du noyau). */
+export const QUALITE_PAR_DEFAUT = { jpeg: 92, webp: 90 } as const;
+
+/** Une qualité demandée, ramenée à un entier de 1 à 100 (comme le noyau). */
+export const bornerQualite = (q: number): number => Math.min(100, Math.max(1, Math.round(Number.isFinite(q) ? q : 100)));
 
 /** Le plus grand côté et le nombre de pixels d'une image exportée (comme le noyau). */
 export const COTE_MAX = 12_000;
@@ -97,7 +106,8 @@ export async function exporter(options: OptionsExport, progression?: Progression
       p.description = { ...p.description, polices: [], sons: [] };
     }
     progression?.(0, demandees.length, "rendu");
-    return exporterDocument(projet, { format: options.format, pages, polices, echelle: options.echelle, transparent: options.transparent }, base, options.chemin, (fait, total) => progression?.(fait, total, "rendu"));
+    const qualite = options.qualite !== undefined && (options.format === "jpeg" || options.format === "webp") ? bornerQualite(options.qualite) : undefined;
+    return exporterDocument(projet, { format: options.format, pages, polices, echelle: options.echelle, transparent: options.transparent, qualite }, base, options.chemin, (fait, total) => progression?.(fait, total, "rendu"));
   }
   if (options.format !== "png" && options.format !== "jpeg") throw new Error(`le ${LIBELLES_EXPORT[options.format]} se fait dans l'application Eliot`);
   const ecrits: string[] = [];
@@ -107,6 +117,7 @@ export async function exporter(options: OptionsExport, progression?: Progression
       pixelRatio: options.echelle,
       type: options.format === "png" ? "image/png" : "image/jpeg",
       transparent: options.transparent,
+      qualite: options.qualite !== undefined ? bornerQualite(options.qualite) / 100 : undefined,
       instant,
     });
     const octets = new Uint8Array(await blob.arrayBuffer());

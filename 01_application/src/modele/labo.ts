@@ -58,6 +58,8 @@ export interface ReglagesPhoto {
   texture?: number;
   clarte?: number;
   voile?: number;
+  /** De 0 à 100 : le flou de toute la photo. */
+  flou?: number;
   vignetage?: number;
   /** De 0 à 100. */
   grain?: number;
@@ -90,7 +92,7 @@ export const SECTIONS_LABO: { titre: string; curseurs: DefinitionCurseur[] }[] =
     curseurs: [c("exposition", "Exposition", -5, 5, 0.05), c("contraste", "Contraste"), c("hautesLumieres", "Hautes lumières"), c("ombres", "Ombres"), c("blancs", "Blancs"), c("noirs", "Noirs")],
   },
   { titre: "Couleur", curseurs: [c("temperature", "Température"), c("teinte", "Teinte"), c("vibrance", "Vibrance"), c("saturation", "Saturation")] },
-  { titre: "Effets", curseurs: [c("texture", "Texture"), c("clarte", "Clarté"), c("voile", "Correction du voile"), c("vignetage", "Vignetage"), c("grain", "Grain", 0, 100)] },
+  { titre: "Effets", curseurs: [c("texture", "Texture"), c("clarte", "Clarté"), c("voile", "Correction du voile"), c("flou", "Flou", 0, 100), c("vignetage", "Vignetage"), c("grain", "Grain", 0, 100)] },
   { titre: "Détail", curseurs: [c("nettete", "Netteté"), c("bruit", "Réduction du bruit", 0, 100)] },
 ];
 
@@ -99,7 +101,7 @@ const PAR_CLE = new Map(CURSEURS_LABO.map((d) => [d.cle, d]));
 
 /** Les réglages qui regardent les pixels voisins : le noyau les calcule (au relâchement du
  *  curseur pour l'aperçu, à l'export depuis l'original). */
-export const CURSEURS_VOISINS: CurseurLabo[] = ["bruit", "nettete", "texture", "clarte", "voile"];
+export const CURSEURS_VOISINS: CurseurLabo[] = ["bruit", "nettete", "texture", "clarte", "voile", "flou"];
 
 export function definitionCurseur(cle: CurseurLabo): DefinitionCurseur {
   return PAR_CLE.get(cle)!;

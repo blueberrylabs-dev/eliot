@@ -1,7 +1,7 @@
 // Les préréglages du labo photo (étape 5, lot 3) : ceux qu'Eliot fournit (`prereglages.json`,
 // dessinés par Claude) et ceux qu'Alexandre enregistre (rangés hors des designs, voir
 // `labo/prereglages.ts`). Un préréglage est un style : il ne touche ni à l'exposition, ni à la
-// netteté, ni à la réduction du bruit, qui restent propres à chaque photo. L'appliquer remplace
+// netteté, ni au flou, ni à la réduction du bruit, qui restent propres à chaque photo. L'appliquer remplace
 // tout le reste de la retouche ; son intensité, de 0 à 100 %, rapproche chaque valeur de zéro
 // (chaque point de la courbe de la diagonale, la force de chaque teinte de l'étalonnage de zéro).
 
@@ -21,7 +21,7 @@ export const CATEGORIES_FOURNIES: string[] = fournis.categories;
 export const PREREGLAGES_FOURNIS: Prereglage[] = (fournis.prereglages as unknown as Prereglage[]).map((p) => ({ ...p, reglages: normaliserReglages(p.reglages) ?? {} }));
 
 /** Les réglages propres à chaque photo, qu'un préréglage ne touche pas. */
-export const GARDES_PAR_LA_PHOTO = ["exposition", "nettete", "bruit"] as const;
+export const GARDES_PAR_LA_PHOTO = ["exposition", "nettete", "flou", "bruit"] as const;
 
 /** Les réglages sans ceux que la photo garde : le style. */
 export function style(r: ReglagesPhoto | undefined): ReglagesPhoto | undefined {
@@ -73,14 +73,14 @@ export function echelonner(r: ReglagesPhoto | undefined, k: number): ReglagesPho
 
 /**
  * Les réglages d'une photo après un préréglage : le style du préréglage, à l'intensité voulue
- * (en %), et ce que la photo garde (exposition, netteté, réduction du bruit).
+ * (en %), et ce que la photo garde (exposition, netteté, flou, réduction du bruit).
  */
 export function appliquerPrereglage(actuels: ReglagesPhoto | undefined, p: Prereglage, intensite = 100): ReglagesPhoto | undefined {
   const k = Math.min(100, Math.max(0, intensite)) / 100;
   return normaliserReglages({ ...echelonner(style(p.reglages), k), ...gardes(actuels) });
 }
 
-/** Deux retouches ont-elles le même style (à l'exposition, la netteté et le bruit près) ? */
+/** Deux retouches ont-elles le même style (à l'exposition, la netteté, le flou et le bruit près) ? */
 export function memeStyle(a: ReglagesPhoto | undefined, b: ReglagesPhoto | undefined): boolean {
   return cleReglages(style(a)) === cleReglages(style(b));
 }

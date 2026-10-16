@@ -5,7 +5,7 @@ import { AlertTriangle, Bot, Check, ChevronDown, Clapperboard, Cloud, Copy, Down
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
-import { echellesPossibles, exporter, FORMATS_DU_NOYAU, formatPapier, nomDate } from "../export/exporter";
+import { echellesPossibles, exporter, FORMATS_DU_NOYAU, formatPapier, nomDate, QUALITE_PAR_DEFAUT } from "../export/exporter";
 import { exporterVideo, messageFilm, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
 import { afficherDansDossier, choisirEmplacement, choisirEmplacementFilm, dansTauri, dossierDesigns, dossierExport, dossierExportVideo, type FormatExport } from "../pont/tauri";
 import { ReglagesDuFilm } from "./ExportVideo";
@@ -53,6 +53,8 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const papier = formatPapier(format);
   const [echelle, setEchelle] = useState(1);
   const [transparent, setTransparent] = useState(false);
+  // JPEG et WebP : chacun sa qualité, retenue tant que le panneau est ouvert.
+  const [qualites, setQualites] = useState<{ jpeg: number; webp: number }>({ ...QUALITE_PAR_DEFAUT });
   const [pages, setPages] = useState<"courante" | "toutes">("courante");
   // Un PDF réunit d'ordinaire toutes les pages : son propre choix, toutes par défaut.
   const [pagesPdf, setPagesPdf] = useState<"courante" | "toutes">("toutes");
@@ -64,6 +66,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const estFilm = type === "mp4" || type === "gif";
   const vectoriel = type === "pdf" || type === "svg";
   const transparencePossible = type === "png" || type === "webp";
+  const avecQualite = type === "jpeg" || type === "webp";
   const pagesChoisies = type === "svg" ? "courante" : type === "pdf" ? pagesPdf : pages;
 
   useEffect(() => {
@@ -112,7 +115,7 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
         if (!choisi) return;
         chemin = choisi;
       }
-      const ecrits = await exporter({ format: type, echelle: vectoriel ? 1 : echelle, transparent: transparent && transparencePossible, pages: pagesChoisies, chemin }, (fait, total, etape) => {
+      const ecrits = await exporter({ format: type, echelle: vectoriel ? 1 : echelle, transparent: transparent && transparencePossible, qualite: avecQualite ? qualites[type] : undefined, pages: pagesChoisies, chemin }, (fait, total, etape) => {
         if (total > 1) setOccupe(`${etape === "description" ? "Préparation de la page" : type === "pdf" ? "PDF, page" : "Page"} ${Math.min(fait + 1, total)} sur ${total}…`);
       });
       const dernier = ecrits[ecrits.length - 1];
@@ -172,6 +175,31 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
                 ))}
               </div>
             </>
+          )}
+          {avecQualite && (
+            <label className="mb-3 block text-xs font-medium text-neutral-500">
+              <span className="mb-1 flex justify-between">
+                Qualité
+                <span data-qualite-valeur className="font-normal text-neutral-700">
+                  {qualites[type]}
+                  {qualites[type] === QUALITE_PAR_DEFAUT[type] ? " (par défaut)" : ""}
+                </span>
+              </span>
+              <input
+                type="range"
+                data-qualite
+                min={30}
+                max={100}
+                step={1}
+                value={qualites[type]}
+                onChange={(e) => setQualites((q) => ({ ...q, [type]: Number(e.target.value) }))}
+                className="w-full accent-accent-600"
+              />
+              <span className="flex justify-between text-[11px] font-normal text-neutral-400">
+                <span>fichier plus léger</span>
+                <span>image plus fidèle</span>
+              </span>
+            </label>
           )}
           {type === "pdf" && (
             <p className="mb-3 rounded-md bg-neutral-50 px-2.5 py-2 text-[11px] text-neutral-600">

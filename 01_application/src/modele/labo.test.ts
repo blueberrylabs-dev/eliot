@@ -13,7 +13,7 @@ describe("réglages du labo (étape 5, lot 2)", () => {
 
   it("les réglages qui regardent les voisins sont reconnus", () => {
     expect(aDesVoisins({ exposition: 1, vignetage: -30, grain: 20 })).toBe(false);
-    for (const k of ["bruit", "nettete", "texture", "clarte", "voile"] as const) expect(aDesVoisins({ [k]: 10 })).toBe(true);
+    for (const k of ["bruit", "nettete", "texture", "clarte", "voile", "flou"] as const) expect(aDesVoisins({ [k]: 10 })).toBe(true);
   });
 
   it("la clé ne dépend pas de l'ordre des champs", () => {

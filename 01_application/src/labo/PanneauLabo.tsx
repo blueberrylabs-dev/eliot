@@ -662,8 +662,8 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
       {voisins && (
         <p className="mb-1 text-[11px] text-neutral-500">
           {el.type === "video"
-            ? "Texture, clarté, voile, netteté et bruit se calculent à l'arrêt, quand on relâche le curseur ; pendant la lecture, ils ne se voient qu'à l'export."
-            : "Texture, clarté, voile, netteté et bruit se calculent quand on relâche le curseur."}
+            ? "Texture, clarté, voile, flou, netteté et bruit se calculent à l'arrêt, quand on relâche le curseur ; pendant la lecture, ils ne se voient qu'à l'export."
+            : "Texture, clarté, voile, flou, netteté et bruit se calculent quand on relâche le curseur."}
         </p>
       )}
       <Section titre="Préréglages" ouverte={!fermees.has("Préréglages")} basculer={() => basculer("Préréglages")}>

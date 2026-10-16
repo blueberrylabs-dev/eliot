@@ -5,6 +5,56 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5 : vérification de l'étape
+
+Demande d'Alexandre (« tu peux vérifier toutes les tables dans son ensemble », lu comme la
+vérification de toute l'étape 5, faite comme celle de l'étape 4). Ce que Claude a fait et décidé :
+
+- Relecture de l'étape contre le BRIEF (§ 6, « Ce que Eliot reprend de Lightroom », « Ce que
+  demandent la publicité et les maquettes de produits », « L'export, de bout en bout » ; § 7 ;
+  catalogue, lignes Image et Export) et le PLAN. Trois manques, comblés :
+  - Le flou (ligne Image) : un curseur Flou au labo, section Effets, de 0 à 100, après la
+    correction du voile. Le noyau le calcule en lumière linéaire (trois flous de boîte, proches
+    d'un flou gaussien), de rayon proportionnel à la taille de l'image : l'aperçu de 2560 px et
+    l'original donnent le même dessin. Comme la clarté, il se calcule au relâchement du curseur,
+    et vaut pour les clips. Un préréglage le laisse à la photo, comme la netteté : c'est un
+    usage de la photo (un fond flou derrière un sujet), pas un style. Écarté : un flou à part,
+    hors du labo, qui aurait demandé un second calcul à l'écran et à l'export pour le même
+    résultat.
+  - La qualité (ligne Export) : un curseur Qualité pour le JPEG (92 par défaut) et le WebP (90),
+    dans la fenêtre d'export comme pour le pont (`exporter`, `qualite` de 1 à 100). Un PNG,
+    un PDF ou un SVG n'en ont pas : refusée par le pont, absente de la fenêtre.
+  - Remplacer une image en gardant sa place (ligne Image) : « Remplacer » dans la barre d'une
+    photo, une image choisie sur l'ordinateur. La boîte, la retouche, la perspective, les coins
+    arrondis, la bordure et l'ombre restent ; la nouvelle photo est recadrée au centre aux
+    proportions de l'ancienne, donc jamais déformée ; le détourage, fait pour l'ancienne photo,
+    part (une notification le dit). Une étape d'annulation. Les cadres et les maquettes, qui
+    ne recevaient une photo que par un glisser, ont aussi « Choisir » et « Remplacer ». Pont :
+    `remplir_photo` remplace aussi une photo posée, sans outil de plus (66). Défaut évité en
+    route : une photo remplacée pendant que le modèle la détoure recevait le masque de
+    l'ancienne ; le détourage s'arrête désormais avec une erreur claire.
+  - Restent notés au PLAN : le labo sur les photos des cadres et des maquettes (lot 2) ;
+    l'aperçu en direct confirmé sur le mini PC, quand il sera là.
+- Une publicité de produit faite de bout en bout par le pont, dans Tauri, avec le vrai modèle
+  du détourage : un fond recadré au carré et flouté ; le produit détouré, retouché par « Produit
+  net » à 80 % avec son exposition, une ombre ; un titre ; une vignette en noir et blanc aux
+  coins arrondis, remplacée par une autre photo (même boîte, même retouche, recadrée au 3:2 de
+  l'ancienne) ; une page où un visuel posé en perspective sur un écran est remplacé (les coins
+  restent) ; une page vidéo au clip retouché, flou compris ; le design fermé puis rouvert.
+  Mesures, sur 255 : fond flouté, fenêtre contre export 0,23 ; page 1 entière 0,45 ; visuel
+  sur l'écran 1,73 ; PDF contre PNG 1,44 et 2,43 ; image du MP4 à 1 s contre l'export 1,32 ;
+  rouvert, export identique (0,00) et fenêtre à 0,45. JPEG à 92 : 133 Ko, 0,57 du PNG ; à 50 :
+  60 Ko, 1,39 ; WebP à 90 : 44 Ko, à 40 : 17 Ko. Le modèle du détourage : 46 s depuis
+  l'application (112 s au premier essai, le modèle encore froid sur le disque du conteneur).
+- Vérifié dans le conteneur : noyau 125 (le flou ajouté aux essais des réglages voisins et de
+  l'échelle, la qualité à celui des images), interface 214 (4 de plus : remplacer dans le
+  document, sa règle de recadrage, la qualité), `npm run build` ; Chromium : vérification 15
+  (Remplacer d'une photo et d'un cadre, curseur Flou, curseur Qualité, JPEG plus léger), labo
+  16, lot 1 10, lots 3 à 7 (34, 13, 27, 23, 25), shader 25 cas, corrections 23 (une
+  exécution à 22 pendant une compilation : une mesure de temps de la musique sous la parole,
+  repassée à 23 au calme) ; Tauri : la publicité 23, labo 14, lots 3 à 7 (21, 10, 17, 19, 23),
+  exports du lot 1, corrections, pont de l'étape 3 (cadres).
+
 ## 2026-10-16, étape 5, lot 7 : le détourage
 
 Accord d'Alexandre (« go pour le lot 7 »). Ce que Claude a fait et décidé :

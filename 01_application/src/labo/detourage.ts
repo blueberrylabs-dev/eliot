@@ -272,6 +272,8 @@ export async function detourerPhoto(id: string, forcer = false): Promise<string>
       if (e?.id === id) useDetourage.setState({ enCours: { id, avancement: p } });
     });
     if (useEditeur.getState().projet !== projet || !photoDetourable(id)) throw new Error("la photo n'est plus là");
+    // Remplacée pendant le calcul : le masque est celui de l'ancienne photo.
+    if (photoDetourable(id)!.ressource !== el.ressource) throw new Error("la photo a été remplacée pendant le calcul");
     // Refait par le modèle : un nouveau départ, sans les coups d'avant.
     const masque = cleMasque(nom);
     if (forcer && masque) masques.delete(masque);

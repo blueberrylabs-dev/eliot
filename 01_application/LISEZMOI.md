@@ -46,7 +46,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Redimensionner : passer le design dans un autre format, sur place ou sur une copie.
 - Aperçu en plein écran (F11), flèches pour changer de page, Échap pour sortir.
 - Exporter, en haut à droite : PNG (fond transparent possible), JPEG, WebP (fond transparent
-  possible), de ×1 à ×4 (une affiche A4 ou A5 : 150 ou 300 dpi), la page affichée ou toutes
+  possible), de ×1 à ×4 (une affiche A4 ou A5 : 150 ou 300 dpi), JPEG et WebP à la qualité
+  voulue (curseur Qualité : 92 et 90 par défaut, plus bas pour un fichier plus léger, vers 75
+  pour le web), la page affichée ou toutes
   les pages (une image par page) ; PDF vectoriel de toutes les pages (ou de la page affichée),
   les textes sélectionnables, une page A4 ou A5 à la taille de son papier ; SVG de la page
   affichée, textes en tracés et photos dedans. Le tout dans `~/Images/Eliot/`. Depuis l'étape
@@ -73,8 +75,15 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Effets de texte : ombre, néon, contour, surlignage, capitales, barré. Ombre portée pour les
   formes, images, icônes et emojis.
 - Cadres photo (rond, arche, cœur…), grilles qui remplissent la page, maquettes de téléphone,
-  tablette, ordinateur et montre : on y glisse une photo depuis le panneau Importer ; double-clic
-  pour la faire glisser dans son cadre, molette pour l'agrandir. Photos à coins arrondis, bordure.
+  tablette, ordinateur et montre : on y glisse une photo depuis le panneau Importer, ou
+  « Choisir » dans la barre du haut ; double-clic pour la faire glisser dans son cadre, molette
+  pour l'agrandir. Photos à coins arrondis, bordure.
+- Remplacer une photo en gardant sa place : la choisir, « Remplacer » dans la barre du haut, puis
+  une image de l'ordinateur. La boîte, la retouche du labo, la perspective, les coins arrondis,
+  la bordure et l'ombre restent ; la nouvelle photo est recadrée au centre aux proportions de
+  l'ancienne (« Recadrer » pour choisir la partie gardée). Le détourage, propre à l'ancienne
+  photo, part : « Détourer » le refait. Une étape d'annulation. Dans un cadre ou une maquette,
+  « Remplacer » change la photo et remet son cadrage au centre.
 - Panneau Photos : photos libres de Pixabay, cherchées en français, filtrées par orientation
   et par couleur. Rien ne part sur internet avant une recherche ; les résultats restent 24 h
   en cache. La photo choisie est copiée dans le design avec le nom de son auteur, visible dans
@@ -275,8 +284,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   place du panneau de gauche. Lumière (exposition en IL, contraste, hautes lumières, ombres,
   blancs, noirs), Couleur (température, teinte, vibrance, saturation, le mélangeur : teinte,
   saturation et luminance de huit couleurs, et l'étalonnage), Effets (texture, clarté, correction du voile,
-  vignetage, grain), Détail (netteté, réduction du bruit). Un histogramme au-dessus.
-- La photo suit le curseur pendant qu'on le tire. Texture, clarté, voile, netteté et bruit
+  flou, vignetage, grain), Détail (netteté, réduction du bruit). Un histogramme au-dessus.
+- Le flou adoucit toute la photo, de 0 à 100. Pour un sujet net sur un fond flou : poser la
+  même photo deux fois, flouter celle du dessous, détourer celle du dessus.
+- La photo suit le curseur pendant qu'on le tire. Texture, clarté, voile, flou, netteté et bruit
   regardent les pixels voisins : ils se calculent quand on relâche le curseur (le reste suit en
   direct pendant ce temps).
 - Double-clic sur un curseur ou sur son nom : retour à zéro. La valeur se tape au clavier (un
@@ -300,8 +311,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   Couleur, Film, Noir et blanc et Sujets. Chaque vignette montre ta photo avec le style ; la
   survoler le montre sur la page sans rien changer ; un clic l'applique (une étape
   d'annulation). Juste après, un curseur règle son intensité, de 0 à 100 %. Un préréglage
-  remplace la retouche et garde l'exposition, la netteté et la réduction du bruit de la photo,
-  propres à chacune.
+  remplace la retouche et garde l'exposition, la netteté, le flou et la réduction du bruit de la
+  photo, propres à chacune.
 - « Enregistrer comme préréglage » garde le style de la photo sous un nom, dans « Les miens »
   (rangés hors des designs, dans `~/Documents/Eliot/Préréglages/`). La corbeille d'une
   vignette, au survol, le supprime après confirmation.
@@ -314,7 +325,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Un clip choisi montre aussi « Retoucher » : le même panneau, les mêmes réglages, les mêmes
   préréglages, copier et coller d'une photo à un clip et inversement.
 - Le clip suit les réglages à l'arrêt comme pendant la lecture : chaque image passe par le
-  shader au moment où la page la dessine. Texture, clarté, voile, netteté et bruit se voient à
+  shader au moment où la page la dessine. Texture, clarté, voile, flou, netteté et bruit se voient à
   l'arrêt (le noyau les calcule sur l'image affichée, quand on relâche le curseur) ; pendant la
   lecture, seulement à l'export.
 - Le grain d'un clip change 24 fois par seconde, comme celui d'un film.
@@ -396,8 +407,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
-  pinceau), regarder une capture de
-  la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
+  pinceau), remplacer une photo à sa place, regarder une capture de la page et exporter (en
+  PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
 
@@ -596,6 +607,31 @@ lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : le temps du modèle sur ton poste, les photos où il se trompe
 (à m'envoyer si possible), et la sensation du pinceau (taille, dureté, précision du bord).
 
+## Essayer l'étape 5 en entier : une publicité de produit
+
+Vingt minutes, après les essais des lots (ou à leur place). Avant : recompiler l'application
+(commande 9) et le pont (commande 13), puis Eliot lancé à la main, carte graphique libre
+(commande 10).
+
+1. Un post carré. Une photo d'ambiance de ton appareil (un intérieur, une rue) : « Recadrer »,
+   1:1, puis l'étirer sur toute la page. « Retoucher », Effets, Flou vers 40 : le fond s'adoucit
+   au relâchement du curseur.
+2. La photo du produit par-dessus, « Détourer » ; Ombre dans la barre du haut.
+3. « Retoucher » le produit : le préréglage « Produit net », intensité vers 80 %, un peu
+   d'exposition. Un titre au-dessus.
+4. Une petite photo dans un coin, coins arrondis, saturation à -100. « Remplacer » dans la barre
+   du haut, une autre image : elle prend la même place, en noir et blanc, coins arrondis
+   compris. Ctrl+Z, puis Ctrl+Y.
+5. Exporter en JPEG : le curseur Qualité dit 92. L'exporter une fois à 92, une fois à 60, et
+   comparer le poids des deux fichiers et l'image, zoomée.
+6. Une deuxième page : une photo d'écran d'ordinateur, un visuel posé dessus en perspective
+   (lot 6), puis « Remplacer » ce visuel : les coins restent.
+7. Exporter en PDF, toutes les pages, puis en WebP : tout y est, depuis les originaux.
+8. Fermer le design (retour à l'accueil), le rouvrir : tout est là, à l'identique.
+
+Ce qui m'aide le plus en retour : ce qui manque pour une vraie publicité, les gestes qui
+coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -668,7 +704,7 @@ Ce qui m'aide le plus en retour : le temps du modèle sur ton poste, les photos 
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote

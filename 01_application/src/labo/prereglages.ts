@@ -49,7 +49,7 @@ function nouvelId(): string {
 }
 
 /**
- * Enregistre le style d'une retouche (sans l'exposition, la netteté ni la réduction du bruit)
+ * Enregistre le style d'une retouche (sans l'exposition, la netteté, le flou ni la réduction du bruit)
  * sous `nom` ; un préréglage d'Alexandre du même nom est remplacé. Renvoie le préréglage.
  */
 export async function enregistrerPrereglage(nom: string, reglages: ReglagesPhoto | undefined): Promise<Prereglage> {
@@ -57,7 +57,7 @@ export async function enregistrerPrereglage(nom: string, reglages: ReglagesPhoto
   const propre = nom.trim().replace(/\s+/g, " ").slice(0, 60);
   if (!propre) throw new Error("un nom est attendu");
   const r = style(reglages);
-  if (!r) throw new Error("rien à enregistrer : la retouche n'a pas de style (seulement l'exposition, la netteté ou le bruit, ou rien)");
+  if (!r) throw new Error("rien à enregistrer : la retouche n'a pas de style (seulement l'exposition, la netteté, le flou ou le bruit, ou rien)");
   const { miens } = usePrereglages.getState();
   const meme = miens.find((p) => p.nom.toLowerCase() === propre.toLowerCase());
   const p: Prereglage = { id: meme?.id ?? nouvelId(), nom: propre, categorie: CATEGORIE_MIENS, reglages: r };

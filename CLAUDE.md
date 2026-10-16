@@ -91,8 +91,12 @@ lourd. Détail : `BRIEF.md`.
   détourage (BiRefNet, licence MIT, sur le processeur ; masque gardé avec la photo, pinceau pour
   reprendre les bords, ombre qui suit la silhouette, outil `detourer` du pont, 66 outils), livré
   et vérifié le 2026-10-16 ; essai : « Essayer le détourage (étape 5, lot 7) », après les
-  commandes 20 et 21 (une fois). Après ces livraisons : recompiler l'application (commande 9) et
-  le pont (commande 13). Reste de l'étape 5 : sa vérification d'ensemble.
+  commandes 20 et 21 (une fois). Vérification de toute l'étape le 2026-10-16 (relecture contre
+  le BRIEF, trois manques comblés : le flou au labo, la qualité du JPEG et du WebP, remplacer une
+  photo en gardant sa place ; une publicité de produit faite de bout en bout par le pont dans
+  Tauri) ; reste l'essai d'Alexandre, parcours « Essayer l'étape 5 en entier : une publicité de
+  produit » du `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application
+  (commande 9) et le pont (commande 13).
 
 Suite : `PLAN.md`.
 
@@ -304,9 +308,9 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 Vérifier : `test result: ok. 125 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire, comme celui du vrai modèle du détourage). La
-première fois après le lot 6, `cargo`
-télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
-un faux micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
+première fois après le lot 6 de l'étape 4, `cargo` télécharge la bibliothèque `nnnoiseless`
+(réduction du bruit de la voix). Un essai fait écouter un faux micro pendant deux secondes
+environ : rien n'est enregistré du vrai micro.
 
 **12. Tests de l'interface** (sans fenêtre ni carte graphique) :
 
@@ -314,7 +318,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  210 passed`.
+Vérifier : `Tests  214 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

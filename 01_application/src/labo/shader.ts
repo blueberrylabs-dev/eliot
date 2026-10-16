@@ -9,7 +9,7 @@
 // recadrée (lot 5) a son vignetage dans le cadre gardé (`reglages.rognage`, le repère de
 // `Rognage::repere` du noyau).
 //
-// Les réglages qui regardent les voisins (bruit, netteté, texture, clarté, voile) viennent du
+// Les réglages qui regardent les voisins (bruit, netteté, texture, clarté, voile, flou) viennent du
 // noyau : une « base », l'aperçu retouché sans vignetage ni grain. Le shader la complète :
 // base + (réglages d'un pixel d'aujourd'hui − ceux de la base), puis vignetage et grain. Au
 // repos les deux réglages se confondent et l'image est celle du noyau ; pendant qu'on tire un

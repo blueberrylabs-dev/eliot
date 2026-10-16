@@ -206,6 +206,17 @@ export function proportionner(r: Rognage | undefined, ratio: number, W: number, 
   return contraindre(depuisCentre(c, 2 * a * k0, 2 * b * k0, g.angle, W, H), W, H);
 }
 
+/**
+ * Le recadrage d'une nouvelle photo (`W` × `H`) qui prend la place d'une autre : le plus grand
+ * rectangle droit et centré aux proportions `ratio` (celles du visuel remplacé, largeur sur
+ * hauteur) ; absent si la photo entière les a déjà. La boîte de l'élément ne bouge pas et la
+ * nouvelle photo n'est pas déformée, comme quand on remplace une photo dans Canva.
+ */
+export function rognageDeRemplacement(ratio: number, W: number, H: number): Rognage | undefined {
+  if (!(ratio > 0) || !Number.isFinite(ratio) || !(W > 0) || !(H > 0)) return undefined;
+  return normaliserRognage(proportionner(undefined, ratio, W, H), W, H);
+}
+
 /** Le centre le plus proche de `voulu` où un rectangle de demi-côtés `a`, `b` (repère redressé)
  *  tient dans l'image : vu depuis l'original, chaque coin borne le centre sur chaque axe. */
 function centrePossible(voulu: Pt, a: number, b: number, angle: number, W: number, H: number): Pt {

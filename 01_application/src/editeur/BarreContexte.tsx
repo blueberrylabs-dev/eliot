@@ -32,6 +32,7 @@ import {
   CaseUpper,
   Paintbrush,
   Plus,
+  Replace,
   Sparkles,
   Strikethrough,
   Scissors,
@@ -58,6 +59,7 @@ import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
+import { remplacerDepuisFichier } from "./remplacer";
 import { ReglagesPersonnage } from "./ReglagesPersonnage";
 import { ReglagesVideo } from "./ReglagesVideo";
 import { ReglagesSon } from "./ReglagesSon";
@@ -444,9 +446,22 @@ function CreditPhoto({ ressource }: { ressource: string | undefined }) {
 /** Réglages communs à une photo dans un cadre ou un écran : ajuster, zoom, retirer. */
 function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
   const etat = useEditeur.getState();
-  if (!el.ressource) return <span className="text-xs whitespace-nowrap text-neutral-500">Glisse une photo dessus depuis Photos ou Importer.</span>;
+  if (!el.ressource)
+    return (
+      <>
+        <Bouton titre="Choisir une image dans tes fichiers" surClic={() => void remplacerDepuisFichier(el.id)}>
+          <Replace size={16} />
+          <span className="ml-1 text-sm">Choisir</span>
+        </Bouton>
+        <span className="ml-1 text-xs whitespace-nowrap text-neutral-500">ou glisse une photo dessus depuis Photos ou Importer.</span>
+      </>
+    );
   return (
     <>
+      <Bouton titre="Remplacer la photo par une image de tes fichiers (le cadrage revient au centre)" surClic={() => void remplacerDepuisFichier(el.id)}>
+        <Replace size={16} />
+        <span className="ml-1 text-sm">Remplacer</span>
+      </Bouton>
       <Bouton titre="Ajuster la photo (double-clic)" surClic={() => etat.commencerAjustement(el.id)}>
         <Move size={16} />
         <span className="ml-1 text-sm">Ajuster</span>
@@ -618,6 +633,17 @@ export function BarreContexte() {
               className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-40"
             >
               <Scissors size={16} /> Détourer
+            </button>
+          )}
+          {choisis[0].type === "image" && (
+            <button
+              data-remplacer-barre
+              title="Remplacer la photo par une image de tes fichiers, à la même place : la taille, la retouche et le style restent"
+              disabled={choisis[0].verrouille}
+              onClick={() => void remplacerDepuisFichier(choisis[0].id)}
+              className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-40"
+            >
+              <Replace size={16} /> Remplacer
             </button>
           )}
           {separateur}

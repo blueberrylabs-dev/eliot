@@ -347,7 +347,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
   (l'étalonnage en dernier), détail, effets. Les mêmes formules en TypeScript (ou GLSL) et en Rust sont contrôlées par un
   tableau de valeurs attendues commun, comme pour l'animation et le son.
 - Préréglages : un préréglage est un style. Il ne touche ni à l'exposition, ni à la netteté, ni
-  à la réduction du bruit, propres à chaque photo ; l'appliquer remplace le reste de la
+  au flou (ajouté à la vérification de l'étape), ni à la réduction du bruit, propres à chaque
+  photo ; l'appliquer remplace le reste de la
   retouche ; son intensité (de 0 à 100 %) rapproche chaque valeur de zéro. Ceux d'Alexandre
   sont rangés hors des designs, dans `~/Documents/Eliot/Préréglages/`. Copier et coller les
   réglages, au contraire, emporte tout, exposition comprise (des photos d'une même série).
@@ -450,8 +451,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
       `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips ;
       corrections du 2026-10-16 : `retoucher` prend l'étalonnage ; lot 5 : `recadrer`, 64
-      outils ; lot 6 : `perspective`, 65 outils ; lot 7 : `detourer`, 66 outils).
-- [ ] Vérification de l'étape, livraison, essai par Alexandre.
+      outils ; lot 6 : `perspective`, 65 outils ; lot 7 : `detourer`, 66 outils ; vérification
+      de l'étape : `retoucher` prend le flou, `exporter` la qualité du JPEG et du WebP,
+      `remplir_photo` remplace aussi une photo posée, toujours 66 outils).
+- [x] Vérification de l'étape (2026-10-16) : relecture contre le BRIEF, trois manques comblés (le
+      flou de la ligne Image du catalogue, au labo ; la qualité de la ligne Export, pour le JPEG
+      et le WebP ; remplacer une image en gardant sa place), une publicité de produit faite de
+      bout en bout par le pont dans Tauri (23 vérifications), suites repassées. Détail au
+      JOURNAL. Livrée sur le poste.
+- [ ] Essai par Alexandre : « Essayer l'étape 5 en entier : une publicité de produit » du
+      `01_application/LISEZMOI.md` (avant : commandes 9 et 13 du `CLAUDE.md`).
+- [ ] Plus tard, si utile : le labo sur les photos des cadres et des maquettes (noté au lot 2) ;
+      l'aperçu en direct confirmé sur le mini PC, quand il sera là.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)
 

@@ -11,7 +11,7 @@
 //!    teinte pour les ombres, les tons moyens et les hautes lumières, qui colore aussi une photo
 //!    passée en noir et blanc) ;
 //! 5. détail : réduction du bruit, netteté ;
-//! 6. effets : texture, clarté, correction du voile, puis vignetage et grain.
+//! 6. effets : texture, clarté, correction du voile, flou, puis vignetage et grain.
 //!
 //! Les étapes 1 à 4 et la fin de la 6 (vignetage, grain) ne regardent qu'un pixel : la
 //! fenêtre les refait dans un shader WebGL pendant qu'on tire un curseur (`src/labo/shader.ts`,
@@ -343,6 +343,9 @@ pub struct Reglages {
     pub texture: f32,
     pub clarte: f32,
     pub voile: f32,
+    /// Le flou de toute la photo, de 0 à 100 (vérification de l'étape 5 : le catalogue du
+    /// BRIEF le range avec le labo).
+    pub flou: f32,
     pub vignetage: f32,
     pub grain: f32,
     pub nettete: f32,
@@ -386,6 +389,7 @@ impl Reglages {
             texture: c(self.texture),
             clarte: c(self.clarte),
             voile: c(self.voile),
+            flou: p(self.flou),
             vignetage: c(self.vignetage),
             grain: p(self.grain),
             nettete: c(self.nettete),
@@ -403,7 +407,7 @@ impl Reglages {
 
     /// Des réglages qui regardent les pixels voisins (calculés par le noyau seulement).
     pub fn voisins(&self) -> bool {
-        self.bruit != 0.0 || self.nettete != 0.0 || self.texture != 0.0 || self.clarte != 0.0 || self.voile != 0.0
+        self.bruit != 0.0 || self.nettete != 0.0 || self.texture != 0.0 || self.clarte != 0.0 || self.voile != 0.0 || self.flou != 0.0
     }
 }
 
@@ -838,6 +842,22 @@ fn reglages_voisins(lin: &mut [f32], l: usize, h: usize, r: &Reglages) {
             c[i] = lineaire.lire(v[i]);
         }
     });
+    // Le flou, en lumière linéaire (comme un objectif : une lumière vive bave sur le sombre) :
+    // trois flous de boîte, proches d'un flou gaussien, de rayon proportionnel à la taille de
+    // l'image (40 pixels pour 2560 au plus fort).
+    let rf = (r.flou / 100.0 * 40.0 * k).round() as usize;
+    if r.flou > 0.0 && rf > 0 {
+        let canal = |i: usize| -> Vec<f32> { lin.par_chunks(3).map(|c| c[i]).collect() };
+        let (fr, (fg, fb)) = {
+            let (a, b, c) = (canal(0), canal(1), canal(2));
+            rayon::join(|| flou(&a, l, h, rf), || rayon::join(|| flou(&b, l, h, rf), || flou(&c, l, h, rf)))
+        };
+        lin.par_chunks_mut(3).enumerate().for_each(|(i, c)| {
+            c[0] = fr[i];
+            c[1] = fg[i];
+            c[2] = fb[i];
+        });
+    }
 }
 
 /// Applique les réglages à une image RGBA sur 8 bits (non prémultipliée ; l'alpha ne change
@@ -1316,7 +1336,7 @@ mod tests {
         for p in liste {
             let nom = p["nom"].as_str().unwrap().to_string();
             let reglages = &p["reglages"];
-            for cle in ["exposition", "nettete", "bruit"] {
+            for cle in ["exposition", "nettete", "flou", "bruit"] {
                 assert!(reglages.get(cle).is_none(), "{nom} : {cle} reste propre à chaque photo");
             }
             let r: Reglages = serde_json::from_value(reglages.clone()).unwrap_or_else(|e| panic!("{nom} : {e}"));
@@ -1376,6 +1396,11 @@ mod tests {
         let ecart = |img: &[u8]| ecart_type(img, l, 0, l, 0, h);
         assert!(ecart(&applique(json!({ "voile": 80 }))) > ecart(&base));
         assert!(ecart(&applique(json!({ "voile": -80 }))) < ecart(&base));
+        // Le flou efface le grain, d'autant plus qu'il est fort, et la marche du milieu s'étale :
+        // le côté sombre s'éclaircit près du bord.
+        let (f30, f100) = (applique(json!({ "flou": 30 })), applique(json!({ "flou": 100 })));
+        assert!(zone(&f30) < avant * 0.6 && zone(&f100) < zone(&f30), "{} {} {avant}", zone(&f30), zone(&f100));
+        assert!(pres(&f100) > pres(&f30) + 15 && pres(&f100) > pres(&base) + 15, "{} {} {}", pres(&base), pres(&f30), pres(&f100));
         // L'alpha reste.
         assert!(lisse.chunks(4).all(|c| c[3] == 255));
     }
@@ -1401,7 +1426,7 @@ mod tests {
                 })
                 .collect()
         };
-        let r: Reglages = serde_json::from_value(json!({ "clarte": 60, "texture": 40, "voile": 30, "exposition": 0.3 })).unwrap();
+        let r: Reglages = serde_json::from_value(json!({ "clarte": 60, "texture": 40, "voile": 30, "flou": 25, "exposition": 0.3 })).unwrap();
         let mut a = grande.clone();
         appliquer(&mut a, l, h, &r, true);
         let a = reduire(&a, l, h);

@@ -756,7 +756,7 @@
   },
   {
     "name": "remplir_photo",
-    "description": "Met une photo du design dans un cadre ou dans l'écran d'une maquette, ou change son cadrage : zoom (1 au moins), x et y de 0 à 1 (la partie de la photo qui se voit ; 0,5 : le centre). Sans ressource, garde la photo et ne change que le cadrage.",
+    "description": "Met une photo du design dans un cadre ou dans l'écran d'une maquette, ou change son cadrage : zoom (1 au moins), x et y de 0 à 1 (la partie de la photo qui se voit ; 0,5 : le centre). Sans ressource, garde la photo et ne change que le cadrage. Sur une photo posée (élément image), remplace la photo en gardant sa place : la boîte, la retouche, la perspective et le style restent, la nouvelle photo est recadrée au centre aux proportions de l'ancienne (outil recadrer pour choisir la partie gardée), le détourage de l'ancienne est retiré (detourer pour la nouvelle) ; zoom, x et y ne servent alors pas.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2249,7 +2249,7 @@
   },
   {
     "name": "retoucher",
-    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) ou un clip vidéo (type video) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta), etalonnage (une teinte de 0 à 360° et sa force de 0 à 100 pour ombres, tonsMoyens, hautesLumieres, puis equilibre de -100 à +100 ; appliqué après la saturation, il colore aussi un noir et blanc : saturation -100 puis ombres { teinte: 30, saturation: 50 } donne un sépia ; ombres froides et hautes lumières chaudes, par exemple 210 et 35, font le sarcelle et orange du cinéma). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original (un clip : chaque image du film, son grain change d'une image à l'autre). Juger le résultat avec capture. Renvoie les réglages de la photo.",
+    "description": "Le labo photo, comme Lightroom, sur une photo (élément de type image) ou un clip vidéo (type video) de la page affichée. Les réglages donnés s'ajoutent à ceux déjà posés ; 0 en retire un ; remettre à vrai repart de zéro ; depuis copie d'abord tous les réglages d'une autre photo ; prereglage applique d'abord un préréglage (voir l'outil prereglages), à l'intensité voulue. Ordre : remettre ou depuis, puis prereglage, puis reglages. Chaque réglage va de -100 à +100 autour de zéro, sauf l'exposition (en IL, de -5 à +5), le grain, le flou et la réduction du bruit (de 0 à 100). Lumière : exposition, contraste, hautesLumieres, ombres, blancs, noirs, courbe (courbe des tonalités : des points [entrée, sortie] de 0 à 255 pour rgb, l'image entière, puis rouge, vert, bleu ; la courbe passe toujours par une entrée 0 et une entrée 255, ajoutées en (0, 0) et (255, 255) si elles manquent ; 16 points au plus ; [] remet un canal en diagonale ; par exemple rgb [[0, 30], [255, 240]] délave, rgb [[64, 50], [192, 205]] fait un S). Couleur : temperature (négatif plus froid, positif plus chaud), teinte (négatif vers le vert, positif vers le magenta), vibrance, saturation, melangeur (teinte, saturation et luminance de rouge, orange, jaune, vert, cyan, bleu, violet, magenta), etalonnage (une teinte de 0 à 360° et sa force de 0 à 100 pour ombres, tonsMoyens, hautesLumieres, puis equilibre de -100 à +100 ; appliqué après la saturation, il colore aussi un noir et blanc : saturation -100 puis ombres { teinte: 30, saturation: 50 } donne un sépia ; ombres froides et hautes lumières chaudes, par exemple 210 et 35, font le sarcelle et orange du cinéma). Effets : texture, clarte, voile (correction du voile ; négatif en ajoute), flou (toute la photo, de 0 à 100 ; pour un fond flou derrière un sujet net, poser la même photo par-dessus, sans flou, et la détourer), vignetage (négatif assombrit les bords), grain. Détail : nettete, bruit. L'original n'est jamais modifié : la retouche est gardée dans le design et refaite à l'export, depuis l'original (un clip : chaque image du film, son grain change d'une image à l'autre). Juger le résultat avec capture. Renvoie les réglages de la photo.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2516,6 +2516,10 @@
             "voile": {
               "type": "number"
             },
+            "flou": {
+              "type": "number",
+              "description": "De 0 à 100."
+            },
             "vignetage": {
               "type": "number"
             },
@@ -2542,7 +2546,7 @@
         },
         "prereglage": {
           "type": "string",
-          "description": "Nom ou identifiant d'un préréglage (voir prereglages). Il remplace le style de la photo et garde son exposition, sa netteté et sa réduction du bruit."
+          "description": "Nom ou identifiant d'un préréglage (voir prereglages). Il remplace le style de la photo et garde son exposition, sa netteté, son flou et sa réduction du bruit."
         },
         "intensite": {
           "type": "number",
@@ -2728,7 +2732,7 @@
   },
   {
     "name": "prereglages",
-    "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo ou d'un clip (depuis) ou des réglages donnés, sans l'exposition, la netteté ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
+    "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo ou d'un clip (depuis) ou des réglages donnés, sans l'exposition, la netteté, le flou ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2982,7 +2986,7 @@
   },
   {
     "name": "exporter",
-    "description": "Exporte la page affichée ou toutes les pages, rendues par l'application depuis les originaux des photos et les fichiers de police. PNG, JPEG ou WebP : dans le dossier Images/Eliot de l'utilisateur, une image par page, de une à quatre fois la taille de la page (A4 et A5 : 150 ou 300 dpi). PDF : toutes les pages en un fichier (sauf pages à courante), formes et textes vectoriels, textes sélectionnables ; une page A4 ou A5 garde la taille de son papier. SVG : la page affichée, textes en tracés, photos dedans. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Une page vidéo exportée en image sort à l'instant de la tête de lecture. Renvoie les chemins écrits et le niveau final du son.",
+    "description": "Exporte la page affichée ou toutes les pages, rendues par l'application depuis les originaux des photos et les fichiers de police. PNG, JPEG ou WebP : dans le dossier Images/Eliot de l'utilisateur, une image par page, de une à quatre fois la taille de la page (A4 et A5 : 150 ou 300 dpi), JPEG et WebP à la qualité voulue. PDF : toutes les pages en un fichier (sauf pages à courante), formes et textes vectoriels, textes sélectionnables ; une page A4 ou A5 garde la taille de son papier. SVG : la page affichée, textes en tracés, photos dedans. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Une page vidéo exportée en image sort à l'instant de la tête de lecture. Renvoie les chemins écrits et le niveau final du son.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -3020,6 +3024,12 @@
         "transparent": {
           "type": "boolean",
           "description": "PNG et WebP : sans le fond de la page."
+        },
+        "qualite": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "JPEG et WebP : la qualité, 92 par défaut en JPEG, 90 en WebP ; plus basse, le fichier est plus léger (vers 75 pour le web)."
         },
         "plateforme": {
           "type": "string",

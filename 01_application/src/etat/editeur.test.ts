@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { documentVide } from "../modele/fabriques";
-import type { ElementForme } from "../modele/types";
+import { creerImage, documentVide } from "../modele/fabriques";
+import type { ElementForme, ElementImage } from "../modele/types";
 import { elementsCourants, etiquetteDeGeste, pageCourante, useEditeur } from "./editeur";
 import { useTemps } from "./temps";
 import { voixUtilisees } from "./nettoyage";
@@ -289,5 +289,39 @@ describe("post animé (vérification de l'étape 4)", () => {
     const avant = pageCourante(etat());
     etat().definirAnimations(["a"], "entree", null);
     expect(pageCourante(etat())).toBe(avant);
+  });
+});
+
+describe("remplacer une photo en gardant sa place (vérification de l'étape 5)", () => {
+  const large = { id: "d".repeat(64), nom: "large.jpg", largeur: 3000, hauteur: 2000, transparence: false };
+  const haute = { id: "e".repeat(64), nom: "haute.jpg", largeur: 1000, hauteur: 1500, transparence: false };
+  const film = { id: "f".repeat(64), nom: "film.mp4", largeur: 1920, hauteur: 1080, transparence: false, video: { duree: 4000, imagesParSeconde: 30, son: true, copie: "webm" as const, vignettes: { nombre: 4, intervalle: 1000, largeur: 160, hauteur: 90 } } };
+  beforeEach(() => etat().ajouterRessources([large, haute, film]));
+
+  it("la boîte, la retouche et le style restent ; la nouvelle photo, recadrée au centre ; le détourage part ; une étape d'annulation", () => {
+    const photo: ElementImage = { ...creerImage({ largeur: 1080, hauteur: 1080 }, large), id: "p", arrondi: 12, reglages: { contraste: 20 }, detourage: { masque: `${large.id}-birefnet` } };
+    etat().ajouterElements([photo]);
+    const avant = elementsCourants(etat())[0] as ElementImage;
+    expect(etat().remplacerPhoto("p", haute.id)).toBe(true);
+    const apres = elementsCourants(etat())[0] as ElementImage;
+    expect(apres.ressource).toBe(haute.id);
+    expect([apres.x, apres.y, apres.largeur, apres.hauteur, apres.arrondi]).toEqual([avant.x, avant.y, avant.largeur, avant.hauteur, 12]);
+    expect(apres.reglages).toEqual({ contraste: 20 });
+    expect(apres.detourage).toBeUndefined();
+    // 3000 × 2000 dans une photo de 1000 × 1500 : toute la largeur, un tiers de la hauteur au centre.
+    expect(apres.rognage!.largeur).toBeCloseTo(1, 4);
+    expect(apres.rognage!.hauteur).toBeCloseTo(1000 / 1.5 / 1500, 4);
+    expect(apres.rognage!.y + apres.rognage!.hauteur / 2).toBeCloseTo(0.5, 5);
+    etat().annuler();
+    expect(elementsCourants(etat())[0]).toEqual(avant);
+  });
+
+  it("refusé : une vidéo, une image inconnue, la même photo, une photo verrouillée", () => {
+    etat().ajouterElements([{ ...creerImage({ largeur: 1080, hauteur: 1080 }, large), id: "p" }]);
+    expect(etat().remplacerPhoto("p", film.id)).toBe(false);
+    expect(etat().remplacerPhoto("p", "0".repeat(64))).toBe(false);
+    expect(etat().remplacerPhoto("p", large.id)).toBe(false);
+    etat().modifierElements({ p: { verrouille: true } });
+    expect(etat().remplacerPhoto("p", haute.id)).toBe(false);
   });
 });

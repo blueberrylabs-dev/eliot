@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { echellesPossibles, formatPapier } from "./exporter";
+import { bornerQualite, echellesPossibles, formatPapier, QUALITE_PAR_DEFAUT } from "./exporter";
 
 describe("tailles de l'export (étape 5, lot 1)", () => {
   it("l'A4 et l'A5, dans les deux sens, se disent en dpi : 150 et 300", () => {
@@ -18,5 +18,13 @@ describe("tailles de l'export (étape 5, lot 1)", () => {
     expect(echellesPossibles({ largeur: 4000, hauteur: 3000 })).toEqual([1, 2]);
     // Une page immense garde au moins sa taille.
     expect(echellesPossibles({ largeur: 20000, hauteur: 20000 })).toEqual([1]);
+  });
+
+  it("la qualité d'un JPEG ou d'un WebP : un entier de 1 à 100, 92 et 90 par défaut (vérification de l'étape 5)", () => {
+    expect(QUALITE_PAR_DEFAUT).toEqual({ jpeg: 92, webp: 90 });
+    expect(bornerQualite(75.4)).toBe(75);
+    expect(bornerQualite(0)).toBe(1);
+    expect(bornerQualite(250)).toBe(100);
+    expect(bornerQualite(Number.NaN)).toBe(100);
   });
 });

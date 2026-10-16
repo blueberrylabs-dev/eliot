@@ -1,5 +1,5 @@
 {
-  "note": "Les préréglages fournis avec Eliot (étape 5, lot 3), dessinés par Claude. Chacun est un style : il ne touche ni à l'exposition, ni à la netteté, ni à la réduction du bruit, qui restent propres à chaque photo.",
+  "note": "Les préréglages fournis avec Eliot (étape 5, lot 3), dessinés par Claude. Chacun est un style : il ne touche ni à l'exposition, ni à la netteté, ni au flou, ni à la réduction du bruit, qui restent propres à chaque photo.",
   "categories": ["Naturel", "Couleur", "Film", "Noir et blanc", "Sujets"],
   "prereglages": [
     {"id": "eclat-naturel", "nom": "Éclat naturel", "categorie": "Naturel", "reglages": {"contraste": 12, "hautesLumieres": -20, "ombres": 18, "vibrance": 20, "clarte": 10, "courbe": {"rgb": [[0, 0], [64, 60], [192, 198], [255, 255]]}}},

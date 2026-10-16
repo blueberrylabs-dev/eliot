@@ -16,9 +16,9 @@ describe("préréglages du labo (étape 5, lot 3)", () => {
 
   it("appliquer un préréglage remplace le style et garde l'exposition, la netteté, le bruit", () => {
     const p: Prereglage = { id: "x", nom: "Essai", categorie: "Couleur", reglages: { contraste: 20, saturation: -30, courbe: { rgb: [[0, 20], [255, 255]] } } };
-    const actuels = { exposition: 0.6, nettete: 30, bruit: 10, vibrance: 40, temperature: 15 };
-    expect(appliquerPrereglage(actuels, p)).toEqual({ exposition: 0.6, nettete: 30, bruit: 10, contraste: 20, saturation: -30, courbe: { rgb: [[0, 20], [255, 255]] } });
-    expect(gardes(actuels)).toEqual({ exposition: 0.6, nettete: 30, bruit: 10 });
+    const actuels = { exposition: 0.6, nettete: 30, flou: 25, bruit: 10, vibrance: 40, temperature: 15 };
+    expect(appliquerPrereglage(actuels, p)).toEqual({ exposition: 0.6, nettete: 30, flou: 25, bruit: 10, contraste: 20, saturation: -30, courbe: { rgb: [[0, 20], [255, 255]] } });
+    expect(gardes(actuels)).toEqual({ exposition: 0.6, nettete: 30, flou: 25, bruit: 10 });
     // Un préréglage qui porterait une exposition (fichier abîmé) ne la change pas.
     expect(appliquerPrereglage({ exposition: 1 }, { ...p, reglages: { exposition: -2, contraste: 10 } })).toEqual({ exposition: 1, contraste: 10 });
   });

@@ -9,7 +9,7 @@ import { clipsACouper, estHesitation, OPTIONS_BLANCS, SILENCE_MIN, type LanguePa
 import { ajusterSousTitres, centreParDefaut, estSousTitre, motsDeLaPage, retirerSousTitres, sourcesDeParole, STYLES_SOUS_TITRES } from "../modele/sousTitres";
 import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
-import { echellesPossibles, exporter, FORMATS_DU_NOYAU, LIBELLES_EXPORT } from "../export/exporter";
+import { bornerQualite, echellesPossibles, exporter, FORMATS_DU_NOYAU, LIBELLES_EXPORT } from "../export/exporter";
 import { exporterVideo, type IdPlateforme } from "../export/video";
 import { rendrePage } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, urlSvg } from "../bibliotheque/bibliotheque";
@@ -43,8 +43,9 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
+import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
@@ -1090,7 +1091,18 @@ const OUTILS: Record<string, Outil> = {
   remplir_photo(args) {
     designOuvert();
     const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
-    exiger(el && recoitPhoto(el), `cadre ou maquette introuvable sur la page affichée : ${String(args.id)}`);
+    if (el?.type === "image") {
+      // Une photo posée : remplacée à la même place (vérification de l'étape 5).
+      const ressource = texte(args.ressource);
+      exiger(ressource, "ressource : l'image qui prend la place de cette photo (voir etat ou importer_image)");
+      exiger(etat().ressources[ressource!] && !etat().ressources[ressource!].video && !etat().ressources[ressource!].son, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+      exiger(!el.verrouille, "cette photo est verrouillée");
+      const avait = !!el.detourage;
+      if (el.ressource !== ressource) remplacerPar(el.id, ressource!);
+      const apres = elementsCourants(etat()).find((e) => e.id === el.id);
+      return { donnees: { element: apres, detourageRetire: avait && el.ressource !== ressource ? "le détourage de l'ancienne photo est retiré : detourer pour la nouvelle" : undefined } };
+    }
+    exiger(el && recoitPhoto(el), `cadre, maquette ou photo introuvable sur la page affichée : ${String(args.id)}`);
     const ressource = texte(args.ressource);
     if (ressource) {
       exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
@@ -1655,7 +1667,7 @@ const OUTILS: Record<string, Outil> = {
     if (demandeEtal.equilibre !== undefined) etalonnage.equilibre = demandeEtal.equilibre;
     const reglages = normaliserReglages({ ...depart, ...(demandes as ReglagesPhoto), melangeur, courbe, etalonnage });
     etat().modifierElements({ [id]: { reglages } as Partial<ElementPage> });
-    return { donnees: { id, reglages: reglages ?? {}, prereglage, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
+    return { donnees: { id, reglages: reglages ?? {}, prereglage, voisins: aDesVoisins(reglages) ? "texture, clarté, voile, flou, netteté et bruit : calculés par le noyau (capture les montre)" : undefined } };
   },
 
   async recadrer(args) {
@@ -1809,7 +1821,7 @@ const OUTILS: Record<string, Outil> = {
     if (action === "lister") {
       const erreur = usePrereglages.getState().erreur;
       const decrire = (p: { id: string; nom: string; categorie: string; reglages: ReglagesPhoto }) => ({ id: p.id, nom: p.nom, categorie: p.categorie, reglages: p.reglages });
-      return { donnees: { categories: [...CATEGORIES_FOURNIES, CATEGORIE_MIENS], fournis: PREREGLAGES_FOURNIS.map(decrire), miens: usePrereglages.getState().miens.map(decrire), erreur: erreur ?? undefined, garde: "un préréglage garde l'exposition, la netteté et la réduction du bruit de la photo" } };
+      return { donnees: { categories: [...CATEGORIES_FOURNIES, CATEGORIE_MIENS], fournis: PREREGLAGES_FOURNIS.map(decrire), miens: usePrereglages.getState().miens.map(decrire), erreur: erreur ?? undefined, garde: "un préréglage garde l'exposition, la netteté, le flou et la réduction du bruit de la photo" } };
     }
     const nom = texte(args.nom)?.trim();
     exiger(nom, "enregistrer : un nom est attendu");
@@ -1965,10 +1977,19 @@ const OUTILS: Record<string, Outil> = {
       pages: args.pages === "toutes" || (format === "pdf" && args.pages !== "courante") ? "toutes" : "courante",
       echelle: format === "pdf" || format === "svg" ? 1 : demandee,
       transparent: booleen(args.transparent) ?? false,
+      qualite: qualiteDemandee(args.qualite, format),
     });
     return { donnees: { chemins } };
   },
 };
+
+/** La qualité d'un JPEG ou d'un WebP : un nombre de 1 à 100, ou rien (celle par défaut). */
+function qualiteDemandee(v: unknown, format: FormatExport): number | undefined {
+  if (v === undefined || v === null) return undefined;
+  exiger(typeof v === "number" && Number.isFinite(v) && v >= 1 && v <= 100, "qualite : un nombre de 1 à 100");
+  exiger(format === "jpeg" || format === "webp", "qualite : pour un JPEG ou un WebP seulement");
+  return bornerQualite(v as number);
+}
 
 function elementsSelectionnesParIds(ids: string[]) {
   return elementsCourants(etat()).filter((e) => ids.includes(e.id));

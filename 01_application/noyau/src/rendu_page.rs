@@ -85,6 +85,9 @@ pub struct OptionsImage {
     /// Une page vidéo : l'instant de la page (ms) ; une page fixe : 0.
     #[serde(default)]
     pub instant: f64,
+    /// JPEG et WebP : la qualité, de 1 à 100 (sans elle : 92 en JPEG, 90 en WebP).
+    #[serde(default)]
+    pub qualite: Option<u8>,
 }
 
 /// Le plus grand côté d'une image exportée, et son nombre de pixels au plus (400 Mo en mémoire).
@@ -92,6 +95,11 @@ pub const COTE_MAX: u32 = 12_000;
 pub const PIXELS_MAX: u64 = 100_000_000;
 pub const QUALITE_JPEG: u8 = 92;
 pub const QUALITE_WEBP: u8 = 90;
+
+/// La qualité demandée, ramenée de 1 à 100, ou celle par défaut du format.
+pub fn qualite(demandee: Option<u8>, defaut: u8) -> u8 {
+    demandee.unwrap_or(defaut).clamp(1, 100)
+}
 
 /// La taille de l'image en pixels.
 pub fn taille(description: &DescriptionPage, echelle: f64) -> Result<(u32, u32), ErreurRendu> {
@@ -117,7 +125,7 @@ pub fn image(description: &DescriptionPage, o: &OptionsImage, dossier_ressources
             // Pixels prémultipliés posés sur du blanc : c + (255 - a).
             let rgb: Vec<u8> = pixmap.data().chunks_exact(4).flat_map(|p| [p[0].saturating_add(255 - p[3]), p[1].saturating_add(255 - p[3]), p[2].saturating_add(255 - p[3])]).collect();
             let mut sortie = Vec::new();
-            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut sortie, QUALITE_JPEG)
+            image::codecs::jpeg::JpegEncoder::new_with_quality(&mut sortie, qualite(o.qualite, QUALITE_JPEG))
                 .encode(&rgb, l, h, image::ExtendedColorType::Rgb8)
                 .map_err(|e| ErreurRendu::Encodage(e.to_string()))?;
             Ok(sortie)
@@ -127,15 +135,15 @@ pub fn image(description: &DescriptionPage, o: &OptionsImage, dossier_ressources
                 let c = p.demultiply();
                 [c.red(), c.green(), c.blue(), c.alpha()]
             }).collect();
-            webp(&rgba, l, h, transparent)
+            webp(&rgba, l, h, transparent, qualite(o.qualite, QUALITE_WEBP))
         }
     }
 }
 
-/// Encode du RGBA en WebP par le `ffmpeg` du système (encodeur libwebp, qualité 90).
-fn webp(rgba: &[u8], largeur: u32, hauteur: u32, transparent: bool) -> Result<Vec<u8>, ErreurRendu> {
+/// Encode du RGBA en WebP par le `ffmpeg` du système (encodeur libwebp, de qualité 1 à 100).
+fn webp(rgba: &[u8], largeur: u32, hauteur: u32, transparent: bool, qualite: u8) -> Result<Vec<u8>, ErreurRendu> {
     let mut c = Command::new("ffmpeg");
-    c.args(["-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", &format!("{largeur}x{hauteur}"), "-i", "pipe:0", "-frames:v", "1", "-c:v", "libwebp", "-quality", &QUALITE_WEBP.to_string()]);
+    c.args(["-hide_banner", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", &format!("{largeur}x{hauteur}"), "-i", "pipe:0", "-frames:v", "1", "-c:v", "libwebp", "-quality", &qualite.to_string()]);
     if transparent {
         c.args(["-pix_fmt", "yuva420p"]);
     }
@@ -771,6 +779,9 @@ pub struct DemandeExport {
     pub echelle: f64,
     #[serde(default)]
     pub transparent: bool,
+    /// JPEG et WebP : de 1 à 100 (sans elle, la qualité par défaut du format).
+    #[serde(default)]
+    pub qualite: Option<u8>,
 }
 
 /// Rend et écrit l'export : un PDF pour toutes les pages, sinon un fichier par page (`nom`,
@@ -809,7 +820,7 @@ pub fn exporter_document(
                     FormatDocument::Webp => (FormatImage::Webp, Format::Webp),
                     _ => (FormatImage::Png, Format::Png),
                 };
-                let o = OptionsImage { format: format_image, echelle: demande.echelle, transparent: demande.transparent, instant: p.instant };
+                let o = OptionsImage { format: format_image, echelle: demande.echelle, transparent: demande.transparent, instant: p.instant, qualite: demande.qualite };
                 (image(&p.description, &o, dossier_ressources)?, format)
             }
         };
@@ -881,7 +892,7 @@ mod tests {
         let dossier = dossier_de_test("image");
         let id = photo(&dossier);
         let p = page(&id);
-        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 2.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 2.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         let lu = image::load_from_memory(&png).unwrap();
         assert_eq!((lu.width(), lu.height()), (1200, 800));
         // Le carré tourné de 90° autour de son coin (200, 50) couvre x de 100 à 200, y de 50 à 150.
@@ -893,13 +904,18 @@ mod tests {
         assert!(proche(pixel(&png, 900, 500), [137, 137, 242, 255], 14), "{:?}", pixel(&png, 900, 500));
         assert!(proche(pixel(&png, 602, 402), [255, 255, 255, 255], 2), "{:?}", pixel(&png, 602, 402));
         // Fond transparent : plus de blanc.
-        let transparent = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: true, instant: 0.0 }, &dossier).unwrap();
+        let transparent = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: true, instant: 0.0, qualite: None }, &dossier).unwrap();
         assert_eq!(pixel(&transparent, 500, 50)[3], 0);
-        let jpeg = image(&p, &OptionsImage { format: FormatImage::Jpeg, echelle: 1.0, transparent: true, instant: 0.0 }, &dossier).unwrap();
+        let jpeg = image(&p, &OptionsImage { format: FormatImage::Jpeg, echelle: 1.0, transparent: true, instant: 0.0, qualite: None }, &dossier).unwrap();
         assert!(jpeg.starts_with(&[0xFF, 0xD8, 0xFF]));
         assert!(proche(pixel(&jpeg, 500, 50), [255, 255, 255, 255], 3), "un JPEG n'a pas de transparence");
+        // La qualité demandée : plus basse, un fichier plus léger ; hors de 1 à 100, ramenée.
+        let jpeg = |q: Option<u8>| image(&p, &OptionsImage { format: FormatImage::Jpeg, echelle: 1.0, transparent: false, instant: 0.0, qualite: q }, &dossier).unwrap().len();
+        assert!(jpeg(Some(40)) < jpeg(None) && jpeg(None) < jpeg(Some(100)), "{} {} {}", jpeg(Some(40)), jpeg(None), jpeg(Some(100)));
+        assert_eq!(qualite(Some(0), QUALITE_JPEG), 1);
+        assert_eq!(qualite(Some(250), QUALITE_JPEG), 100);
         if ffmpeg_present() {
-            let webp = image(&p, &OptionsImage { format: FormatImage::Webp, echelle: 1.0, transparent: true, instant: 0.0 }, &dossier).unwrap();
+            let webp = image(&p, &OptionsImage { format: FormatImage::Webp, echelle: 1.0, transparent: true, instant: 0.0, qualite: None }, &dossier).unwrap();
             assert!(webp.starts_with(b"RIFF") && &webp[8..12] == b"WEBP");
             assert_eq!(u32::from_le_bytes(webp[4..8].try_into().unwrap()) as usize, webp.len() - 8, "taille du fichier notée");
             // Plus de 32 Ko (le tampon de ffmpeg) : une image pleine de détails, à × 3.
@@ -912,7 +928,7 @@ mod tests {
             }
             svg.push_str("</svg>");
             bruit.fond = vec![serde_json::from_value(json!({ "genre": "svg", "svg": svg, "boite": { "x0": 0, "y0": 0, "x1": 600, "y1": 400 }, "opacite": 1 })).unwrap()];
-            let gros = image(&bruit, &OptionsImage { format: FormatImage::Webp, echelle: 3.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+            let gros = image(&bruit, &OptionsImage { format: FormatImage::Webp, echelle: 3.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
             assert!(gros.len() > 100_000, "{} octets", gros.len());
             assert_eq!(u32::from_le_bytes(gros[4..8].try_into().unwrap()) as usize, gros.len() - 8);
             let blocs = &gros[12..];
@@ -941,7 +957,7 @@ mod tests {
         let arbre = usvg::Tree::from_data(&ecrit, &usvg::Options::default()).unwrap();
         let mut rendu = resvg::tiny_skia::Pixmap::new(600, 400).unwrap();
         resvg::render(&arbre, resvg::tiny_skia::Transform::identity(), &mut rendu.as_mut());
-        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         let attendu = image::load_from_memory(&png).unwrap().to_rgba8();
         let lu = image::load_from_memory(&rendu.encode_png().unwrap()).unwrap().to_rgba8();
         let ecart: f64 = attendu.as_raw().iter().zip(lu.as_raw()).map(|(a, b)| (*a as f64 - *b as f64).abs()).sum::<f64>() / attendu.as_raw().len() as f64;
@@ -972,7 +988,7 @@ mod tests {
         let rendu = Command::new("pdftoppm").args(["-r", "96", "-f", "1", "-l", "1", "-png", "-singlefile"]).arg(&chemin).arg(dossier.join("page")).status();
         if rendu.is_ok_and(|s| s.success()) {
             let lu = image::open(dossier.join("page.png")).unwrap().to_rgba8();
-            let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+            let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
             let attendu = image::load_from_memory(&png).unwrap().to_rgba8();
             assert_eq!(lu.dimensions(), attendu.dimensions());
             let ecart: f64 = attendu.as_raw().iter().zip(lu.as_raw()).map(|(a, b)| (*a as f64 - *b as f64).abs()).sum::<f64>() / attendu.as_raw().len() as f64;
@@ -1008,7 +1024,7 @@ mod tests {
         let octets = pdf(&[(p.clone(), 0.0)], &dossier).unwrap();
         let chemin = dossier.join("texte.pdf");
         fs::write(&chemin, &octets).unwrap();
-        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = image(&p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         let attendu = image::load_from_memory(&png).unwrap().to_rgba8();
         if let Ok(s) = Command::new("pdftotext").arg(&chemin).arg("-").output() {
             let lu = String::from_utf8_lossy(&s.stdout);
@@ -1042,7 +1058,7 @@ mod tests {
         let dossier = dossier_de_test("document");
         let id = photo(&dossier);
         let sortie = dossier.join("sortie");
-        let demande = |format: FormatDocument| DemandeExport { format, pages: vec![PageAExporter { description: page(&id), instant: 0.0 }, PageAExporter { description: page_de_texte(), instant: 0.0 }], polices: vec![], echelle: 0.5, transparent: false };
+        let demande = |format: FormatDocument| DemandeExport { format, pages: vec![PageAExporter { description: page(&id), instant: 0.0 }, PageAExporter { description: page_de_texte(), instant: 0.0 }], polices: vec![], echelle: 0.5, transparent: false, qualite: None };
         let mut vu = Vec::new();
         exporter_document(demande(FormatDocument::Pdf), &dossier, &sortie, "essai", None, &mut |f, t| vu.push((f, t))).unwrap();
         assert_eq!(vu, [(1, 2), (2, 2)], "le PDF dit où il en est après chaque page");
@@ -1084,7 +1100,7 @@ mod tests {
         let brute = page(&id);
         let mut retouchee = brute.clone();
         retouchee.elements[1].element["reglages"] = json!({ "exposition": -2, "saturation": -100 });
-        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         // La moitié rouge de la photo, à demi transparente sur le blanc : sans réglages elle est
         // rouge pâle ; plus sombre de deux IL et sans couleur, elle devient grise.
         let a = pixel(&png(&brute), 350, 250);
@@ -1127,7 +1143,7 @@ mod tests {
             let p = perspective::projeter(&plan, u, v);
             ((p[0] + 100.0).round() as u32, (p[1] + 50.0).round() as u32)
         };
-        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         let (gx, gy) = sur_page(0.25, 0.5);
         let (dx, dy) = sur_page(0.75, 0.5);
         let (g, d, dehors) = (pixel(&png, gx, gy), pixel(&png, dx, dy), pixel(&png, 104, 54));
@@ -1169,14 +1185,14 @@ mod tests {
             "polices": []
         }))
         .unwrap();
-        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0, qualite: None }, &dossier).unwrap();
         // Rouge gardé (hors du coup), trou du coup, moitié bleue retirée.
         let (garde, trou, retire) = (pixel(&png, 100 + 40, 100 + 30), pixel(&png, 100 + 100, 100 + 100), pixel(&png, 100 + 300, 100 + 100));
         assert!(garde[0] > 200 && garde[2] < 60, "gardé : {garde:?}");
         assert!(proche(trou, [255, 255, 255, 255], 3), "effacé au pinceau : {trou:?}");
         assert!(proche(retire, [255, 255, 255, 255], 3), "fond retiré : {retire:?}");
         // Fond transparent : la photo seule, transparente là où le masque l'est.
-        let transparent = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: true, instant: 0.0 }, &dossier).unwrap();
+        let transparent = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: true, instant: 0.0, qualite: None }, &dossier).unwrap();
         assert!(pixel(&transparent, 400, 200)[3] < 4 && pixel(&transparent, 140, 130)[3] > 250);
         let octets = pdf(&[(page.clone(), 0.0)], &dossier).unwrap();
         let chemin = dossier.join("detourage.pdf");
@@ -1223,7 +1239,7 @@ mod tests {
             }))
             .unwrap()
         };
-        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 500.0 }, &ressources).unwrap();
+        let png = |p: &DescriptionPage| image(p, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 500.0, qualite: None }, &ressources).unwrap();
         let brut = pixel(&png(&page(json!(null))), 160, 90);
         let gris = pixel(&png(&page(json!({ "saturation": -100 }))), 160, 90);
         assert!(brut[0] > brut[1] + 100, "{brut:?}");

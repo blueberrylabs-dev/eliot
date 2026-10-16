@@ -12,6 +12,7 @@ import {
   rapportDe,
   rectangleRedresse,
   redresser,
+  rognageDeRemplacement,
   tirer,
   type BoiteElement,
   type MatriceRognage,
@@ -155,5 +156,20 @@ describe("recadrage et redressement (étape 5, lot 5)", () => {
     const el: BoiteElement = { x: 50, y: 60, largeur: 300, hauteur: 200, rotation: 15, retourneH: false, retourneV: false };
     const tourne = redresser(undefined, 8, W, H);
     expect(boiteMemeCentre(el, undefined, tourne, W, H)).toEqual({ x: 50, y: 60, largeur: 300, hauteur: 200 });
+  });
+
+  it("remplacer une photo : la nouvelle, recadrée au centre aux proportions de l'ancienne (vérification de l'étape 5)", () => {
+    // Une photo en largeur (3000 × 2000) remplacée par une photo en hauteur (1000 × 1500).
+    const r = rognageDeRemplacement(1.5, 1000, 1500)!;
+    expect(proportionsDe(r, 1000, 1500)).toBeCloseTo(1.5, 4);
+    expect(r.largeur).toBeCloseTo(1, 4);
+    expect(r.y + r.hauteur / 2).toBeCloseTo(0.5, 5);
+    expect(r.angle).toBe(0);
+    // Déjà aux bonnes proportions : toute la photo.
+    expect(rognageDeRemplacement(1.5, 3000, 2000)).toBeUndefined();
+    // Un recadrage carré d'avant : la nouvelle photo, carrée au centre.
+    const c = rognageDeRemplacement(proportionsDe({ x: 0.2, y: 0, largeur: 2 / 3, hauteur: 1, angle: 5 }, W, H), 4000, 3000)!;
+    for (const [k, v] of Object.entries({ x: 0.125, y: 0, largeur: 0.75, hauteur: 1, angle: 0 })) expect(c[k as keyof Rognage]).toBeCloseTo(v, 5);
+    expect(rognageDeRemplacement(Number.NaN, 100, 100)).toBeUndefined();
   });
 });

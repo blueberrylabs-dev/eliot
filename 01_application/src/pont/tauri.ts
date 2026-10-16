@@ -505,7 +505,7 @@ export async function choisirEtImporterSons(ref: RefRessources, suivi?: SuiviImp
 
 /** Ouvre le sélecteur de fichiers et importe les images et les vidéos choisies. `null` si on
  *  annule. */
-export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviImport, videos = true): Promise<BilanImport | null> {
+export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviImport, videos = true, plusieurs = true): Promise<BilanImport | null> {
   if (dansTauri) {
     const { open } = await import("@tauri-apps/plugin-dialog");
     const filtres = videos
@@ -515,11 +515,11 @@ export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviI
           { name: "Vidéos", extensions: EXTENSIONS_VIDEOS },
         ]
       : [{ name: "Images", extensions: EXTENSIONS_IMAGES }];
-    const choix = await open({ multiple: true, directory: false, title: videos ? "Importer des images ou des vidéos" : "Importer des images", filters: filtres });
+    const choix = await open({ multiple: plusieurs, directory: false, title: videos ? "Importer des images ou des vidéos" : plusieurs ? "Importer des images" : "Choisir une image", filters: filtres });
     if (!choix || (Array.isArray(choix) && choix.length === 0)) return null;
     return importerChemins(ref, Array.isArray(choix) ? choix : [choix], suivi);
   }
-  const fichiers = await choisirFichiersNavigateur(videos);
+  const fichiers = await choisirFichiersNavigateur(videos, false, plusieurs);
   if (fichiers.length === 0) return null;
   return importerFichiersNavigateur(fichiers);
 }
@@ -553,11 +553,11 @@ export async function copierRessources(source: RefRessources, cible: RefRessourc
 
 // ---- Équivalents navigateur ----
 
-function choisirFichiersNavigateur(videos = false, sons = false): Promise<File[]> {
+function choisirFichiersNavigateur(videos = false, sons = false, plusieurs = true): Promise<File[]> {
   return new Promise((resoudre) => {
     const champ = document.createElement("input");
     champ.type = "file";
-    champ.multiple = true;
+    champ.multiple = plusieurs;
     champ.accept = sons ? "audio/*" : videos ? "image/*,video/*" : "image/*";
     champ.addEventListener("change", () => resoudre(Array.from(champ.files ?? [])));
     champ.click();
@@ -785,6 +785,8 @@ export interface DemandeExportDocument {
   echelle: number;
   /** PNG et WebP. */
   transparent: boolean;
+  /** JPEG et WebP : de 1 à 100 (sans elle : 92 en JPEG, 90 en WebP). */
+  qualite?: number;
 }
 
 /** Rend et écrit l'export par le noyau, depuis les originaux ; renvoie les chemins écrits (un

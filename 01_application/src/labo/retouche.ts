@@ -437,7 +437,7 @@ export function collerReglages(ids?: string[]): number {
 
 /**
  * Les vignettes des préréglages sur une photo : la photo réduite à `largeur` px, retouchée par
- * le shader (les réglages d'un pixel seulement : texture, clarté, voile, netteté et bruit ne
+ * le shader (les réglages d'un pixel seulement : texture, clarté, voile, flou, netteté et bruit ne
  * se voient qu'une fois appliqués), en images JPEG prêtes à afficher. Rien pendant qu'on tire
  * un curseur ou qu'on survole un préréglage : la page affiche alors la toile du moteur.
  */

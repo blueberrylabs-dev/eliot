@@ -2,7 +2,7 @@
 // ceux qu'Alexandre enregistre (« Les miens »). Chaque vignette montre la photo avec le
 // préréglage ; la survoler le montre sur la page sans changer le document ; un clic l'applique.
 // Juste après, un curseur règle son intensité, tant que le style n'a pas été retouché. Un
-// préréglage garde l'exposition, la netteté et la réduction du bruit de la photo.
+// préréglage garde l'exposition, la netteté, le flou et la réduction du bruit de la photo.
 
 import { Check, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -204,7 +204,7 @@ export function Prereglages({ el, source, modifier }: { el: ElementImage | Eleme
           </button>
         </div>
       )}
-      <p className="mt-1 text-[11px] text-neutral-400">Un préréglage garde l'exposition, la netteté et la réduction du bruit de la photo.</p>
+      <p className="mt-1 text-[11px] text-neutral-400">Un préréglage garde l'exposition, la netteté, le flou et la réduction du bruit de la photo.</p>
       {erreur && <p className="mt-1 text-[11px] text-red-600">{erreur}</p>}
     </div>
   );
