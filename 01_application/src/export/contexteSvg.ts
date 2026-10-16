@@ -16,6 +16,7 @@
 // comme le fait un vrai canevas.
 
 import { boiteDuVisuel, composer, contourProjete, depuisAffine, type PerspectiveCalque } from "../modele/perspective";
+import { silhouetteEnPerspective } from "../labo/moteurPerspective";
 
 export type Matrice = [number, number, number, number, number, number];
 
@@ -153,6 +154,9 @@ export interface SourcesImages {
   /** `{ ressource }` pour une photo du design, `{ video }` pour l'image d'une vidéo, `{ href }`
    *  pour une adresse que `resvg` sait lire (SVG en `data:`), `undefined` : recopiée en PNG. */
   reconnaitre: (source: unknown) => { ressource: string } | { video: string } | { href: string } | undefined;
+  /** La silhouette d'une photo détourée (lot 7), pour son ombre ; `undefined` : l'ombre suit
+   *  l'aperçu de la photo (ou le contour de sa perspective). */
+  silhouette?: (source: unknown) => string | undefined;
 }
 
 interface Etat {
@@ -842,7 +846,9 @@ export class ContexteSvg {
       if (this.ombreActive()) {
         // L'ombre d'une photo ou d'une vidéo : celle de son rectangle (une photo avec des parties
         // transparentes garde ici l'ombre de sa forme, tirée de son aperçu).
-        const silhouette = "ressource" in vue ? this.imageSvg(`eliot:apercu/${vue.ressource}`, ls, hs, sx, sy, sl, sh, dx, dy, dl, dh) : `<path d="${rectangle}" fill="#000000"/>`;
+        // Détourée (lot 7) : la silhouette de son masque.
+        const href = this.sources.silhouette?.(source) ?? ("ressource" in vue ? `eliot:apercu/${vue.ressource}` : undefined);
+        const silhouette = href ? this.imageSvg(href, ls, hs, sx, sy, sl, sh, dx, dy, dl, dh) : `<path d="${rectangle}" fill="#000000"/>`;
         this.poserOmbre(silhouette, boite, this.commun());
       }
       const visible = croiser(boite, e.boiteDecoupe);
@@ -877,8 +883,16 @@ export class ContexteSvg {
     const [x0, y0, x1, y1] = boiteDuVisuel(q);
     const boite = { x0, y0, x1, y1 };
     if (this.ombreActive()) {
-      const contour = contourProjete(plan, p.plat, p.arrondi);
-      this.poserOmbre(`<path d="M${contour.map((c) => `${n(c[0])} ${n(c[1])}`).join("L")}Z" fill="#000000"/>`, boite, this.commun());
+      // Détourée (lot 7) : l'ombre suit la silhouette déformée, rendue ici par le shader de la
+      // perspective depuis la toile de la photo ; sinon le contour de la perspective.
+      const deformee = this.sources.silhouette?.(source) !== undefined ? silhouetteEnPerspective(source as CanvasImageSource, p) : null;
+      if (deformee) {
+        const [b0, b1, b2, b3] = deformee.boite;
+        this.poserOmbre(this.imageSvg(deformee.href, 1, 1, 0, 0, 1, 1, b0, b1, b2 - b0, b3 - b1), boite, this.commun());
+      } else {
+        const contour = contourProjete(plan, p.plat, p.arrondi);
+        this.poserOmbre(`<path d="M${contour.map((c) => `${n(c[0])} ${n(c[1])}`).join("L")}Z" fill="#000000"/>`, boite, this.commun());
+      }
     }
     const visible = croiser(boite, e.boiteDecoupe);
     if (boiteVide(visible)) return;

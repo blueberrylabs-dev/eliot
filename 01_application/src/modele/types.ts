@@ -252,6 +252,26 @@ export interface ElementImage extends ElementBase {
   /** La perspective (étape 5, lot 6) : le visuel à plat posé sur quatre coins, en fractions de
    *  la boîte de l'élément ; absente : à plat. */
   perspective?: Perspective;
+  /** Le détourage (étape 5, lot 7) : le fond retiré par le modèle, puis repris au pinceau ;
+   *  absent : la photo entière. */
+  detourage?: Detourage;
+}
+
+/** Un coup de pinceau sur un détourage : un trait passant par `points` (fractions de la
+ *  largeur et de la hauteur de l'image), de rayon `rayon` (fraction de son grand côté) ;
+ *  `durete` de 0 (bord très doux) à 1 (bord net). */
+export interface CoupPinceau {
+  mode: "garder" | "effacer";
+  rayon: number;
+  durete: number;
+  points: [number, number][];
+}
+
+/** Le détourage d'une photo : le masque du modèle (`ressources/masques/<masque>.png`, rangé
+ *  avec la photo) et les coups de pinceau, dans l'ordre. L'original n'est jamais touché. */
+export interface Detourage {
+  masque: string;
+  coups?: CoupPinceau[];
 }
 
 /**

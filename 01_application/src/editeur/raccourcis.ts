@@ -8,6 +8,7 @@ import { scene } from "./scene";
 import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 import { finirRecadrage, glisserImage, photoOuClip, useRecadrage } from "../labo/recadrage";
 import { finirPerspective, tirerCoin, usePerspective } from "../labo/miseEnPerspective";
+import { basculerModePinceau, finirPinceau, reglerPinceau, useDetourage } from "../labo/detourage";
 
 const PAS_ZOOM = 1.25;
 
@@ -30,6 +31,24 @@ export function useRaccourcis(): void {
       const page = pageCourante(etat);
       const pageVideo = page.duree !== undefined;
       let traite = true;
+
+      // Le pinceau du détourage (étape 5, lot 7) : Entrée finit, Échap revient au détourage
+      // d'avant, X change de mode, [ et ] la taille ; Suppr et les flèches ne font rien.
+      if (useDetourage.getState().pinceau && !ctrl && !e.altKey) {
+        if (e.key === "Enter") finirPinceau();
+        else if (e.key === "Escape") finirPinceau(true);
+        else if (touche === "x") basculerModePinceau();
+        else if (e.key === "[" || e.key === "]") {
+          const t = useDetourage.getState().reglage.taille;
+          reglerPinceau({ taille: e.key === "]" ? t * 1.25 : t / 1.25 });
+        } else if (e.key === "Delete" || e.key === "Backspace" || e.key.startsWith("Arrow")) traite = true;
+        else traite = false;
+        if (traite) {
+          e.preventDefault();
+          return;
+        }
+        traite = true;
+      }
 
       // En posant les coins (étape 5, lot 6) : Entrée finit, Échap revient aux coins d'avant, les
       // flèches poussent le dernier coin tiré ; Suppr ne supprime rien.

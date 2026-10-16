@@ -1507,6 +1507,79 @@ export function annulerTranscription(): void {
 }
 
 // ========================================================================================
+// Le détourage (étape 5, lot 7)
+// ========================================================================================
+
+export interface EtatDetourage {
+  /** Le programme (Python et onnxruntime, commande 20) est-il installé ? */
+  installe: boolean;
+  /** Le modèle qui servira (commande 21), s'il y en a un. */
+  modele: string | null;
+}
+
+/** Un masque : `largeur` x `hauteur` octets, de 0 (fond) à 255 (premier plan). */
+export interface MasqueBrut {
+  largeur: number;
+  hauteur: number;
+  pixels: Uint8Array;
+}
+
+/** Les essais de l'interface dans un navigateur posent un faux modèle dans
+ *  `window.__detourageEssai` (développement seulement) : il rend le masque d'une ressource. */
+interface DetourageEssai {
+  etat?(): Promise<EtatDetourage>;
+  masque(ressource: string, avancement: (p: number) => void): Promise<MasqueBrut>;
+  annuler?(): void;
+}
+const detourageEssai = (): DetourageEssai | undefined => (!dansTauri && import.meta.env.DEV ? (window as unknown as { __detourageEssai?: DetourageEssai }).__detourageEssai : undefined);
+/** Les masques faits par le faux modèle, dans la mémoire de l'onglet. */
+const masquesEssai = new Map<string, MasqueBrut>();
+
+const HORS_FENETRE_DETOURAGE = "le détourage se fait dans la fenêtre Eliot";
+
+/** L'état du détourage ; `null` hors de la fenêtre Eliot. */
+export async function etatDetourage(): Promise<EtatDetourage | null> {
+  if (dansTauri) return invoke<EtatDetourage>("detourage_etat");
+  const essai = detourageEssai();
+  if (!essai) return null;
+  return (await essai.etat?.()) ?? { installe: true, modele: "Modèle d'essai" };
+}
+
+/** Retire le fond d'une photo du design (le modèle sur le processeur) ; renvoie le nom du
+ *  masque. `avancement` reçoit de 0 à 1. */
+export async function lancerDetourage(ref: RefRessources, ressource: string, forcer: boolean, avancement: (p: number) => void): Promise<string> {
+  if (dansTauri) {
+    const canal = new Channel<number>();
+    canal.onmessage = avancement;
+    return invoke<string>("detourage_lancer", { rayonNom: ref.rayon, projetId: ref.id, id: ressource, forcer, avancement: canal });
+  }
+  const essai = detourageEssai();
+  if (!essai) throw new Error(HORS_FENETRE_DETOURAGE);
+  const nom = `${ressource}-essai`;
+  if (forcer || !masquesEssai.has(nom)) masquesEssai.set(nom, await essai.masque(ressource, avancement));
+  avancement(1);
+  return nom;
+}
+
+/** Arrête le détourage en cours. */
+export function annulerDetourage(): void {
+  if (dansTauri) void invoke("detourage_annuler");
+  else detourageEssai()?.annuler?.();
+}
+
+/** Le masque d'un détourage, tel que le modèle l'a rendu. */
+export async function masqueDetourage(ref: RefRessources, nom: string): Promise<MasqueBrut> {
+  if (dansTauri) {
+    const octets = new Uint8Array(await invoke<ArrayBuffer>("detourage_masque", { rayonNom: ref.rayon, projetId: ref.id, nom }));
+    const vue = new DataView(octets.buffer, octets.byteOffset, 8);
+    return { largeur: vue.getUint32(0, true), hauteur: vue.getUint32(4, true), pixels: octets.subarray(8) };
+  }
+  const m = masquesEssai.get(nom);
+  if (!m) throw new Error(`masque inconnu : ${nom}`);
+  return m;
+}
+
+// ========================================================================================
 // Kit de marque (étape 3) : `~/Documents/Eliot/Marque/kit/`
 // ========================================================================================
 

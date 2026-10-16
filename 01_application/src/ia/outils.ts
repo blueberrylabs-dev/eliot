@@ -30,7 +30,9 @@ import { MODELES_DEPART } from "../modeles/depart";
 import { PROPORTIONS, proportionner, rapportDe, redresser, versPage } from "../modele/rognage";
 import { PERSPECTIVES_PRETES } from "../modele/perspective";
 import { appliquerPerspectivePrete, poserCoins, remettreAPlat } from "../labo/miseEnPerspective";
-import { photoOuClip, poserRognage, remettreRognage } from "../labo/recadrage";
+import { dimensionsOriginal, photoOuClip, poserRognage, remettreRognage } from "../labo/recadrage";
+import { detourerPhoto, effacerLesCoups, lireEtatDetourage, pageVersImage, pixelsImageParPixelPage, remettreLeFond, useDetourage } from "../labo/detourage";
+import { normaliserDetourage } from "../modele/detourage";
 import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normaliserReglages, ZONES_ETALONNAGE, type CanalCourbe, type CouleurMelangeur, type Etalonnage, type PointCourbe, type ReglagesPhoto, type RetoucheCouleur } from "../modele/labo";
 import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
 import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrereglages } from "../labo/prereglages";
@@ -47,7 +49,7 @@ import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
-import type { Animations, ClipAudio, CleAnimation, NettoyageVoix, RoleSon } from "../modele/types";
+import type { Animations, ClipAudio, CleAnimation, CoupPinceau, NettoyageVoix, RoleSon } from "../modele/types";
 import { nomSon } from "../editeur/frise/ClipSon";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
@@ -1747,6 +1749,57 @@ const OUTILS: Record<string, Outil> = {
         })
       : null;
     return { donnees: { id, perspective: apres.perspective ?? null, coins, boite: { x: r(apres.x), y: r(apres.y), largeur: r(apres.largeur), hauteur: r(apres.hauteur) }, conseil: "juger le résultat avec capture" } };
+  },
+
+  async detourer(args) {
+    designOuvert();
+    const id = texte(args.id) ?? "";
+    const el = elementsCourants(etat()).find((e) => e.id === id);
+    exiger(el, `élément ${id} introuvable sur la page affichée (voir etat)`);
+    exiger(el.type === "image", "detourer : une photo (élément de type image) ; pas de détourage pour un clip vidéo");
+    exiger(!el.verrouille, `${id} est verrouillé : déverrouille-le d'abord (modifier, verrouille: false)`);
+    const action = texte(args.action) ?? "retirer";
+    exiger(["retirer", "pinceau", "revenir", "remettre"].includes(action), "action : retirer, pinceau, revenir ou remettre");
+    if (action === "retirer") {
+      const programme = await lireEtatDetourage();
+      exiger(programme, "le détourage se fait dans la fenêtre Eliot");
+      exiger(programme.installe, "le programme du détourage n'est pas installé sur ce poste (commande 20 du CLAUDE.md d'Eliot)");
+      exiger(programme.modele, "aucun modèle de détourage sur ce poste (commande 21 du CLAUDE.md d'Eliot)");
+      try {
+        await detourerPhoto(id, booleen(args.forcer) ?? false);
+      } catch (e) {
+        exiger(false, `detourer : ${e instanceof Error ? e.message : String(e)}`);
+      }
+    } else if (action === "remettre") {
+      remettreLeFond(id);
+    } else if (action === "revenir") {
+      effacerLesCoups(id);
+    } else {
+      exiger(el.detourage, "pinceau : la photo n'est pas détourée (action retirer d'abord)");
+      const brut = args.coups as unknown;
+      exiger(Array.isArray(brut) && brut.length > 0, "pinceau : coups, une liste de { mode, points, rayon, durete }");
+      const d = dimensionsOriginal(el);
+      exiger(d, "les dimensions de la photo sont inconnues");
+      const coups: CoupPinceau[] = (brut as Record<string, unknown>[]).map((c, i) => {
+        const mode = texte(c.mode);
+        exiger(mode === "effacer" || mode === "garder", `coups[${i}].mode : effacer ou garder`);
+        const pts = c.points as unknown;
+        exiger(Array.isArray(pts) && pts.length > 0 && pts.every((q) => Array.isArray(q) && q.length === 2 && q.every((v) => typeof v === "number" && Number.isFinite(v))), `coups[${i}].points : des points [x, y] de la page`);
+        const rayon = nombre(c.rayon);
+        exiger(rayon !== undefined && rayon > 0, `coups[${i}].rayon : en pixels de la page, plus que 0`);
+        const durete = Math.min(1, Math.max(0, nombre(c.durete) ?? 0.6));
+        const points = (pts as [number, number][]).map(([x, y]) => pageVersImage(el, d[0], d[1], x, y));
+        exiger(points.every((q) => q), `coups[${i}].points : la photo n'a pas de place sur la page`);
+        const [x0, y0] = (pts as [number, number][])[0];
+        const r = (rayon * pixelsImageParPixelPage(el, d[0], d[1], x0, y0)) / Math.max(d[0], d[1]);
+        return { mode, rayon: r, durete, points: points as [number, number][] };
+      });
+      const detourage = normaliserDetourage({ masque: el.detourage.masque, coups: [...(el.detourage.coups ?? []), ...coups] });
+      etat().modifierElements({ [id]: { detourage } as Partial<ElementPage> }, `pinceau-ia:${id}:${Date.now()}`);
+    }
+    const apres = elementsCourants(etat()).find((e) => e.id === id) as ElementImage | undefined;
+    const modele = useDetourage.getState().programme?.modele ?? null;
+    return { donnees: { id, detourage: apres?.detourage ? { masque: apres.detourage.masque, coups: apres.detourage.coups?.length ?? 0 } : null, modele, conseil: "juger le résultat avec capture ; l'ombre de l'élément suit la silhouette" } };
   },
 
   async prereglages(args) {

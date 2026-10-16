@@ -419,8 +419,9 @@ fn photo_vectorielle(dossier: &Path, id: &str, reglages: Option<&labo::Reglages>
     if let Some(r) = reglages {
         let mut rgba = image.to_rgba8();
         let (l, h) = rgba.dimensions();
-        labo::appliquer(&mut rgba, l, h, r, true);
-        image = if image.color().has_alpha() { image::DynamicImage::ImageRgba8(rgba) } else { image::DynamicImage::ImageRgb8(image::DynamicImage::ImageRgba8(rgba).to_rgb8()) };
+        montage::retoucher_photo(dossier, &mut rgba, l, h, r).map_err(|e| ErreurRendu::Photo(id.into(), e))?;
+        // Détourée (lot 7), la photo devient transparente hors de son premier plan.
+        image = if image.color().has_alpha() || r.detourage.is_some() { image::DynamicImage::ImageRgba8(rgba) } else { image::DynamicImage::ImageRgb8(image::DynamicImage::ImageRgba8(rgba).to_rgb8()) };
     }
     let mut sortie = Vec::new();
     if image.color().has_alpha() {
@@ -482,7 +483,7 @@ fn visuel_en_perspective(dossier: &Path, t: &TachePerspective) -> Result<Vec<u8>
             let mut img = images::decoder_redresse(&octets).map_err(|e| ErreurRendu::Photo(t.ressource.clone(), e.to_string()))?.to_rgba8();
             if let Some(r) = &t.retouche {
                 let (l, h) = img.dimensions();
-                labo::appliquer(&mut img, l, h, r, true);
+                montage::retoucher_photo(dossier, &mut img, l, h, r).map_err(|e| ErreurRendu::Photo(t.ressource.clone(), e))?;
             }
             img
         }
@@ -1141,6 +1142,49 @@ mod tests {
             let rendu = image::open(dossier.join("perspective.png")).unwrap().to_rgba8();
             let (a, b, c) = (rendu.get_pixel(gx, gy).0, rendu.get_pixel(dx, dy).0, rendu.get_pixel(104, 54).0);
             assert!(proche(a, g, 12) && proche(b, d, 12) && proche(c, dehors, 4), "{a:?} {b:?} {c:?}");
+        }
+        let texte = String::from_utf8(svg(&page, 0.0, &dossier).unwrap()).unwrap();
+        assert!(texte.contains("data:image/png;base64,") && !texte.contains("eliot:"));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    /// Une photo détourée (étape 5, lot 7) : le masque du modèle garde la moitié rouge, un coup
+    /// de pinceau y efface un disque ; l'image, le PDF et le SVG l'emportent ainsi, depuis
+    /// l'original, le fond de la page visible ailleurs.
+    #[test]
+    fn une_photo_detouree_passe_dans_l_export() {
+        let dossier = dossier_de_test("detourage");
+        let id = photo(&dossier);
+        let nom = format!("{id}-birefnet-lite");
+        fs::create_dir_all(dossier.join("masques")).unwrap();
+        image::GrayImage::from_fn(crate::detourage::COTE, crate::detourage::COTE, |x, _| image::Luma([if x < crate::detourage::COTE / 2 { 255 } else { 0 }])).save(dossier.join("masques").join(format!("{nom}.png"))).unwrap();
+        let page: DescriptionPage = serde_json::from_value(json!({
+            "largeur": 600, "hauteur": 400, "duree": 0,
+            "fond": [rectangle(600.0, 400.0, "#ffffff")],
+            "elements": [
+                { "element": { "id": "p", "type": "image", "x": 100, "y": 100, "largeur": 400, "hauteur": 200, "rotation": 0, "opacite": 1, "visible": true, "ressource": id,
+                               "detourage": { "masque": nom, "coups": [{ "mode": "effacer", "rayon": 0.1, "durete": 1.0, "points": [[0.25, 0.5]] }] } },
+                  "calques": [{ "genre": "image", "ressource": id, "matrice": [400, 0, 0, 200, 0, 0], "decoupes": [], "boite": { "x0": 0, "y0": 0, "x1": 400, "y1": 200 }, "opacite": 1 }] }
+            ],
+            "polices": []
+        }))
+        .unwrap();
+        let png = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: false, instant: 0.0 }, &dossier).unwrap();
+        // Rouge gardé (hors du coup), trou du coup, moitié bleue retirée.
+        let (garde, trou, retire) = (pixel(&png, 100 + 40, 100 + 30), pixel(&png, 100 + 100, 100 + 100), pixel(&png, 100 + 300, 100 + 100));
+        assert!(garde[0] > 200 && garde[2] < 60, "gardé : {garde:?}");
+        assert!(proche(trou, [255, 255, 255, 255], 3), "effacé au pinceau : {trou:?}");
+        assert!(proche(retire, [255, 255, 255, 255], 3), "fond retiré : {retire:?}");
+        // Fond transparent : la photo seule, transparente là où le masque l'est.
+        let transparent = image(&page, &OptionsImage { format: FormatImage::Png, echelle: 1.0, transparent: true, instant: 0.0 }, &dossier).unwrap();
+        assert!(pixel(&transparent, 400, 200)[3] < 4 && pixel(&transparent, 140, 130)[3] > 250);
+        let octets = pdf(&[(page.clone(), 0.0)], &dossier).unwrap();
+        let chemin = dossier.join("detourage.pdf");
+        fs::write(&chemin, &octets).unwrap();
+        if Command::new("pdftoppm").args(["-r", "96", "-png", "-singlefile"]).arg(&chemin).arg(dossier.join("detourage")).status().is_ok_and(|s| s.success()) {
+            let rendu = image::open(dossier.join("detourage.png")).unwrap().to_rgba8();
+            let (a, b, c) = (rendu.get_pixel(140, 130).0, rendu.get_pixel(200, 200).0, rendu.get_pixel(400, 200).0);
+            assert!(proche(a, garde, 14) && proche(b, trou, 6) && proche(c, retire, 6), "{a:?} {b:?} {c:?}");
         }
         let texte = String::from_utf8(svg(&page, 0.0, &dossier).unwrap()).unwrap();
         assert!(texte.contains("data:image/png;base64,") && !texte.contains("eliot:"));

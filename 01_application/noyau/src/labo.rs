@@ -351,6 +351,11 @@ pub struct Reglages {
     /// y a un vignetage (jamais dans les réglages du document) : le vignetage suit le cadre gardé.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rognage: Option<Rognage>,
+    /// Le détourage de la photo (lot 7), que `montage::reglages_labo` pose ici pour l'export
+    /// (jamais dans les réglages du document) : il entre dans la clé de la retouche, et le noyau
+    /// le pose après les réglages (`detourage::appliquer`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detourage: Option<crate::detourage::Detourage>,
 }
 
 fn borne(v: f32, a: f32, b: f32) -> f32 {
@@ -386,13 +391,14 @@ impl Reglages {
             nettete: c(self.nettete),
             bruit: p(self.bruit),
             rognage: self.rognage.filter(Rognage::valide).map(|g| Rognage { angle: g.angle.clamp(-45.0, 45.0), ..g }),
+            detourage: self.detourage.clone(),
         }
     }
 
     /// Rien à faire : l'image sort telle qu'elle est entrée (le recadrage seul ne touche à aucun
-    /// pixel).
+    /// pixel ; le détourage se pose à part).
     pub fn neutres(&self) -> bool {
-        Reglages { rognage: None, ..self.clone() } == Reglages::default()
+        Reglages { rognage: None, detourage: None, ..self.clone() } == Reglages::default()
     }
 
     /// Des réglages qui regardent les pixels voisins (calculés par le noyau seulement).

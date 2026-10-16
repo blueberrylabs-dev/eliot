@@ -37,7 +37,8 @@ lourd. Détail : `BRIEF.md`.
   d'Alexandre (`PLAN.md`).
 - Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
   Humaaans, lues par `npm run bibliotheque` ; voix de Piper dans `telechargements/voix/`, lot 6 ;
-  modèle de Whisper dans `telechargements/whisper/`, lot 7).
+  modèle de Whisper dans `telechargements/whisper/`, lot 7 ; programme et modèle du détourage
+  dans `telechargements/detourage/`, étape 5, lot 7).
 - Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
   recherche d'essai.
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
@@ -86,8 +87,12 @@ lourd. Détail : `BRIEF.md`.
   « Essayer le recadrage (étape 5, lot 5) ». Lot 6, la perspective (un visuel posé sur quatre
   coins, mode « coins » sur la page, perspectives prêtes, coins arrondis, bordure et ombre qui
   suivent, rendu par le noyau à l'export, outil `perspective` du pont, 65 outils), livré et
-  vérifié le 2026-10-16 ; essai : « Essayer la perspective (étape 5, lot 6) ». Après ces
-  livraisons : recompiler l'application (commande 9) et le pont (commande 13).
+  vérifié le 2026-10-16 ; essai : « Essayer la perspective (étape 5, lot 6) ». Lot 7, le
+  détourage (BiRefNet, licence MIT, sur le processeur ; masque gardé avec la photo, pinceau pour
+  reprendre les bords, ombre qui suit la silhouette, outil `detourer` du pont, 66 outils), livré
+  et vérifié le 2026-10-16 ; essai : « Essayer le détourage (étape 5, lot 7) », après les
+  commandes 20 et 21 (une fois). Après ces livraisons : recompiler l'application (commande 9) et
+  le pont (commande 13). Reste de l'étape 5 : sa vérification d'ensemble.
 
 Suite : `PLAN.md`.
 
@@ -296,9 +301,10 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 117 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 125 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
-conteneur et passe ailleurs sans rien faire). La première fois après le lot 6, `cargo`
+conteneur et passe ailleurs sans rien faire, comme celui du vrai modèle du détourage). La
+première fois après le lot 6, `cargo`
 télécharge la bibliothèque `nnnoiseless` (réduction du bruit de la voix). Un essai fait écouter
 un faux micro pendant deux secondes environ : rien n'est enregistré du vrai micro.
 
@@ -308,7 +314,7 @@ un faux micro pendant deux secondes environ : rien n'est enregistré du vrai mic
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  205 passed`.
+Vérifier : `Tests  210 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 
@@ -449,6 +455,47 @@ Attendu : `6b09a90a9be263e3c2d3df31587c5554` (`config.json`), `4c1a36b9f6798403f
 2026-10-15. Puis rouvrir l'onglet Texte d'Eliot : « Modèle : faster-whisper-small » s'affiche.
 Revenir en arrière : supprimer le dossier `telechargements/whisper/`.
 
+### Le détourage (étape 5, lot 7)
+
+Le fond d'une photo est retiré par BiRefNet (Peng Zheng et ses co-auteurs, licence MIT), un
+modèle d'IA qui tourne sur le processeur, jamais sur la carte graphique : Eliot le lance par un
+petit programme Python, comme Whisper, sans carte visible. Deux choses, une fois.
+
+**20. Installer le programme du détourage** : Python et onnxruntime pour le processeur (sans
+CUDA), environ 120 Mo dans `telechargements/detourage/env/`, hors git. Versions fixées,
+vérifiées dans le conteneur de Claude le 2026-10-16 :
+
+```
+uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12 && uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env onnxruntime==1.30.0 numpy==2.3.5
+```
+
+Vérifier :
+
+```
+/home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env/bin/python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
+```
+
+Attendu : `['AzureExecutionProvider', 'CPUExecutionProvider']`, aucun fournisseur de carte
+graphique. Revenir en arrière : supprimer le dossier `telechargements/detourage/env/`.
+
+**21. Préparer le modèle** (environ quatre minutes, processeur seulement, jusqu'à 4 Go de
+mémoire). Le programme `outils/convertir_birefnet.py` télécharge le code et les poids de
+BiRefNet sur Hugging Face, à une révision fixée, vérifie leurs empreintes SHA-256, les convertit
+en ONNX, compare le résultat au modèle d'origine, puis range `birefnet.onnx` (894 Mo) dans
+`telechargements/detourage/`. uv lui fournit torch pour le processeur le temps de la
+conversion (environ 1 Go dans le cache de uv, que `uv cache clean` vide ensuite) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && CUDA_VISIBLE_DEVICES= uv run --no-project --python 3.12 --index https://download.pytorch.org/whl/cpu --with "torch==2.14.0+cpu" --with "torchvision==0.29.0+cpu" --with timm==1.0.20 --with transformers==4.57.1 --with einops==0.8.2 --with kornia==0.8.3 --with safetensors==0.8.0 --with onnx==1.19.1 --with onnxscript==0.7.2 --with onnxruntime==1.30.0 --with numpy==2.3.5 python outils/convertir_birefnet.py
+```
+
+Vérifier : les dernières lignes disent « Écart avec le modèle d'origine : 0.000000 » (un écart
+de quelques millièmes est accepté), puis « Modèle prêt » et le chemin de `birefnet.onnx`. Puis
+rouvrir le labo d'une photo : « Modèle : BiRefNet, sur le processeur » s'affiche dans la section
+Détourage. Pour une machine plus modeste, la version légère (deux fois plus rapide, un peu moins
+juste, 190 Mo) : la même commande suivie de ` --modele birefnet-lite` (Eliot prend BiRefNet s'il
+est là, sinon la version légère). Revenir en arrière : supprimer `birefnet.onnx`.
+
 ## Arborescence
 
 ```
@@ -456,5 +503,5 @@ Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
 ├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
-└── telechargements/    archives, voix et modèle téléchargés à la main (personnages, voix de Piper, Whisper), hors git
+└── telechargements/    archives, voix et modèles installés à la main (personnages, voix de Piper, Whisper, détourage), hors git
 ```

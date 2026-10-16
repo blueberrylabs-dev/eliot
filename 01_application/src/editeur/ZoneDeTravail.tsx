@@ -34,6 +34,8 @@ import { CalqueZonesSures } from "./ZonesSures";
 import { CadreRognage } from "../labo/CadreRognage";
 import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
 import { CadrePerspective } from "../labo/CadrePerspective";
+import { CadrePinceau } from "../labo/CadrePinceau";
+import { useDetourage } from "../labo/detourage";
 import { commencerPerspective, usePerspective } from "../labo/miseEnPerspective";
 
 /** Échelle et position de la page dans la zone. Une page plus petite que la zone reste
@@ -109,6 +111,7 @@ export function ZoneDeTravail() {
   const enRecadrage = useRecadrage((s) => s.id);
   // Une photo ou un clip dont on pose les coins (lot 6) : de même.
   const enPerspective = usePerspective((s) => s.id);
+  const enPinceau = useDetourage((s) => s.pinceau);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
   const dessin = useEditeur((s) => s.dessin);
@@ -314,12 +317,12 @@ export function ZoneDeTravail() {
     const gp = groupePageRef.current;
     if (!tr || !gp || geste.current) return;
     const noeuds = selection
-      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective)
+      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective && id !== enPinceau)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
       .filter((n): n is Konva.Group => !!n && n.isVisible());
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
-  }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective]);
+  }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective, enPinceau]);
 
   // ---- Gestes : glisser et transformer ----
 
@@ -838,6 +841,7 @@ export function ZoneDeTravail() {
           <Group {...transformationPage}>
             <CadreRognage echelle={echelle} />
             <CadrePerspective echelle={echelle} />
+            <CadrePinceau echelle={echelle} />
           </Group>
           <Rect ref={rectangleRef} visible={false} fill="rgba(79,70,229,0.08)" stroke={ACCENT} strokeWidth={1} listening={false} />
           <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
@@ -861,6 +865,11 @@ export function ZoneDeTravail() {
       {enPerspective && (
         <div data-aide-perspective className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Pose chaque coin sur un coin de l'écran, de la boîte ou de l'affiche ; les flèches poussent le dernier coin. Entrée pour finir, Échap pour annuler.
+        </div>
+      )}
+      {enPinceau && (
+        <div data-aide-pinceau className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Peins sur les bords : Effacer retire le fond qui reste, Garder rend ce qui manque. X change de mode, [ et ] la taille. Entrée pour finir, Échap pour annuler.
         </div>
       )}
       {dessin && (

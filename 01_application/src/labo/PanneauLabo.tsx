@@ -5,7 +5,7 @@
 // l'exposition, en IL) ; un double-clic le remet à zéro ; sa valeur se tape au clavier. Un geste
 // sur un curseur ou sur la courbe fait une seule étape d'annulation.
 
-import { ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Crop, Eye, Move3d, RotateCcw, RotateCw, Ruler, Square, Wand2, X } from "lucide-react";
+import { Brush, ChevronDown, ChevronRight, ClipboardCopy, ClipboardPaste, Crop, Eraser, Eye, ImageOff, Move3d, RotateCcw, RotateCw, Ruler, Scissors, Square, Wand2, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { elementsCourants, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { useImageRessource } from "../editeur/images";
@@ -36,6 +36,7 @@ import { PROPORTIONS, type Rognage } from "../modele/rognage";
 import { choisirProportions, commencerRecadrage, finirRecadrage, photoOuClip, pivoterProportions, redresserAuto, redresserElement, remettreRognage, useRecadrage } from "./recadrage";
 import { PERSPECTIVES_PRETES } from "../modele/perspective";
 import { appliquerPerspectivePrete, commencerPerspective, finirPerspective, remettreAPlat, usePerspective } from "./miseEnPerspective";
+import { arreterDetourage, commencerPinceau, effacerLesCoups, finirPinceau, lireEtatDetourage, masqueIllisible, reglerPinceau, remettreLeFond, retirerLeFond, TAILLE_PINCEAU_MAX, TAILLE_PINCEAU_MIN, useDetourage } from "./detourage";
 
 /** La teinte de chaque couleur du mélangeur, pour sa pastille. */
 const TEINTES: Record<CouleurMelangeur, string> = {
@@ -447,6 +448,134 @@ function MettreEnPerspective({ el }: { el: ElementImage | ElementVideo }) {
   );
 }
 
+/** Le détourage (lot 7) : retirer le fond par le modèle, reprendre les bords au pinceau,
+ *  remettre le fond. */
+function Detourer({ el }: { el: ElementImage | ElementVideo }) {
+  const programme = useDetourage((s) => s.programme);
+  const enCours = useDetourage((s) => s.enCours);
+  const pinceau = useDetourage((s) => s.pinceau === el.id);
+  const reglage = useDetourage((s) => s.reglage);
+  const racine = useRef<HTMLDivElement>(null);
+  const ici = enCours?.id === el.id;
+  useEffect(() => {
+    if (programme === undefined) void lireEtatDetourage();
+  }, [programme]);
+  // Lancé depuis la barre du haut, ou le pinceau ouvert : la section vient sous les yeux.
+  useEffect(() => {
+    if (ici || pinceau) racine.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [ici, pinceau]);
+  const bouton = "flex items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs disabled:opacity-40";
+  if (el.type === "video") return <p className="text-[11px] text-neutral-500">Le détourage vaut pour une photo : retirer le fond d'un clip demanderait un masque par image.</p>;
+  const pret = !!programme?.installe && !!programme.modele;
+  const d = el.detourage;
+  if (!d) {
+    return (
+      <div data-detourage ref={racine}>
+        {ici ? (
+          <div className="mb-2 flex items-center gap-2" data-detourage-en-cours>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-neutral-200">
+              <div className="h-full rounded-full bg-accent-600 transition-[width] duration-300" style={{ width: `${Math.round(Math.max(0.05, enCours!.avancement) * 100)}%` }} />
+            </div>
+            <button data-annuler-detourage onClick={arreterDetourage} className="text-xs text-neutral-600 hover:text-neutral-900">
+              Annuler
+            </button>
+          </div>
+        ) : (
+          <button
+            data-retirer-fond
+            disabled={!pret || !!enCours || el.verrouille}
+            onClick={() => void retirerLeFond(el.id)}
+            className={`${bouton} mb-2 w-full border-accent-600 bg-accent-600 text-white hover:bg-accent-700`}
+            title="Le modèle retire le fond ; le premier plan reste"
+          >
+            <Scissors size={14} /> Retirer le fond
+          </button>
+        )}
+        <p className="text-[11px] text-neutral-500" data-etat-detourage>
+          {programme === undefined
+            ? "Recherche du modèle."
+            : programme === null
+              ? "Le détourage se fait dans la fenêtre Eliot."
+              : !programme.installe
+                ? "Le programme du détourage n'est pas installé : commande 20 du CLAUDE.md."
+                : !programme.modele
+                  ? "Aucun modèle de détourage : commande 21 du CLAUDE.md."
+                  : ici
+                    ? `${programme.modele} cherche le premier plan, sur le processeur.`
+                    : `Modèle : ${programme.modele}, sur le processeur ; quelques secondes. Le fond devient transparent, l'ombre suit la silhouette.`}
+        </p>
+      </div>
+    );
+  }
+  const n = d.coups?.length ?? 0;
+  return (
+    <div data-detourage ref={racine}>
+      <div className="mb-2 flex gap-2">
+        <button
+          data-pinceau
+          aria-pressed={pinceau}
+          disabled={el.verrouille}
+          onClick={() => (pinceau ? finirPinceau() : commencerPinceau(el.id))}
+          className={`${bouton} flex-1 ${pinceau ? "border-accent-600 bg-accent-600 text-white hover:bg-accent-700" : "border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`}
+          title={pinceau ? "Finir (Entrée)" : "Reprendre les bords au pinceau, sur la page"}
+        >
+          <Brush size={14} /> {pinceau ? "Terminer" : "Reprendre les bords"}
+        </button>
+        <button data-remettre-fond onClick={() => remettreLeFond(el.id)} className={`${bouton} border-neutral-300 text-neutral-700 hover:bg-neutral-50`} title="Rendre la photo entière, fond compris">
+          <ImageOff size={14} /> Remettre le fond
+        </button>
+      </div>
+      {pinceau && (
+        <div className="mb-2 space-y-2 rounded-lg bg-neutral-50 p-2" data-reglages-pinceau>
+          <div className="flex gap-1" role="group" aria-label="Mode du pinceau">
+            {(["effacer", "garder"] as const).map((m) => (
+              <button
+                key={m}
+                data-mode-pinceau={m}
+                aria-pressed={reglage.mode === m}
+                onClick={() => reglerPinceau({ mode: m })}
+                className={`flex flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1 text-xs ${reglage.mode === m ? "border-accent-600 bg-white text-accent-700" : "border-transparent text-neutral-600 hover:bg-white"}`}
+                title={m === "effacer" ? "Retirer ce qui reste du fond (X pour changer)" : "Rendre ce que le modèle a retiré (X pour changer)"}
+              >
+                {m === "effacer" ? <Eraser size={13} /> : <Brush size={13} />} {m === "effacer" ? "Effacer" : "Garder"}
+              </button>
+            ))}
+          </div>
+          <label className="block text-xs text-neutral-700">
+            <span className="flex justify-between">
+              Taille <span className="tabular-nums text-neutral-500">{reglage.taille} px</span>
+            </span>
+            <input data-taille-pinceau type="range" min={TAILLE_PINCEAU_MIN} max={TAILLE_PINCEAU_MAX} step={1} value={reglage.taille} onChange={(e) => reglerPinceau({ taille: Number(e.target.value) })} onKeyDown={(e) => e.stopPropagation()} className="w-full accent-accent-600" aria-label="Taille du pinceau" />
+          </label>
+          <label className="block text-xs text-neutral-700">
+            <span className="flex justify-between">
+              Dureté <span className="tabular-nums text-neutral-500">{Math.round(reglage.durete * 100)} %</span>
+            </span>
+            <input data-durete-pinceau type="range" min={0} max={100} step={1} value={Math.round(reglage.durete * 100)} onChange={(e) => reglerPinceau({ durete: Number(e.target.value) / 100 })} onKeyDown={(e) => e.stopPropagation()} className="w-full accent-accent-600" aria-label="Dureté du pinceau" />
+          </label>
+          <p className="text-[11px] text-neutral-500">Ce qui est retiré se devine sous la photo. X change de mode, [ et ] la taille. Entrée pour finir, Ctrl+Z défait coup par coup.</p>
+        </div>
+      )}
+      {masqueIllisible(d.masque) && (
+        <p className="mb-2 text-[11px] text-amber-700">
+          Le masque de cette photo manque dans le design.{" "}
+          <button data-refaire-detourage className="underline" disabled={!pret || !!enCours} onClick={() => void retirerLeFond(el.id, true)}>
+            Refaire le détourage
+          </button>
+        </p>
+      )}
+      <p className="text-[11px] text-neutral-500">
+        {n > 0 ? `${n} coup${n > 1 ? "s" : ""} de pinceau sur le masque du modèle. ` : "Le fond est retiré ; le pinceau reprend les bords. "}
+        {n > 0 && (
+          <button data-effacer-coups className="underline hover:text-neutral-800" onClick={() => effacerLesCoups(el.id)}>
+            Revenir au masque du modèle
+          </button>
+        )}
+      </p>
+    </div>
+  );
+}
+
 export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
   const [fermees, setFermees] = useState<Set<string>>(new Set());
   const voisins = aDesVoisins(el.reglages);
@@ -545,6 +674,9 @@ export function PanneauLabo({ el }: { el: ElementImage | ElementVideo }) {
       </Section>
       <Section titre="Perspective" ouverte={!fermees.has("Perspective")} basculer={() => basculer("Perspective")}>
         <MettreEnPerspective el={el} />
+      </Section>
+      <Section titre="Détourage" ouverte={!fermees.has("Détourage")} basculer={() => basculer("Détourage")}>
+        <Detourer el={el} />
       </Section>
       {SECTIONS_LABO.map((s) => (
         <Section key={s.titre} titre={s.titre} ouverte={!fermees.has(s.titre)} basculer={() => basculer(s.titre)}>

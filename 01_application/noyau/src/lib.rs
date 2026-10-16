@@ -6,6 +6,7 @@
 //! tel quel si l'enveloppe changeait.
 
 pub mod animation;
+pub mod detourage;
 pub mod export;
 pub mod fichiers;
 pub mod freesound;

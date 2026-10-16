@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
+use noyau::{detourage, export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -40,6 +40,14 @@ pub struct Micro(Mutex<Option<micro::Captation>>);
 /// `annule` arrête celle en cours.
 #[derive(Default)]
 pub struct Transcriptions {
+    en_cours: AtomicBool,
+    annule: AtomicBool,
+}
+
+/// Les détourages (étape 5, lot 7) : un à la fois (le modèle prend le processeur) ; `annule`
+/// arrête celui en cours.
+#[derive(Default)]
+pub struct Detourages {
     en_cours: AtomicBool,
     annule: AtomicBool,
 }
@@ -1193,6 +1201,96 @@ pub async fn labo_base_pixels(requete: Request<'_>) -> Result<Response, String> 
     tauri::async_runtime::spawn_blocking(move || labo::base_pixels(largeur, hauteur, pixels, &reglages).map(Response::new))
         .await
         .map_err(|e| format!("retouche interrompue : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Le détourage (étape 5, lot 7)
+// ----------------------------------------------------------------------------------------
+
+/// Les dossiers du détourage : `ELIOT_DETOURAGE_DOSSIER` pour les essais de développement,
+/// sinon `telechargements/detourage/` du dépôt (en développement) et `detourage/` dans les
+/// données d'Eliot.
+fn dossiers_detourage(app: &AppHandle) -> Vec<PathBuf> {
+    if cfg!(debug_assertions)
+        && let Some(d) = std::env::var_os("ELIOT_DETOURAGE_DOSSIER")
+    {
+        return vec![PathBuf::from(d)];
+    }
+    let donnees = app.path().app_data_dir().ok();
+    if cfg!(debug_assertions) {
+        detourage::dossiers(std::path::Path::new(env!("CARGO_MANIFEST_DIR")), donnees.as_deref())
+    } else {
+        donnees.map(|d| vec![d.join("detourage")]).unwrap_or_default()
+    }
+}
+
+/// Ce que la fenêtre doit savoir du détourage : le programme est-il installé, quel modèle
+/// servira.
+#[derive(Serialize)]
+pub struct EtatDetourage {
+    installe: bool,
+    modele: Option<String>,
+}
+
+#[tauri::command]
+pub async fn detourage_etat(app: AppHandle) -> Result<EtatDetourage, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let d = dossiers_detourage(&app);
+        EtatDetourage { installe: detourage::trouver_python(&d).is_some(), modele: detourage::trouver_modele(&d).map(|(_, m)| m.libelle.to_string()) }
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+/// Retire le fond d'une photo du design : le masque du modèle (sur le processeur, fait une fois
+/// puis relu ; `forcer` le refait). Renvoie son nom. L'avancement, de 0 à 1, part par
+/// `avancement`.
+#[tauri::command]
+pub async fn detourage_lancer(app: AppHandle, rayon_nom: String, projet_id: String, id: String, forcer: bool, avancement: Channel<f32>) -> Result<String, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    let d = dossiers_detourage(&app);
+    let python = detourage::trouver_python(&d).ok_or_else(|| detourage::ErreurDetourage::Absent.to_string())?;
+    let (modele, sorte) = detourage::trouver_modele(&d).ok_or_else(|| detourage::ErreurDetourage::SansModele.to_string())?;
+    let etat = app.state::<Detourages>();
+    if etat.en_cours.swap(true, Ordering::SeqCst) {
+        return Err("un détourage est déjà en cours".into());
+    }
+    etat.annule.store(false, Ordering::SeqCst);
+    let app2 = app.clone();
+    let resultat = tauri::async_runtime::spawn_blocking(move || {
+        let etat = app.state::<Detourages>();
+        let mut rapport = |p: f32| {
+            let _ = avancement.send(p);
+        };
+        detourage::detourer(&dossier, &id, &python, &modele, &sorte, forcer, &etat.annule, &mut rapport).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("détourage interrompu : {e}"));
+    app2.state::<Detourages>().en_cours.store(false, Ordering::SeqCst);
+    resultat?
+}
+
+/// Arrête le détourage en cours.
+#[tauri::command]
+pub fn detourage_annuler(app: AppHandle) {
+    app.state::<Detourages>().annule.store(true, Ordering::SeqCst);
+}
+
+/// Le masque d'un détourage, pour la fenêtre. Réponse binaire : largeur et hauteur (deux
+/// entiers de 32 bits, petit-boutistes), puis un octet par pixel (0 : fond, 255 : premier plan).
+#[tauri::command]
+pub async fn detourage_masque(app: AppHandle, rayon_nom: String, projet_id: String, nom: String) -> Result<Response, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let m = detourage::lire_masque(&dossier, &nom).map_err(|e| e.to_string())?;
+        let mut o = Vec::with_capacity(8 + m.as_raw().len());
+        o.extend_from_slice(&m.width().to_le_bytes());
+        o.extend_from_slice(&m.height().to_le_bytes());
+        o.extend_from_slice(m.as_raw());
+        Ok(Response::new(o))
+    })
+    .await
+    .map_err(|e| format!("lecture interrompue : {e}"))?
 }
 
 /// Les préréglages d'Alexandre (étape 5, lot 3) : `~/Documents/Eliot/Préréglages/`.

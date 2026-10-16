@@ -30,10 +30,11 @@ const DELAI_REPONSE: Duration = Duration::from_secs(120);
 /// longue.
 const DELAI_FILM: Duration = Duration::from_secs(1800);
 
-/// Le délai d'un outil : celui d'un film pour un export en MP4 ou en GIF.
+/// Le délai d'un outil : celui d'un film pour un export en MP4 ou en GIF, et pour un détourage
+/// (étape 5, lot 7 : le modèle sur le processeur d'une petite machine peut dépasser deux minutes).
 pub fn delai_pour(outil: &str, arguments: &Value) -> Duration {
-    let film = outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"));
-    if film { DELAI_FILM } else { DELAI_REPONSE }
+    let long = (outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"))) || outil == "detourer";
+    if long { DELAI_FILM } else { DELAI_REPONSE }
 }
 
 /// `eliot-mcp/src/main.rs` essaie ce chemin, et aussi `/run/user/<uid>` quand le client MCP

@@ -257,3 +257,29 @@ export function dessinerEnPerspective(ctx: Contexte2D, id: string, image: Canvas
   ctx.drawImage(g.toile, boite[0], boite[1], largeur / e, hauteur / e);
   return true;
 }
+
+/**
+ * Le visuel `calque` rendu à part, en PNG, pour l'ombre d'une photo détourée en perspective
+ * (lot 7) : sa transparence est la silhouette déformée. Renvoie aussi sa boîte (repère de la
+ * boîte de l'élément). `null` sans WebGL 2.
+ */
+export function silhouetteEnPerspective(image: CanvasImageSource, calque: PerspectiveCalque, coteMax = 2048): { href: string; boite: [number, number, number, number] } | null {
+  const m = moteurPerspective();
+  if (!m) return null;
+  const s = image as { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number };
+  const l = s.naturalWidth || s.width || 0;
+  const h = s.naturalHeight || s.height || 0;
+  if (!l || !h) return null;
+  const boite = boiteDuVisuel(calque);
+  const bl = boite[2] - boite[0];
+  const bh = boite[3] - boite[1];
+  const e = Math.max(0.05, Math.min(2, coteMax / Math.max(bl, bh, 1)));
+  const largeur = Math.max(1, Math.ceil(bl * e));
+  const hauteur = Math.max(1, Math.ceil(bh * e));
+  if (!m.dessiner(image as TexImageSource, image, true, l, h, calque, boite, e, largeur, hauteur)) return null;
+  const c = document.createElement("canvas");
+  c.width = largeur;
+  c.height = hauteur;
+  c.getContext("2d")!.drawImage(m.toile, 0, 0);
+  return { href: c.toDataURL("image/png"), boite: [boite[0], boite[1], boite[0] + largeur / e, boite[1] + hauteur / e] };
+}

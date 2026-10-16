@@ -16,6 +16,7 @@ import { compteurMorceaux, etenduesDesMots, RenduElement } from "../editeur/Rend
 import type { ClipAudio, ElementPage, Format, PageEliot, SousTitre } from "../modele/types";
 import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
+import { silhouetteDetouree } from "../labo/detourage";
 
 export interface CalquesElement {
   /** L'élément tel qu'il est dans le document (le noyau en lit la boîte, le temps, la piste,
@@ -59,6 +60,7 @@ function marqueVideo(ressource: string): CanvasImageSource {
 }
 
 const sources = {
+  silhouette: silhouetteDetouree,
   reconnaitre(source: unknown) {
     const video = typeof source === "object" && source ? videosMarquees.get(source) : undefined;
     if (video) return { video };

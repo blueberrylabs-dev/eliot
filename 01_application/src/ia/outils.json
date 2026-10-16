@@ -2655,6 +2655,78 @@
     }
   },
   {
+    "name": "detourer",
+    "description": "Détourer une photo (élément de type image) de la page affichée : retirer son fond par un modèle d'IA local (sur le processeur de l'ordinateur, quelques secondes ; le masque est fait une fois par photo puis relu), puis reprendre les bords au pinceau. Le fond devient transparent, l'ombre de l'élément suit la silhouette, l'export pose le masque sur l'original (règle 13 : l'original n'est jamais touché). action : retirer (le modèle ; forcer : vrai le refait et oublie les coups), pinceau (ajoute des coups sur une photo déjà détourée), revenir (retire tous les coups, garde le masque du modèle), remettre (rend la photo entière, fond compris). coups : chacun { mode : effacer (retire ce qui reste du fond) ou garder (rend ce que le modèle a retiré), points : [[x, y], ...] de la page (un trait, ou un seul point pour un disque), rayon : en pixels de la page, durete : de 0 (bord très doux) à 1 (bord net), 0,6 par défaut }. Pour viser un bord, regarder avec capture, puis passer le pinceau. Pas de détourage pour un clip vidéo. Ctrl+Z défait chaque appel. Renvoie le masque, le nombre de coups et le modèle.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de la photo (voir etat)."
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "retirer",
+            "pinceau",
+            "revenir",
+            "remettre"
+          ],
+          "description": "retirer par défaut."
+        },
+        "forcer": {
+          "type": "boolean",
+          "description": "retirer : refaire le masque par le modèle."
+        },
+        "coups": {
+          "type": "array",
+          "description": "pinceau : les coups, dans l'ordre.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "effacer",
+                  "garder"
+                ]
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "minItems": 1
+              },
+              "rayon": {
+                "type": "number",
+                "description": "En pixels de la page."
+              },
+              "durete": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "mode",
+              "points",
+              "rayon"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
     "name": "prereglages",
     "description": "Les préréglages du labo photo : la vingtaine fournie avec Eliot (rangée en catégories : Naturel, Couleur, Film, Noir et blanc, Sujets) et ceux d'Alexandre (« Les miens », gardés hors des designs, dans ~/Documents/Eliot/Préréglages/). action lister (par défaut) : leurs noms, identifiants, catégories et réglages. action enregistrer : garde sous nom le style d'une photo ou d'un clip (depuis) ou des réglages donnés, sans l'exposition, la netteté ni la réduction du bruit, qui restent propres à chaque photo ; un préréglage d'Alexandre du même nom est remplacé. Pour appliquer un préréglage : retoucher avec prereglage.",
     "inputSchema": {

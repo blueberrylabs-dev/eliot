@@ -363,7 +363,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - Détourage : un modèle d'IA sur le processeur, lancé comme Whisper (programme installé par
   Alexandre, modèle téléchargé une fois dans `telechargements/`), choisi au lot 7 d'après sa
   licence (libre pour un usage commercial de préférence) et sa qualité sur des photos de
-  produits.
+  produits. Retenu au lot 7 : BiRefNet (MIT), converti sur le poste avec la DeformConv native
+  (JOURNAL du 2026-10-16).
 
 - [x] Lot 0 : banc de l'aperçu en direct dans `00_banc_essai/` (bouton « Labo photo (étape
       5) ») : Rust en direct à 1280, 1920 et 2560 px (pixels bruts par l'IPC binaire de
@@ -433,14 +434,23 @@ Choix par défaut de Claude, modifiables sur simple demande :
       fenêtre et export à 2,09 sur 255 dans le visuel (0,47 sur toute la page), PDF à 2,08, SVG
       rendu par Chromium à 1,45, clip en perspective dans le MP4 à 1,67 (JOURNAL). Essai
       d'Alexandre : « Essayer la perspective (étape 5, lot 6) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
-      document (l'original intact), pinceau pour reprendre les bords.
-- [ ] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
+- [x] Lot 7 : détourage local : choix du modèle et de sa licence, masque gardé en valeur du
+      document (l'original intact), pinceau pour reprendre les bords. Livré le 2026-10-16 :
+      BiRefNet (licence MIT), choisi sur 72 photos d'objets de DIS-VD contre sa version légère
+      et BEN2 Base (écart moyen 0,035, recouvrement 0,84) ; converti une fois en ONNX sur le
+      poste (`outils/convertir_birefnet.py`, empreintes vérifiées), lancé par le noyau comme
+      Whisper (`noyau/src/detourage.rs` et `detourer.py`, onnxruntime pour le processeur) ;
+      masque rangé avec la photo, coups de pinceau dans le document, le même calcul dans la
+      fenêtre et le noyau (tableau commun) ; l'ombre suit la silhouette, perspective comprise ;
+      fenêtre contre export à 0,08 sur 255, avec l'ombre 0,13, avec le pinceau 0,09 (JOURNAL).
+      Essai d'Alexandre : « Essayer le détourage (étape 5, lot 7) » du
+      `01_application/LISEZMOI.md`, après les commandes 20 et 21 du `CLAUDE.md`.
+- [x] Outils du pont IA pour tout ce qui précède, au fil des lots (lot 1 : `exporter` prend
       WebP, PDF, SVG et l'échelle ; lot 2 : `retoucher`, 62 outils ; lot 3 : `retoucher` prend la
       courbe, un préréglage et son intensité, les réglages d'une autre photo, outil
       `prereglages`, 63 outils ; lot 4 : `retoucher` et `prereglages` prennent les clips ;
       corrections du 2026-10-16 : `retoucher` prend l'étalonnage ; lot 5 : `recadrer`, 64
-      outils ; lot 6 : `perspective`, 65 outils).
+      outils ; lot 6 : `perspective`, 65 outils ; lot 7 : `detourer`, 66 outils).
 - [ ] Vérification de l'étape, livraison, essai par Alexandre.
 
 ## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)

@@ -105,8 +105,9 @@ Demande à Alexandre de l'ouvrir ; ce pont ne lance jamais Eliot. Fichiers de co
         )
     })?;
     let (lecture, mut ecriture) = flux.into_split();
-    let film = outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"));
-    let delai = if film { DELAI_FILM } else { DELAI };
+    // Un film, ou un détourage (le modèle sur le processeur) : le long délai.
+    let long = (outil == "exporter" && matches!(arguments.get("format").and_then(Value::as_str), Some("mp4" | "gif"))) || outil == "detourer";
+    let delai = if long { DELAI_FILM } else { DELAI };
     let mut ligne = json!({ "id": 1, "outil": outil, "arguments": arguments }).to_string();
     ligne.push('\n');
     ecriture.write_all(ligne.as_bytes()).await.map_err(|e| format!("envoi impossible : {e}"))?;

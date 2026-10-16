@@ -23,6 +23,7 @@ import { aDesUnites, contextesTransitions, ecrireFenetre, estAnime, etatAnime, e
 import { useEditeur } from "../etat/editeur";
 import { useApercuAnimation } from "./apercuAnimation";
 import { abonnerRetouche, cleCouverture, dessinerClipRetouche, imageRetouchee, useLabo } from "../labo/retouche";
+import { abonnerDetourage, imageDetouree, useDetourage } from "../labo/detourage";
 import { imagesAffichees } from "../labo/recadrage";
 import { normaliserReglages, reglagesDeRendu } from "../modele/labo";
 import { matriceRognage, type Rognage } from "../modele/rognage";
@@ -195,10 +196,15 @@ function Photo({ el, vivant }: { el: ElementImage; vivant: boolean }) {
   const avant = useLabo((s) => s.avant && s.ouvert === el.id);
   // Un préréglage survolé dans le labo : la photo le montre, le document ne change pas.
   const essai = useLabo((s) => (s.essai?.id === el.id ? s.essai : null));
+  // Le pinceau du détourage (lot 7) : la page montre aussi, à peine, ce qui est retiré.
+  useDetourage((s) => s.pinceau === el.id);
   const [, rafraichir] = useState(0);
   const noeud = useRef<Konva.Image>(null);
   useEffect(() => abonnerRetouche(el.id, () => rafraichir((v) => v + 1)), [el.id]);
-  const image = source && !avant ? imageRetouchee(el.id, el.ressource, source, reglagesDeRendu(essai ? essai.reglages : el.reglages, el.rognage), !!essai) : source;
+  useEffect(() => abonnerDetourage(el.id, () => rafraichir((v) => v + 1)), [el.id]);
+  const retouchee = source && !avant ? imageRetouchee(el.id, el.ressource, source, reglagesDeRendu(essai ? essai.reglages : el.reglages, el.rognage), !!essai) : source;
+  // Détourée (lot 7) : la photo retouchée, sa transparence suivant le masque.
+  const image = retouchee && el.detourage ? imageDetouree(el, retouchee, vivant) : retouchee;
   // La toile reste le même objet quand on la redessine : Konva doit en être prévenu.
   useLayoutEffect(() => {
     noeud.current?.getLayer()?.batchDraw();
@@ -294,6 +300,8 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
   // Redressée : l'image est découpée par la boîte, qui découperait aussi son ombre ; l'ombre
   // passe alors par une plaque de même forme, comme pour des coins arrondis.
   const decoupee = !perspective && (arrondi > 0 || (!!rognage && Math.abs(rognage.angle) >= 1e-9));
+  // Détourée (lot 7) : l'ombre suit toujours la silhouette, jamais une plaque.
+  const detouree = el.type === "image" && !!el.detourage;
   // Chaque rendu de la photo peut changer sa toile (retouche) : le rendu en perspective gardé
   // se refait alors.
   const version = ++rendus.current;
@@ -309,7 +317,7 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
       scaleX={el.retourneH ? -1 : 1}
       scaleY={el.retourneV ? -1 : 1}
       perfectDrawEnabled={false}
-      {...(decoupee ? {} : ombreKonva(el.ombre))}
+      {...(decoupee && !detouree ? {} : ombreKonva(el.ombre))}
       {...(dessiner || rognage || perspective
         ? {
             // Un clip retouché : son image passe par le shader au moment du dessin ; une image
@@ -345,7 +353,7 @@ function Plaque({ el, image, noeud, dessiner }: { el: ElementImage | ElementVide
   // plaque de même forme.
   return (
     <>
-      {el.ombre && <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#ffffff" {...ombreKonva(el.ombre)} listening={false} />}
+      {el.ombre && !detouree && <Rect width={el.largeur} height={el.hauteur} cornerRadius={arrondi} fill="#ffffff" {...ombreKonva(el.ombre)} listening={false} />}
       {arrondi > 0 ? <Group clipFunc={(ctx) => tracerRectangleArrondi(ctx as unknown as Parameters<typeof tracerRectangleArrondi>[0], 0, 0, el.largeur, el.hauteur, arrondi)}>{photo}</Group> : photo}
       {bordure}
     </>

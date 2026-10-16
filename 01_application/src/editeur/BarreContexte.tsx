@@ -34,6 +34,7 @@ import {
   Plus,
   Sparkles,
   Strikethrough,
+  Scissors,
   SlidersHorizontal,
   Trash2,
   Underline,
@@ -65,6 +66,7 @@ import { useTemps } from "../etat/temps";
 import { poseA } from "../modele/animation";
 import { collerReglages, useLabo } from "../labo/retouche";
 import { commencerRecadrage } from "../labo/recadrage";
+import { commencerPinceau, retirerLeFond } from "../labo/detourage";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -602,6 +604,22 @@ export function BarreContexte() {
           >
             <Crop size={16} /> Recadrer
           </button>
+          {choisis[0].type === "image" && (
+            <button
+              data-detourer-barre
+              title={(choisis[0] as ElementImage).detourage ? "Reprendre les bords du détourage au pinceau" : "Retirer le fond de la photo (un modèle d'IA, sur le processeur)"}
+              disabled={choisis[0].verrouille}
+              onClick={() => {
+                const id = choisis[0].id;
+                useLabo.setState({ ouvert: id });
+                if ((choisis[0] as ElementImage).detourage) commencerPinceau(id);
+                else void retirerLeFond(id);
+              }}
+              className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-40"
+            >
+              <Scissors size={16} /> Détourer
+            </button>
+          )}
           {separateur}
         </>
       )}

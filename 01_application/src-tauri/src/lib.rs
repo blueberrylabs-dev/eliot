@@ -15,6 +15,7 @@ pub fn lancer() {
         .manage(commandes::Freesound::default())
         .manage(commandes::Micro::default())
         .manage(commandes::Transcriptions::default())
+        .manage(commandes::Detourages::default())
         .manage(commandes::ExportVideo::default())
         .manage(ia::PontIa::default())
         .setup(|app| {
@@ -86,6 +87,10 @@ pub fn lancer() {
             commandes::labo_base,
             commandes::labo_base_pixels,
             commandes::labo_horizon,
+            commandes::detourage_etat,
+            commandes::detourage_lancer,
+            commandes::detourage_annuler,
+            commandes::detourage_masque,
             commandes::prereglages_lire,
             commandes::prereglages_enregistrer,
             commandes::autotest_demande,

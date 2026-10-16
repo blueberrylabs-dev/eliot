@@ -221,6 +221,16 @@ export function imageRetouchee(id: string, ressource: string, source: HTMLImageE
   return r.toile;
 }
 
+/** Une clé qui change quand ce qu'une image affichée montre change (le détourage, lot 7, la
+ *  recompose alors) ; `null` : inconnue, à recomposer à chaque fois. */
+export function cleContenu(image: CanvasImageSource): string | null {
+  if (image instanceof HTMLImageElement) return `img|${image.src}`;
+  const moteur = moteurLabo();
+  if (moteur && image === moteur.toile) return `direct|${dansLeMoteur}`;
+  for (const [id, r] of retouches) if (r.toile === image) return `toile|${id}|${r.version}`;
+  return null;
+}
+
 /** La toile retouchée d'une photo telle qu'elle s'affiche, ou la dernière image d'un clip
  *  dessinée à l'arrêt (histogramme, essais). */
 export function toileRetouchee(id: string): HTMLCanvasElement | undefined {

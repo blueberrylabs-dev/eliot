@@ -785,14 +785,19 @@ fn rendre_fin(a: &usvg::Tree, boite: &Boite, s: f64) -> Option<(Pixmap, f64)> {
 
 /// Les réglages du labo d'une photo (étape 5, lot 2) ou d'un clip vidéo (lot 4), s'il en a qui
 /// changent quelque chose.
+/// Une photo détourée (lot 7) en a aussi : son détourage y est posé, réglages neutres ou non.
 pub(crate) fn reglages_labo(element: &Value) -> Option<labo::Reglages> {
     if !matches!(element.get("type").and_then(Value::as_str), Some("image" | "video")) {
         return None;
     }
-    let mut r: labo::Reglages = serde_json::from_value(element.get("reglages")?.clone()).ok()?;
-    if r.bornes().neutres() {
-        return None;
-    }
+    let detourage = crate::detourage::de_l_element(element);
+    let lus = element.get("reglages").and_then(|g| serde_json::from_value::<labo::Reglages>(g.clone()).ok()).filter(|r| !r.bornes().neutres());
+    let mut r = match (lus, &detourage) {
+        (Some(r), _) => r,
+        (None, Some(_)) => labo::Reglages::default(),
+        (None, None) => return None,
+    };
+    r.detourage = detourage;
     // Recadrée (lot 5) : le vignetage suit le cadre gardé ; sans vignetage, le recadrage ne
     // change aucun pixel et reste hors de la clé de la retouche.
     r.rognage = None;
@@ -829,9 +834,19 @@ fn charger_rgba(dossier: &Path, id: &str, largeur: f64, hauteur: f64, reglages: 
     };
     let mut rgba = rgba.into_raw();
     if let Some(r) = reglages {
-        labo::appliquer(&mut rgba, l, h, r, true);
+        retoucher_photo(dossier, &mut rgba, l, h, r).map_err(ErreurMontage::Calque)?;
     }
     image::RgbaImage::from_raw(l, h, rgba).ok_or_else(|| ErreurMontage::Calque("photo vide".into()))
+}
+
+/// Les réglages du labo, puis le détourage (lot 7), sur une photo RGBA (non prémultipliée) de
+/// `l` x `h`, à l'export.
+pub(crate) fn retoucher_photo(dossier: &Path, rgba: &mut [u8], l: u32, h: u32, r: &labo::Reglages) -> Result<(), String> {
+    labo::appliquer(rgba, l, h, r, true);
+    if let Some(d) = &r.detourage {
+        crate::detourage::appliquer(dossier, rgba, l, h, d).map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 /// Un visuel en perspective rendu à `finesse` : l'image (prémultipliée) et la matrice qui envoie

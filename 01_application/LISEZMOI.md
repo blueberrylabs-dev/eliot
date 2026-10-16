@@ -364,6 +364,24 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   GIF), avec les mêmes formules que la fenêtre. Dans le PDF et le SVG, le visuel posé devient une
   image, assez fine pour l'original ; le reste de la page reste vectoriel.
 
+**Le détourage (étape 5, lot 7)**
+- Une photo choisie : « Détourer » dans la barre du haut, ou « Retirer le fond » dans la section
+  « Détourage » du labo. Un modèle d'IA, BiRefNet (licence MIT), cherche le premier plan sur le
+  processeur de l'ordinateur, jamais sur la carte graphique : quelques secondes, une barre
+  d'avancement, « Annuler » l'arrête. Le fond devient transparent ; l'ombre de la photo suit
+  alors la silhouette du produit.
+- « Reprendre les bords » : un pinceau sur la page. Effacer retire ce qui reste du fond, Garder
+  rend ce que le modèle a retiré ; ce qui est retiré se devine, à peine, sous la photo. Taille
+  et dureté dans le panneau ; X change de mode, [ et ] la taille. Chaque coup est une étape
+  d'annulation ; Entrée finit, Échap revient au détourage d'avant le pinceau.
+- « Revenir au masque du modèle » retire les coups ; « Remettre le fond » rend la photo entière.
+- L'original n'est jamais touché : le masque du modèle est rangé avec la photo dans le design
+  (`ressources/masques/`), fait une fois, relu ensuite ; les coups de pinceau sont gardés dans
+  le document. L'export pose le masque sur l'original (PNG, transparent ou non, JPEG, WebP, PDF,
+  SVG) ; recadrage et perspective s'ajoutent par-dessus.
+- Une photo seulement : un clip demanderait un masque par image. Le programme et le modèle
+  s'installent une fois : commandes 20 et 21 du `CLAUDE.md`.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -377,7 +395,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   tableaux, partir d'un modèle de départ, retoucher une photo ou un clip au labo (courbe et
   préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
-  perspective prête), regarder une capture de
+  perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
+  pinceau), regarder une capture de
   la page et exporter (en PNG, JPEG, WebP, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -553,6 +572,30 @@ Ce qui m'aide le plus en retour : la précision des poignées (un coin difficile
 netteté du visuel posé, à l'écran et à l'export, et les objets sur lesquels tu voudrais poser un
 visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
 
+## Essayer le détourage (étape 5, lot 7)
+
+Dix minutes. Avant, une fois : les commandes 20 et 21 du `CLAUDE.md` (le programme, puis le
+modèle), puis recompiler l'application (commande 9) et le pont (commande 13). Ensuite Eliot
+lancé à la main, carte graphique libre (commande 10).
+
+1. Un post carré, une photo de produit de ton appareil (un flacon, une tasse, une chaussure),
+   sur un fond quelconque. La choisir, « Détourer » dans la barre du haut. Noter le temps du
+   modèle.
+2. Le fond part, la page blanche paraît. Zoomer sur les bords : là où le modèle hésite (une
+   anse, un reflet, une ombre portée sur la table).
+3. « Reprendre les bords » : Effacer sur ce qui reste du fond, puis X et Garder sur ce qui
+   manque du produit. Essayer [ et ] pour la taille, la dureté vers 30 % pour un bord doux.
+   Ctrl+Z défait coup par coup ; Entrée pour finir.
+4. Ombre dans la barre du haut : elle suit le produit. Changer le fond de la page pour une
+   couleur, puis un dégradé.
+5. Exporter en PNG avec un fond transparent, puis en PDF : le produit seul, net, depuis
+   l'original.
+6. Une photo de personne, puis une photo où le sujet se détache mal du fond : noter ce que le
+   modèle réussit et rate.
+
+Ce qui m'aide le plus en retour : le temps du modèle sur ton poste, les photos où il se trompe
+(à m'envoyer si possible), et la sensation du pinceau (taille, dureté, précision du bord).
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -568,6 +611,7 @@ visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
 | Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo ou d'un clip, les coller sur ceux choisis |
 | Double-clic sur une photo ou un clip | recadrer ; puis Entrée pour finir, Échap pour revenir au cadre d'avant, flèches pour pousser la photo, molette pour la rapprocher |
 | Double-clic sur un visuel en perspective | reprendre ses coins ; puis Entrée pour finir, Échap pour revenir aux coins d'avant, flèches pour pousser le dernier coin tiré (Maj : de dix) |
+| X, [ et ], Entrée, Échap (pinceau du détourage) | effacer ou garder, taille plus petite ou plus grande, finir, revenir au détourage d'avant |
 | Entrée | écrire dans le texte sélectionné |
 | Ctrl+Entrée | ajouter une page |
 | Page préc., Page suiv. | page précédente, suivante |
@@ -588,7 +632,8 @@ visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
   `miniature.png` (pour l'accueil) et `ressources/` (originaux, aperçus et miniatures des
   images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/` ; pour les sons,
   `copies/` et `ondes/` ; pour les voix nettoyées, `traitees/`, refait au besoin ; pour la
-  parole, `transcriptions/`, où l'on parle et ce qui est dit, quelques kilo-octets). Le dossier
+  parole, `transcriptions/`, où l'on parle et ce qui est dit, quelques kilo-octets ; pour les
+  photos détourées, `masques/`, le masque du modèle, 1024 x 1024 en niveaux de gris). Le dossier
   se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip (sans
   `traitees/`).
 - Les prises de voix : rangées dans le design comme les sons importés (`Prise 1`, `Prise 2`, et ainsi de suite).
@@ -596,6 +641,8 @@ visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
   en cache dans `~/.cache/fr.alexandredo.eliot/piper/`.
 - Le modèle de Whisper : `Eliot/telechargements/whisper/faster-whisper-small/` (commande 19),
   hors git.
+- Le détourage : `Eliot/telechargements/detourage/`, hors git : `env/` (Python et onnxruntime,
+  commande 20) et le modèle `birefnet.onnx` (commande 21).
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Préréglages du labo enregistrés : `~/Documents/Eliot/Préréglages/prereglages.json` (ceux
   qu'Eliot fournit sont dans le code, `src/modele/prereglages.json`).
@@ -609,7 +656,7 @@ visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -617,16 +664,16 @@ visuel sans y arriver (une boîte vue sur deux faces, un écran courbe).
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/)
-│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel)
+│   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
-└── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé
+└── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé, conversion du modèle du détourage (convertir_birefnet.py)
 ```
 
 Le document est un objet JSON, seule source de vérité ; Konva ne fait que le dessiner. Pendant

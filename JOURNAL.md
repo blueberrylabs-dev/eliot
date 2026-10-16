@@ -5,6 +5,70 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-16, étape 5, lot 7 : le détourage
+
+Accord d'Alexandre (« go pour le lot 7 »). Ce que Claude a fait et décidé :
+
+- Le modèle : BiRefNet (Peng Zheng et ses co-auteurs, poids et code sous licence MIT, publiés
+  sur Hugging Face), choisi parmi les modèles à licence libre pour un usage commercial. Écartés :
+  RMBG 1.4 et 2.0 de BRIA (licence non commerciale) ; BEN2 Base (MIT) et BiRefNet lite (MIT),
+  moins justes. Banc dans le conteneur, sur les 72 photos d'objets (sacs, bijoux, tasses,
+  lampes, chaises, outils, appareils) de DIS-VD, le jeu de validation que BiRefNet n'a pas vu à
+  l'entraînement, masque comparé à la vérité à la taille de l'original : BiRefNet, écart moyen
+  0,035 (médiane 0,013), recouvrement 0,84, 47 photos au-dessus de 0,9 ; BiRefNet lite, 0,051,
+  0,78, 34 ; BEN2 Base, 0,048, 0,79, 30. Ces modèles ont appris sur des jeux de recherche
+  (DIS5K et d'autres) dont les conditions réservent les images à la recherche : les poids
+  restent sous MIT, c'est ce que déclarent leurs auteurs.
+- Le converti plutôt que le publié : les ONNX de BiRefNet en ligne déplient sa DeformConv en
+  milliers d'opérations ; la version légère y demandait 5,5 Go de mémoire sur le processeur, la
+  grande ne tenait pas dans les 8 Go du conteneur. Converti avec la DeformConv native
+  (opset 20, que onnxruntime 1.30 sait calculer sur le processeur) : 2,2 Go pour la légère,
+  3,5 Go pour la grande. Alexandre convertit une fois sur son poste (`outils/convertir_birefnet.py`,
+  commande 21) : code et poids téléchargés à une révision fixée, empreintes SHA-256 vérifiées,
+  sortie de l'ONNX comparée au modèle d'origine (écart nul dans le conteneur), quatre minutes.
+- Lancé comme Whisper : un petit programme Python embarqué dans le noyau (`detourer.py`, écrit
+  dans un dossier de travail neuf à chaque fois, lancé isolé), onnxruntime pour le processeur
+  dans `telechargements/detourage/env/` (commande 20), aucune carte graphique visible, rien à
+  chercher sur Internet. Le noyau lui donne l'original réduit à 1024 x 1024 et reçoit le masque.
+  Dans le conteneur, deux cœurs : 22 s d'inférence, 45 à 50 s en tout depuis l'application.
+- Le masque appartient à la photo, pas à l'objet : `ressources/masques/<photo>-<modèle>.png`,
+  1024 x 1024 en niveaux de gris, tel que le modèle le rend ; fait une fois, relu ensuite (une
+  copie de la photo, ou « Détourer » une seconde fois : immédiat) ; copié avec la photo d'un
+  design à l'autre. Les coups de pinceau sont des valeurs du document (`detourage.coups` :
+  points en fractions de l'image, rayon en fraction de son grand côté, dureté) : ils
+  s'annulent comme le reste et valent à toutes les tailles.
+- Un seul calcul : le masque agrandi (bilinéaire, centres des pixels alignés), puis les coups
+  dans l'ordre (« garder » rapproche de 1, « effacer » de 0, une courbe douce sur le bord du
+  pinceau). La fenêtre (`src/modele/detourage.ts`) et le noyau (`noyau/src/detourage.rs`) le
+  font de la même façon, contrôlée par un tableau commun (`detourage.attendus.json`).
+- La fenêtre compose la photo (son aperçu, ou sa toile retouchée par le labo) avec son masque,
+  et la recompose seulement quand l'une ou l'autre change ; le pinceau ne recalcule que la zone
+  du trait. L'export pose le masque sur l'original après les réglages du labo, avant le
+  recadrage et la perspective (PNG, transparent ou non, JPEG, WebP, PDF, SVG).
+- L'ombre d'une photo détourée suit sa silhouette, dans la fenêtre comme à l'export (le masque
+  passe en silhouette dans la description de la page) ; en perspective, la silhouette déformée,
+  rendue par le shader du lot 6.
+- Le pinceau : sur la page, un cercle à la taille du pinceau, Effacer ou Garder, taille et
+  dureté, X, [ et ], Entrée, Échap (revient au détourage d'avant), une étape d'annulation par
+  coup ; ce qui est retiré se devine sous la photo. Écarté : un pinceau qui « devine » le bord
+  (il demanderait un second modèle).
+- Pont IA : `detourer` (retirer, pinceau en points de la page, revenir au masque du modèle,
+  remettre le fond), 66 outils ; il attend le modèle aussi longtemps qu'un film.
+- Mesures dans Tauri, une boîte rouge sur un fond gris dégradé, par le vrai modèle : fond
+  retiré, bord net à quelques pixels près ; fenêtre contre export à 0,08 sur 255 ; avec
+  l'ombre, 0,13 ; avec deux coups de pinceau, 0,09 ; détourée et en perspective, 0,11, avec
+  l'ombre 0,16 ; PDF et SVG le même détourage. Sur la photo de la tasse : tasse, soucoupe et
+  cuillère détourées proprement.
+- Limites : une photo seulement (un clip demanderait un masque par image) ; le modèle cherche
+  le sujet principal, pas un objet désigné ; les reflets et les ombres posées sur la table
+  restent souvent, le pinceau les reprend.
+- Essais : noyau 125 (8 de plus : le tableau commun, le pinceau, les tailles, les noms de
+  masque, un faux programme, un programme en échec, le vrai modèle dans le conteneur, l'export
+  d'une photo détourée), interface 210 (5 de plus) ; Chromium : lot 7 en 25 vérifications, lots
+  1 à 6, shader et corrections repassés ; Tauri par le pont, avec le vrai modèle : lot 7 en
+  23 vérifications, exports du lot 1 (62), lots 2 à 6 et corrections repassés ; dans la fenêtre
+  de WebKitGTK : « Détourer » dans la barre, le pinceau et un coup.
+
 ## 2026-10-16, étape 5, lot 6 : la perspective
 
 Accord d'Alexandre (« Ok, tu peux attaquer »). Ce que Claude a fait et décidé :

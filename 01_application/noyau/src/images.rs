@@ -307,7 +307,7 @@ fn copier_atomiquement(source: &Path, cible: &Path) -> Result<(), ErreurImage> {
 /// Copie des images d'un dossier de ressources vers un autre (coller entre deux designs),
 /// vidéos et sons compris. Une ressource déjà présente dans la cible n'est pas recopiée.
 pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressource>, ErreurImage> {
-    for sous_dossier in ["originaux", "apercus", "miniatures", "infos", "copies", "vignettes", "ondes"] {
+    for sous_dossier in ["originaux", "apercus", "miniatures", "infos", "copies", "vignettes", "ondes", "masques"] {
         fs::create_dir_all(cible.join(sous_dossier))?;
     }
     let mut copiees = Vec::new();
@@ -325,8 +325,8 @@ pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressour
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }
         // Une vidéo emporte sa copie d'aperçu, ses vignettes et sa forme d'onde ; un son, sa
-        // copie d'écoute et sa forme d'onde.
-        for depuis in videos::fichiers_en_plus(source, &infos).into_iter().chain(sons::fichiers_en_plus(source, &infos)) {
+        // copie d'écoute et sa forme d'onde ; une photo détourée, ses masques (lot 7).
+        for depuis in videos::fichiers_en_plus(source, &infos).into_iter().chain(sons::fichiers_en_plus(source, &infos)).chain(crate::detourage::masques_de(source, id)) {
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }
