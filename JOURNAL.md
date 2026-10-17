@@ -44,6 +44,12 @@ Claude a fait et décidé :
 - Vérifié : le nom `blueberrylabs` est déjà pris sur GitHub, par un compte qui porte un dépôt
   « successstory » (page lue le 2026-10-17) ; à confirmer par Alexandre avant de créer le
   dépôt. La création du dépôt, le `git push` et la version publiée restent à Alexandre.
+- L'historique réécrit sur le poste, après le commit de ce travail (`git filter-branch` sur
+  `main`) : les 60 commits portent `Alexandre Do` et l'adresse noreply ; dans le BRIEF et le
+  JOURNAL, l'ancienne adresse devient « adresse retirée avant la publication ». Le contenu du
+  dernier commit est le même qu'avant, à ces deux phrases près. L'ancien historique reste dans
+  `refs/original/`, une sauvegarde locale que `git push origin main` n'envoie pas. Le dépôt a
+  désormais l'adresse noreply dans sa configuration : les prochains commits la prennent.
 
 Vérifié dans le conteneur (Ubuntu 24.04, comme le poste), 18 vérifications : le paquet (nom,
 version, dépendances, contenu, 36 Mo) ; `installer.sh` (apt installe, les liens posés, une clé

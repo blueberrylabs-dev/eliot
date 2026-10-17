@@ -728,7 +728,8 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (18 vérifications, JOURNAL du 2026-10-17).
 - [x] Le dépôt prêt à publier : `LICENSE` (MIT), `README.md`, `CHANGELOG.md`, le BRIEF à jour
       (Q2 tranchée), aucun secret dans l'historique (relevé du 2026-10-17).
-- [ ] L'adresse des commits remplacée dans tout l'historique, juste avant la publication.
+- [x] L'adresse des commits remplacée dans tout l'historique (60 commits, le 2026-10-17 ;
+      l'ancien historique reste en sauvegarde locale dans `refs/original/`, jamais poussée).
 - [ ] Alexandre : confirmer le nom de l'organisation (`blueberrylabs` est déjà pris sur GitHub
       par un compte), créer le dépôt, `git push`, puis la version 0.9.0 avec le `.deb` et
       `SHA256SUMS`.
