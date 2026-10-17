@@ -617,6 +617,15 @@ export interface Ressource {
   /** Présent pour un modèle 3D (étape 6) : l'aperçu et la miniature sont rendus par la
    *  fenêtre après l'import. */
   modele3d?: InfosModele3d;
+  /** Un environnement HDRI (étape 6, lot 3), qui éclaire les objets 3D. */
+  environnement3d?: InfosEnvironnement3d;
+}
+
+/** Ce que le noyau sait d'un environnement HDRI (`noyau/src/environnements3d.rs`). */
+export interface InfosEnvironnement3d {
+  format: "hdr";
+  /** L'extension de la copie chargée par la fenêtre (2048 px de large au plus), ou `original`. */
+  copie: string;
 }
 
 /** Ce que le noyau sait d'un modèle 3D importé (`noyau/src/modeles3d.rs`). */
@@ -639,7 +648,8 @@ export interface Credit {
   auteur: string;
   /** La page de la photo sur le site d'origine. */
   lien: string;
-  /** Un son de Freesound : sa licence (« CC0 1.0 », « CC BY 4.0 ») et son titre. */
+  /** Un son de Freesound, un modèle ou un environnement 3D : sa licence (« CC0 1.0 »,
+   *  « CC BY 4.0 ») et son titre. */
   licence?: string;
   titre?: string;
 }

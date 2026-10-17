@@ -406,6 +406,13 @@ fn est_obj(octets: &[u8]) -> bool {
 // Importer
 // ----------------------------------------------------------------------------------------
 
+/// Un glTF (ou un GLB) qui cite des fichiers par leur nom : un tampon ou une image hors du bloc
+/// binaire et hors d'une adresse `data:`.
+fn cite_des_fichiers(json: &Value) -> bool {
+    let externe = |e: &Value| e.get("uri").and_then(Value::as_str).is_some_and(|u| !u.starts_with("data:"));
+    ["buffers", "images"].iter().any(|cle| json.get(*cle).and_then(Value::as_array).is_some_and(|l| l.iter().any(externe)))
+}
+
 fn ecrire_infos(dossier: &Path, ressource: &Ressource) -> Result<(), ErreurModele> {
     let infos = serde_json::to_vec_pretty(ressource).map_err(|e| format_err(e.to_string()))?;
     ecrire_atomiquement(&dossier.join("infos").join(format!("{}.json", ressource.id)), &infos)?;
@@ -432,8 +439,17 @@ pub fn importer(octets: &[u8], nom: &str, voisins: Option<&Path>, dossier: &Path
     let extension = Path::new(nom).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     // Ce qui part en original : le GLB tel quel, le glTF empaqueté, le FBX ou l'OBJ tel quel.
     let (original, format, json) = if octets.starts_with(MAGIE_GLB) {
-        let (json, _) = lire_glb(octets)?;
-        (octets.to_vec(), "glb", Some(json))
+        let (json, bin) = lire_glb(octets)?;
+        if cite_des_fichiers(&json) {
+            // Un GLB qui cite des fichiers rangés à côté de lui (les paquets de Kenney : leur
+            // texture commune) : empaqueté comme un glTF.
+            let tampons = tampons_du_gltf(&json, Some(&bin), voisins)?;
+            let (glb, _) = empaqueter(json, &tampons, voisins, false)?;
+            let (json, _) = lire_glb(&glb)?;
+            (glb, "glb", Some(json))
+        } else {
+            (octets.to_vec(), "glb", Some(json))
+        }
     } else if extension == "gltf" || (octets.first() == Some(&b'{') && extension != "obj") {
         let json: Value = serde_json::from_slice(octets).map_err(|e| format_err(format!("glTF illisible ({e})")))?;
         verifier_asset(&json)?;
@@ -493,9 +509,26 @@ pub fn importer(octets: &[u8], nom: &str, voisins: Option<&Path>, dossier: &Path
         video: None,
         son: None,
         modele3d: Some(infos),
+        environnement3d: None,
     };
     ecrire_infos(dossier, &ressource)?;
     Ok(ressource)
+}
+
+/// Importe un modèle venu d'une banque (Poly Haven, Sketchfab, Kenney), avec son crédit et son
+/// nom ; un glTF lit ses fichiers à côté de lui.
+pub fn importer_avec_credit(chemin: &Path, nom: &str, dossier: &Path, credit: images::Credit) -> Result<Ressource, ErreurModele> {
+    let taille = fs::metadata(chemin)?.len();
+    if taille > TAILLE_MAX {
+        return Err(ErreurModele::TropGros(taille / 1024 / 1024));
+    }
+    let octets = fs::read(chemin)?;
+    let extension = chemin.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    let mut r = importer(&octets, &format!("{nom}.{extension}"), chemin.parent(), dossier)?;
+    r.nom = nom.to_string();
+    r.credit = Some(credit);
+    ecrire_infos(dossier, &r)?;
+    Ok(r)
 }
 
 /// La miniature d'un modèle, rendue par la fenêtre (PNG, fond transparent) : rangée en aperçu
@@ -648,6 +681,30 @@ mod tests {
             fs::write(source.join("mauvais.gltf"), serde_json::to_vec(&json).unwrap()).unwrap();
             assert!(importer_fichier(&source.join("mauvais.gltf"), &ressources).is_err(), "{uri}");
         }
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
+    #[test]
+    fn un_glb_qui_cite_sa_texture_l_emporte_et_garde_son_credit() {
+        // Comme les paquets de Kenney : le GLB cite « Textures/colormap.png », rangé à côté.
+        let dossier = dossier_de_test("glb-cite");
+        let source = dossier.join("Models").join("GLB format");
+        fs::create_dir_all(source.join("Textures")).unwrap();
+        let (mut json, bin) = triangle();
+        json["images"] = json!([{ "uri": "Textures/colormap.png" }]);
+        fs::write(source.join("Textures").join("colormap.png"), png(32, 32)).unwrap();
+        fs::write(source.join("pomme.glb"), ecrire_glb(&json, &bin)).unwrap();
+        let ressources = dossier.join("ressources");
+        let credit = images::Credit { source: "Kenney".into(), auteur: "Kenney".into(), lien: "https://kenney.nl".into(), licence: Some("CC0 1.0".into()), titre: Some("Pomme".into()) };
+        let r = importer_avec_credit(&source.join("pomme.glb"), "Pomme", &ressources, credit.clone()).unwrap();
+        assert_eq!(r.nom, "Pomme");
+        assert_eq!(r.credit.as_ref(), Some(&credit));
+        assert_eq!(images::infos(&ressources, &r.id).unwrap().credit, Some(credit));
+        let (j, _) = lire_glb(&fs::read(ressources.join("originaux").join(format!("{}.glb", r.id))).unwrap()).unwrap();
+        assert!(j["images"][0].get("uri").is_none() && j["images"][0].get("bufferView").is_some());
+        // Les mêmes octets sans leur dossier : la texture manque, l'import le dit.
+        let octets = fs::read(source.join("pomme.glb")).unwrap();
+        assert!(importer(&octets, "pomme.glb", None, &dossier.join("autres")).is_err());
         let _ = fs::remove_dir_all(&dossier);
     }
 

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditeur } from "../../etat/editeur";
 import { creerDepuisRessource } from "../../modele/fabriques";
+import { eclairer } from "../../trois/banques";
 import type { Ressource } from "../../modele/types";
 import { choisirEtImporterImages, dansTauri } from "../../pont/tauri";
 import { glisserDepuisPanneau } from "../glisser";
@@ -53,7 +54,8 @@ function CarteImage({ ressource }: { ressource: Ressource }) {
 export function PanneauImages() {
   const ressources = useEditeur((s) => s.ressources);
   // Les sons ont leur onglet (Audio).
-  const ordre = useEditeur(useShallow((s) => s.ordreRessources.filter((id) => !s.ressources[id]?.son)));
+  // Les sons ont leur onglet (Audio), les environnements HDRI aussi (3D).
+  const ordre = useEditeur(useShallow((s) => s.ordreRessources.filter((id) => !s.ressources[id]?.son && !s.ressources[id]?.environnement3d)));
   const [occupe, setOccupe] = useState(false);
 
   const importer = async () => {
@@ -68,7 +70,9 @@ export function PanneauImages() {
       // Une seule image ou vidéo importée : elle va directement sur la page, comme dans Canva.
       if (bilan.ressources.length === 1) {
         const r = bilan.ressources[0];
-        if (r.son) etat.ajouterSon(r);
+        if (r.environnement3d) {
+          if (!eclairer(r.id)) etat.notifier(`${r.nom} est rangé dans le design (onglet 3D, Environnements)`);
+        } else if (r.son) etat.ajouterSon(r);
         else etat.ajouterElements([creerDepuisRessource(etat.document.format, r)]);
       }
       if (bilan.erreurs.length) etat.notifier(`Non importé : ${bilan.erreurs.join(" ; ")}`, { erreur: true });

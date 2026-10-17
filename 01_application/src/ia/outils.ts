@@ -38,6 +38,7 @@ import {
   ZOOM_MIN,
 } from "../modele/objet3d";
 import { chargerModele, modeleCharge } from "../trois/moteur";
+import { apercuKenney, catalogueKenney, ranger, rangerEnvironnement, traduireRequete } from "../trois/banques";
 import type { SensAlignement } from "../modele/geometrie";
 import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type ElementObjet3d, type Lumiere3d, type Matiere3d, type OmbreSol3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
@@ -64,7 +65,7 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, chercherPolyHaven, chercherSketchfab, estCheminEnvironnement, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatSketchfab, urlApercuPolyHaven, urlApercuSketchfab, type LicencesSketchfab, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
@@ -172,9 +173,11 @@ function resumer() {
     fond: page.fond,
     elements: page.elements,
     selection: s.selection,
-    images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son && !r.modele3d),
+    images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son && !r.modele3d && !r.environnement3d),
     // Les modèles 3D importés (étape 6) : à poser avec ajouter_objet3d.
     modeles3d: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.modele3d),
+    // Les environnements HDRI rangés dans le design (lot 3) : lumiere.environnement de regler_objet3d.
+    environnements3d: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.environnement3d).map((r) => ({ id: r.id, nom: r.nom, credit: r.credit })),
     // Les sons importés dans le design (lot 5) : durée en ms, niveau sonore, crédit.
     sons: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.son),
     // Les polices de la bibliothèque ; celles du poste (souvent des dizaines) par lister_polices.
@@ -578,7 +581,11 @@ function lumiereDemandee(actuelle: Lumiere3d | undefined, brut: unknown): Lumier
     l = lumiereDe(p);
   }
   const env = texte(a.environnement);
-  if (env !== undefined) exiger(ENVIRONNEMENTS.some((e) => e.id === env), `lumiere.environnement : ${ENVIRONNEMENTS.map((e) => e.id).join(", ")}`);
+  if (env !== undefined)
+    exiger(
+      ENVIRONNEMENTS.some((e) => e.id === env) || !!etat().ressources[env]?.environnement3d,
+      `lumiere.environnement : ${ENVIRONNEMENTS.map((e) => e.id).join(", ")}, « polyhaven:<id> » (voir chercher_environnements), l'id d'un environnement du design, ou le chemin absolu d'un fichier .hdr`,
+    );
   const borne = (cle: string, min: number, max: number, sens: string) => {
     if (a[cle] === undefined) return undefined;
     const v = nombre(a[cle]);
@@ -1293,17 +1300,111 @@ const OUTILS: Record<string, Outil> = {
     return { donnees: { element: ajouter(el), modele } };
   },
 
-  regler_objet3d(args) {
+  async regler_objet3d(args) {
     designOuvert();
     const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
     exiger(el?.type === "objet3d", `objet 3D introuvable sur la page affichée : ${String(args.id)} (voir etat)`);
     exiger(!el.verrouille, "cet objet est verrouillé");
+    // Un environnement de Poly Haven ou un fichier .hdr du poste : rangé dans le design d'abord.
+    const lumiere = args.lumiere as Arguments | null | undefined;
+    const env = lumiere && typeof lumiere === "object" ? texte(lumiere.environnement) : undefined;
+    if (env?.startsWith("polyhaven:")) {
+      const r = await rangerEnvironnement(env.slice("polyhaven:".length));
+      args = { ...args, lumiere: { ...lumiere, environnement: r.id } };
+    } else if (env?.startsWith("/")) {
+      exiger(estCheminEnvironnement(env), "lumiere.environnement : un fichier HDRI (.hdr)");
+      const bilan = await importerChemins(etat().projet!, [env]);
+      exiger(bilan.ressources[0]?.environnement3d, bilan.erreurs.join(" ; ") || "environnement illisible");
+      etat().ajouterRessources(bilan.ressources);
+      args = { ...args, lumiere: { ...lumiere, environnement: bilan.ressources[0].id } };
+    }
     // Caméra, lumière et ombre au sol d'un seul tenant : une étape d'annulation.
     const modif: Partial<ElementObjet3d> = { camera: cameraDemandee(el.camera, args) };
     if (args.lumiere !== undefined) modif.lumiere = lumiereDemandee(el.lumiere, args.lumiere);
     if (args.ombreSol !== undefined) modif.ombreSol = ombreSolDemandee(el.ombreSol, args.ombreSol);
     etat().modifierElements({ [el.id]: modif as Partial<ElementPage> });
     return { donnees: elementsCourants(etat()).find((e) => e.id === el.id) };
+  },
+
+  async chercher_modeles3d(args) {
+    const source = texte(args.source) ?? "polyhaven";
+    exiger(["kenney", "polyhaven", "sketchfab"].includes(source), "source : kenney, polyhaven ou sketchfab");
+    const requete = texte(args.requete) ?? "";
+    const page = Math.max(1, Math.min(40, Math.round(nombre(args.page, 1)!)));
+    const conseil = "ajouter_modele3d avec la source et l'id choisis (la planche montre chaque modèle, numéroté)";
+    if (source === "kenney") {
+      const paquets = await catalogueKenney();
+      exiger(paquets.length, "aucun paquet de Kenney sur ce poste : Alexandre doit en ranger (.zip de kenney.nl) dans telechargements/kenney/, puis lancer npm run bibliotheque");
+      const paquet = texte(args.paquet);
+      if (paquet) exiger(paquets.some((p) => p.id === paquet), `paquet : ${paquets.map((p) => p.id).join(", ")}`);
+      const mots = traduireRequete(requete).split(" ").filter(Boolean);
+      const tous = paquets
+        .filter((p) => !paquet || p.id === paquet)
+        .flatMap((p) => p.modeles.map((m) => ({ paquet: p.id, id: m.id, nom: m.nom, apercu: m.apercu })))
+        .filter((m) => mots.length === 0 || mots.some((w) => `${m.nom} ${m.id}`.toLowerCase().includes(w)));
+      const choix = tous.slice((page - 1) * 24, page * 24);
+      const donnees = { source, paquets: paquets.map((p) => ({ id: p.id, nom: p.nom, modeles: p.modeles.length })), total: tous.length, page, resultats: choix.map((m, i) => ({ numero: i + 1, id: m.id, paquet: m.paquet, nom: m.nom })), licence: "CC0 1.0", conseil };
+      if (choix.length === 0) return { donnees };
+      return { donnees, image: await base64(await planche(choix.map((m) => () => Promise.resolve(apercuKenney(m.paquet, m.id))), 160, 160, false)) };
+    }
+    if (source === "polyhaven") {
+      const categorie = texte(args.categorie) ?? null;
+      const r = await chercherPolyHaven("modeles", traduireRequete(requete), categorie, page);
+      const donnees = { source, total: r.total, page, resultats: r.elements.map((e, i) => ({ numero: i + 1, id: e.id, nom: e.nom, auteur: e.auteur, categories: e.categories, triangles: e.triangles })), licence: "CC0 1.0", conseil, mention: "modèles de Poly Haven (polyhaven.com)" };
+      if (r.elements.length === 0) return { donnees };
+      return { donnees, image: await base64(await planche(r.elements.map((e) => () => urlApercuPolyHaven("modeles", e.id)), 200, 200, false)) };
+    }
+    exiger(requete.trim(), "requete : quelques mots (en français ou en anglais)");
+    const licences = texte(args.licence) ?? "toutes";
+    exiger(["toutes", "cc0", "by"].includes(licences), "licence : toutes, cc0 ou by");
+    const cle = await etatSketchfab();
+    const r = await chercherSketchfab(traduireRequete(requete), licences as LicencesSketchfab, args.animes === true, page);
+    const donnees = {
+      source,
+      page,
+      suite: r.suite,
+      resultats: r.modeles.map((m, i) => ({ numero: i + 1, id: m.uid, nom: m.nom, auteur: m.auteur, licence: m.licence, triangles: m.triangles, animations: m.animations, tailleMo: Math.round((m.taille / 1024 / 1024) * 10) / 10 })),
+      conseil: `${conseil} ; un modèle CC BY demande de citer son auteur (son crédit est gardé avec lui)`,
+      ...(cle && !cle.cle ? { attention: `pas de clé Sketchfab : la recherche marche, le téléchargement non (Alexandre doit ajouter SKETCHFAB_API_KEY dans ${cle.fichier})` } : {}),
+    };
+    if (r.modeles.length === 0) return { donnees };
+    return { donnees, image: await base64(await planche(r.modeles.map((m) => () => urlApercuSketchfab(m.uid)), 240, 135, true)) };
+  },
+
+  async ajouter_modele3d(args) {
+    designOuvert();
+    const source = texte(args.source);
+    exiger(source === "kenney" || source === "polyhaven" || source === "sketchfab", "source : kenney, polyhaven ou sketchfab");
+    const id = texte(args.id);
+    exiger(id, "id : l'identifiant d'un modèle trouvé par chercher_modeles3d");
+    if (source === "kenney") exiger(texte(args.paquet), "paquet : le paquet de Kenney du modèle (voir chercher_modeles3d)");
+    let r: Ressource;
+    try {
+      r = await ranger(source, id!, texte(args.paquet));
+    } catch (e) {
+      throw new ErreurOutil(`modèle non importé : ${e instanceof Error ? e.message : String(e)}`);
+    }
+    const pose = await OUTILS.ajouter_objet3d({ ...args, ressource: r.id });
+    return { donnees: { ...(pose.donnees as object), credit: r.credit } };
+  },
+
+  async chercher_environnements(args) {
+    const requete = texte(args.requete) ?? "";
+    const categorie = texte(args.categorie) ?? null;
+    const page = Math.max(1, Math.min(40, Math.round(nombre(args.page, 1)!)));
+    const duDesign = Object.values(etat().ressources)
+      .filter((r) => r.environnement3d)
+      .map((r) => ({ id: r.id, nom: r.nom, ...(r.credit ? { source: r.credit.source } : {}) }));
+    const donnees: Record<string, unknown> = {
+      fournis: ENVIRONNEMENTS.map((e) => ({ id: e.id, nom: e.nom, description: e.description })),
+      duDesign,
+      conseil: "regler_objet3d avec lumiere.environnement : l'id d'un environnement fourni ou du design, « polyhaven:<id> » (rangé dans le design au premier usage), ou le chemin absolu d'un fichier .hdr du poste",
+    };
+    if (!dansTauri) return { donnees: { ...donnees, polyhaven: "Poly Haven ne s'ouvre que dans la fenêtre Eliot" } };
+    const r = await chercherPolyHaven("environnements", traduireRequete(requete), categorie, page);
+    donnees.polyhaven = { total: r.total, page, resultats: r.elements.map((e, i) => ({ numero: i + 1, id: `polyhaven:${e.id}`, nom: e.nom, auteur: e.auteur, categories: e.categories })), licence: "CC0 1.0" };
+    if (r.elements.length === 0) return { donnees };
+    return { donnees, image: await base64(await planche(r.elements.map((e) => () => urlApercuPolyHaven("environnements", e.id)), 240, 120, true)) };
   },
 
   async colorer_objet3d(args) {

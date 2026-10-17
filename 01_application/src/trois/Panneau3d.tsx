@@ -4,8 +4,9 @@
 // repeintes (lot 2) ; ce que l'on sait du modèle. Un geste sur un curseur fait une seule étape
 // d'annulation, et l'objet suit en direct (la toile du moteur, règle 11).
 
-import { Box, Check, Move3d, RotateCcw, X } from "lucide-react";
+import { Box, Check, ClipboardCopy, ExternalLink, Move3d, Plus, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useShallow } from "zustand/react/shallow";
 import { etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { useUrlRessource } from "../editeur/images";
 import { SelecteurCouleur } from "../editeur/SelecteurCouleur";
@@ -27,8 +28,10 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
 } from "../modele/objet3d";
-import type { Camera3d, ElementObjet3d, Lumiere3d, Ressource } from "../modele/types";
+import type { Camera3d, Credit as CreditRessource, ElementObjet3d, Lumiere3d, Ressource } from "../modele/types";
 import { abonnerModele, modeleCharge, type InfosMatiere } from "./moteur";
+import { ouvrirBanques } from "./banques";
+import { ouvrirLien } from "../pont/tauri";
 import { appliquerVue, commencerOrbite, finirOrbite, objet3d, poserCamera, poserLumiere, poserMatiere, poserOmbreSol, useOrbite, usePanneau3d } from "./orbite";
 
 const CURSEUR =
@@ -171,8 +174,25 @@ const APERCUS: Record<string, string> = {
   couchant: "radial-gradient(circle at 25% 72%, #ffd08a 0 7%, transparent 8%), linear-gradient(180deg, #2a2457, #e2724a 70%, #2b1c17 71%)",
 };
 
+/** Un environnement HDRI du design (lot 3), sa miniature tonifiée par le noyau. */
+function EnvironnementDuDesign({ r, actif, choisir }: { r: Ressource; actif: boolean; choisir: () => void }) {
+  const url = useUrlRessource(r.id, "miniature");
+  return (
+    <button
+      data-environnement-3d={r.id}
+      title={`${r.nom}${r.credit ? `, ${r.credit.source}` : ""}`}
+      onClick={choisir}
+      className={`overflow-hidden rounded-md border text-left text-xs ${actif ? "border-accent-500 ring-2 ring-accent-200" : "border-neutral-200 hover:border-neutral-400"}`}
+    >
+      <span className="block h-8 bg-neutral-100">{url && <img src={url} alt="" className="h-full w-full object-cover" draggable={false} />}</span>
+      <span className={`block truncate px-1.5 py-1 ${actif ? "font-medium text-accent-700" : "text-neutral-700"}`}>{r.nom}</span>
+    </button>
+  );
+}
+
 function Lumiere({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () => void; fin: () => void; marque: () => string }) {
   const l = lumiereDe(el.lumiere);
+  const duDesign = useEditeur(useShallow((s) => s.ordreRessources.map((id) => s.ressources[id]).filter((r): r is Ressource => !!r?.environnement3d)));
   const changer = (f: (l: Lumiere3d) => Lumiere3d, nom: string) => poserLumiere(el.id, f, `lumiere-3d:${el.id}:${nom}${marque()}`);
   const pretActif = LUMIERES_PRETES.find((p) => p.azimut === l.principale.azimut && p.elevation === l.principale.elevation)?.id;
   return (
@@ -199,7 +219,13 @@ function Lumiere({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () => 
               <span className={`block px-1.5 py-1 ${l.environnement.id === e.id ? "font-medium text-accent-700" : "text-neutral-700"}`}>{e.nom}</span>
             </button>
           ))}
+          {duDesign.map((r) => (
+            <EnvironnementDuDesign key={r.id} r={r} actif={l.environnement.id === r.id} choisir={() => changer((x) => ({ ...x, environnement: { ...x.environnement, id: r.id } }), "environnement")} />
+          ))}
         </div>
+        <button data-plus-environnements onClick={() => ouvrirBanques("environnements")} className="mb-2.5 flex items-center gap-1 text-xs text-accent-700 hover:underline">
+          <Plus size={13} /> Plus d'environnements (Poly Haven, un fichier .hdr)
+        </button>
         <Reglage def={LUMIERE.intensiteEnvironnement} valeur={l.environnement.intensite} changer={(v) => changer((x) => ({ ...x, environnement: { ...x.environnement, intensite: v } }), "env-intensite")} debut={debut} fin={fin} />
         <Reglage def={LUMIERE.rotationEnvironnement} valeur={l.environnement.rotation} changer={(v) => changer((x) => ({ ...x, environnement: { ...x.environnement, rotation: v } }), "env-rotation")} debut={debut} fin={fin} />
         <p className="mt-3 mb-1 text-xs font-medium text-neutral-600">Lumière principale</p>
@@ -314,6 +340,44 @@ function Matieres({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () =>
 
 const FORMATS: Record<string, string> = { glb: "glTF (GLB)", fbx: "FBX", obj: "OBJ" };
 
+/** Le crédit d'un modèle venu d'une banque, tel qu'on le recopie sous une publication (une
+ *  licence CC BY l'exige). */
+export function texteDuCredit(c: CreditRessource): string {
+  const titre = c.titre ? `« ${c.titre} »` : "Modèle 3D";
+  return `${titre}, par ${c.auteur}, sur ${c.source}${c.licence ? `, licence ${c.licence}` : ""} : ${c.lien}`;
+}
+
+function Credit3d({ credit }: { credit: CreditRessource }) {
+  const [copie, setCopie] = useState(false);
+  const obligatoire = credit.licence?.startsWith("CC BY");
+  return (
+    <div className="mt-2 rounded-lg bg-neutral-50 p-2 text-[11px] text-neutral-600" data-credit-3d>
+      <p>
+        {credit.source}, {credit.auteur}
+        {credit.licence ? `, licence ${credit.licence}` : ""}
+        {obligatoire ? " : crédit obligatoire sous la publication." : "."}
+      </p>
+      <div className="mt-1 flex gap-3">
+        <button
+          data-copier-credit
+          onClick={() => {
+            void navigator.clipboard?.writeText(texteDuCredit(credit)).then(
+              () => setCopie(true),
+              () => useEditeur.getState().notifier(texteDuCredit(credit)),
+            );
+          }}
+          className="flex items-center gap-1 text-accent-700 hover:underline"
+        >
+          <ClipboardCopy size={12} /> {copie ? "Copié" : "Copier le crédit"}
+        </button>
+        <button onClick={() => void ouvrirLien(credit.lien)} className="flex items-center gap-1 text-accent-700 hover:underline">
+          <ExternalLink size={12} /> Page du modèle
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Modele({ ressource }: { ressource: Ressource }) {
   const infos = ressource.modele3d;
   const url = useUrlRessource(ressource.id, "miniature");
@@ -353,6 +417,7 @@ function Modele({ ressource }: { ressource: Ressource }) {
         </dl>
       </div>
       {infos.texturesReduites > 0 && <p className="mt-2 text-[11px] text-neutral-500">Les textures de plus de 2048 px sont ramenées à 2048 px pour l'affichage ; l'original reste dans le dossier du design.</p>}
+      {ressource.credit && <Credit3d credit={ressource.credit} />}
     </section>
   );
 }

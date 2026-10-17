@@ -10,7 +10,7 @@ import { useEditeur } from "../etat/editeur";
 import { tailleDeRendu } from "../modele/objet3d";
 import type { ElementObjet3d, Ombre } from "../modele/types";
 import { pilePolice } from "../polices";
-import { abonnerModele, abonnerRendu, COTE_MAX_RENDU, finesseHorsEcran, reglagesDe, rendreObjet } from "./moteur";
+import { abonnerEnvironnements, abonnerModele, abonnerRendu, COTE_MAX_RENDU, finesseHorsEcran, reglagesDe, rendreObjet } from "./moteur";
 import { cameraAffichee, useOrbite } from "./orbite";
 
 export function RenduObjet3d({ el, statique, ombre }: { el: ElementObjet3d; statique: boolean; ombre: (o: Ombre | undefined) => Record<string, unknown> }) {
@@ -24,6 +24,7 @@ export function RenduObjet3d({ el, statique, ombre }: { el: ElementObjet3d; stat
   const [, rafraichir] = useState(0);
   const noeud = useRef<Konva.Image>(null);
   useEffect(() => abonnerModele(el.ressource, () => rafraichir((v) => v + 1)), [el.ressource]);
+  useEffect(() => abonnerEnvironnements(() => rafraichir((v) => v + 1)), []);
   useEffect(() => (statique ? undefined : abonnerRendu(el.id, () => rafraichir((v) => v + 1))), [el.id, statique]);
   // La toile reste le même objet quand on la redessine : Konva doit en être prévenu.
   useLayoutEffect(() => {

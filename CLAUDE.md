@@ -19,9 +19,9 @@ lourd. Détail : `BRIEF.md`.
   façon CapCut (étape 4), labo photo façon Lightroom (étape 5), pont vers une IA. Révision 8
   du même jour, le son (voix, nettoyage, musique, bruitages, Freesound), validée sur le
   principe (« Je valide »), texte à relire par Alexandre.
-- Secrets : `.env` à la racine du dépôt, hors git (`PIXABAY_API_KEY`). Ne jamais le lire ni le
-  committer ; le Rust le lit lui-même (une version installée lira
-  `~/.config/fr.alexandredo.eliot/cles.env`).
+- Secrets : `.env` à la racine du dépôt, hors git (`PIXABAY_API_KEY`, `FREESOUND_API_KEY`,
+  `SKETCHFAB_API_KEY`). Ne jamais le lire ni le committer ; le Rust le lit lui-même (une
+  version installée lira `~/.config/fr.alexandredo.eliot/cles.env`).
 - Étape 0, banc d'essai : passé sur le poste principal le 2026-10-14, dans la fenêtre Tauri
   et dans le navigateur intégré de Claude (résultats dans `00_banc_essai/resultats/`, lecture
   au JOURNAL). Tauri tient 60 images/s à condition d'appliquer la règle 11 du BRIEF. Reste :
@@ -38,9 +38,12 @@ lourd. Détail : `BRIEF.md`.
 - Archives téléchargées à la main : `telechargements/` à la racine, hors git (Open Peeps et
   Humaaans, lues par `npm run bibliotheque` ; voix de Piper dans `telechargements/voix/`, lot 6 ;
   modèle de Whisper dans `telechargements/whisper/`, lot 7 ; programme et modèle du détourage
-  dans `telechargements/detourage/`, étape 5, lot 7).
+  dans `telechargements/detourage/`, étape 5, lot 7 ; paquets 3D de Kenney dans
+  `telechargements/kenney/`, lus par `npm run bibliotheque`, étape 6, lot 3).
 - Clé Freesound dans le `.env` (`FREESOUND_API_KEY`) depuis le 2026-10-15, vérifiée par une
-  recherche d'essai.
+  recherche d'essai. Clé d'API de Sketchfab (`SKETCHFAB_API_KEY`) depuis le 2026-10-17 : le
+  vrai téléchargement s'essaie à la fin, par Alexandre (Claude n'a vérifié que la présence du
+  nom, jamais la valeur).
 - Étape 4, la vidéo : ouverte le 2026-10-15 (plan et lots dans `PLAN.md`) ; lot 0, banc des
   copies d'aperçu, passé sur le poste le 2026-10-15 (VP9 en 720 retenu, Tauri confirmé) ;
   lot 1 (la vidéo dans le design : import, copie d'aperçu, lecture, coupe, vitesse, son,
@@ -108,6 +111,12 @@ lourd. Détail : `BRIEF.md`.
   exposition, ombre portée sur un sol invisible, couleur et brillance par matière, `regler_objet3d`
   élargi et `colorer_objet3d`, 70 outils), livré et vérifié le 2026-10-17 ; essai : « Essayer la
   lumière et les matières (étape 6, lot 2) ». Après cette livraison : la commande 13 (le pont).
+  Lot 3, les banques (onglet 3D du rail : Kenney, Poly Haven, Sketchfab avec la clé d'Alexandre,
+  CC0 et CC BY seulement, Mixamo par import ; crédit gardé avec chaque modèle ; environnements
+  HDRI de Poly Haven ou d'un fichier .hdr ; trois outils de plus pour le pont IA, 73 en tout),
+  livré et vérifié le 2026-10-17 ; essai : « Essayer les banques 3D (étape 6, lot 3) ». Avant cet
+  essai : ranger un ou deux paquets 3D de Kenney dans `telechargements/kenney/`, puis les
+  commandes 8 bis, 9 et 13.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -289,7 +298,11 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run bibliotheque
 Vérifier : la commande annonce `7750 icônes, 4047 emojis, 95 polices`, puis
 `221 personnages et 207 pièces à assembler (Open Peeps, Humaaans)`. Sans elle, Eliot s'ouvre,
 mais sans icônes, emojis, polices ni personnages de la bibliothèque. Si une archive manque,
-la commande le dit et fabrique le reste.
+la commande le dit et fabrique le reste. Depuis l'étape 6, lot 3, elle lit aussi les paquets 3D
+de Kenney (un .zip par paquet, téléchargé sur kenney.nl) rangés dans
+`/home/nushoko/Bureau/Logiciels/Eliot/telechargements/kenney/` et annonce
+`… modèles 3D de Kenney (Food Kit, …)` ; un paquet sans licence CC0 ou sans modèles GLB est
+écarté, avec la raison.
 
 **9. Compiler l'application sans l'ouvrir.** Processeur seulement, limité à 4 cœurs ; la
 première fois, plusieurs minutes et quelques Go dans `01_application/src-tauri/target/`.
@@ -300,7 +313,9 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/src-tauri && cargo build 
 
 Vérifier : la dernière ligne commence par `Finished`. La première fois après l'étape 5, lot 1,
 `cargo` télécharge `krilla` (l'export en PDF), qui demande Rust 1.92 au moins : si la
-compilation le réclame, `rustup update`, puis relancer la commande.
+compilation le réclame, `rustup update`, puis relancer la commande. Après l'étape 6, lot 3, la
+bibliothèque `image` se recompile avec la lecture des fichiers HDR (environnements), sans rien
+télécharger de nouveau.
 
 **10. Lancer Eliot, carte graphique libre** :
 
@@ -320,7 +335,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 129 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 138 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire, comme celui du vrai modèle du détourage). La
 première fois après le lot 6 de l'étape 4, `cargo` télécharge la bibliothèque `nnnoiseless`
@@ -333,7 +348,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  228 passed`.
+Vérifier : `Tests  232 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 
@@ -522,5 +537,5 @@ Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
 ├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
-└── telechargements/    archives, voix et modèles installés à la main (personnages, voix de Piper, Whisper, détourage), hors git
+└── telechargements/    archives, voix et modèles installés à la main (personnages, voix de Piper, Whisper, détourage, paquets 3D de Kenney), hors git
 ```

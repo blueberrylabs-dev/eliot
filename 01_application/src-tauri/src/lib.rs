@@ -13,6 +13,8 @@ pub fn lancer() {
         .manage(commandes::PolicesPoste::default())
         .manage(commandes::Pixabay::default())
         .manage(commandes::Freesound::default())
+        .manage(commandes::PolyHaven::default())
+        .manage(commandes::Sketchfab::default())
         .manage(commandes::Micro::default())
         .manage(commandes::Transcriptions::default())
         .manage(commandes::Detourages::default())
@@ -39,6 +41,17 @@ pub fn lancer() {
             commandes::importer_image_octets,
             commandes::importer_modeles3d,
             commandes::importer_modele3d_octets,
+            commandes::importer_environnements,
+            commandes::importer_environnement_octets,
+            commandes::polyhaven_categories,
+            commandes::polyhaven_chercher,
+            commandes::polyhaven_apercu,
+            commandes::polyhaven_importer_modele,
+            commandes::polyhaven_importer_environnement,
+            commandes::sketchfab_etat,
+            commandes::sketchfab_chercher,
+            commandes::sketchfab_apercu,
+            commandes::sketchfab_importer,
             commandes::miniature_modele3d,
             commandes::importer_videos,
             commandes::importer_sons,

@@ -3,7 +3,7 @@
 // l'image » chez Canva, pour une photo ou un clip vidéo ; un onglet du rail le referme. Le
 // panneau « 3D » d'un objet 3D (étape 6) s'ouvre de la même façon.
 
-import { Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
+import { Box, Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { elementsCourants, useEditeur } from "../etat/editeur";
@@ -11,6 +11,8 @@ import { useLabo } from "../labo/retouche";
 import { PanneauLabo } from "../labo/PanneauLabo";
 import { estRetouchable, type ElementObjet3d, type ElementRetouchable } from "../modele/types";
 import { Panneau3d } from "../trois/Panneau3d";
+import { PanneauBanques } from "../trois/PanneauBanques";
+import { useBanques } from "../trois/banques";
 import { usePanneau3d } from "../trois/orbite";
 import { PanneauAudio } from "./panneaux/PanneauAudio";
 import { PanneauCalques } from "./panneaux/PanneauCalques";
@@ -22,7 +24,7 @@ import { PanneauModeles } from "./panneaux/PanneauModeles";
 import { PanneauPhotos } from "./panneaux/PanneauPhotos";
 import { PanneauTextes } from "./panneaux/PanneauTextes";
 
-type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "audio" | "marque" | "dessin" | "calques";
+type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "3d" | "audio" | "marque" | "dessin" | "calques";
 
 const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
   { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} /> },
@@ -30,6 +32,7 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
   { id: "textes", libelle: "Texte", icone: <Type size={22} /> },
   { id: "photos", libelle: "Photos", icone: <IconeImage size={22} /> },
   { id: "images", libelle: "Importer", icone: <CloudUpload size={22} /> },
+  { id: "3d", libelle: "3D", icone: <Box size={22} /> },
   { id: "audio", libelle: "Audio", icone: <Music size={22} /> },
   { id: "marque", libelle: "Marque", icone: <Palette size={22} /> },
   { id: "dessin", libelle: "Dessin", icone: <Brush size={22} /> },
@@ -58,6 +61,14 @@ export function BarreLaterale() {
     if (ouvert) usePanneau3d.setState({ ouvert: null });
   }, [ouvert]);
   const special = !!photo || !!objet;
+  // La section Lumière du panneau 3D ouvre l'onglet 3D sur ses environnements.
+  const demande = useBanques((s) => s.demande);
+  useEffect(() => {
+    if (!demande) return;
+    useLabo.setState({ ouvert: null });
+    usePanneau3d.setState({ ouvert: null });
+    setOnglet("3d");
+  }, [demande]);
   // Le labo suit la photo choisie ; il se ferme si sa photo disparaît (autre page, supprimée).
   useEffect(() => {
     if (ouvert && seulePhoto && seulePhoto !== ouvert) useLabo.setState({ ouvert: seulePhoto });
@@ -107,6 +118,7 @@ export function BarreLaterale() {
           {onglet === "textes" && <PanneauTextes />}
           {onglet === "photos" && <PanneauPhotos />}
           {onglet === "images" && <PanneauImages />}
+          {onglet === "3d" && <PanneauBanques />}
           {onglet === "audio" && <PanneauAudio />}
           {onglet === "marque" && <PanneauMarque />}
           {onglet === "dessin" && <PanneauDessin />}

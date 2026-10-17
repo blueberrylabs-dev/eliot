@@ -407,6 +407,7 @@ pub fn importer(chemin: &Path, dossier: &Path, reglage: &ReglageCopie, avancemen
         credit: None,
         son: None,
         modele3d: None,
+        environnement3d: None,
         video: Some(InfosVideo {
             duree: sondage.duree,
             images_par_seconde: sondage.images_par_seconde,

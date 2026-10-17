@@ -157,6 +157,8 @@ export const LUMIERES_PRETES: { id: string; nom: string; azimut: number; elevati
 export const OMBRE_SOL_PAR_DEFAUT: OmbreSol3d = { opacite: 0.45, douceur: 0.5 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
+/** L'empreinte d'une ressource du design (SHA-256 en hexadécimal). */
+const EMPREINTE = /^[0-9a-f]{64}$/;
 const hex = (v: unknown, d: string) => (typeof v === "string" && HEX.test(v) ? v.toLowerCase() : d);
 
 /** Une lumière dans les règles, complète ; `undefined` si c'est celle de départ (le document
@@ -168,7 +170,8 @@ export function normaliserLumiere(l: unknown): Lumiere3d | undefined {
   const d = LUMIERE_PAR_DEFAUT;
   const lumiere: Lumiere3d = {
     environnement: {
-      id: ENVIRONNEMENTS.some((x) => x.id === e.id) ? (e.id as string) : d.environnement.id,
+      // Un environnement fourni, ou un environnement HDRI du design (son empreinte).
+      id: ENVIRONNEMENTS.some((x) => x.id === e.id) || (typeof e.id === "string" && EMPREINTE.test(e.id)) ? (e.id as string) : d.environnement.id,
       intensite: arrondir(borner(nombre(e.intensite, d.environnement.intensite), 0, INTENSITE_MAX), 0.01),
       rotation: arrondir(angleNormalise(nombre(e.rotation, d.environnement.rotation)), 0.1),
     },

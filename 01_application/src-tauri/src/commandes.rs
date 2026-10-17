@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{detourage, export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, projet, rendu_page, sons, videos, voix};
+use noyau::{detourage, environnements3d, export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, polyhaven, projet, rendu_page, sketchfab, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -31,6 +31,15 @@ pub struct Pixabay(Mutex<Option<Arc<pixabay::ClientPixabay>>>);
 /// Le client Freesound (étape 4, lot 5), créé de même à la première demande qui trouve une clé.
 #[derive(Default)]
 pub struct Freesound(Mutex<Option<Arc<freesound::ClientFreesound>>>);
+
+/// Le client Poly Haven (étape 6, lot 3), créé à la première demande (pas de clé).
+#[derive(Default)]
+pub struct PolyHaven(Mutex<Option<Arc<polyhaven::ClientPolyHaven>>>);
+
+/// Le client Sketchfab (étape 6, lot 3), créé à la première demande ; la clé, lue ici, ne sert
+/// qu'au téléchargement.
+#[derive(Default)]
+pub struct Sketchfab(Mutex<Option<Arc<sketchfab::ClientSketchfab>>>);
 
 /// Le micro ouvert (étape 4, lot 6), un seul à la fois.
 #[derive(Default)]
@@ -355,14 +364,58 @@ pub async fn importer_modeles3d(app: AppHandle, rayon_nom: String, projet_id: St
     .map_err(|e| format!("import interrompu : {e}"))
 }
 
-/// Importe un modèle 3D reçu en octets (un fichier déposé hors de Tauri, une banque, lot 3).
-/// En-têtes : `x-rayon`, `x-projet`, `x-nom`. Un glTF reçu ainsi doit tout contenir.
+/// Importe un modèle 3D reçu en octets (un fichier déposé hors de Tauri, un modèle de Kenney,
+/// lot 3). En-têtes : `x-rayon`, `x-projet`, `x-nom`, et `x-credit` (le crédit en JSON) pour un
+/// modèle venu d'une banque. Un glTF reçu ainsi doit tout contenir.
 #[tauri::command]
 pub async fn importer_modele3d_octets(app: AppHandle, requete: Request<'_>) -> Result<images::Ressource, String> {
     let octets = corps_brut(&requete)?;
     let nom = entete(&requete, "x-nom").unwrap_or_else(|| "modele.glb".to_string());
+    let credit: Option<images::Credit> = match entete(&requete, "x-credit") {
+        Some(texte) => Some(serde_json::from_str(&texte).map_err(|e| format!("crédit illisible : {e}"))?),
+        None => None,
+    };
     let dossier = ressources_du_projet(&app, &entete_requis(&requete, "x-rayon")?, &entete_requis(&requete, "x-projet")?)?;
-    tauri::async_runtime::spawn_blocking(move || noyau::modeles3d::importer(&octets, &nom, None, &dossier).map_err(|e| e.to_string()))
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut r = noyau::modeles3d::importer(&octets, &nom, None, &dossier).map_err(|e| e.to_string())?;
+        if let Some(credit) = credit {
+            // Venu d'une banque (Kenney) : le nom du modèle, sans l'extension du fichier.
+            if let Some(nom) = std::path::Path::new(&nom).file_stem() {
+                r.nom = nom.to_string_lossy().into_owned();
+            }
+            r.credit = Some(credit);
+            noyau::images::enregistrer_infos(&dossier, &r).map_err(|e| e.to_string())?;
+        }
+        Ok(r)
+    })
+    .await
+    .map_err(|e| format!("import interrompu : {e}"))?
+}
+
+/// Importe des environnements HDRI (`.hdr`) choisis ou déposés (étape 6, lot 3).
+#[tauri::command]
+pub async fn importer_environnements(app: AppHandle, rayon_nom: String, projet_id: String, chemins: Vec<String>) -> Result<Vec<ResultatImport>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        chemins
+            .into_iter()
+            .map(|chemin| match environnements3d::importer_fichier(std::path::Path::new(&chemin), &dossier) {
+                Ok(ressource) => ResultatImport { chemin, ressource: Some(ressource), erreur: None },
+                Err(e) => ResultatImport { chemin, ressource: None, erreur: Some(e.to_string()) },
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("import interrompu : {e}"))
+}
+
+/// Importe un environnement HDRI reçu en octets. En-têtes : `x-rayon`, `x-projet`, `x-nom`.
+#[tauri::command]
+pub async fn importer_environnement_octets(app: AppHandle, requete: Request<'_>) -> Result<images::Ressource, String> {
+    let octets = corps_brut(&requete)?;
+    let nom = entete(&requete, "x-nom").unwrap_or_else(|| "environnement.hdr".to_string());
+    let dossier = ressources_du_projet(&app, &entete_requis(&requete, "x-rayon")?, &entete_requis(&requete, "x-projet")?)?;
+    tauri::async_runtime::spawn_blocking(move || environnements3d::importer(&octets, &nom, &dossier).map_err(|e| e.to_string()))
         .await
         .map_err(|e| format!("import interrompu : {e}"))?
 }
@@ -702,6 +755,162 @@ pub async fn freesound_importer(app: AppHandle, rayon_nom: String, projet_id: St
             sons::importer_avec_credit(&temporaire, &nom, &dossier, credit, &mut rapporteur(&avancement, 0, 0.25, 1.0)).map_err(|e| e.to_string())
         })();
         let _ = std::fs::remove_file(&temporaire);
+        resultat
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Les banques 3D (étape 6, lot 3) : Poly Haven et Sketchfab
+// ----------------------------------------------------------------------------------------
+
+/// Une adresse d'essai (faux serveur local) et son origine, en développement seulement.
+fn adresse_d_essai(variable: &str) -> Option<(String, String)> {
+    let adresse = if cfg!(debug_assertions) { std::env::var(variable).ok() } else { None }?;
+    let origine: String = adresse.split('/').take(3).collect::<Vec<_>>().join("/") + "/";
+    Some((adresse, origine))
+}
+
+fn client_polyhaven(app: &AppHandle) -> Result<Arc<polyhaven::ClientPolyHaven>, String> {
+    let etat = app.state::<PolyHaven>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(client) = garde.as_ref() {
+        return Ok(client.clone());
+    }
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("polyhaven");
+    let client = match adresse_d_essai("ELIOT_POLYHAVEN_ADRESSE") {
+        Some((adresse, origine)) => polyhaven::ClientPolyHaven::avec_adresse(cache, adresse, vec![origine]),
+        None => polyhaven::ClientPolyHaven::new(cache),
+    };
+    client.nettoyer();
+    let client = Arc::new(client);
+    *garde = Some(client.clone());
+    Ok(client)
+}
+
+fn client_sketchfab(app: &AppHandle) -> Result<Arc<sketchfab::ClientSketchfab>, String> {
+    let etat = app.state::<Sketchfab>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(client) = garde.as_ref() {
+        return Ok(client.clone());
+    }
+    let cle = sketchfab::lire_cle(&fichiers_cle(app));
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("sketchfab");
+    let client = match adresse_d_essai("ELIOT_SKETCHFAB_ADRESSE") {
+        Some((adresse, origine)) => sketchfab::ClientSketchfab::avec_adresse(cle, cache, adresse, vec![origine.clone()], vec![origine]),
+        None => sketchfab::ClientSketchfab::new(cle, cache),
+    };
+    client.nettoyer();
+    let client = Arc::new(client);
+    *garde = Some(client.clone());
+    Ok(client)
+}
+
+#[tauri::command]
+pub async fn polyhaven_categories(app: AppHandle, genre: polyhaven::Genre) -> Result<Vec<polyhaven::Categorie>, String> {
+    tauri::async_runtime::spawn_blocking(move || client_polyhaven(&app)?.categories(genre).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn polyhaven_chercher(app: AppHandle, genre: polyhaven::Genre, requete: String, categorie: Option<String>, page: u32) -> Result<polyhaven::PagePolyHaven, String> {
+    tauri::async_runtime::spawn_blocking(move || client_polyhaven(&app)?.chercher(genre, &requete, categorie.as_deref(), page).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn polyhaven_apercu(app: AppHandle, genre: polyhaven::Genre, id: String) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_polyhaven(&app)?.apercu(genre, &id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge un modèle de Poly Haven en glTF 1k (les trois quarts de l'avancement), puis
+/// l'importe comme un glTF du poste, avec son crédit.
+#[tauri::command]
+pub async fn polyhaven_importer_modele(app: AppHandle, rayon_nom: String, projet_id: String, id: String, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = client_polyhaven(&app)?;
+        let temporaire = client.dossier_de_telechargement(&id);
+        let _ = std::fs::remove_dir_all(&temporaire);
+        let resultat = (|| {
+            let (credit, nom, gltf) = client.telecharger_modele(&id, "1k", &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.75)).map_err(|e| e.to_string())?;
+            let r = noyau::modeles3d::importer_avec_credit(&gltf, &nom, &dossier, credit).map_err(|e| e.to_string())?;
+            rapporteur(&avancement, 0, 0.75, 1.0)(1.0);
+            Ok(r)
+        })();
+        let _ = std::fs::remove_dir_all(&temporaire);
+        resultat
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+/// Télécharge un environnement de Poly Haven en HDR 1k, puis l'importe, avec son crédit.
+#[tauri::command]
+pub async fn polyhaven_importer_environnement(app: AppHandle, rayon_nom: String, projet_id: String, id: String, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = client_polyhaven(&app)?;
+        let temporaire = client.dossier_de_telechargement(&id).with_extension("hdr");
+        let resultat = (|| {
+            let (credit, nom) = client.telecharger_environnement(&id, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.85)).map_err(|e| e.to_string())?;
+            let r = environnements3d::importer_avec_credit(&temporaire, &nom, &dossier, credit).map_err(|e| e.to_string())?;
+            rapporteur(&avancement, 0, 0.85, 1.0)(1.0);
+            Ok(r)
+        })();
+        let _ = std::fs::remove_file(&temporaire);
+        resultat
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+/// Ce que l'onglet 3D doit savoir de Sketchfab : une clé est-elle là, et sinon où l'ajouter
+/// (un chemin, jamais la clé).
+#[tauri::command]
+pub async fn sketchfab_etat(app: AppHandle) -> Result<EtatPixabay, String> {
+    tauri::async_runtime::spawn_blocking(move || EtatPixabay { cle: client_sketchfab(&app).is_ok_and(|c| c.a_une_cle()), fichier: fichier_cle_conseille(&app) })
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+#[tauri::command]
+pub async fn sketchfab_chercher(app: AppHandle, requete: String, licences: sketchfab::Licences, animes: bool, page: u32) -> Result<sketchfab::PageSketchfab, String> {
+    tauri::async_runtime::spawn_blocking(move || client_sketchfab(&app)?.chercher(&requete, licences, animes, page).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn sketchfab_apercu(app: AppHandle, uid: String) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_sketchfab(&app)?.apercu(&uid).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge un modèle de Sketchfab (GLB, ou archive glTF ouverte), puis l'importe, avec son
+/// crédit et sa licence.
+#[tauri::command]
+pub async fn sketchfab_importer(app: AppHandle, rayon_nom: String, projet_id: String, uid: String, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let client = client_sketchfab(&app)?;
+        let temporaire = client.dossier_de_telechargement(&uid);
+        let _ = std::fs::remove_dir_all(&temporaire);
+        let resultat = (|| {
+            let (credit, nom, chemin) = client.telecharger(&uid, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.75)).map_err(|e| e.to_string())?;
+            let r = noyau::modeles3d::importer_avec_credit(&chemin, &nom, &dossier, credit).map_err(|e| e.to_string())?;
+            rapporteur(&avancement, 0, 0.75, 1.0)(1.0);
+            Ok(r)
+        })();
+        let _ = std::fs::remove_dir_all(&temporaire);
         resultat
     })
     .await

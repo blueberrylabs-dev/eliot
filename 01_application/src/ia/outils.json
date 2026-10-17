@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles, crédit) et environnements HDRI (environnements3d), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -1488,7 +1488,7 @@
   },
   {
     "name": "regler_objet3d",
-    "description": "Règle un objet 3D de la page affichée (élément de type objet3d) : sa caméra, qui tourne autour du modèle, sa lumière et son ombre au sol. Caméra : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. Lumière : elle tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant (changer l'azimut de la caméra ne déplace pas les reflets dans l'image). Un environnement qui éclaire et se reflète (studio : neutre ; boites : deux grandes boîtes à lumière dans une pièce sombre, reflets nets sur le verre et le métal ; plein-air : ciel et soleil de midi ; couchant : lumière chaude et basse), sa force et sa rotation ; une lumière principale (sa direction par rapport à la vue, sa force, sa couleur), ou une lumière prête ; l'exposition. Ombre au sol : l'ombre que la lumière principale fait porter au modèle sur un sol invisible, sous lui (il se pose au lieu de flotter) ; elle peut déborder de la boîte et y être coupée : agrandir la boîte avec modifier, ou dézoomer. Les couleurs des matières : colorer_objet3d. La position et la taille de la boîte : modifier. Une étape d'annulation. Juger le résultat avec capture. Renvoie l'élément.",
+    "description": "Règle un objet 3D de la page affichée (élément de type objet3d) : sa caméra, qui tourne autour du modèle, sa lumière et son ombre au sol. Caméra : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. Lumière : elle tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant (changer l'azimut de la caméra ne déplace pas les reflets dans l'image). Un environnement qui éclaire et se reflète (studio : neutre ; boites : deux grandes boîtes à lumière dans une pièce sombre, reflets nets sur le verre et le métal ; plein-air : ciel et soleil de midi ; couchant : lumière chaude et basse ; ou une photo HDRI à 360°, de Poly Haven par chercher_environnements ou d'un fichier .hdr), sa force et sa rotation ; une lumière principale (sa direction par rapport à la vue, sa force, sa couleur), ou une lumière prête ; l'exposition. Ombre au sol : l'ombre que la lumière principale fait porter au modèle sur un sol invisible, sous lui (il se pose au lieu de flotter) ; elle peut déborder de la boîte et y être coupée : agrandir la boîte avec modifier, ou dézoomer. Les couleurs des matières : colorer_objet3d. La position et la taille de la boîte : modifier. Une étape d'annulation. Juger le résultat avec capture. Renvoie l'élément.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1574,12 +1574,7 @@
             },
             "environnement": {
               "type": "string",
-              "enum": [
-                "studio",
-                "boites",
-                "plein-air",
-                "couchant"
-              ]
+              "description": "Un environnement fourni (studio, boites, plein-air, couchant), l'id d'un environnement HDRI du design (environnements3d dans etat), « polyhaven:<id> » trouvé par chercher_environnements (téléchargé et rangé dans le design au premier usage, avec son crédit), ou le chemin absolu d'un fichier .hdr du poste (importé dans le design)."
             },
             "environnementIntensite": {
               "type": "number",
@@ -1688,6 +1683,179 @@
       "required": [
         "id"
       ]
+    }
+  },
+  {
+    "name": "chercher_modeles3d",
+    "description": "Cherche des modèles 3D libres pour une publicité, avec une planche d'aperçus numérotés pour les regarder avant de choisir. Trois sources : kenney (les paquets de Kenney rangés sur le poste, CC0, sans réseau ; style simple et coloré), polyhaven (modèles réalistes de Poly Haven, CC0, triés du plus téléchargé ; par mots ou par catégorie) et sketchfab (des millions de modèles, seulement ceux qui sont sous licence CC0 ou CC BY ; CC BY demande de citer l'auteur, ce que fait le crédit gardé avec le modèle). Les mots français courants sont traduits pour ces banques, qui parlent anglais. Prudence avec les modèles qui reproduisent une marque ou un logo connus (chaussures, boîtes, bouteilles de marque) : à écarter d'une publicité. Ensuite : ajouter_modele3d. Les animations d'un personnage (Mixamo) s'importent en FBX par importer_modele3d.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "kenney",
+            "polyhaven",
+            "sketchfab"
+          ],
+          "description": "polyhaven par défaut."
+        },
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots, en français ou en anglais : « flacon de parfum », « chaise en bois ». Obligatoire pour sketchfab ; vide : tout le paquet ou toute la banque."
+        },
+        "categorie": {
+          "type": "string",
+          "description": "polyhaven : une catégorie de Poly Haven en anglais, par exemple props, furniture, decorative, containers, food ou plants."
+        },
+        "paquet": {
+          "type": "string",
+          "description": "kenney : l'id d'un paquet (la réponse les liste)."
+        },
+        "licence": {
+          "type": "string",
+          "enum": [
+            "toutes",
+            "cc0",
+            "by"
+          ],
+          "description": "sketchfab : toutes (CC0 et CC BY, par défaut), cc0 ou by."
+        },
+        "animes": {
+          "type": "boolean",
+          "description": "sketchfab : vrai pour les modèles animés seulement."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        }
+      }
+    }
+  },
+  {
+    "name": "ajouter_modele3d",
+    "description": "Télécharge un modèle trouvé par chercher_modeles3d (ou le lit, pour Kenney), le range dans le design avec son crédit (source, auteur, licence, lien, gardés avec le modèle et donnés par etat) et le pose sur la page affichée, comme ajouter_objet3d : boîte carrée au centre par défaut, mêmes réglages de caméra. Sketchfab demande la clé d'Alexandre (SKETCHFAB_API_KEY dans le .env d'Eliot). Une bande d'avancement s'affiche pendant le téléchargement. Renvoie l'objet posé et son crédit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "kenney",
+            "polyhaven",
+            "sketchfab"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "description": "L'id du modèle dans la réponse de chercher_modeles3d."
+        },
+        "paquet": {
+          "type": "string",
+          "description": "kenney : le paquet du modèle."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vue": {
+          "type": "string",
+          "enum": [
+            "face",
+            "trois-quarts",
+            "profil",
+            "dos",
+            "dessus",
+            "contre-plongee"
+          ],
+          "description": "Une vue prête (ses angles), appliquée avant les autres réglages."
+        },
+        "azimut": {
+          "type": "number",
+          "description": "La rotation autour du modèle, en degrés : 0 de face, 90 le profil droit, 180 le dos, -90 le profil gauche.",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "elevation": {
+          "type": "number",
+          "description": "La hauteur de vue, en degrés : 0 à hauteur, positif au-dessus (89 : de dessus), négatif en contre-plongée.",
+          "minimum": -89,
+          "maximum": 89
+        },
+        "zoom": {
+          "type": "number",
+          "description": "1 cadre tout le modèle dans la boîte ; 2 le montre deux fois plus grand (il déborde), 0,5 deux fois plus petit.",
+          "minimum": 0.2,
+          "maximum": 8
+        },
+        "focale": {
+          "type": "number",
+          "description": "En millimètres d'un appareil plein format : 50 par défaut, 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective marquée.",
+          "minimum": 18,
+          "maximum": 200
+        },
+        "decalage": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "minimum": -3,
+            "maximum": 3
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Le point visé, déplacé de [x, y, z] dans le repère du modèle (rayon 1 : le modèle tient dans une sphère de rayon 1 centrée en 0) ; y positif monte le point visé, ce qui fait descendre le modèle dans l'image. null : au centre."
+        },
+        "recentrer": {
+          "type": "boolean",
+          "description": "Vrai : zoom 1, sans décalage (avant les autres réglages)."
+        }
+      },
+      "required": [
+        "source",
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "chercher_environnements",
+    "description": "Les environnements qui éclairent un objet 3D et se reflètent dans ses matières : les quatre fournis, ceux déjà rangés dans le design, et les photos HDRI à 360° de Poly Haven (CC0 ; studios, intérieurs, extérieurs, ciels), avec une planche d'aperçus numérotés. Ensuite : regler_objet3d avec lumiere.environnement (l'id donné ici).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "requete": {
+          "type": "string",
+          "description": "Quelques mots, en français ou en anglais : « studio », « coucher de soleil », « intérieur »."
+        },
+        "categorie": {
+          "type": "string",
+          "description": "Une catégorie de Poly Haven en anglais, par exemple studio, indoor, outdoor, skies, urban, night ou sunrise-sunset."
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 40
+        }
+      }
     }
   },
   {

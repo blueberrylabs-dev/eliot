@@ -20,6 +20,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { preparerPersonnages } from "./personnages.mjs";
+import { preparerKenney } from "./kenney.mjs";
 
 const RACINE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODULES = path.join(RACINE, "node_modules");
@@ -237,7 +238,7 @@ async function polices(catalogue) {
 // Licences
 // ----------------------------------------------------------------------------------------
 
-async function licences(versions, verrou, personnages) {
+async function licences(versions, verrou, personnages, kenney) {
   const lignes = [
     "# Licences des éléments embarqués dans Eliot",
     "",
@@ -264,6 +265,14 @@ async function licences(versions, verrou, personnages) {
     "",
     `- Open Peeps, licence CC0 1.0, https://www.openpeeps.com${personnages.collections.includes("Open Peeps") ? "" : " (archive absente)"}`,
     `- Humaaans, licence CC0 1.0, https://www.humaaans.com${personnages.collections.includes("Humaaans") ? "" : " (archive absente)"}`,
+    "",
+    "## Modèles 3D de Kenney",
+    "",
+    "Tirés des paquets téléchargés sur https://kenney.nl et rangés dans `telechargements/kenney/`",
+    "(hors git). Licence CC0 1.0, vérifiée dans chaque paquet ; créditer « Kenney » est apprécié,",
+    "pas obligatoire.",
+    "",
+    ...(kenney.paquets.length ? kenney.paquets.map((p) => `- ${p}`) : ["- (aucun paquet rangé)"]),
     "",
     "## Polices",
     "",
@@ -306,10 +315,12 @@ async function principal() {
   await ecrireJson(path.join(SORTIE, "index.json"), index);
   await ecrireJson(path.join(SORTIE, "noms-emojis.json"), noms);
   const personnages = await preparerPersonnages(SORTIE, TELECHARGEMENTS);
+  // Les paquets 3D de Kenney (étape 6, lot 3), rangés à la main dans `telechargements/kenney/`.
+  const kenney = await preparerKenney(SORTIE, path.join(TELECHARGEMENTS, "kenney"));
 
   const catalogue = await lireJson(path.join(RACINE, "src/bibliotheque/polices.json"));
   const { sortie, erreurs, telecharges, verrou } = await polices(catalogue);
-  await licences(versions, verrou, personnages);
+  await licences(versions, verrou, personnages, kenney);
 
   const complete = erreurs.length === 0;
   await ecrireJson(fichierVersion, { version: VERSION_BIBLIOTHEQUE, complete, fabriquee: new Date().toISOString(), paquets: versions });
@@ -322,6 +333,9 @@ async function principal() {
     console.log(`  Personnages absents : ${personnages.absentes.join(", ")}. Ranger leur archive .zip dans`);
     console.log(`  ${TELECHARGEMENTS} puis relancer npm run bibliotheque.`);
   }
+  if (kenney.modeles) console.log(`  ${kenney.modeles} modèles 3D de Kenney (${kenney.paquets.join(", ")})`);
+  else console.log(`  Modèles 3D de Kenney : aucun paquet. En ranger (.zip de kenney.nl) dans ${path.join(TELECHARGEMENTS, "kenney")} puis relancer.`);
+  for (const e of kenney.ecartes) console.log(`  Kenney, écarté : ${e}`);
   for (const e of erreurs) console.error(`  ${e}`);
   if (!complete) process.exit(2);
 }

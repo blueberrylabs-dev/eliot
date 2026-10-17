@@ -400,7 +400,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Une photo seulement : un clip demanderait un masque par image. Le programme et le modèle
   s'installent une fois : commandes 20 et 21 du `CLAUDE.md`.
 
-**Le studio 3D (étape 6, lots 1 et 2)**
+**Le studio 3D (étape 6, lots 1 à 3)**
 - Importer un modèle 3D comme une image : bouton du panneau Importer, ou dépôt sur la page. GLB,
   glTF (avec ses fichiers rangés à côté de lui : choisir ou déposer le `.gltf` seul suffit),
   FBX (les personnages de Mixamo, par exemple) et OBJ. Le noyau vérifie le fichier et prépare la
@@ -435,6 +435,25 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   PDF et le SVG, il devient une image deux fois plus fine que sa boîte (à la finesse de la page
   pour un A4 ou un A5). L'objet est rendu par la fenêtre, en WebGL ; le noyau le pose avec le
   reste de la page.
+- Les banques (lot 3), onglet 3D du rail. Modèles : Kenney (les paquets rangés sur le poste,
+  licence CC0, sans réseau), Poly Haven (modèles réalistes, CC0, par mots ou par catégorie,
+  téléchargés en glTF 1k avec leurs textures), Sketchfab (seulement les modèles sous licence
+  CC0 ou CC BY ; la recherche marche sans clé, le téléchargement demande la clé d'API
+  d'Alexandre, `SKETCHFAB_API_KEY` dans le `.env`). Un clic pose le modèle au centre, un glisser
+  le pose sous le pointeur. Les mots français courants sont traduits pour ces banques, qui
+  cherchent en anglais (« flacon de parfum » devient « bottle perfume »).
+- Le crédit reste avec le modèle (source, auteur, licence, lien) : « Vue 3D », section Modèle,
+  avec « Copier le crédit », le texte à recopier sous une publication (une licence CC BY
+  l'exige), et « Page du modèle ». Éviter dans une publicité les modèles qui reproduisent une
+  marque ou un logo connus.
+- Mixamo (personnages animés, compte Adobe gratuit) : la marche à suivre dans l'onglet 3D
+  (télécharger en « FBX Binary », « With Skin »), puis « Importer un FBX ».
+- Environnements HDRI : une photo à 360° qui éclaire l'objet et se reflète dans ses matières.
+  Onglet 3D, Environnements : ceux de Poly Haven (studios, intérieurs, extérieurs, ciels, en 1k),
+  ou « Importer un .hdr » (un `.hdr` déposé sur la page fait de même) ; un clic éclaire les
+  objets 3D choisis. Rangés dans le design, ils s'ajoutent aux quatre environnements fournis
+  dans « Vue 3D », section Lumière (« Plus d'environnements » ouvre l'onglet). Coller un objet 3D
+  dans un autre design emporte son modèle et son environnement.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
@@ -450,8 +469,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'une maquette au labo (courbe et préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
-  pinceau), remplacer une photo à sa place, importer un modèle 3D, le poser, régler sa
-  caméra, sa lumière et son ombre au sol, repeindre ses matières, regarder une capture de la page
+  pinceau), remplacer une photo à sa place, importer un modèle 3D ou en chercher un dans les
+  banques (Kenney, Poly Haven, Sketchfab), le poser, régler sa caméra, sa lumière (environnements
+  HDRI de Poly Haven compris) et son ombre au sol, repeindre ses matières, regarder une capture de la page
   et exporter (en
   PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
@@ -722,6 +742,29 @@ Ce qui m'aide le plus en retour : l'environnement qui manque pour tes publicité
 studio coloré, une vitrine), une matière mal nommée par le fichier, et la fluidité quand on tire
 un curseur sur le mini PC.
 
+## Essayer les banques 3D (étape 6, lot 3)
+
+Quinze minutes, Eliot lancé à la main, carte graphique libre. Avant, une fois : un ou deux
+paquets 3D de Kenney (kenney.nl, catégorie 3D, par exemple Food Kit ou Furniture Kit : un
+fichier .zip chacun) rangés dans `Eliot/telechargements/kenney/`, puis `npm run bibliotheque`
+(commande 8 bis) ; la clé de Sketchfab est déjà dans le `.env`.
+
+1. Un post carré, onglet 3D du rail, Kenney : choisir un paquet, filtrer en français
+   (« pomme », « chaise »), cliquer un modèle, puis en glisser un autre sur la page.
+2. Poly Haven : « bouteille », puis une catégorie (Contenants, Mobilier). Poser un modèle : la
+   bande d'avancement montre le téléchargement. « Vue 3D », section Modèle : le crédit.
+3. Sketchfab : « chaussure » ; CC0 seulement, puis CC BY ; cocher Animés. Poser un modèle CC BY :
+   le crédit dit qu'il faut citer l'auteur ; « Copier le crédit », le coller dans un texte. Si un
+   message parle de clé refusée, me le dire tel quel (sans la clé).
+4. Environnements : l'objet choisi, un ciel de Poly Haven, puis un studio. Dans « Vue 3D »,
+   section Lumière, passer de l'un à l'autre et aux quatre fournis.
+5. Mixamo : suivre la marche à suivre avec ton compte Adobe, importer le FBX.
+6. Copier un objet 3D éclairé par un HDRI, le coller dans un autre design : il arrive pareil.
+   Exporter en PNG ×2.
+
+Ce qui m'aide le plus en retour : un modèle qui ne s'ouvre pas (sa banque, son nom), un mot
+français que la recherche ne comprend pas, et le temps d'un téléchargement sur ta connexion.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -762,7 +805,10 @@ un curseur sur le mini PC.
   parole, `transcriptions/`, où l'on parle et ce qui est dit, quelques kilo-octets ; pour les
   photos détourées, `masques/`, le masque du modèle, 1024 x 1024 en niveaux de gris ; pour les
   modèles 3D, l'original dans `originaux/` (un glTF y devient un GLB), la copie aux textures
-  réduites dans `copies/` quand il en faut une, l'aperçu et la miniature rendus par la fenêtre).
+  réduites dans `copies/` quand il en faut une, l'aperçu et la miniature rendus par la fenêtre ;
+  pour les environnements HDRI, le `.hdr` dans `originaux/`, une copie de 2048 px de large au
+  plus dans `copies/` s'il est plus grand, l'aperçu et la miniature tonifiés par le noyau ; le
+  crédit d'un modèle ou d'un environnement venu d'une banque dans `infos/`).
   Le dossier
   se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip (sans
   `traitees/`).
@@ -773,6 +819,11 @@ un curseur sur le mini PC.
   hors git.
 - Le détourage : `Eliot/telechargements/detourage/`, hors git : `env/` (Python et onnxruntime,
   commande 20) et le modèle `birefnet.onnx` (commande 21).
+- Les paquets 3D de Kenney : `Eliot/telechargements/kenney/` (les .zip), hors git ; leurs
+  modèles prêts dans `public/bibliotheque/kenney/` (commande 8 bis).
+- Les caches des banques 3D : `~/.cache/fr.alexandredo.eliot/polyhaven/` (index 24 h, aperçus
+  7 jours) et `.../sketchfab/` (recherches et aperçus, 24 h) ; les téléchargements y passent
+  avant d'entrer dans le design, puis en partent.
 - Modèles maison : `~/Documents/Eliot/Modèles/`.
 - Préréglages du labo enregistrés : `~/Documents/Eliot/Préréglages/prereglages.json` (ceux
   qu'Eliot fournit sont dans le code, `src/modele/prereglages.json`).
@@ -786,10 +837,10 @@ un curseur sur le mini PC.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs), les environnements HDRI (environnements3d.rs), les banques 3D (polyhaven.rs, sketchfab.rs, et reseau.rs pour leurs téléchargements) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
-├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
+├── public/bibliotheque/  icônes, emojis, polices, personnages, modèles de Kenney : fabriqués par npm run bibliotheque, hors git
 ├── src/
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
@@ -800,11 +851,11 @@ un curseur sur le mini PC.
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
-│   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx)
+│   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx), les banques et l'onglet 3D du rail (banques.ts, PanneauBanques.tsx)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages
-└── outils/           fabrication de la bibliothèque (personnages : personnages.mjs), dessin de l'icône, prototype du texte animé, conversion du modèle du détourage (convertir_birefnet.py)
+└── outils/           fabrication de la bibliothèque (personnages : personnages.mjs ; paquets de Kenney : kenney.mjs), dessin de l'icône, prototype du texte animé, conversion du modèle du détourage (convertir_birefnet.py)
 ```
 
 Le document est un objet JSON, seule source de vérité ; Konva ne fait que le dessiner. Pendant

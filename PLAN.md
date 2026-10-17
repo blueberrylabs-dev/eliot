@@ -549,11 +549,25 @@ Choix par défaut de Claude, modifiables sur simple demande :
       `regler_objet3d` (lumière, ombre au sol) et `colorer_objet3d`, 70 outils. Vérifié dans
       Chromium (48 vérifications) et dans Tauri par le pont (16) : fenêtre et export PNG à 0,00
       sur 255, PDF à 0,48 (JOURNAL).
-- [ ] Lot 3 : les banques. Poly Haven (modèles et environnements), Kenney (paquets), Sketchfab
+- [x] Lot 3 : les banques. Poly Haven (modèles et environnements), Kenney (paquets), Sketchfab
       (jeton d'Alexandre, CC0 et CC BY), Mixamo (import et marche à suivre) ; crédits gardés
       avec le modèle ; pont : chercher et poser un modèle, choisir un environnement. Action
       d'Alexandre avant ce lot, quand il veut : créer son compte Sketchfab et mettre son jeton
       dans le `.env` ; ranger quelques paquets de Kenney dans `telechargements/kenney/`.
+      Livré le 2026-10-17 : onglet 3D du rail (Modèles : Kenney, Poly Haven, Sketchfab, Mixamo ;
+      Environnements) ; `noyau/src/polyhaven.rs` (index en cache 24 h, recherche, glTF 1k et ses
+      fichiers, HDRI 1k), `sketchfab.rs` (recherche publique, CC0 et CC BY seulement, la clé lue
+      par le Rust et envoyée à la seule demande de téléchargement, GLB ou archive glTF ouverte
+      en lieu sûr), `environnements3d.rs` (`.hdr` rangé, copie de 2048 px au plus, aperçu tonifié),
+      `reseau.rs` ; `outils/kenney.mjs` (chaque modèle d'un paquet devient un GLB qui emporte sa
+      texture, avec son aperçu et un catalogue) ; crédit (source, auteur, licence, lien) gardé avec
+      le modèle et montré dans « Vue 3D », « Copier le crédit » ; mots français traduits pour les
+      banques ; `chercher_modeles3d`, `ajouter_modele3d`, `chercher_environnements`, et
+      `regler_objet3d` qui prend un environnement de Poly Haven ou un `.hdr` : 73 outils. Vérifié
+      dans Chromium (33 vérifications) et dans Tauri par le pont (34), avec un faux Poly Haven et
+      un faux Sketchfab ; puis sur les vraies données de Poly Haven et la vraie recherche de
+      Sketchfab (7) : fenêtre et export PNG à 0,00 et 0,05 sur 255 (JOURNAL). Le vrai
+      téléchargement chez Sketchfab, avec la clé d'Alexandre, se vérifie à son essai.
 - [ ] Lot 4 : l'animation sur la frise. Plateau tournant (vitesse, sens), caméra par images
       clés (azimut, élévation, zoom, décalage, avec les courbes des autres images clés),
       animations du modèle (choix de l'animation, vitesse, boucle) ; lecture en direct ; pont.

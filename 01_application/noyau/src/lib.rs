@@ -7,6 +7,7 @@
 
 pub mod animation;
 pub mod detourage;
+pub mod environnements3d;
 pub mod export;
 pub mod fichiers;
 pub mod freesound;
@@ -22,8 +23,11 @@ pub mod perspective;
 pub mod piper;
 pub mod pixabay;
 pub mod polices;
+pub mod polyhaven;
 pub mod projet;
+pub mod reseau;
 pub mod rendu_page;
+pub mod sketchfab;
 pub mod son;
 pub mod sons;
 pub mod sous_titres;

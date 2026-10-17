@@ -4,7 +4,7 @@
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
-import type { Credit, DocumentEliot, InfoProjet, InfosModele3d, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { Credit, DocumentEliot, InfoProjet, InfosEnvironnement3d, InfosModele3d, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
 import type { ReglagesPhoto } from "../modele/labo";
 import type { AnalyseParole, LangueParole } from "../modele/parole";
 
@@ -23,6 +23,9 @@ export const estFichierSon = (f: File) => f.type.startsWith("audio/") || estChem
 /** Les mêmes que le noyau (`modeles3d::EXTENSIONS`, étape 6). */
 export const EXTENSIONS_MODELES = ["glb", "gltf", "fbx", "obj"];
 export const estCheminModele = (chemin: string) => EXTENSIONS_MODELES.includes(extension(chemin));
+/** Les environnements HDRI (étape 6, lot 3) : des fichiers Radiance. */
+export const EXTENSIONS_ENVIRONNEMENTS = ["hdr"];
+export const estCheminEnvironnement = (chemin: string) => EXTENSIONS_ENVIRONNEMENTS.includes(extension(chemin));
 
 /** Ce que renvoie le noyau pour une image, une vidéo ou un son. */
 interface RessourceNoyau {
@@ -41,6 +44,7 @@ interface RessourceNoyau {
     vignettes: { nombre: number; intervalle: number; largeur: number; hauteur: number };
   } | null;
   modele3d?: { format: string; copie: string; animations?: string[]; matieres?: string[]; triangles?: number; texturesReduites?: number; miniature?: boolean } | null;
+  environnement3d?: { format: string; copie: string } | null;
 }
 
 /** Où en est un import : le fichier en cours (à partir de 0), sa part faite de 0 à 1, et le
@@ -110,6 +114,7 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
         } satisfies InfosModele3d,
       }
     : {}),
+  ...(r.environnement3d ? { environnement3d: { format: "hdr", copie: r.environnement3d.copie } satisfies InfosEnvironnement3d } : {}),
 });
 
 /** Type d'image d'après les premiers octets (les aperçus sont en PNG ou en JPEG). */
@@ -363,6 +368,27 @@ export async function lireModele(ref: RefRessources, ressource: Ressource): Prom
   return invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" });
 }
 
+/** La copie d'un environnement HDRI (2048 px de large au plus), que la fenêtre charge. */
+export const lireEnvironnement = lireModele;
+
+/** Importe un modèle 3D venu d'une banque en octets (un modèle de Kenney), avec son crédit. */
+/** `nom` : le nom du fichier, avec son extension (« Apple.glb ») ; la ressource prend le nom sans elle. */
+export async function importerModeleAvecCredit(ref: RefRessources, octets: ArrayBuffer, nom: string, credit: Credit): Promise<Ressource> {
+  if (!dansTauri) {
+    const bilan = await importerFichiersNavigateur([new File([octets], nom)]);
+    if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+    const r = { ...bilan.ressources[0], nom: nom.replace(/\.[^.]+$/, ""), credit };
+    const n = ressourcesNavigateur.get(r.id);
+    if (n) n.ressource = r;
+    return r;
+  }
+  return versRessource(
+    await invoke<RessourceNoyau>("importer_modele3d_octets", new Uint8Array(octets), {
+      headers: enTetes({ "x-rayon": ref.rayon, "x-projet": ref.id, "x-nom": nom, "x-credit": JSON.stringify(credit) }),
+    }),
+  );
+}
+
 /** Range la miniature d'un modèle 3D, rendue par la fenêtre (PNG) : le noyau en fait l'aperçu
  *  (512 px) et la miniature (256 px). Les adresses déjà demandées sont oubliées. */
 export async function enregistrerMiniatureModele(ref: RefRessources, ressource: Ressource, png: Uint8Array): Promise<Ressource> {
@@ -518,10 +544,12 @@ export async function importerChemins(ref: RefRessources, chemins: string[], sui
   const dossiersGltf = chemins.filter((c) => extension(c) === "gltf").map((c) => c.replace(/[^/\\]*$/, ""));
   const voisinDUnGltf = (c: string) => (extension(c) === "bin" || EXTENSIONS_IMAGES.includes(extension(c))) && dossiersGltf.some((d) => c.startsWith(d));
   const modeles = chemins.filter(estCheminModele);
-  const images = chemins.filter((c) => !estCheminVideo(c) && !estCheminSon(c) && !estCheminModele(c) && !voisinDUnGltf(c));
+  const environnements = chemins.filter(estCheminEnvironnement);
+  const images = chemins.filter((c) => !estCheminVideo(c) && !estCheminSon(c) && !estCheminModele(c) && !estCheminEnvironnement(c) && !voisinDUnGltf(c));
   const bilan: BilanImport = { ressources: [], erreurs: [] };
   if (images.length) bilanDe(await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins: images }), bilan);
   if (modeles.length) bilanDe(await invoke<ResultatImport[]>("importer_modeles3d", { rayonNom: ref.rayon, projetId: ref.id, chemins: modeles }), bilan);
+  if (environnements.length) bilanDe(await invoke<ResultatImport[]>("importer_environnements", { rayonNom: ref.rayon, projetId: ref.id, chemins: environnements }), bilan);
   if (videos.length) {
     const canal = new Channel<{ fichier: number; part: number }>();
     canal.onmessage = (a) => suivi?.(a.fichier, a.part, videos.length);
@@ -560,10 +588,11 @@ export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviI
     const { open } = await import("@tauri-apps/plugin-dialog");
     const filtres = videos
       ? [
-          { name: "Images, vidéos et modèles 3D", extensions: [...EXTENSIONS_IMAGES, ...EXTENSIONS_VIDEOS, ...EXTENSIONS_MODELES] },
+          { name: "Images, vidéos et modèles 3D", extensions: [...EXTENSIONS_IMAGES, ...EXTENSIONS_VIDEOS, ...EXTENSIONS_MODELES, ...EXTENSIONS_ENVIRONNEMENTS] },
           { name: "Images", extensions: EXTENSIONS_IMAGES },
           { name: "Vidéos", extensions: EXTENSIONS_VIDEOS },
           { name: "Modèles 3D (GLB, glTF, FBX, OBJ)", extensions: EXTENSIONS_MODELES },
+          { name: "Environnements HDRI (.hdr)", extensions: EXTENSIONS_ENVIRONNEMENTS },
         ]
       : [{ name: "Images", extensions: EXTENSIONS_IMAGES }];
     const choix = await open({ multiple: plusieurs, directory: false, title: videos ? "Importer des images ou des vidéos" : plusieurs ? "Importer des images" : "Choisir une image", filters: filtres });
@@ -585,7 +614,7 @@ export async function importerFichiers(ref: RefRessources, fichiers: File[]): Pr
     try {
       const octets = new Uint8Array(await fichier.arrayBuffer());
       // Un modèle 3D (étape 6) : le noyau le vérifie et prépare sa copie.
-      const commande = estCheminModele(fichier.name) ? "importer_modele3d_octets" : "importer_image_octets";
+      const commande = estCheminModele(fichier.name) ? "importer_modele3d_octets" : estCheminEnvironnement(fichier.name) ? "importer_environnement_octets" : "importer_image_octets";
       const r = await invoke<RessourceNoyau>(commande, octets, {
         headers: enTetes({ "x-rayon": ref.rayon, "x-projet": ref.id, "x-nom": fichier.name || "image collée" }),
       });
@@ -611,7 +640,7 @@ function choisirFichiersNavigateur(videos = false, sons = false, plusieurs = tru
     const champ = document.createElement("input");
     champ.type = "file";
     champ.multiple = plusieurs;
-    champ.accept = sons ? "audio/*" : videos ? "image/*,video/*,.glb,.gltf,.fbx,.obj" : "image/*";
+    champ.accept = sons ? "audio/*" : videos ? "image/*,video/*,.glb,.gltf,.fbx,.obj,.hdr" : "image/*";
     champ.addEventListener("change", () => resoudre(Array.from(champ.files ?? [])));
     champ.click();
   });
@@ -707,6 +736,13 @@ async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport
         const ressource: Ressource = { id, nom: fichier.name || "son", largeur: 0, hauteur: 0, transparence: false, son: { duree, copie: "webm" } };
         ressourcesNavigateur.set(id, { ressource, urls: { apercu: "", miniature: "", copie: URL.createObjectURL(fichier) } });
         ondesNavigateur.set(id, onde);
+        ressources.push(ressource);
+        continue;
+      }
+      if (estCheminEnvironnement(fichier.name)) {
+        // Un environnement HDRI (étape 6, lot 3) : gardé tel quel, sans aperçu dans le navigateur.
+        const ressource: Ressource = { id, nom: fichier.name, largeur: 0, hauteur: 0, transparence: false, environnement3d: { format: "hdr", copie: "original" } };
+        ressourcesNavigateur.set(id, { ressource, urls: { apercu: "", miniature: "", copie: URL.createObjectURL(fichier) } });
         ressources.push(ressource);
         continue;
       }
@@ -1714,4 +1750,122 @@ export async function ouvrirLien(adresse: string): Promise<void> {
     return;
   }
   window.open(adresse, "_blank", "noopener");
+}
+
+// ========================================================================================
+// Les banques 3D (étape 6, lot 3) : Poly Haven et Sketchfab, par le Rust, qui seul connaît la
+// clé de Sketchfab ; dans la fenêtre Eliot seulement
+// ========================================================================================
+
+export type GenrePolyHaven = "modeles" | "environnements";
+
+export interface ElementPolyHaven {
+  id: string;
+  nom: string;
+  auteur: string;
+  categories: string[];
+  triangles: number;
+  lien: string;
+}
+
+export interface PagePolyHaven {
+  total: number;
+  elements: ElementPolyHaven[];
+}
+
+export interface CategoriePolyHaven {
+  nom: string;
+  nombre: number;
+}
+
+export interface ModeleSketchfab {
+  uid: string;
+  nom: string;
+  auteur: string;
+  licence: string;
+  lien: string;
+  triangles: number;
+  animations: number;
+  taille: number;
+}
+
+export interface PageSketchfab {
+  modeles: ModeleSketchfab[];
+  suite: boolean;
+}
+
+export type LicencesSketchfab = "cc0" | "by" | "toutes";
+
+const seulementDansTauri = (banque: string) => new Error(`${banque} ne s'ouvre que dans la fenêtre Eliot`);
+
+export async function categoriesPolyHaven(genre: GenrePolyHaven): Promise<CategoriePolyHaven[]> {
+  if (!dansTauri) throw seulementDansTauri("Poly Haven");
+  return invoke<CategoriePolyHaven[]>("polyhaven_categories", { genre });
+}
+
+export async function chercherPolyHaven(genre: GenrePolyHaven, requete: string, categorie: string | null, page: number): Promise<PagePolyHaven> {
+  if (!dansTauri) throw seulementDansTauri("Poly Haven");
+  return invoke<PagePolyHaven>("polyhaven_chercher", { genre, requete, categorie, page });
+}
+
+const urlsApercus3d = new Map<string, Promise<string>>();
+
+/** L'aperçu d'un élément d'une banque 3D, gardé le temps de la session. */
+function apercu3d(cle: string, demander: () => Promise<ArrayBuffer>): Promise<string> {
+  let promesse = urlsApercus3d.get(cle);
+  if (!promesse) {
+    promesse = aTonTour(async () => {
+      const octets = await demander();
+      return URL.createObjectURL(new Blob([octets], { type: typeImage(octets) }));
+    });
+    promesse.catch(() => urlsApercus3d.delete(cle));
+    urlsApercus3d.set(cle, promesse);
+  }
+  return promesse;
+}
+
+export function urlApercuPolyHaven(genre: GenrePolyHaven, id: string): Promise<string> {
+  if (!dansTauri) return Promise.reject(seulementDansTauri("Poly Haven"));
+  return apercu3d(`polyhaven/${genre}/${id}`, () => invoke<ArrayBuffer>("polyhaven_apercu", { genre, id }));
+}
+
+function canalDeSuivi(suivi?: (part: number) => void): Channel<{ fichier: number; part: number }> {
+  const canal = new Channel<{ fichier: number; part: number }>();
+  canal.onmessage = (a) => suivi?.(a.part);
+  suivi?.(0);
+  return canal;
+}
+
+/** Télécharge un modèle de Poly Haven (glTF 1k) et le range dans le design, avec son crédit. */
+export async function importerModelePolyHaven(ref: RefRessources, id: string, suivi?: (part: number) => void): Promise<Ressource> {
+  if (!dansTauri) throw seulementDansTauri("Poly Haven");
+  return versRessource(await invoke<RessourceNoyau>("polyhaven_importer_modele", { rayonNom: ref.rayon, projetId: ref.id, id, avancement: canalDeSuivi(suivi) }));
+}
+
+/** Télécharge un environnement de Poly Haven (HDR 1k) et le range dans le design. */
+export async function importerEnvironnementPolyHaven(ref: RefRessources, id: string, suivi?: (part: number) => void): Promise<Ressource> {
+  if (!dansTauri) throw seulementDansTauri("Poly Haven");
+  return versRessource(await invoke<RessourceNoyau>("polyhaven_importer_environnement", { rayonNom: ref.rayon, projetId: ref.id, id, avancement: canalDeSuivi(suivi) }));
+}
+
+export async function etatSketchfab(): Promise<EtatPixabay | null> {
+  if (!dansTauri) return null;
+  return invoke<EtatPixabay>("sketchfab_etat");
+}
+
+export async function chercherSketchfab(requete: string, licences: LicencesSketchfab, animes: boolean, page: number): Promise<PageSketchfab> {
+  if (!dansTauri) throw seulementDansTauri("Sketchfab");
+  return invoke<PageSketchfab>("sketchfab_chercher", { requete, licences, animes, page });
+}
+
+export function urlApercuSketchfab(uid: string): Promise<string> {
+  if (!dansTauri) return Promise.reject(seulementDansTauri("Sketchfab"));
+  return apercu3d(`sketchfab/${uid}`, () => invoke<ArrayBuffer>("sketchfab_apercu", { uid }));
+}
+
+/** Télécharge un modèle de Sketchfab (la clé du .env, lue par le Rust) et le range dans le
+ *  design, avec son crédit et sa licence. */
+export async function importerSketchfab(ref: RefRessources, uid: string, suivi?: (part: number) => void): Promise<Ressource> {
+  if (!dansTauri) throw seulementDansTauri("Sketchfab");
+  return versRessource(await invoke<RessourceNoyau>("sketchfab_importer", { rayonNom: ref.rayon, projetId: ref.id, uid, avancement: canalDeSuivi(suivi) }));
 }

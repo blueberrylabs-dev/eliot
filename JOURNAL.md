@@ -5,6 +5,88 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6, lot 3 : les banques
+
+Accord d'Alexandre (« Go pour le lot 3 et je vais m'occuper de la clé sketchfab. », puis « La clé
+Sketchfab est déjà dans Env. »). Claude n'a vérifié que la présence du nom `SKETCHFAB_API_KEY`
+dans le `.env`, jamais sa valeur. Ce que Claude a fait et décidé :
+
+- Un onglet 3D dans le rail, à deux faces. Modèles : Kenney, Poly Haven, Sketchfab, Mixamo ; un
+  clic pose le modèle au centre, un glisser le pose sous le pointeur, une bande montre le
+  téléchargement. Environnements : ceux du design, « Importer un .hdr », ceux de Poly Haven ; un
+  clic éclaire les objets 3D choisis. « Plus d'environnements », dans la section Lumière de
+  « Vue 3D », ouvre cette face.
+- Kenney : pas d'API ; les paquets (.zip de kenney.nl) rangés à la main dans
+  `telechargements/kenney/`, lus par `npm run bibliotheque` (`outils/kenney.mjs`). Un paquet
+  n'entre que si sa licence dit CC0. Les GLB de Kenney citent leur texture commune à côté
+  d'eux (`Textures/colormap.png`) : chaque modèle devient un GLB qui l'emporte, avec son aperçu
+  et un catalogue ; rien ne passe par le réseau. Le noyau empaquette de même un GLB importé du
+  disque qui cite des fichiers voisins. Essayé sur le vrai Food Kit (200 modèles).
+- Poly Haven : l'index de chaque banque lu une fois par 24 h, la recherche faite sur le poste
+  (nom, mots-clés, catégories, description ; les plus téléchargés d'abord), aperçus gardés
+  7 jours ; modèles en glTF 1k avec les fichiers qu'il cite (200 Mo au plus en tout), HDRI en 1k
+  (l'éclairage n'en demande pas plus). User-Agent propre à Eliot, fichiers acceptés seulement de
+  `dl.polyhaven.org` et `cdn.polyhaven.com`, chemins des fichiers cités vérifiés, mention
+  « Poly Haven » sous la grille.
+- Sketchfab : la recherche est publique (sans clé), deux demandes, CC0 puis CC BY, douze de
+  chaque en alternance ; tout autre licence (NC, ND, SA, éditoriale) est écartée, et la licence
+  est relue sur la fiche du modèle juste avant le téléchargement. La clé n'est lue que par le
+  Rust et n'est envoyée que dans l'en-tête `Authorization: Token` de la demande de
+  téléchargement, jamais aux adresses des fichiers (des liens signés et temporaires) ; les
+  messages d'erreur la masquent. Sans clé, la recherche marche et le panneau dit où l'ajouter ;
+  une clé refusée (401, 403) le dit sans la montrer. L'archive glTF est ouverte en lieu sûr
+  (chemins vérifiés, 300 Mo au plus, `scene.gltf` d'abord). Les deux noms de variable,
+  `SKETCHFAB_API_KEY` et `SKETCHFAB_API_TOKEN`, sont acceptés.
+- Jeton personnel ou OAuth, vérifié le jour même : la page de l'API de téléchargement demande
+  que l'utilisateur se connecte à son compte Sketchfab dans l'application ; ici l'unique
+  utilisateur est Alexandre, avec la clé de son propre compte, et d'autres intégrations envoient
+  cette clé de la même façon à la même adresse. Gardé, comme décidé à l'ouverture ; repli OAuth si
+  la clé est refusée à l'essai.
+- Mixamo : pas d'API. Conditions d'Adobe relues le jour même : gratuit avec un compte Adobe,
+  personnages et animations libres de droits pour des projets personnels, commerciaux ou
+  associatifs. Dans l'onglet, la marche à suivre (« FBX Binary », « With Skin », 30 images par
+  seconde) et « Importer un FBX » ; le choix de l'animation viendra au lot 4.
+- Le crédit (source, auteur, licence, lien, titre) entre dans la ressource et reste avec le
+  modèle, d'un design à l'autre ; « Vue 3D », section Modèle, le montre, dit quand il est
+  obligatoire (CC BY) et le copie en une ligne à recoller sous une publication.
+- Les environnements HDRI deviennent des ressources du design : le `.hdr` d'origine, une copie
+  de 2048 px de large au plus (réduite par moyenne de zones en flottants : la réduction de la
+  bibliothèque `image` écrête au-dessus de 1, ce qui éteindrait le soleil), un aperçu et une
+  miniature tonifiés par le noyau. La fenêtre en fait un éclairage (HDRLoader et PMREM de
+  three.js) ; en attendant qu'il soit prêt, le studio éclaire l'objet, puis le rendu est refait ;
+  l'export l'attend. Un `.hdr` déposé sur la page éclaire les objets choisis au lieu de devenir
+  une image.
+- Chercher en français dans des banques qui parlent anglais : une centaine de mots courants
+  d'une publicité de produit (objets, lieux, lumières, nourriture) traduits, les petits mots
+  retirés, les autres mots gardés tels quels.
+- Les marques : la recherche de Sketchfab ramène aussi des produits de marque (chaussures,
+  boîtes) ; une ligne sous la grille et la description de l'outil du pont disent de les écarter
+  d'une publicité.
+- Pont IA : `chercher_modeles3d` (une source, une planche d'aperçus numérotés),
+  `ajouter_modele3d` (télécharge, range avec le crédit, pose comme `ajouter_objet3d`),
+  `chercher_environnements` ; `regler_objet3d` accepte un environnement de Poly Haven
+  (« polyhaven:<id> », rangé une seule fois par design), l'id d'un environnement du design ou le
+  chemin d'un `.hdr` ; `etat` liste les environnements à part : 73 outils.
+- Corrigé en chemin : coller un objet 3D dans un autre design n'y copiait pas son modèle (depuis
+  le lot 1) ; le modèle et son environnement suivent désormais. Un modèle de Kenney rangé sans
+  extension de fichier était pris pour une image (trouvé par l'essai dans Chromium).
+
+Preuves (conteneur de Claude, WebGL sur le processeur, jamais de carte graphique) : 9 essais du
+noyau de plus (138 en tout), avec un faux Poly Haven et un faux Sketchfab (ce dernier vérifie
+que la clé ne part qu'avec la demande de téléchargement) ; 4 essais vitest de plus (232) ; dans
+Chromium, 33 vérifications (catalogue de Kenney fabriqué depuis le vrai Food Kit, filtre en
+français, clic et glisser, crédit et « Copier le crédit », `.hdr` déposé qui éclaire l'objet
+choisi, rendu plus chaud qu'au studio, tuiles, annulation, pont) ; dans Tauri par le pont, 34,
+avec un faux Poly Haven et un faux Sketchfab (glTF et ses fichiers, GLB, archive glTF, licences,
+la clé reçue par les deux seules demandes de téléchargement, un environnement rangé une fois et
+resservi, un `.hdr` du poste, fenêtre et export PNG à 0,00 sur 255, x2 réduit à 0,20, coller
+dans un autre design) ; puis sur les vraies données, par un relais local (le Rust du conteneur
+ne passe pas par son mandataire réseau ; les octets ne sont pas touchés), 7 : « bouteille » sur
+Poly Haven, 10 modèles en 2,0 s, `wine_bottles_01` téléchargé avec ses textures en 11,6 s,
+l'HDRI `brown_photostudio_02` en 5,4 s, fenêtre et export à 0,05 ; « chaussure » sur Sketchfab,
+18 modèles, CC0 et CC BY seulement. Les essais des lots 1 et 2 (Chromium 63 et 48, Tauri 33 et
+16) et la vérification de l'étape 5 (23) repassent.
+
 ## 2026-10-17, étape 6, lot 2 : lumière, ombre au sol, matières
 
 Accord d'Alexandre (« Go pour le lot 2 »). Ce que Claude a fait et décidé :

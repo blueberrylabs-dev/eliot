@@ -6,7 +6,7 @@ authors = ["Alexandre Do"]
 edition = "2024"
 
 [dependencies]
-image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff"] }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff", "hdr"] }
 fast_image_resize = { version = "6", features = ["image"] }
 sha2 = "0.10"
 rayon = "1"

@@ -184,7 +184,18 @@ export async function collerAvecImages(): Promise<void> {
   const { pressePapiers, projet } = etat;
   if (pressePapiers.elements.length === 0) return;
   const source = pressePapiers.projet;
-  const ids = [...new Set(pressePapiers.elements.flatMap((e) => (e.type === "image" || e.type === "video" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
+  // Les photos, les vidéos, les photos des cadres et des maquettes, les modèles 3D et leurs
+  // environnements HDRI (étape 6).
+  const ids = [
+    ...new Set(
+      pressePapiers.elements.flatMap((e) => {
+        if (e.type === "image" || e.type === "video") return [e.ressource];
+        if ((e.type === "cadre" || e.type === "maquette") && e.ressource) return [e.ressource];
+        if (e.type === "objet3d") return [e.ressource, ...(e.lumiere && /^[0-9a-f]{64}$/.test(e.lumiere.environnement.id) ? [e.lumiere.environnement.id] : [])];
+        return [];
+      }),
+    ),
+  ];
   if (projet && source && ids.length && (source.rayon !== projet.rayon || source.id !== projet.id)) {
     try {
       etat.ajouterRessources(await pont.copierRessources(source, projet, ids));

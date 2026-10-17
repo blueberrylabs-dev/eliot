@@ -16,10 +16,11 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
 import { useEditeur } from "../etat/editeur";
-import { brillanceDeRugosite, CAMERA_PAR_DEFAUT, directionLumiere, LUMIERE_PAR_DEFAUT, placerCamera, rotationEnvironnement, rugositeDeBrillance } from "../modele/objet3d";
+import { brillanceDeRugosite, CAMERA_PAR_DEFAUT, directionLumiere, ENVIRONNEMENTS, LUMIERE_PAR_DEFAUT, placerCamera, rotationEnvironnement, rugositeDeBrillance } from "../modele/objet3d";
 import type { Camera3d, ElementObjet3d, Lumiere3d, Matiere3d, OmbreSol3d, PageEliot, RefProjet, Ressource } from "../modele/types";
-import { enregistrerMiniatureModele, lireModele } from "../pont/tauri";
+import { enregistrerMiniatureModele, lireEnvironnement, lireModele } from "../pont/tauri";
 
 /** Le plus grand côté d'un rendu (la fenêtre comme l'export). */
 export const COTE_MAX_RENDU = 4096;
@@ -105,8 +106,65 @@ function sceneEnvironnement(id: string): THREE.Scene {
   return new RoomEnvironment();
 }
 
-/** L'éclairage d'un environnement fourni, fabriqué à la première demande. */
+// Les environnements HDRI du design (lot 3) : chargés à la première demande ; en attendant (ou
+// s'ils manquent), le studio éclaire l'objet.
+type EtatEnvironnement = { etat: "chargement"; promesse: Promise<void> } | { etat: "pret"; texture: THREE.Texture } | { etat: "erreur" };
+const environnementsDuDesign = new Map<string, EtatEnvironnement>();
+const abonnesEnvironnements = new Set<() => void>();
+
+/** Prévenu quand un environnement du design est prêt (ou n'a pas pu l'être). */
+export function abonnerEnvironnements(f: () => void): () => void {
+  abonnesEnvironnements.add(f);
+  return () => abonnesEnvironnements.delete(f);
+}
+
+const estFourni = (id: string) => ENVIRONNEMENTS.some((e) => e.id === id);
+
+/** Charge un environnement HDRI du design (sa copie) et en fait un éclairage. */
+function chargerEnvironnement(m: Moteur, id: string): Promise<void> {
+  const deja = environnementsDuDesign.get(id);
+  if (deja?.etat === "chargement") return deja.promesse;
+  if (deja) return Promise.resolve();
+  const etat = useEditeur.getState();
+  const ressource = etat.ressources[id];
+  const promesse = (async () => {
+    try {
+      if (!ressource?.environnement3d) throw new Error("environnement absent du design");
+      const octets = await lireEnvironnement(etat.projet ?? { rayon: "designs", id: "" }, ressource);
+      const url = URL.createObjectURL(new Blob([octets]));
+      try {
+        const texture = await new HDRLoader().loadAsync(url);
+        texture.mapping = THREE.EquirectangularReflectionMapping;
+        const eclairage = m.pmrem.fromEquirectangular(texture).texture;
+        texture.dispose();
+        environnementsDuDesign.set(id, { etat: "pret", texture: eclairage });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    } catch (e) {
+      console.warn(`3D : environnement « ${ressource?.nom ?? id} » illisible : ${e instanceof Error ? e.message : String(e)}`);
+      environnementsDuDesign.set(id, { etat: "erreur" });
+    }
+    for (const f of abonnesEnvironnements) f();
+  })();
+  environnementsDuDesign.set(id, { etat: "chargement", promesse });
+  return promesse;
+}
+
+/** Un environnement du design est-il prêt (pour la clé des rendus) ? */
+function environnementPret(id: string): boolean {
+  return estFourni(id) || environnementsDuDesign.get(id)?.etat !== "chargement";
+}
+
+/** L'éclairage d'un environnement : fourni (fabriqué à la première demande) ou du design
+ *  (chargé à la première demande ; le studio en attendant). */
 function environnement(m: Moteur, id: string): THREE.Texture {
+  if (!estFourni(id)) {
+    const e = environnementsDuDesign.get(id);
+    if (e?.etat === "pret") return e.texture;
+    if (!e) void chargerEnvironnement(m, id);
+    return environnement(m, "studio");
+  }
   let t = m.environnements.get(id);
   if (!t) {
     const scene = sceneEnvironnement(id);
@@ -222,6 +280,8 @@ useEditeur.subscribe((s, avant) => {
   if (s.projet !== avant.projet) {
     for (const m of modeles.values()) if (m.etat === "pret") liberer(m.modele.racine);
     modeles.clear();
+    for (const e of environnementsDuDesign.values()) if (e.etat === "pret") e.texture.dispose();
+    environnementsDuDesign.clear();
     rendus.clear();
     enDirect = null;
     dansLeMoteur = "";
@@ -382,6 +442,11 @@ export function chargerModele(ressource: Ressource, projet: RefProjet | null = u
 export async function prechargerModeles(page: PageEliot): Promise<void> {
   const { ressources } = useEditeur.getState();
   await Promise.all(page.elements.flatMap((e) => (e.type === "objet3d" && ressources[e.ressource] ? [chargerModele(ressources[e.ressource]).catch(() => undefined)] : [])));
+  // Les environnements HDRI des objets de la page (lot 3).
+  const m = moteur3d();
+  if (!m) return;
+  const ids = new Set(page.elements.flatMap((e) => (e.type === "objet3d" && e.lumiere && !estFourni(e.lumiere.environnement.id) ? [e.lumiere.environnement.id] : [])));
+  await Promise.all([...ids].map((id) => chargerEnvironnement(m, id)));
 }
 
 // ----------------------------------------------------------------------------------------
@@ -555,7 +620,8 @@ export function rendreObjet(ressource: Ressource, reglages: Reglages3d, largeur:
   if (!m) return { etat: "erreur", erreur: "WebGL 2 indisponible" };
   const l = Math.max(1, Math.min(COTE_MAX_RENDU, Math.round(largeur)));
   const h = Math.max(1, Math.min(COTE_MAX_RENDU, Math.round(hauteur)));
-  const voulu = `${ressource.id}|${JSON.stringify(reglages)}|${l}x${h}`;
+  // Un environnement du design pas encore chargé : un rendu au studio, refait ensuite.
+  const voulu = `${ressource.id}|${JSON.stringify(reglages)}|${l}x${h}|${environnementPret(reglages.lumiere.environnement.id) ? "" : "attente"}`;
   let r = rendus.get(cle);
   if (!r) {
     r = { toile: document.createElement("canvas"), cle: "" };

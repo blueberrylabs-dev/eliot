@@ -8,7 +8,8 @@ import { elementAPhotoSous } from "../modele/cadres";
 import { ouvrirDesign } from "../etat/projets";
 import { creerDepuisRessource } from "../modele/fabriques";
 import type { Ressource } from "../modele/types";
-import { estCheminModele, estFichierSon, importerArchiveChemin, importerChemins, importerFichiers, type BilanImport } from "../pont/tauri";
+import { eclairer } from "../trois/banques";
+import { estCheminEnvironnement, estCheminModele, estFichierSon, importerArchiveChemin, importerChemins, importerFichiers, type BilanImport } from "../pont/tauri";
 import { centrerSur } from "./glisser";
 import { avecSuivi, suiviFichiers, suiviSons } from "./SuiviImport";
 import { pointDansLaPage } from "./scene";
@@ -24,7 +25,13 @@ function poser(bilan: BilanImport, point: { x: number; y: number } | null) {
   etat.ajouterRessources(bilan.ressources);
   // Les sons vont dans la frise, à la tête de lecture.
   for (const r of bilan.ressources.filter((x) => x.son)) etat.ajouterSon(r);
-  let ressources = bilan.ressources.filter((x) => !x.son);
+  // Un environnement HDRI (étape 6, lot 3) éclaire les objets 3D choisis ; il ne se pose pas.
+  const env = bilan.ressources.find((x) => x.environnement3d);
+  if (env) {
+    const n = eclairer(env.id);
+    etat.notifier(n ? `${env.nom} éclaire ${n > 1 ? `les ${n} objets 3D choisis` : "l'objet 3D choisi"}` : `${env.nom} est rangé dans le design (onglet 3D, Environnements)`);
+  }
+  let ressources = bilan.ressources.filter((x) => !x.son && !x.environnement3d);
   if (ressources.length === 0) return;
   // La première photo lâchée sur un cadre ou une maquette va dedans (pas une vidéo, pas un
   // modèle 3D).
@@ -67,7 +74,7 @@ export async function deposerChemins(chemins: string[], clientX: number, clientY
 /** Dépôt ou collage de fichiers reçus en octets (navigateur, presse-papiers). */
 export async function deposerFichiers(fichiers: File[], clientX?: number, clientY?: number): Promise<void> {
   const etat = useEditeur.getState();
-  const images = fichiers.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/") || estFichierSon(f) || estCheminModele(f.name));
+  const images = fichiers.filter((f) => f.type.startsWith("image/") || f.type.startsWith("video/") || estFichierSon(f) || estCheminModele(f.name) || estCheminEnvironnement(f.name));
   if (!etat.projet || images.length === 0) return;
   try {
     const point = clientX === undefined || clientY === undefined ? null : pointDansLaPage(clientX, clientY);
