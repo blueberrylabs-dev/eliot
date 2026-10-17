@@ -730,6 +730,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       (Q2 tranchée), aucun secret dans l'historique (relevé du 2026-10-17).
 - [x] L'adresse des commits remplacée dans tout l'historique (60 commits, le 2026-10-17 ;
       l'ancien historique reste en sauvegarde locale dans `refs/original/`, jamais poussée).
-- [ ] Alexandre : confirmer le nom de l'organisation (`blueberrylabs` est déjà pris sur GitHub
-      par un compte), créer le dépôt, `git push`, puis la version 0.9.0 avec le `.deb` et
-      `SHA256SUMS`.
+- [x] Le nom de l'organisation : `blueberrylabs-dev` (choisi par Alexandre le 2026-10-17,
+      `blueberrylabs` étant pris) ; Alexandre crée l'organisation et le dépôt vide.
+- [x] Le paquet construit sur le poste repassé dans le conteneur (18 vérifications sur 18).
+- [ ] La publication, une commande préparée par Claude et lancée par Alexandre (la session de
+      Claude ne peut ni pousser dans la nouvelle organisation, ni créer une version) : `main`
+      poussé, la section About du dépôt, la version 0.9.0 avec le `.deb` et `SHA256SUMS`,
+      tout de suite (« Publier tout de suite ») ; puis Claude retélécharge le paquet publié et
+      vérifie son empreinte.
+- [ ] Après les essais d'Alexandre et leurs corrections : la version 1.0.0 (commande 26 du
+      `CLAUDE.md`).

@@ -5,6 +5,37 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 8 : la publication
+
+Demande d'Alexandre : « tu peux tout faire via gh ». Ses décisions, en réponse aux questions de
+Claude : l'organisation s'appelle `blueberrylabs-dev` sur GitHub (`blueberrylabs` est pris par
+un compte, `blueberry-labs` par une autre organisation, pages lues le 2026-10-17 ; le nom
+affiché reste Blueberry Labs) ; la version 0.9.0 est publiée tout de suite (« Publier tout de
+suite »), contre la proposition de Claude de la garder en brouillon jusqu'à son passage réel
+sur le poste. Ce qui s'est fait :
+
+- Alexandre crée l'organisation et le dépôt vide `blueberrylabs-dev/eliot` : GitHub ne crée
+  une organisation que sur son site, et la session de Claude ne peut agir que sur un dépôt qui
+  existe déjà.
+- Ce que la session de Claude ne peut pas faire, constaté le même jour : pousser dans une
+  organisation où l'application Claude de GitHub n'est pas installée (refus du proxy), régler
+  les sujets du dépôt (« Write access to this GitHub API path is not permitted »), créer une
+  version publiée (« Creating, editing, or deleting releases is not permitted for this session
+  type »). Écarté : installer l'application Claude sur l'organisation, qui n'aurait permis que
+  le push. Claude prépare donc une seule commande, qu'Alexandre lance dans son terminal :
+  `git push` en SSH (l'historique réécrit, adresse noreply ; la sauvegarde `refs/original/`
+  reste sur le poste), la section About du dépôt par `gh repo edit` (description, lien vers
+  la dernière version, sujets), puis la version 0.9.0 par `gh release create`.
+- Le paquet publié est celui qu'`installer.sh` a construit sur le poste le même jour (après
+  le dernier commit du code ; 33 Mo, sans les modèles 3D de Kenney, absents de
+  `telechargements/` sur le poste). Avant de le publier, Claude l'a repassé dans le conteneur
+  avec les 18 vérifications de la version installée (entrée suivante) : 18 sur 18 ; empreinte
+  `a346b9e5…cd0e` vérifiée, aucun `.env` ni clé dans le paquet.
+- Le dépôt du poste a désormais `origin` (en SSH, comme ses autres dépôts) : la commande 25
+  pousse les prochains commits, la commande 26 publie une version.
+- Une correction trouvée aux essais sort dans une nouvelle version (0.9.1 ou 1.0.0) ; la 0.9.0
+  ne se modifie pas sur place (CONVENTIONS).
+
 ## 2026-10-17, étape 8 : la version installée, et la préparation de la publication
 
 Demandes d'Alexandre : « le rendre exécutable comme un vrai logiciel, comme si on l'installait

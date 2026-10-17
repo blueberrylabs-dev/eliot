@@ -166,13 +166,16 @@ lourd. Détail : `BRIEF.md`.
   (commandes 22 à 24). L'environnement Python du détourage est fixé par
   `01_application/requirements.txt`. Le mode développement (commande 10) reste pour les
   corrections.
-- **Open source** (décisions d'Alexandre du 2026-10-17) : dépôt public `blueberrylabs/eliot`,
-  sous l'organisation Blueberry Labs, « pour tout type de logiciel » (distincte de
-  Blackberrylabs, la famille des outils pour agents IA) ; licence MIT (`LICENSE`) ; tout en
-  français (`README.md`, `CHANGELOG.md`) ; historique gardé, l'adresse des commits remplacée
-  par l'adresse noreply de GitHub. Le nom `blueberrylabs` est déjà pris sur GitHub par un
-  compte (constaté le 2026-10-17) : à confirmer par Alexandre avant de créer le dépôt. La
-  création du dépôt et le `git push` sont à Alexandre.
+- **Open source, publié le 2026-10-17** (décisions d'Alexandre du même jour) : dépôt public
+  https://github.com/blueberrylabs-dev/eliot, sous l'organisation Blueberry Labs, « pour tout
+  type de logiciel » (distincte de Blackberrylabs, la famille des outils pour agents IA) ; son
+  nom GitHub est `blueberrylabs-dev`, `blueberrylabs` étant pris par un compte ; licence MIT
+  (`LICENSE`) ; tout en français (`README.md`, `CHANGELOG.md`) ; historique gardé, l'adresse
+  des commits remplacée par l'adresse noreply de GitHub. Version 0.9.0 publiée avec le `.deb`
+  construit sur le poste et `SHA256SUMS`, avant le passage réel d'Alexandre (« Publier tout de
+  suite ») : une
+  correction trouvée à ses essais sort en 0.9.1 ou en 1.0.0, jamais en remplaçant la 0.9.0.
+  Pousser : commande 25 ; publier une version : commande 26.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -620,6 +623,27 @@ ses clés et modèles vont dans les mêmes dossiers (`README.md`, « Les modules
 ```
 sudo apt remove eliot
 ```
+
+### La publication (2026-10-17)
+
+**25. Envoyer les nouveaux commits sur GitHub** (dépôt public `blueberrylabs-dev/eliot`, en
+SSH) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot && git push
+```
+
+**26. Publier une nouvelle version**, après le passage réel sur le poste : changer la version
+dans `01_application/src-tauri/tauri.conf.json`, ajouter sa section en haut de `CHANGELOG.md`,
+commit et commande 25, construire le paquet (commande 23), puis, en remplaçant `1.0.0` par la
+nouvelle version :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && gh release create v1.0.0 paquets/Eliot_1.0.0_amd64.deb paquets/SHA256SUMS --repo blueberrylabs-dev/eliot --title "Eliot 1.0.0" --notes "Voir CHANGELOG.md"
+```
+
+Vérifier : la page https://github.com/blueberrylabs-dev/eliot/releases montre la version et
+ses deux fichiers. Une version publiée ne se modifie jamais sur place.
 
 ## Arborescence
 

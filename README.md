@@ -9,7 +9,8 @@ ordinateur ; le travail lourd est fait par un noyau en Rust.
 Linux (testé sur Ubuntu 24.04, processeur x86-64). Interface en français.
 
 > **État : 0.9.0**, la première version complète, en cours d'essai par son auteur avant la
-> 1.0. Voir [`CHANGELOG.md`](CHANGELOG.md) et la page des versions publiées du dépôt.
+> 1.0. Voir [`CHANGELOG.md`](CHANGELOG.md) et
+> [les versions publiées](https://github.com/blueberrylabs-dev/eliot/releases).
 
 ## Ce qu'il sait faire
 
@@ -56,9 +57,10 @@ Linux (testé sur Ubuntu 24.04, processeur x86-64). Interface en français.
 
 ### Avec le paquet .deb
 
-Télécharge `Eliot_0.9.0_amd64.deb` et `SHA256SUMS` depuis la page des versions publiées du
-dépôt, vérifie l'empreinte, puis installe-le ; apt installe aussi ce dont Eliot a besoin
-(moteur web, ffmpeg, GStreamer) :
+Télécharge `Eliot_0.9.0_amd64.deb` et `SHA256SUMS` depuis
+[la dernière version publiée](https://github.com/blueberrylabs-dev/eliot/releases/latest),
+vérifie l'empreinte, puis installe-le ; apt installe aussi ce dont Eliot a besoin (moteur web,
+ffmpeg, GStreamer) :
 
 ```
 sha256sum -c SHA256SUMS && sudo apt install ./Eliot_0.9.0_amd64.deb
@@ -76,10 +78,10 @@ Tauri :
 sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad ffmpeg
 ```
 
-Puis, depuis le dossier du dépôt cloné :
+Puis :
 
 ```
-cd 01_application && ./installer.sh
+git clone https://github.com/blueberrylabs-dev/eliot.git && cd eliot/01_application && ./installer.sh
 ```
 
 `installer.sh` construit le paquet (`paquet.sh` : bibliothèque, interface, noyau et pont,

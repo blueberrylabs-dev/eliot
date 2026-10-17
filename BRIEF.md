@@ -913,11 +913,15 @@ Claude ne l'a pas lue et ne la demande pas.
 
 Tranchée le 2026-10-17 par Alexandre (Q2, en répondant aux questions de Claude) : Eliot
 devient open source, sous licence MIT (`LICENSE`), dans un dépôt public de l'organisation
-GitHub Blueberry Labs (`blueberrylabs/eliot`), « l'organisation pour tout type de logiciel »,
-distincte de Blackberrylabs. Tout en français : la page publique (`README.md`), le journal des
-versions (`CHANGELOG.md`), le code et ces notes. L'historique est gardé ; l'adresse des
-commits devient l'adresse noreply de GitHub, celle de ses autres logiciels publiés. La
+GitHub Blueberry Labs, « l'organisation pour tout type de logiciel », distincte de
+Blackberrylabs. Son nom sur GitHub est `blueberrylabs-dev`, choisi par Alexandre le même jour
+(`blueberrylabs` est pris par un compte, `blueberry-labs` par une autre organisation) ; le
+dépôt est `blueberrylabs-dev/eliot`. Tout en français : la page publique (`README.md`), le
+journal des versions (`CHANGELOG.md`), le code et ces notes. L'historique est gardé ; l'adresse
+des commits devient l'adresse noreply de GitHub, celle de ses autres logiciels publiés. La
 version installée est le paquet `.deb` du § 6 (« Deux postes »), qui embarque aussi le pont.
+Publié le 2026-10-17 avec la version 0.9.0, tout de suite, à la demande d'Alexandre (« Publier
+tout de suite »), avant son passage réel sur le poste.
 
 Ouvertes, avec la proposition de Claude :
 
