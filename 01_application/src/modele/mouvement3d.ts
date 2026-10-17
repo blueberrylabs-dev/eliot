@@ -8,7 +8,7 @@
 
 import { cameraDesCles } from "./animation";
 import { angleNormalise } from "./objet3d";
-import type { AnimationModele3d, Camera3d, CleAnimation, ElementObjet3d, Plateau3d } from "./types";
+import type { AnimationModele3d, Camera3d, CleAnimation, ElementObjet3d, PageEliot, Plateau3d } from "./types";
 
 /** Un tour en 8 s, vers la droite. */
 export const PLATEAU_PAR_DEFAUT: Plateau3d = { tour: 8000, sens: "droite" };
@@ -90,6 +90,22 @@ export function secondesAnimation(instantMs: number, duree: number, boucle: bool
  *  modèle) ? */
 export function aDuMouvement(el: ElementObjet3d): boolean {
   return !!el.temps && (!!el.plateau || !!el.animationModele || !!el.cles?.some((c) => c.camera));
+}
+
+/** Les objets 3D de la page qui bougent avec le temps : ceux qu'un film rend image par image
+ *  (étape 6, lot 5). */
+export function objetsQuiBougent(page: PageEliot): ElementObjet3d[] {
+  return page.elements.filter((e): e is ElementObjet3d => e.type === "objet3d" && e.visible && !!e.temps && aDuMouvement(e));
+}
+
+/** Les rangs des images du film (une tous les `1000 / ips` ms, la première à 0) où l'objet se
+ *  voit : de son début compris à sa fin non comprise, comme le noyau. */
+export function rangsDuClip(el: ElementObjet3d, imagesParSeconde: number): { premier: number; dernier: number } {
+  const pas = 1000 / imagesParSeconde;
+  const debut = el.temps?.debut ?? 0;
+  const fin = el.temps?.fin ?? debut;
+  const premier = Math.max(0, Math.ceil(debut / pas - 1e-9));
+  return { premier, dernier: Math.max(premier, Math.ceil(fin / pas - 1e-9) - 1) };
 }
 
 /**

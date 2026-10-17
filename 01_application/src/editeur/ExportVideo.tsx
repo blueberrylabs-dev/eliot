@@ -107,7 +107,7 @@ export function ReglagesDuFilm({ options, changer, format, duree, musique = fals
   );
 }
 
-const ETAPES: Record<string, string> = { son: "Mixage du son", images: "Images du film", gif: "Palette du GIF", "sans-musique": "Version sans musique", fini: "Fini" };
+const ETAPES: Record<string, string> = { objets3d: "Objets 3D, image par image", son: "Mixage du son", images: "Images du film", gif: "Palette du GIF", "sans-musique": "Version sans musique", fini: "Fini" };
 
 /** La fenêtre qui suit l'export, par-dessus tout ; Annuler arrête le noyau. */
 export function SuiviExportVideo() {
@@ -115,7 +115,7 @@ export function SuiviExportVideo() {
   if (!enCours) return null;
   const a = enCours.avancement;
   const pourcent = Math.round((a?.part ?? 0) * 100);
-  const texte = enCours.annulation ? "Annulation…" : !a ? "Préparation des calques…" : a.etape === "images" ? `${ETAPES.images} : ${a.image} sur ${a.images}` : ETAPES[a.etape];
+  const texte = enCours.annulation ? "Annulation…" : !a ? "Préparation des calques…" : a.etape === "images" || a.etape === "objets3d" ? `${ETAPES[a.etape]} : ${a.image} sur ${a.images}` : ETAPES[a.etape];
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/30" role="dialog" aria-label="Export vidéo en cours">
       <div className="w-96 rounded-xl bg-white p-5 text-neutral-900 shadow-2xl">

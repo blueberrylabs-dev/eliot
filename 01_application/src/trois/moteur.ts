@@ -704,6 +704,13 @@ export function oublierRendu(cle: string): void {
   rendus.delete(cle);
 }
 
+/** La clé du rendu dont `source` est la toile (un objet sur la page : son identifiant ; hors
+ *  écran : `<identifiant>#hors-ecran`), ou `undefined`. */
+export function cleDeToile(source: unknown): string | undefined {
+  for (const [cle, r] of rendus) if (r.toile === source) return cle;
+  return undefined;
+}
+
 // ----------------------------------------------------------------------------------------
 // Rendu hors écran : l'export, à sa finesse
 // ----------------------------------------------------------------------------------------

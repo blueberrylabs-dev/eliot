@@ -98,6 +98,8 @@ pub fn lancer() {
             commandes::dossier_export,
             commandes::dossier_export_video,
             commandes::exporter_video,
+            commandes::ecrire_image_film3d,
+            commandes::oublier_film3d,
             commandes::annuler_export_video,
             commandes::exporter_document,
             commandes::labo_base,

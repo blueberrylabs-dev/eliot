@@ -580,9 +580,15 @@ Choix par défaut de Claude, modifiables sur simple demande :
       modèle ; l'export en image d'une page vidéo montre l'objet à l'instant ; `animer_objet3d`, 74
       outils. Vérifié dans Chromium (44 vérifications) et dans Tauri par le pont (19) : fenêtre et
       export PNG à 0,00 sur 255 à chaque instant essayé (JOURNAL).
-- [ ] Lot 5 : l'export vidéo du calque 3D. La fenêtre rend chaque image du calque à la taille
+- [x] Lot 5 : l'export vidéo du calque 3D. La fenêtre rend chaque image du calque à la taille
       du film, le noyau la pose et encode (MP4, GIF) ; comparaison au pixel entre la fenêtre et
       le film, temps d'export mesuré.
+      Livré le 2026-10-17 : `rendreImages3d` (`src/export/video.ts`) rend les objets qui bougent
+      image par image et les range par `ecrire_image_film3d` dans le cache ; le calque cite
+      `eliot:film3d/<objet>` et le noyau (`montage.rs`) le relit à chaque image, ombre portée
+      comprise ; cache effacé après le film ou l'annulation. Vérifié dans Tauri par le pont (20,
+      plus 3 pour l'annulation) : MP4 contre fenêtre de 1,09 à 1,25 sur 255 à cinq instants, GIF
+      de 0,59 à 0,63 ; 5 s de film en 85 s dans le conteneur sur le processeur (JOURNAL).
 - [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité 3D faite de bout en
       bout par le pont dans Tauri, suites repassées, livraison.
 

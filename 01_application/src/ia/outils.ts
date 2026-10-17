@@ -1424,7 +1424,7 @@ const OUTILS: Record<string, Outil> = {
         animation: apres.animationModele ?? null,
         animationsDuModele: animations.map((x) => ({ nom: x.nom, duree: Math.round(x.duree * 1000) })),
         ...(apres.temps ? { vueAuDebut: arrondie(cameraA(apres, 0)), vueALaFin: arrondie(cameraA(apres, apres.temps.fin - apres.temps.debut)) } : {}),
-        conseil: apres.temps ? "capture avec temps (ms de la page) pour voir un instant ; la lecture et l'export en image montrent le mouvement (l'export vidéo du calque 3D viendra au lot suivant)" : "sur une image fixe, seule l'animation du modèle compte : l'objet montre son instant de départ",
+        conseil: apres.temps ? "capture avec temps (ms de la page) pour voir un instant ; la lecture, l'export en image et le film (MP4, GIF) montrent le mouvement" : "sur une image fixe, seule l'animation du modèle compte : l'objet montre son instant de départ",
       },
     };
   },
@@ -2366,7 +2366,8 @@ const OUTILS: Record<string, Outil> = {
         sansMusique: booleen(args.sansMusique) ?? false,
         largeurGif: Math.max(64, Math.min(1080, Math.round(nombre(args.largeur, 480)!))),
       });
-      return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}) } };
+      // `images3d` : les images des objets 3D qui bougent, rendues par la fenêtre, et leur durée (ms).
+      return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}), ...(film.images3d ? { images3d: film.images3d } : {}) } };
     }
     const format = (["png", "jpeg", "webp", "pdf", "svg"] as const).find((f) => f === args.format) ?? "png";
     exiger(dansTauri || !FORMATS_DU_NOYAU.includes(format), `le ${LIBELLES_EXPORT[format]} se fait dans l'application Eliot`);

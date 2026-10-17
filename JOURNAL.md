@@ -5,6 +5,48 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6, lot 5 : l'objet 3D dans le film
+
+Suite du plan (« Continue. »). Ce que Claude a fait et décidé :
+
+- Un objet 3D qui bouge (plateau, caméra par images clés ou animation du modèle) est rendu par la
+  fenêtre image par image avant le film, à la cadence du film et à la taille où le film le montre
+  (celle du film, fois son agrandissement le plus fort, 4096 px au plus) ; le noyau n'a pas de
+  WebGL, la fenêtre si. Chaque image part en PNG vers le noyau (`ecrire_image_film3d`), rangée
+  dans le cache de l'application, `film3d/<film>/<objet>/<rang>.png`, puis effacée à la fin du
+  film, qu'il soit fini, annulé ou en erreur (`oublier_film3d`) ; un reste de plus de six heures
+  (application fermée en plein export) part au film suivant.
+- Le calque de l'objet garde sa place, son ombre portée, son opacité et ses animations de
+  position ; il cite ses images (`eliot:film3d/<objet>`) au lieu de son rendu du repos, et le
+  noyau le relit à chaque image avec l'image 3D du rang : l'ombre portée suit la silhouette. Il
+  manque une image (rang hors du clip, arrondi) : la plus proche avant, sinon la première.
+- Un objet 3D immobile ne change pas de chemin : un seul rendu, comme avant.
+- La fenêtre d'export montre l'étape « Objets 3D, image par image : n sur N » ; Annuler arrête aussi
+  cette étape, sans film écrit. Le pont rend `images3d` (nombre d'images et durée) avec le film.
+- Temps mesurés dans le conteneur (processeur seul, WebGL logiciel, jamais de carte graphique),
+  page carrée, robot dansant sur un plateau tournant avec deux clés de caméra, ombre au sol,
+  ombre portée et un titre : MP4 1080 × 1080 de 5 s à 30 images par seconde en 85 s, dont 53 s pour
+  les 150 images 3D (354 ms par image) et 32 s pour le noyau ; la même page sans mouvement, 7,8 s.
+  Sans ombre au sol, les images 3D prennent 133 ms chacune. GIF 480 × 480 à 15 images par seconde :
+  27 s, dont 20 s pour les 75 images 3D. Avec la carte graphique du poste, la part de la fenêtre
+  devrait fondre ; celle du noyau (relire et flouter le calque à chaque image) reste sur le
+  processeur, à mesurer à l'essai.
+- Écarté : rendre la 3D dans le noyau (un second moteur, des écarts avec la fenêtre) ; garder les
+  images en mémoire (plusieurs centaines de Mo pour un film long).
+
+Preuves (conteneur de Claude) : un essai du noyau de plus
+(`un_objet_3d_qui_bouge_prend_son_image_rang_par_rang`, 139 passent) ; 2 essais vitest de plus
+(251 : objets rendus image par image, rangs du clip) ; dans Tauri par le pont, 20 vérifications :
+le MP4 (150 images, 150 images 3D) comparé à la fenêtre au même instant à 0, 1, 2,5, 4 et 4,9 s,
+écart moyen de 1,09 à 1,25 sur 255 et 0,38 à 0,48 % de pixels à plus de 40 (compression H.264) ;
+la zone du robot et de ses ombres à 1,14 et 1,39 ; le robot bouge d'une image à l'autre (écart de
+11,8 à 15,8) ; l'ombre portée change avec lui et colle à la fenêtre (1,69) ; le GIF (75 images) à
+0,59 à 0,63 ; le cache vidé après chaque film ; un objet immobile garde le chemin d'avant (1,06).
+Annulation pendant le rendu des images 3D, dans Tauri : 3 vérifications (les images s'écrivent
+dans le cache, l'export s'arrête, aucun film et le cache vide) ; un reste vieux de sept heures
+part au film suivant, un récent reste. L'essai du lot 4 dans Tauri (19) et celui de l'export
+vidéo de l'étape 4 par le pont (20 sur 21, seul le nombre d'outils d'alors a changé) repassent.
+
 ## 2026-10-17, étape 6, lot 4 : l'animation 3D sur la frise
 
 Accord d'Alexandre (« Feu vert. »). Ce que Claude a fait et décidé :

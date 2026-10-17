@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cameraDesCles, couperCles, poseArrondie, poserCle } from "./animation";
 import { rogner, scinder } from "./frise";
-import { aDuMouvement, anglePlateau, avancerMouvement, cameraA, cameraDeBase, clesAvecCameras, clesAvecCourbe, clesSansCamera, courbeDesCles, instantAnimation, normaliserAnimationModele, normaliserPlateau, objetFige, secondesAnimation } from "./mouvement3d";
+import { aDuMouvement, anglePlateau, avancerMouvement, cameraA, cameraDeBase, clesAvecCameras, clesAvecCourbe, clesSansCamera, courbeDesCles, instantAnimation, normaliserAnimationModele, normaliserPlateau, objetFige, objetsQuiBougent, rangsDuClip, secondesAnimation } from "./mouvement3d";
 import type { Camera3d, ElementObjet3d, PageEliot } from "./types";
 
 const camera = (azimut: number, extra: Partial<Camera3d> = {}): Camera3d => ({ azimut, elevation: 10, zoom: 1, focale: 50, ...extra });
@@ -122,6 +122,24 @@ describe("mouvement 3D : animation du modèle", () => {
     expect(aDuMouvement(objet({ cles: [{ t: 0, x: 1, y: 2 }] }))).toBe(false);
     expect(aDuMouvement(objet({ cles: [{ t: 0, camera: camera(0) }] }))).toBe(true);
     expect(aDuMouvement(objet({ temps: undefined, plateau: { tour: 8000, sens: "droite" } }))).toBe(false);
+  });
+});
+
+describe("mouvement 3D : le film image par image", () => {
+  it("les objets rendus par la fenêtre : visibles, sur la frise, et qui bougent", () => {
+    const page: PageEliot = {
+      id: "p",
+      fond: "#000000",
+      duree: 5000,
+      elements: [objet({ id: "a", plateau: { tour: 8000, sens: "droite" } }), objet({ id: "b" }), objet({ id: "c", visible: false, plateau: { tour: 8000, sens: "droite" } })],
+    };
+    expect(objetsQuiBougent(page).map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("les rangs du clip : du début compris à la fin non comprise", () => {
+    expect(rangsDuClip(objet({ temps: { debut: 1000, fin: 2000 } }), 30)).toEqual({ premier: 30, dernier: 59 });
+    expect(rangsDuClip(objet({ temps: { debut: 0, fin: 5000 } }), 15)).toEqual({ premier: 0, dernier: 74 });
+    expect(rangsDuClip(objet({ temps: { debut: 1010, fin: 1020 } }), 30)).toEqual({ premier: 31, dernier: 31 });
   });
 });
 

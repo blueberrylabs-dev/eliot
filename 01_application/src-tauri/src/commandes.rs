@@ -1322,13 +1322,18 @@ pub async fn exporter_video(
     app: AppHandle,
     rayon_nom: String,
     projet_id: String,
-    description: montage::DescriptionPage,
+    mut description: montage::DescriptionPage,
     reglages: montage::Reglages,
     nom: String,
     chemin: Option<String>,
     avancement: Channel<montage::Avancement>,
 ) -> Result<montage::Film, String> {
     let ressources = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    // Les images des objets 3D qui bougent (étape 6, lot 5), rangées par la fenêtre.
+    description.images_3d = match description.film3d.as_deref() {
+        Some(id) if montage::cle_sure(id) => Some(dossier_film3d(&app)?.join(id)),
+        _ => None,
+    };
     let extension = match reglages.format {
         montage::FormatVideo::Mp4 => "mp4",
         montage::FormatVideo::Gif => "gif",
@@ -1580,4 +1585,58 @@ pub fn autotest_rapport(texte: String) -> Result<(), String> {
     }
     let chemin = std::env::temp_dir().join("eliot_autotest.json");
     std::fs::write(&chemin, texte).map_err(|e| e.to_string())
+}
+
+// ----------------------------------------------------------------------------------------
+// Les images des objets 3D qui bougent, pour un film (étape 6, lot 5)
+// ----------------------------------------------------------------------------------------
+
+/// Le dossier des images 3D des films en cours : dans le cache d'Eliot, vidé des restes de plus
+/// de six heures (un export interrompu).
+fn dossier_film3d(app: &AppHandle) -> Result<PathBuf, String> {
+    let dossier = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("film3d");
+    std::fs::create_dir_all(&dossier).map_err(|e| e.to_string())?;
+    if let Ok(liste) = std::fs::read_dir(&dossier) {
+        for e in liste.flatten() {
+            let vieux = e.metadata().and_then(|m| m.modified()).ok().and_then(|m| m.elapsed().ok()).is_some_and(|d| d.as_secs() > 6 * 3600);
+            if vieux {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        }
+    }
+    Ok(dossier)
+}
+
+/// Range une image d'un objet 3D qui bouge (PNG) : en-têtes `x-film` (le film), `x-cle` (l'objet)
+/// et `x-rang` (le rang de l'image dans le film).
+#[tauri::command]
+pub async fn ecrire_image_film3d(app: AppHandle, requete: Request<'_>) -> Result<(), String> {
+    let octets = corps_brut(&requete)?;
+    let film = entete_requis(&requete, "x-film")?;
+    let cle = entete_requis(&requete, "x-cle")?;
+    let rang: u64 = entete_requis(&requete, "x-rang")?.parse().map_err(|_| "rang illisible".to_string())?;
+    if !montage::cle_sure(&film) || !montage::cle_sure(&cle) {
+        return Err("nom refusé".into());
+    }
+    if !octets.starts_with(&[0x89, b'P', b'N', b'G']) {
+        return Err("une image PNG est attendue".into());
+    }
+    let dossier = dossier_film3d(&app)?.join(film).join(cle);
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&dossier).map_err(|e| e.to_string())?;
+        std::fs::write(dossier.join(format!("{rang}.png")), octets).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("écriture interrompue : {e}"))?
+}
+
+/// Oublie les images 3D d'un film (fini ou annulé).
+#[tauri::command]
+pub async fn oublier_film3d(app: AppHandle, film: String) -> Result<(), String> {
+    if !montage::cle_sure(&film) {
+        return Err("nom refusé".into());
+    }
+    let dossier = dossier_film3d(&app)?.join(film);
+    let _ = std::fs::remove_dir_all(dossier);
+    Ok(())
 }

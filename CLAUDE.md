@@ -119,7 +119,9 @@ lourd. Détail : `BRIEF.md`.
   commandes 8 bis, 9 et 13. Lot 4, l'animation sur la frise (plateau tournant, caméra par images
   clés, animation du modèle, lecture en direct, `animer_objet3d`, 74 outils), livré et vérifié le
   2026-10-17 ; essai : « Essayer l'animation 3D (étape 6, lot 4) ». Après cette livraison : la
-  commande 13 (le pont).
+  commande 13 (le pont). Lot 5, l'objet 3D dans le film (rendu image par image par la fenêtre,
+  posé par le noyau avec son ombre portée, MP4 et GIF), livré et vérifié le 2026-10-17 ; essai :
+  « Essayer le film 3D (étape 6, lot 5) ». Après cette livraison : les commandes 9 et 13.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -338,7 +340,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 138 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 139 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire, comme celui du vrai modèle du détourage). La
 première fois après le lot 6 de l'étape 4, `cargo` télécharge la bibliothèque `nnnoiseless`
@@ -351,7 +353,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  249 passed`.
+Vérifier : `Tests  251 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

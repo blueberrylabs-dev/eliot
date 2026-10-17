@@ -20,6 +20,7 @@ import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
 import { silhouetteDetouree } from "../labo/detourage";
 import { objetFige } from "../modele/mouvement3d";
+import { cleDeToile } from "../trois/moteur";
 
 export interface CalquesElement {
   /** L'élément tel qu'il est dans le document (le noyau en lit la boîte, le temps, la piste,
@@ -49,6 +50,9 @@ export interface DescriptionPage {
   polices: PoliceCalques[];
   /** Les sons de la page (lot 5), tels que le document les garde : le noyau les mixe. */
   sons: ClipAudio[];
+  /** Des objets 3D qui bougent (étape 6, lot 5) : le dossier de leurs images, rangées par la
+   *  fenêtre une par image du film. */
+  film3d?: string;
 }
 
 /** L'image d'une vidéo pendant l'enregistrement : un petit canevas vide (Konva peut le dessiner
@@ -62,9 +66,18 @@ function marqueVideo(ressource: string): CanvasImageSource {
   return c;
 }
 
+/** Pendant l'enregistrement d'un film : les objets 3D qui bougent, dont les calques citent leurs
+ *  images (`eliot:film3d/<identifiant>`, rendues par la fenêtre une par image du film) au lieu
+ *  d'une image fixe (étape 6, lot 5). */
+let objetsFilm3d: ReadonlySet<string> | null = null;
+
 const sources = {
   silhouette: silhouetteDetouree,
   reconnaitre(source: unknown) {
+    if (objetsFilm3d && typeof HTMLCanvasElement !== "undefined" && source instanceof HTMLCanvasElement) {
+      const id = cleDeToile(source)?.replace(/#hors-ecran$/, "");
+      if (id && objetsFilm3d.has(id) && /^[A-Za-z0-9_-]{1,64}$/.test(id)) return { href: `eliot:film3d/${id}` };
+    }
     const video = typeof source === "object" && source ? videosMarquees.get(source) : undefined;
     if (video) return { video };
     const ressource = ressourceDeImage(source);
@@ -231,7 +244,7 @@ function enBase64(octets: ArrayBuffer): string {
 }
 
 /** Décrit une page vidéo pour le noyau : fond, calques de chaque élément au repos, polices. */
-export async function decrirePage(page: PageEliot, format: Format, instant?: number): Promise<DescriptionPage> {
+export async function decrirePage(page: PageEliot, format: Format, instant?: number, film3d?: ReadonlySet<string>): Promise<DescriptionPage> {
   await prechargerPage(page, { retouches: false });
   const support = document.createElement("div");
   const racine = createRoot(support);
@@ -261,6 +274,7 @@ export async function decrirePage(page: PageEliot, format: Format, instant?: num
     // Konva n'est modifié que le temps de l'enregistrement, d'un seul tenant : la fenêtre ne se
     // redessine pas entre-temps.
     const restaurer = patcherKonva();
+    objetsFilm3d = film3d ?? null;
     try {
       page.elements.forEach((el, i) => {
         if (!el.visible) return;
@@ -271,6 +285,7 @@ export async function decrirePage(page: PageEliot, format: Format, instant?: num
       });
       if (fond) fondCalques = enregistrer(fond, "f_").calques;
     } finally {
+      objetsFilm3d = null;
       restaurer();
     }
     const familles = famillesDemandees([...fondCalques, ...elements.flatMap((e) => e.calques)]);

@@ -13,14 +13,19 @@
 //!
 //! Un calque qui ne bouge pas d'une image à l'autre est rendu à sa place exacte, au pixel près,
 //! comme à l'écran ; un calque qui bouge est posé depuis un rendu plus fin, rééchantillonné.
+//!
+//! Un objet 3D qui bouge (étape 6, lot 5 : plateau tournant, caméra par images clés, animation
+//! du modèle) arrive avec ses images, rendues par la fenêtre une par image du film (la 3D se rend
+//! en WebGL, que le noyau n'a pas) : ses calques citent `eliot:film3d/<clé>`, et chaque image du
+//! film les relit avec l'image de la 3D du moment ; son ombre suit ainsi la silhouette du moment.
 
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdout, Command, Stdio};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::Engine;
@@ -157,6 +162,57 @@ pub struct DescriptionPage {
     /// Les sons de la page (lot 5), tels que le document les garde.
     #[serde(default)]
     pub sons: Vec<ClipAudio>,
+    /// Des objets 3D qui bougent (étape 6, lot 5) : l'identifiant du dossier de leurs images,
+    /// que la fenêtre a rangées une par image du film.
+    #[serde(default)]
+    pub film3d: Option<String>,
+    /// Ce dossier : `<clé>/<rang>.png`. Posé par l'application (jamais lu de la fenêtre).
+    #[serde(skip)]
+    pub images_3d: Option<PathBuf>,
+}
+
+/// Les images 3D du moment, par clé : le résolveur des calques les lit (`eliot:film3d/<clé>`).
+pub(crate) type Trames3d = Arc<Mutex<HashMap<String, Arc<Vec<u8>>>>>;
+
+/// La clé `eliot:film3d/<clé>` d'un calque SVG, s'il en cite une.
+fn cle_film3d(svg: &str) -> Option<String> {
+    let debut = svg.find("eliot:film3d/")? + "eliot:film3d/".len();
+    let cle: String = svg[debut..].chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').collect();
+    (!cle.is_empty()).then_some(cle)
+}
+
+/// Une clé et un rang sûrs pour un chemin (lettres, chiffres, `-` et `_`).
+pub fn cle_sure(cle: &str) -> bool {
+    !cle.is_empty() && cle.len() <= 64 && cle.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// Les images d'un objet 3D, rang par rang, lues à la demande : celle du rang, sinon la plus
+/// proche avant lui (sinon la première).
+struct Images3d {
+    dossier: PathBuf,
+    rangs: HashMap<String, Vec<u64>>,
+    lue: HashMap<String, (u64, Arc<Vec<u8>>)>,
+}
+
+impl Images3d {
+    fn trame(&mut self, cle: &str, rang: u64) -> Result<Option<Arc<Vec<u8>>>, ErreurMontage> {
+        let rangs = self.rangs.entry(cle.to_string()).or_insert_with(|| {
+            let mut v: Vec<u64> = fs::read_dir(self.dossier.join(cle))
+                .map(|l| l.filter_map(|e| e.ok()?.file_name().to_str()?.strip_suffix(".png")?.parse().ok()).collect())
+                .unwrap_or_default();
+            v.sort_unstable();
+            v
+        });
+        let Some(&choisi) = rangs.iter().rev().find(|r| **r <= rang).or_else(|| rangs.first()) else { return Ok(None) };
+        if let Some((r, octets)) = self.lue.get(cle)
+            && *r == choisi
+        {
+            return Ok(Some(octets.clone()));
+        }
+        let octets = Arc::new(fs::read(self.dossier.join(cle).join(format!("{choisi}.png")))?);
+        self.lue.insert(cle.to_string(), (choisi, octets.clone()));
+        Ok(Some(octets))
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -474,6 +530,11 @@ pub(crate) fn choisir_face<I: Copy>(faces: &[FaceEliot<I>], italique: bool, poid
 /// Les options de rendu : les polices de la fenêtre d'abord (par le nom que la fenêtre leur
 /// donne), celles du poste en secours ; les aperçus des photos pour les ombres.
 pub(crate) fn options_rendu(polices: &[PoliceCalques], dossier_ressources: &Path) -> Result<usvg::Options<'static>, ErreurMontage> {
+    options_rendu_film(polices, dossier_ressources, None)
+}
+
+/// Les mêmes, avec les images 3D du moment d'un film (`eliot:film3d/<clé>`).
+fn options_rendu_film(polices: &[PoliceCalques], dossier_ressources: &Path, trames: Option<Trames3d>) -> Result<usvg::Options<'static>, ErreurMontage> {
     let mut base = fontdb::Database::new();
     base.load_system_fonts();
     let mut familles: HashMap<String, Vec<FaceEliot>> = HashMap::new();
@@ -509,6 +570,10 @@ pub(crate) fn options_rendu(polices: &[PoliceCalques], dossier_ressources: &Path
     options.image_href_resolver = usvg::ImageHrefResolver {
         resolve_data: usvg::ImageHrefResolver::default_data_resolver(),
         resolve_string: Box::new(move |href: &str, _options: &usvg::Options| {
+            if let (Some(cle), Some(t)) = (href.strip_prefix("eliot:film3d/"), &trames) {
+                let octets = t.lock().unwrap_or_else(|e| e.into_inner()).get(cle).cloned()?;
+                return Some(usvg::ImageKind::PNG(octets));
+            }
             let id = href.strip_prefix("eliot:apercu/")?;
             let chemin = images::chemin_ressource(&dossier, id, Genre::Apercu).ok()?;
             let octets = Arc::new(fs::read(chemin).ok()?);
@@ -535,6 +600,9 @@ struct SvgRendu {
     boite: Boite,
     fin: Option<(Pixmap, f64)>,
     exact: Option<(Affine, i32, i32, Pixmap)>,
+    /// Un calque d'objet 3D qui bouge : sa clé, son SVG, relu quand l'image 3D change, et
+    /// l'image 3D qu'il montre.
+    film3d: Option<(String, String, Option<Arc<Vec<u8>>>)>,
 }
 
 /// Une photo du design : l'original redressé, réduit à la taille utile.
@@ -751,6 +819,10 @@ struct Scene {
     elements: Vec<ElementEnPlace>,
     dossier: PathBuf,
     images_par_seconde: f64,
+    /// Les options de rendu (pour relire les calques 3D) et les images 3D du moment.
+    options: usvg::Options<'static>,
+    trames: Trames3d,
+    images_3d: Option<Images3d>,
 }
 
 fn arbre(svg: &str, options: &usvg::Options) -> Result<usvg::Tree, ErreurMontage> {
@@ -932,8 +1004,10 @@ impl Scene {
     /// La scène à une taille donnée ; `transparent` : ni le fond noir du film, ni celui de la
     /// page (une image PNG ou WebP à fond transparent, étape 5).
     fn preparer_taille(description: &DescriptionPage, largeur: u32, hauteur: u32, images_par_seconde: u32, transparent: bool, dossier: &Path) -> Result<Scene, ErreurMontage> {
-        let options = options_rendu(&description.polices, dossier)?;
+        let trames: Trames3d = Arc::new(Mutex::new(HashMap::new()));
+        let options = options_rendu_film(&description.polices, dossier, Some(trames.clone()))?;
         let format = Format { largeur: description.largeur, hauteur: description.hauteur };
+        let mut images_3d = description.images_3d.clone().map(|dossier| Images3d { dossier, rangs: HashMap::new(), lue: HashMap::new() });
         // Le film garde les proportions de la page (au pixel près, pour la parité).
         let sortie = Affine::echelles(largeur as f64 / format.largeur, hauteur as f64 / format.hauteur);
         let mut fond = Pixmap::new(largeur, hauteur).ok_or_else(|| ErreurMontage::Reglages("taille du film".into()))?;
@@ -975,7 +1049,19 @@ impl Scene {
             for c in &e.calques {
                 let mut calque = c.clone();
                 let (rendu, decoupes) = match c {
-                    Calque::Svg { svg, boite, .. } => (Rendu::Svg(SvgRendu { arbre: arbre(svg, &options)?, boite: *boite, fin: None, exact: None }), Vec::new()),
+                    Calque::Svg { svg, boite, .. } => {
+                        // Un calque d'objet 3D qui bouge : lu d'abord avec sa première image.
+                        let film3d = cle_film3d(svg).filter(|_| images_3d.is_some());
+                        let mut premiere = None;
+                        if let (Some(cle), Some(im)) = (&film3d, images_3d.as_mut())
+                            && let Some(octets) = im.trame(cle, 0)?
+                        {
+                            trames.lock().unwrap_or_else(|e| e.into_inner()).insert(cle.clone(), octets.clone());
+                            premiere = Some(octets);
+                        }
+                        let film3d = film3d.map(|cle| (cle, svg.clone(), premiere));
+                        (Rendu::Svg(SvgRendu { arbre: arbre(svg, &options)?, boite: *boite, fin: None, exact: None, film3d }), Vec::new())
+                    }
                     Calque::Image { ressource, decoupes, perspective: Some(p), .. } => {
                         let infos = images::infos(dossier, ressource).map_err(|e| ErreurMontage::Calque(e.to_string()))?;
                         let k = perspective::reduction_source(p, infos.largeur as f64, infos.hauteur as f64, finesse);
@@ -1015,7 +1101,7 @@ impl Scene {
             let sous_titre = e.element.get("sousTitre").and_then(|v| serde_json::from_value::<SousTitre>(v.clone()).ok());
             elements.push(ElementEnPlace { el, clip, ctx, calques, totaux: e.totaux, sous_titre, finesse, duree_fichier, retouche });
         }
-        Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: images_par_seconde as f64 })
+        Ok(Scene { format, largeur, hauteur, sortie, fond, elements, dossier: dossier.to_path_buf(), images_par_seconde: images_par_seconde as f64, options, trames, images_3d })
     }
 
     /// Compose l'image `rang` du film dans `cadre`.
@@ -1101,6 +1187,17 @@ impl Scene {
                 };
                 match &mut calque.rendu {
                     Rendu::Svg(s) => {
+                        // Un objet 3D qui bouge : le calque relu avec l'image 3D de ce rang.
+                        if let (Some((cle, source, montree)), Some(im)) = (&mut s.film3d, self.images_3d.as_mut())
+                            && let Some(octets) = im.trame(cle, rang)?
+                            && !montree.as_ref().is_some_and(|m| Arc::ptr_eq(m, &octets))
+                        {
+                            self.trames.lock().unwrap_or_else(|e| e.into_inner()).insert(cle.clone(), octets.clone());
+                            s.arbre = arbre(source, &self.options)?;
+                            s.exact = None;
+                            s.fin = None;
+                            *montree = Some(octets);
+                        }
                         if immobile {
                             if !s.exact.as_ref().is_some_and(|(cle, ..)| cle.proche(&m)) {
                                 s.exact = rendre_exact(&s.arbre, &s.boite, &m, largeur, hauteur).map(|(x, y, p)| (m, x, y, p));
@@ -2265,6 +2362,71 @@ mod tests {
     /// Rend l'image `ELIOT_RANG` (0 par défaut) d'une description écrite par la fenêtre
     /// (`ELIOT_DESCRIPTION`), avec les ressources de `ELIOT_RESSOURCES`, en PNG dans
     /// `ELIOT_SORTIE` : sert aux essais qui comparent l'export à l'écran.
+    /// Une image PNG de 64 × 64 : `couleur` sur le carré [x0, x1[ × [y0, y1[, transparente ailleurs.
+    fn png_3d(couleur: [u8; 3], x0: u32, y0: u32, x1: u32, y1: u32) -> Vec<u8> {
+        let img = image::RgbaImage::from_fn(64, 64, |x, y| if x >= x0 && x < x1 && y >= y0 && y < y1 { image::Rgba([couleur[0], couleur[1], couleur[2], 255]) } else { image::Rgba([0, 0, 0, 0]) });
+        let mut sortie = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut sortie, image::ImageFormat::Png).unwrap();
+        sortie.into_inner()
+    }
+
+    #[test]
+    fn un_objet_3d_qui_bouge_prend_son_image_rang_par_rang() {
+        let dossier = dossier_de_test("film3d");
+        let images = dossier.join("images");
+        fs::create_dir_all(images.join("o3d")).unwrap();
+        // Rang 0 : tout le carré, rouge ; rang 2 : un petit carré bleu en haut à gauche (le rang 1
+        // manque : l'image d'avant sert).
+        fs::write(images.join("o3d/0.png"), png_3d([255, 0, 0], 0, 0, 64, 64)).unwrap();
+        fs::write(images.join("o3d/2.png"), png_3d([0, 0, 255], 0, 0, 16, 16)).unwrap();
+        let image = "<image x=\"0\" y=\"0\" width=\"64\" height=\"64\" preserveAspectRatio=\"none\" href=\"eliot:film3d/o3d\"/>";
+        let svg = |contenu: &str| format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"80\" viewBox=\"0 0 80 80\">{contenu}</svg>");
+        let ombre = svg(&format!("<defs><filter id=\"o\" filterUnits=\"userSpaceOnUse\" x=\"0\" y=\"0\" width=\"80\" height=\"80\"><feFlood flood-color=\"#000000\" flood-opacity=\"1\"/><feComposite in2=\"SourceAlpha\" operator=\"in\"/></filter></defs><g filter=\"url(#o)\">{image}</g>"));
+        let mut description: DescriptionPage = serde_json::from_value(json!({
+            "largeur": 96, "hauteur": 96, "duree": 1000,
+            "fond": [rectangle_svg(96.0, 96.0, "#ffffff")],
+            "elements": [{
+                "element": { "id": "o3d", "type": "objet3d", "x": 0, "y": 0, "largeur": 64, "hauteur": 64, "rotation": 0, "opacite": 1, "visible": true, "temps": { "debut": 0, "fin": 1000 }, "piste": 1 },
+                "calques": [
+                    { "genre": "svg", "svg": ombre, "boite": { "x0": 0, "y0": 0, "x1": 80, "y1": 80 }, "ombre": { "dx": 16, "dy": 16 }, "opacite": 1 },
+                    { "genre": "svg", "svg": svg(image), "boite": { "x0": 0, "y0": 0, "x1": 80, "y1": 80 }, "opacite": 1 }
+                ]
+            }],
+            "polices": [],
+            "film3d": "essai"
+        }))
+        .unwrap();
+        let reglages = reglages(FormatVideo::Mp4, 96, 96, 30);
+        let pixel = |png: &[u8], x: u32, y: u32| image::load_from_memory(png).unwrap().to_rgb8().get_pixel(x, y).0;
+        // Sans le dossier (posé par l'application seulement), rien de la 3D ne se dessine.
+        let sans = image_du_film(&description, &reglages, &dossier, 0).unwrap();
+        assert_eq!(pixel(&sans, 32, 32), [255, 255, 255]);
+        description.images_3d = Some(images);
+        let p0 = image_du_film(&description, &reglages, &dossier, 0).unwrap();
+        assert_eq!(pixel(&p0, 32, 32), [255, 0, 0]);
+        // L'ombre suit l'image du moment : sous le grand carré, décalée de 16 px.
+        assert_eq!(pixel(&p0, 72, 72), [0, 0, 0]);
+        let p1 = image_du_film(&description, &reglages, &dossier, 1).unwrap();
+        assert_eq!(pixel(&p1, 32, 32), [255, 0, 0]);
+        let p2 = image_du_film(&description, &reglages, &dossier, 2).unwrap();
+        assert_eq!(pixel(&p2, 8, 8), [0, 0, 255]);
+        assert_eq!(pixel(&p2, 32, 32), [255, 255, 255]);
+        assert_eq!(pixel(&p2, 72, 72), [255, 255, 255]);
+        assert_eq!(pixel(&p2, 24, 24), [0, 0, 0]);
+        // Les images se suivent aussi dans une même scène, dans l'ordre du film.
+        let mut scene = Scene::preparer(&description, &reglages, &dossier).unwrap();
+        let mut cadre = Pixmap::new(96, 96).unwrap();
+        let mut vus = Vec::new();
+        for rang in 0..3 {
+            scene.composer(rang, &mut cadre).unwrap();
+            let c = cadre.pixel(32, 32).unwrap();
+            vus.push([c.red(), c.green(), c.blue()]);
+        }
+        assert_eq!(vus, vec![[255, 0, 0], [255, 0, 0], [255, 255, 255]]);
+        assert!(cle_sure("emvc8pp182dlgwn") && !cle_sure("../x") && !cle_sure(""));
+        let _ = fs::remove_dir_all(&dossier);
+    }
+
     #[test]
     #[ignore]
     fn rendre_une_description() {

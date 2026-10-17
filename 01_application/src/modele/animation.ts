@@ -366,6 +366,18 @@ export function lireFenetre(s: string | undefined): FenetreTransition | undefine
   return { nom, debut: Number(debut), fin: Number(fin) };
 }
 
+/** L'agrandissement le plus fort d'un élément pendant son clip (ses images clés, ses effets), de
+ *  1 à 2 : la finesse de ses images dans un film, comme le noyau (`agrandissement_max`). */
+export function agrandissementMax(el: ElementPage): number {
+  const cles = (el.cles ?? []).reduce((m, c) => Math.max(m, c.echelle ?? 1), 1);
+  const a = el.animations;
+  let effets = 1;
+  if (a?.entree?.nom === "zoom-arriere" || a?.sortie?.nom === "zoom-arriere") effets = Math.max(effets, 1.6);
+  if (a?.entree?.nom === "rebond" || a?.sortie?.nom === "rebond") effets = Math.max(effets, 1.11);
+  effets *= a?.boucle?.nom === "zoom-lent" ? 1.15 : a?.boucle?.nom === "battement" ? 1.08 : a?.boucle?.nom === "pulsation" ? 1.06 : 1;
+  return borne(cles * effets, 1, 2);
+}
+
 /** Durées d'entrée et de sortie, réduites ensemble si elles dépassent la longueur du clip. */
 export function dureesEntreeSortie(el: ElementPage): { entree: number; sortie: number } {
   const entree = Math.max(0, el.animations?.entree?.duree ?? 0);

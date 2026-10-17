@@ -951,10 +951,10 @@ export interface ResultatFilm {
   niveau: { lufs: number | null; crete: number | null; gain: number } | null;
 }
 
-/** Où en est un export vidéo : `son`, `images` (image faite sur le total), `gif`,
- *  `sans-musique`, `fini`. */
+/** Où en est un export vidéo : `objets3d` (la fenêtre rend les objets 3D qui bougent, étape 6,
+ *  lot 5), `son`, `images` (image faite sur le total), `gif`, `sans-musique`, `fini`. */
 export interface AvancementFilm {
-  etape: "son" | "images" | "gif" | "sans-musique" | "fini";
+  etape: "objets3d" | "son" | "images" | "gif" | "sans-musique" | "fini";
   image: number;
   images: number;
   part: number;
@@ -968,6 +968,17 @@ export async function exporterFilm(ref: RefRessources, description: unknown, reg
   canal.onmessage = suivi;
   const r = await invoke<{ chemin: string; sans_musique: string | null; niveau: ResultatFilm["niveau"] }>("exporter_video", { rayonNom: ref.rayon, projetId: ref.id, description, reglages, nom, chemin: chemin ?? null, avancement: canal });
   return { chemin: r.chemin, sansMusique: r.sans_musique ?? null, niveau: r.niveau ?? null };
+}
+
+/** Range une image (PNG) d'un objet 3D qui bouge, pour le film `film` (étape 6, lot 5). */
+export async function ecrireImageFilm3d(film: string, cle: string, rang: number, png: Uint8Array): Promise<void> {
+  if (!dansTauri) return;
+  await invoke("ecrire_image_film3d", png, { headers: enTetes({ "x-film": film, "x-cle": cle, "x-rang": String(rang) }) });
+}
+
+/** Oublie les images 3D d'un film. */
+export async function oublierFilm3d(film: string): Promise<void> {
+  if (dansTauri) await invoke("oublier_film3d", { film });
 }
 
 export async function annulerFilm(): Promise<void> {

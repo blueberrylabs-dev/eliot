@@ -466,8 +466,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   choisi (une pose au lieu du T). Sur la frise, le clip montre une icône pour le plateau et une
   pour l'animation. Couper ou rogner le clip ne fait pas sauter le mouvement.
 - La lecture montre le mouvement ; l'export en image d'une page vidéo, l'objet à l'instant de la
-  tête de lecture. Dans un film (MP4, GIF), l'objet 3D reste pour l'instant à sa vue du début de
-  son clip (le film du calque 3D vient au lot 5).
+  tête de lecture.
+- Le film (lot 5) : en MP4 ou en GIF, un objet 3D qui bouge est rendu image par image avant le
+  film, à la taille du film, avec son ombre au sol et son ombre portée. L'export dure plus
+  longtemps (la fenêtre dit « Objets 3D, image par image » et le nombre d'images) ; Annuler
+  l'arrête à tout moment.
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
@@ -799,6 +802,22 @@ du lot 3) et un objet, un flacon de Poly Haven par exemple.
 Ce qui m'aide le plus en retour : la fluidité pendant la lecture sur le poste et sur le mini PC
 (un objet qui bouge, puis deux), une animation de Mixamo qui ne joue pas, et le mouvement de
 caméra qui manque d'abord pour une publicité.
+
+## Essayer le film 3D (étape 6, lot 5)
+
+Dix minutes, Eliot lancé à la main, carte graphique libre, avec le design de l'essai du lot 4.
+
+1. Le personnage qui danse et le flacon sur son plateau, une ombre portée sur le personnage
+   (Ombre, dans la barre de l'objet) et un titre par-dessus.
+2. Exporter, MP4, 1080 : la fenêtre d'export dit « Objets 3D, image par image », puis les images du
+   film. Noter le temps total.
+3. Lire le film : il bouge comme à la lecture dans Eliot, l'ombre portée suit le personnage, le
+   titre reste devant.
+4. Exporter en GIF : même mouvement, plus petit.
+5. Relancer un export et cliquer Annuler pendant « Objets 3D » : rien n'est écrit.
+
+Ce qui m'aide le plus en retour : le temps d'export d'un film de 10 à 15 s sur le poste et sur le
+mini PC, et une image du film qui différerait de la fenêtre au même instant.
 
 ## Raccourcis
 
