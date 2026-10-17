@@ -5,6 +5,55 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6 : vérification de l'étape
+
+Accord d'Alexandre (« Go. Go. »). Ce que Claude a fait et décidé :
+
+- Relecture de l'étape contre le BRIEF (§ 6, « Le studio 3D » ; § 7 ; catalogue, ligne 3D) et le
+  PLAN. Tout ce que le BRIEF demande est là ; un manque pour publier, comblé, et une coquille :
+  - Les crédits à recopier sous la publication. Un modèle CC BY (Sketchfab) ne gardait son
+    crédit que dans « Vue 3D », objet par objet, et les sons dans l'onglet Audio : la fenêtre
+    d'export rassemble désormais ceux des pages exportées, « Crédits à recopier sous la
+    publication » (les objets 3D, modèles et environnements, et pour un film les sons), avec
+    « Copier les crédits » et la mention « obligatoire » quand une licence CC BY est en jeu.
+    Pont : `etat` donne `credits3d`, `exporter` rend `credits`, le texte à recopier (74 outils,
+    descriptions mises à jour). Les photos de Pixabay restent hors de la liste : leur licence
+    ne demande pas de crédit.
+  - Le PLAN nommait la clé `SKETCHFAB_API_TOKEN` : c'est `SKETCHFAB_API_KEY` (les deux noms
+    sont lus), corrigé.
+  - Reste noté au PLAN : réduire la définition du rendu pendant les gestes sur le mini PC, si
+    l'essai la montre lente ; le vrai téléchargement chez Sketchfab, avec la clé d'Alexandre ;
+    les temps d'export sur le poste.
+- Une publicité 3D faite de bout en bout par le pont, dans Tauri, sur les vraies données de Poly
+  Haven : une story de 6 s sur le bleu nuit de la marque ; le poste radio-cassette de Poly Haven
+  (« Boombox », CC0), son corps repeint du jaune de la marque, éclairé par un HDRI de studio de
+  Poly Haven, ombre au sol, sur un plateau tournant (un tour en 16 s) avec deux clés de caméra
+  qui le rapprochent ; le robot (RobotExpressive, CC0) qui danse dans un coin ; un titre qui
+  entre par le bas, une phrase en fondu, un prix dans un bouton qui bat, une musique. Mesures,
+  sur 255 : à 2,5 s, l'export PNG contre la fenêtre, 0,00 sur les deux objets 3D (0,36 sur la
+  page : le bord des grands titres blancs, lissés autrement par le noyau) ; repeindre, annuler,
+  rétablir, 0,00 ; la page dupliquée, 0,00 ; déclinée en carré, la 3D à l'échelle, 0,20 et 0,54
+  (le robot réduit tombe entre deux pixels) ; le format annulé, 0,00 ; le design rouvert, 0,00 ;
+  le MP4 pour Reels (1080 × 1920, 180 images, le son) contre la fenêtre à 0,5, 2,5 et 4,5 s, 2,27
+  à 2,33 (la compression H.264 sur le bleu et le jaune saturés) ; le GIF (360 × 640, 90 images),
+  1,66. Le film rend les crédits : le poste, le HDRI, la musique. Temps dans le conteneur
+  (processeur seul) : MP4 en 154 s, dont 134 s pour les 360 images 3D des deux objets (371 ms
+  chacune) ; GIF en 54 s.
+- Défaut trouvé par cette publicité, corrigé : deux rendus hors écran de la même page en même
+  temps se partageaient la toile du moteur pour un objet 3D. La vignette de l'accueil, refaite
+  quelques secondes après chaque changement (premier instant, 480 px), pouvait ainsi repeindre
+  l'image d'un export ou d'une capture lancés juste avant qu'ils ne la lisent : l'objet sortait
+  à son premier instant, flou (constaté après un Redimensionner annulé, écart 6,09). Chaque
+  rendu de page garde désormais sa copie de l'image (`copierToile`, `moteur.ts`), que l'export
+  vers le noyau reconnaît toujours. Essai dans Chromium : un export et une vignette lancés
+  ensemble gardent chacun leur image (0,00 ; 5,13 sans la correction).
+
+Vérifié dans le conteneur : interface 254 (3 de plus : crédits des objets 3D, des sons d'un
+film, mention obligatoire), `npm run build` ; noyau 139 (inchangé depuis le lot 5) ; Chromium :
+lots 1 à 4 (63, 48, 34 avec la fenêtre d'export et ses crédits, 44), rendus croisés 4, fenêtre
+d'export de l'étape 5 (15) et de l'étape 4 (18) ; Tauri : la publicité 17 (le carré recalculé sur ses images, au seuil
+d'un objet posé entre deux pixels), lots 1 à 5 (33, 16, 34, 19, 20) et l'annulation d'un film (3).
+
 ## 2026-10-17, étape 6, lot 5 : l'objet 3D dans le film
 
 Suite du plan (« Continue. »). Ce que Claude a fait et décidé :

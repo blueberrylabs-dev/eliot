@@ -46,6 +46,7 @@ import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
 import { borneNettoyage, nettoyageActif, VOIX_NETTE } from "../modele/voix";
+import { creditsAPublier, creditsDes3d, texteDesCredits } from "../modele/credits";
 import { creditsDesSons, pistesAudio, ROLES_SON } from "../modele/son";
 import { ROLES_JINGLE } from "../modele/marque";
 import { appliquerModele, modeleParId, nouveauDesignDepuisModele, vignetteModele } from "../etat/modeles";
@@ -165,6 +166,7 @@ function resumer() {
   const s = etat();
   if (!s.projet || s.vue !== "editeur") return { designOuvert: false, conseil: "aucun design ouvert : lister_designs, puis ouvrir_design ou nouveau_design" };
   const page = pageCourante(s);
+  const credits3d = creditsDes3d([page], s.ressources);
   return {
     designOuvert: true,
     nom: s.document.nom,
@@ -189,6 +191,8 @@ function resumer() {
     marque: { nom: useMarque.getState().kit.nom, couleurs: useMarque.getState().kit.couleurs.map((c) => c.valeur), polices: useMarque.getState().kit.polices },
     // Page vidéo : sa frise en bref (le détail des clips est dans `elements`, champs temps et piste).
     ...(estPageVideo(page) ? { frise: resumerFrise() } : {}),
+    // Les crédits des objets 3D de la page, à recopier sous la publication (ceux des sons : frise).
+    ...(credits3d.length ? { credits3d } : {}),
   };
 }
 
@@ -2367,7 +2371,8 @@ const OUTILS: Record<string, Outil> = {
         largeurGif: Math.max(64, Math.min(1080, Math.round(nombre(args.largeur, 480)!))),
       });
       // `images3d` : les images des objets 3D qui bougent, rendues par la fenêtre, et leur durée (ms).
-      return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}), ...(film.images3d ? { images3d: film.images3d } : {}) } };
+      const credits = texteDesCredits(creditsAPublier([pageCourante(etat())], etat().ressources, true));
+      return { donnees: { chemins: [film.chemin, ...(film.sansMusique ? [film.sansMusique] : [])], ...(film.niveau ? { niveau: film.niveau } : {}), ...(film.images3d ? { images3d: film.images3d } : {}), ...(credits ? { credits } : {}) } };
     }
     const format = (["png", "jpeg", "webp", "pdf", "svg"] as const).find((f) => f === args.format) ?? "png";
     exiger(dansTauri || !FORMATS_DU_NOYAU.includes(format), `le ${LIBELLES_EXPORT[format]} se fait dans l'application Eliot`);
@@ -2375,15 +2380,17 @@ const OUTILS: Record<string, Outil> = {
     const demandee = nombre(args.echelle, nombre(args.ratio, 1))!;
     const permises = echellesPossibles(etat().document.format);
     exiger(format === "pdf" || format === "svg" || permises.includes(demandee), `echelle : ${permises.join(", ")} pour ce format de page`);
+    const toutes = args.pages === "toutes" || (format === "pdf" && args.pages !== "courante");
+    const credits = texteDesCredits(creditsAPublier(toutes && format !== "svg" ? etat().document.pages : [pageCourante(etat())], etat().ressources, false));
     const chemins = await exporter({
       format,
       // Le PDF réunit toutes les pages, sauf demande contraire ; le SVG, la page affichée.
-      pages: args.pages === "toutes" || (format === "pdf" && args.pages !== "courante") ? "toutes" : "courante",
+      pages: toutes ? "toutes" : "courante",
       echelle: format === "pdf" || format === "svg" ? 1 : demandee,
       transparent: booleen(args.transparent) ?? false,
       qualite: qualiteDemandee(args.qualite, format),
     });
-    return { donnees: { chemins } };
+    return { donnees: { chemins, ...(credits ? { credits } : {}) } };
   },
 };
 

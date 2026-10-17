@@ -509,13 +509,14 @@ Choix par défaut de Claude, modifiables sur simple demande :
   reste ; dans un PDF ou un SVG, l'objet devient une image assez fine. Un film : image par
   image (lot 5).
 - Sketchfab : le jeton personnel d'API d'Alexandre (réglages de son compte Sketchfab), rangé
-  dans le `.env` (`SKETCHFAB_API_TOKEN`) et lu par le Rust, comme les clés Pixabay et
-  Freesound. Les lignes directrices de Sketchfab demandent qu'une application fasse se
-  connecter chaque utilisateur à son compte (OAuth) : pour un outil personnel, le jeton du
-  compte d'Alexandre en tient lieu ; si Eliot devient public, chacun mettra le sien, ou une
-  connexion OAuth viendra (application à déclarer chez Sketchfab). À vérifier au lot 3 : que
-  le téléchargement accepte ce jeton. Seuls les modèles CC0 et CC BY, en GLB ; licence, auteur
-  et lien gardés avec le modèle, mention « Sketchfab ».
+  dans le `.env` (`SKETCHFAB_API_KEY`, ou `SKETCHFAB_API_TOKEN`, lus tous deux) et lu par le
+  Rust, comme les clés Pixabay et Freesound. Les lignes directrices de Sketchfab demandent
+  qu'une application fasse se connecter chaque utilisateur à son compte (OAuth) : pour un
+  outil personnel, le jeton du compte d'Alexandre en tient lieu ; si Eliot devient public,
+  chacun mettra le sien, ou une connexion OAuth viendra (application à déclarer chez
+  Sketchfab). À vérifier au lot 3 : que le téléchargement accepte ce jeton. Seuls les
+  modèles CC0 et CC BY, en GLB ; licence, auteur et lien gardés avec le modèle, mention
+  « Sketchfab ».
 - Poly Haven : API sans clé, un User-Agent propre à Eliot, la mention « Poly Haven » à côté des
   résultats ; modèles en 1k ou 2k, environnements HDRI en 1k (l'éclairage n'en demande pas
   plus). Kenney : ses paquets 3D (.zip) rangés à la main dans `telechargements/kenney/`, lus
@@ -589,7 +590,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       comprise ; cache effacé après le film ou l'annulation. Vérifié dans Tauri par le pont (20,
       plus 3 pour l'annulation) : MP4 contre fenêtre de 1,09 à 1,25 sur 255 à cinq instants, GIF
       de 0,59 à 0,63 ; 5 s de film en 85 s dans le conteneur sur le processeur (JOURNAL).
-- [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité 3D faite de bout en
+- [x] Vérification de l'étape : relecture contre le BRIEF, une publicité 3D faite de bout en
       bout par le pont dans Tauri, suites repassées, livraison.
+      Faite le 2026-10-17 : un manque comblé, les crédits à recopier sous la publication dans
+      la fenêtre d'export (objets 3D, et sons pour un film ; `credits3d` dans `etat`, `credits`
+      rendu par `exporter`) ; un défaut corrigé, deux rendus hors écran en même temps (un export
+      et la vignette de l'accueil) qui se partageaient l'image d'un objet 3D ; une publicité 3D
+      (poste radio-cassette de Poly Haven aux couleurs de la marque, HDRI, plateau, caméra, robot
+      qui danse, textes animés, musique) en story, MP4 pour Reels et GIF, contre la fenêtre de
+      0,00 à 2,33 sur 255 (JOURNAL). Essai d'Alexandre : « Essayer l'étape 6 en entier : une
+      publicité 3D » du `01_application/LISEZMOI.md`.
+      Restent notés : réduire la définition du rendu pendant les gestes sur le mini PC si l'essai
+      la montre lente ; le vrai téléchargement chez Sketchfab, avec la clé d'Alexandre ; les
+      temps d'export sur le poste et sur le mini PC.
 
 ## Étape 7. Le reste du catalogue

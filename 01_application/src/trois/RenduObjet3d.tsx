@@ -15,7 +15,7 @@ import { aDuMouvement } from "../modele/mouvement3d";
 import { tailleDeRendu } from "../modele/objet3d";
 import type { ElementObjet3d, Ombre } from "../modele/types";
 import { pilePolice } from "../polices";
-import { abonnerEnvironnements, abonnerModele, abonnerRendu, COTE_MAX_RENDU, finesseHorsEcran, reglagesDe, rendreObjet } from "./moteur";
+import { abonnerEnvironnements, abonnerModele, abonnerRendu, copierToile, COTE_MAX_RENDU, finesseHorsEcran, reglagesDe, rendreObjet } from "./moteur";
 import { cameraAffichee, useOrbite } from "./orbite";
 
 /** Pendant la lecture, l'objet qui bouge se montre dans la toile du moteur elle-même (règle 11),
@@ -40,6 +40,8 @@ export function RenduObjet3d({ el, statique, ombre, instant }: { el: ElementObje
   const enLecture = useTemps((s) => !statique && suivre && s.joue && seulEnMouvement(el.id, s.tete));
   const [, rafraichir] = useState(0);
   const noeud = useRef<Konva.Image>(null);
+  // Hors écran, l'image de ce rendu de page, à lui seul (voir copierToile).
+  const copie = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => abonnerModele(el.ressource, () => rafraichir((v) => v + 1)), [el.ressource]);
   useEffect(() => abonnerEnvironnements(() => rafraichir((v) => v + 1)), []);
   useEffect(() => (statique ? undefined : abonnerRendu(el.id, () => rafraichir((v) => v + 1))), [el.id, statique]);
@@ -71,5 +73,6 @@ export function RenduObjet3d({ el, statique, ombre, instant }: { el: ElementObje
       </>
     );
   }
-  return <ImageKonva ref={noeud} image={rendu.toile} width={el.largeur} height={el.hauteur} perfectDrawEnabled={false} {...ombre(el.ombre)} />;
+  const image = statique ? copierToile(rendu.toile, (copie.current ??= document.createElement("canvas")), `${el.id}#hors-ecran`) : rendu.toile;
+  return <ImageKonva ref={noeud} image={image} width={el.largeur} height={el.hauteur} perfectDrawEnabled={false} {...ombre(el.ombre)} />;
 }

@@ -122,6 +122,12 @@ lourd. Détail : `BRIEF.md`.
   commande 13 (le pont). Lot 5, l'objet 3D dans le film (rendu image par image par la fenêtre,
   posé par le noyau avec son ombre portée, MP4 et GIF), livré et vérifié le 2026-10-17 ; essai :
   « Essayer le film 3D (étape 6, lot 5) ». Après cette livraison : les commandes 9 et 13.
+  Vérification de toute l'étape le 2026-10-17 (relecture contre le BRIEF, les crédits à
+  recopier sous la publication dans la fenêtre d'export, un défaut des rendus hors écran
+  simultanés corrigé, une publicité 3D faite de bout en bout par le pont dans Tauri) ; reste
+  l'essai d'Alexandre, parcours « Essayer l'étape 6 en entier : une publicité 3D » du
+  `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application (commande 9)
+  et le pont (commande 13).
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -353,7 +359,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  251 passed`.
+Vérifier : `Tests  254 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

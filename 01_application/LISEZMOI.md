@@ -444,8 +444,10 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   cherchent en anglais (« flacon de parfum » devient « bottle perfume »).
 - Le crédit reste avec le modèle (source, auteur, licence, lien) : « Vue 3D », section Modèle,
   avec « Copier le crédit », le texte à recopier sous une publication (une licence CC BY
-  l'exige), et « Page du modèle ». Éviter dans une publicité les modèles qui reproduisent une
-  marque ou un logo connus.
+  l'exige), et « Page du modèle ». La fenêtre d'export rassemble ceux de la page : « Crédits à
+  recopier sous la publication », les objets 3D (modèles et environnements) et, pour un film,
+  les sons, avec « Copier les crédits ». Éviter dans une publicité les modèles qui reproduisent
+  une marque ou un logo connus.
 - Mixamo (personnages animés, compte Adobe gratuit) : la marche à suivre dans l'onglet 3D
   (télécharger en « FBX Binary », « With Skin »), puis « Importer un FBX ».
 - Environnements HDRI : une photo à 360° qui éclaire l'objet et se reflète dans ses matières.
@@ -818,6 +820,30 @@ Dix minutes, Eliot lancé à la main, carte graphique libre, avec le design de l
 
 Ce qui m'aide le plus en retour : le temps d'export d'un film de 10 à 15 s sur le poste et sur le
 mini PC, et une image du film qui différerait de la fenêtre au même instant.
+
+## Essayer l'étape 6 en entier : une publicité 3D
+
+Vingt minutes, après les essais des lots (ou à leur place). Avant : recompiler l'application
+(commande 9) et le pont (commande 13), puis Eliot lancé à la main, carte graphique libre
+(commande 10).
+
+1. Une story (1080 × 1920), fond d'une couleur de ta marque. Onglet 3D, Poly Haven, « radio » :
+   le poste radio-cassette, posé en grand.
+2. « Vue 3D » : Matières, une couleur de la marque sur le corps du poste ; Lumière, un
+   environnement « studio » de Poly Haven ; Ombre au sol.
+3. Bouton Vidéo, en haut. Section Mouvement : plateau tournant, un tour en 16 s ; une image clé
+   au début, une autre vers 4,5 s, le poste rapproché et vu d'un peu plus haut.
+4. Un personnage de Mixamo (ou un modèle animé) dans un coin, son animation en boucle.
+5. Un titre qui entre par le bas, une phrase en fondu, un prix dans un bouton qui bat (Pulsation),
+   une musique de l'onglet Audio.
+6. Lecture : tout bouge ensemble. Exporter, MP4, Reels : la fenêtre d'export montre les crédits à
+   recopier sous la publication ; noter le temps de l'export.
+7. Redimensionner, Post carré, « Copier et redimensionner » : la copie en carré, la 3D à
+   l'échelle, au même mouvement.
+8. Fermer le design, le rouvrir : tout est là, au même instant.
+
+Ce qui m'aide le plus en retour : le temps d'export sur le poste et sur le mini PC, la fluidité
+de la lecture avec deux objets 3D qui bougent, et ce qui manque pour une vraie publicité 3D.
 
 ## Raccourcis
 

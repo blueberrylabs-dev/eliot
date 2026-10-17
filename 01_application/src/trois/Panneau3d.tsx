@@ -11,6 +11,7 @@ import { useShallow } from "zustand/react/shallow";
 import { etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
 import { cleProche } from "../modele/animation";
+import { texteDuCredit } from "../modele/credits";
 import { visibleA } from "../modele/frise";
 import { cameraDeBase, clesAvecCourbe, clesSansCamera, courbeDesCles, PLATEAU_PAR_DEFAUT, TOUR_MAX, TOUR_MIN, VITESSE_MAX, VITESSE_MIN } from "../modele/mouvement3d";
 import { useUrlRessource } from "../editeur/images";
@@ -492,13 +493,6 @@ function AnimationDuModele({ el, debut, fin, marque }: { el: ElementObjet3d; deb
 }
 
 const FORMATS: Record<string, string> = { glb: "glTF (GLB)", fbx: "FBX", obj: "OBJ" };
-
-/** Le crédit d'un modèle venu d'une banque, tel qu'on le recopie sous une publication (une
- *  licence CC BY l'exige). */
-export function texteDuCredit(c: CreditRessource): string {
-  const titre = c.titre ? `« ${c.titre} »` : "Modèle 3D";
-  return `${titre}, par ${c.auteur}, sur ${c.source}${c.licence ? `, licence ${c.licence}` : ""} : ${c.lien}`;
-}
 
 function Credit3d({ credit }: { credit: CreditRessource }) {
   const [copie, setCopie] = useState(false);

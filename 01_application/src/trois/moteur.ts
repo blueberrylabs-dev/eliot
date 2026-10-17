@@ -704,9 +704,30 @@ export function oublierRendu(cle: string): void {
   rendus.delete(cle);
 }
 
+/** Les copies des rendus hors écran, chacune propre à un rendu de page (vérification de
+ *  l'étape 6) : la clé de rendu dont elles viennent. */
+const copies = new WeakMap<object, string>();
+
+/** Range la toile d'un rendu hors écran dans `copie`, une toile propre à un rendu de page : deux
+ *  rendus hors écran en même temps (un export et la vignette de l'accueil, qui se refait quelques
+ *  secondes après chaque changement) se partagent la toile du moteur pour une clé, et le second
+ *  repeindrait l'image du premier avant qu'il ne la lise. */
+export function copierToile(toile: HTMLCanvasElement, copie: HTMLCanvasElement, cle: string): HTMLCanvasElement {
+  if (copie.width !== toile.width) copie.width = toile.width;
+  if (copie.height !== toile.height) copie.height = toile.height;
+  const ctx = copie.getContext("2d");
+  if (ctx) {
+    ctx.clearRect(0, 0, copie.width, copie.height);
+    ctx.drawImage(toile, 0, 0);
+  }
+  copies.set(copie, cle);
+  return copie;
+}
+
 /** La clé du rendu dont `source` est la toile (un objet sur la page : son identifiant ; hors
- *  écran : `<identifiant>#hors-ecran`), ou `undefined`. */
+ *  écran : `<identifiant>#hors-ecran`, sa toile ou une copie), ou `undefined`. */
 export function cleDeToile(source: unknown): string | undefined {
+  if (typeof source === "object" && source !== null && copies.has(source)) return copies.get(source);
   for (const [cle, r] of rendus) if (r.toile === source) return cle;
   return undefined;
 }

@@ -1,12 +1,13 @@
 // La barre du haut : accueil, menu Fichier, Redimensionner, annuler et rétablir, nom du
 // design et état de l'enregistrement, export.
 
-import { AlertTriangle, Bot, Check, ChevronDown, Clapperboard, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, Image as IconeImage, LayoutTemplate, Loader2, Maximize2, Redo2, Settings, Trash2, Undo2 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AlertTriangle, Bot, Check, ChevronDown, Clapperboard, ClipboardCopy, Cloud, Copy, Download, FileArchive, FolderInput, FolderOpen, House, Image as IconeImage, LayoutTemplate, Loader2, Maximize2, Redo2, Settings, Trash2, Undo2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { enregistrerCommeModele, exporterDesign, faireUneCopie, importerDesign, renommerDesign, retourAccueil, supprimerDesign } from "../etat/projets";
 import { echellesPossibles, exporter, FORMATS_DU_NOYAU, formatPapier, nomDate, QUALITE_PAR_DEFAUT } from "../export/exporter";
 import { exporterVideo, messageFilm, OPTIONS_FILM_DEFAUT, type OptionsFilm } from "../export/video";
+import { creditsAPublier, texteDesCredits } from "../modele/credits";
 import { afficherDansDossier, choisirEmplacement, choisirEmplacementFilm, dansTauri, dossierDesigns, dossierExport, dossierExportVideo, type FormatExport } from "../pont/tauri";
 import { ReglagesDuFilm } from "./ExportVideo";
 import { Redimensionner } from "./Redimensionner";
@@ -68,6 +69,13 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
   const transparencePossible = type === "png" || type === "webp";
   const avecQualite = type === "jpeg" || type === "webp";
   const pagesChoisies = type === "svg" ? "courante" : type === "pdf" ? pagesPdf : pages;
+  // Les crédits des pages exportées (objets 3D, et les sons pour un film), à recopier dessous.
+  const documentPages = useEditeur((s) => s.document.pages);
+  const courante = useEditeur((s) => pageCourante(s));
+  const ressources = useEditeur((s) => s.ressources);
+  const credits = useMemo(() => creditsAPublier(estFilm || pagesChoisies === "courante" ? [courante] : documentPages, ressources, estFilm), [estFilm, pagesChoisies, courante, documentPages, ressources]);
+  const texteCredits = texteDesCredits(credits);
+  const [creditsCopies, setCreditsCopies] = useState(false);
 
   useEffect(() => {
     void dossierExport().then(setDossier);
@@ -226,6 +234,26 @@ function PanneauExport({ fermer }: { fermer: () => void }) {
             </label>
           )}
         </>
+      )}
+      {texteCredits && (
+        <div data-credits-publication className="mb-3 rounded-md bg-neutral-50 px-2.5 py-2">
+          <p className="mb-1 text-[11px] font-medium text-neutral-700">
+            Crédits à recopier sous la publication{credits.obligatoire ? " : obligatoire pour une licence CC BY" : ""}
+          </p>
+          <pre className="mb-1 max-h-28 overflow-auto font-sans text-[11px] whitespace-pre-wrap text-neutral-600">{texteCredits}</pre>
+          <button
+            data-copier-credits
+            onClick={() =>
+              void navigator.clipboard?.writeText(texteCredits).then(
+                () => setCreditsCopies(true),
+                () => notifier(texteCredits),
+              )
+            }
+            className="flex items-center gap-1.5 text-xs font-medium text-accent-700 hover:underline"
+          >
+            {creditsCopies ? <Check size={14} /> : <ClipboardCopy size={14} />} {creditsCopies ? "Copié" : "Copier les crédits"}
+          </button>
+        </div>
       )}
       <button disabled={!!occupe} onClick={() => void lancer(false)} className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-accent-600 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-60">
         <Download size={16} /> {occupe ?? (estFilm ? "Exporter dans Vidéos/Eliot" : dansTauri ? "Exporter dans Images/Eliot" : "Télécharger")}
