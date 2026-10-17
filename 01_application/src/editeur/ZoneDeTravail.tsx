@@ -27,7 +27,7 @@ import { MiniBarre } from "./MiniBarre";
 import { RenduElement, useTransitions } from "./RenduElement";
 import { aimanter, cibles, type Cibles } from "./reperes";
 import { deposerFichiers, deposerChemins } from "./depot";
-import { scene, signalerGeste } from "./scene";
+import { noeudElement, scene, signalerGeste, surSurvolCalques } from "./scene";
 import { surDepotFichiers } from "../pont/tauri";
 import { useTemps } from "../etat/temps";
 import { CalqueZonesSures } from "./ZonesSures";
@@ -528,10 +528,29 @@ export function ZoneDeTravail() {
       survolRef.current?.getLayer()?.batchDraw();
       if (!espace.current && !useEditeur.getState().dessin) stage.container().style.cursor = useEditeur.getState().styleCopie ? "copy" : "default";
     });
+    // Une ligne du panneau des calques survolée : le même contour, autour de ses éléments.
+    const finSurvolCalques = surSurvolCalques((ids) => {
+      const survol = survolRef.current;
+      if (!survol) return;
+      const noeuds = (ids ?? []).map(noeudElement).filter((n): n is Konva.Group => !!n && n.isVisible());
+      if (noeuds.length === 1) {
+        const g = noeuds[0];
+        const r = g.getClientRect({ skipTransform: true, skipShadow: true });
+        const abs = g.getAbsoluteTransform().point({ x: r.x, y: r.y });
+        survol.setAttrs({ visible: true, x: abs.x, y: abs.y, width: r.width * scene.echelle, height: r.height * scene.echelle, rotation: g.getAbsoluteRotation() });
+      } else if (noeuds.length > 1) {
+        const rs = noeuds.map((g) => g.getClientRect({ skipShadow: true }));
+        const x0 = Math.min(...rs.map((r) => r.x));
+        const y0 = Math.min(...rs.map((r) => r.y));
+        survol.setAttrs({ visible: true, x: x0, y: y0, width: Math.max(...rs.map((r) => r.x + r.width)) - x0, height: Math.max(...rs.map((r) => r.y + r.height)) - y0, rotation: 0 });
+      } else survol.visible(false);
+      survol.getLayer()?.batchDraw();
+    });
 
     return () => {
       stage.off(".eliot");
       tr.off(".eliot");
+      finSurvolCalques();
     };
   }, [demarrerGeste, terminerGeste, montrerEtiquette, dessinerReperes]);
 
@@ -826,7 +845,7 @@ export function ZoneDeTravail() {
           )}
         </Layer>
         <Layer ref={calqueInterfaceRef}>
-          <Rect ref={survolRef} visible={false} stroke={ACCENT} strokeWidth={1.5} listening={false} />
+          <Rect ref={survolRef} name="survol" visible={false} stroke={ACCENT} strokeWidth={1.5} listening={false} />
           <Transformer
             ref={transformerRef}
             enabledAnchors={poignees}

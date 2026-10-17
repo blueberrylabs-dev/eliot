@@ -37,3 +37,13 @@ export const surGeste = (fn: Ecouteur) => {
   return () => void ecouteurs.delete(fn);
 };
 export const signalerGeste = (actif: boolean) => ecouteurs.forEach((fn) => fn(actif));
+
+// Le survol d'une ligne du panneau des calques (étape 7, lot 1) : la zone de travail entoure
+// les éléments de la ligne (`null` : plus rien).
+type EcouteurSurvol = (ids: string[] | null) => void;
+const ecouteursSurvol = new Set<EcouteurSurvol>();
+export const surSurvolCalques = (fn: EcouteurSurvol) => {
+  ecouteursSurvol.add(fn);
+  return () => void ecouteursSurvol.delete(fn);
+};
+export const survolerCalques = (ids: string[] | null) => ecouteursSurvol.forEach((fn) => fn(ids));

@@ -604,4 +604,64 @@ Choix par défaut de Claude, modifiables sur simple demande :
       la montre lente ; le vrai téléchargement chez Sketchfab, avec la clé d'Alexandre ; les
       temps d'export sur le poste et sur le mini PC.
 
-## Étape 7. Le reste du catalogue
+## Étape 7. Le reste du catalogue (ouverte le 2026-10-17)
+
+Résultat visible attendu : ce que le catalogue du BRIEF (§ 6) promet et qu'Eliot n'a pas encore.
+Un panneau des calques où l'on range, renomme, masque et verrouille tout à la souris ; un titre
+qui se courbe, une liste à puces, des styles de texte gardés d'un design à l'autre ; des aides
+qui apprennent le métier (règles, grilles, marges, zones sûres sur toute story, alerte quand un
+texte se lit mal ou est trop petit) ; une pipette, une photo en fond de page, l'interface en
+sombre. Claude peut tout faire par le pont. Détail : `BRIEF.md` § 6 (catalogue) et § 7.
+
+Relevé du 2026-10-17, catalogue contre logiciel : manquent le panneau des calques complet (il ne
+sait que montrer, masquer et verrouiller), le texte courbé, les listes, les styles enregistrés,
+les règles, la grille, la grille des tiers et les marges de sécurité sur la page, les zones
+sûres d'une page fixe (seulement sur la frise d'une page vidéo), les alertes de contraste et de
+texte trop petit, la pipette, l'image en fond de page, le thème sombre, et Pexels.
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Calques : chaque élément porte un nom qu'on lui donne (`libelle`, facultatif ; sans lui, le
+  nom tiré de son contenu, comme aujourd'hui). On glisse une ligne pour changer l'ordre ; sur
+  une page vidéo, l'ordre, ce sont les pistes, et la ligne posée entre deux autres va sur une
+  piste entre les leurs. Les membres d'un groupe se suivent sous une ligne « Groupe », qui se
+  replie et se choisit d'un clic. Survoler une ligne montre l'élément sur la page.
+- Texte courbé : un curseur Courbe (de -100 à 100), le texte posé sur un arc de cercle, par
+  Konva (son tracé de texte), donc à l'écran comme à l'export sans rien de neuf dans le noyau.
+  Listes : à puces ou numérotées, avec retrait des lignes suivantes. Styles enregistrés : dans
+  le kit de marque, nommés, posés d'un clic sur un texte de n'importe quel design.
+- Aides : un menu « Aides » dans la barre du bas, jamais exportées : règles en pixels (ou en
+  millimètres pour A4 et A5), grille au pas réglable, grille des tiers, marges de sécurité, zones
+  sûres pour toute page 9:16, fixe ou vidéo. Les alertes se calculent au repos, après un
+  changement : contraste d'après le rapport du WCAG entre le texte et ce qui est derrière lui
+  sur la page rendue ; texte trop petit d'après la taille de la page (un post vu sur un
+  téléphone, une affiche A4 lue de près).
+- Pipette : dans le sélecteur de couleur, un clic sur la page prend sa couleur (la fenêtre de
+  WebKitGTK n'a pas de pipette du système). Photo en fond : elle couvre la page, reste dessous,
+  ne se choisit plus d'un clic sur la page ; on l'en détache. Thème : clair, sombre, ou comme le
+  système ; la page et ses couleurs ne changent jamais avec lui.
+- Pexels : photos et vidéos dans les panneaux de Pixabay, crédit du photographe et lien vers
+  Pexels gardés comme ses règles le demandent. Le 2026-10-17, la page de l'API de Pexels dit
+  encore la délivrance des nouvelles clés « suspendue » ; le lot attend la clé d'Alexandre
+  (`PEXELS_API_KEY` dans le `.env`) et passe en dernier.
+
+- [x] Lot 1 : le panneau des calques complet. Tous les types avec leur icône et, pour une
+      photo, une vidéo ou un objet 3D, sa miniature ; renommer (double-clic) ; glisser pour
+      changer l'ordre (pistes sur une page vidéo) ; groupes repliables ; survol qui montre
+      l'élément ; masquer, verrouiller, supprimer et dupliquer depuis la ligne ; pont :
+      `libelle` dans `modifier`, `ordre` au-dessus ou au-dessous d'un autre élément.
+      Livré le 2026-10-17 : `src/modele/calques.ts` (lignes, ordre, groupes) et le panneau
+      réécrit ; grouper range le groupe d'un bloc. Vérifié dans Chromium (30) et dans Tauri
+      (8, dont un vrai glisser à la souris) (JOURNAL). Essai d'Alexandre : « Essayer le panneau
+      des calques (étape 7, lot 1) » du `01_application/LISEZMOI.md`.
+- [ ] Lot 2 : le texte. Texte courbé, listes à puces et numérotées, styles de texte enregistrés
+      dans le kit de marque ; pont.
+- [ ] Lot 3 : les aides pour apprendre. Règles, grille, grille des tiers, marges de sécurité,
+      zones sûres sur toute page verticale, alertes de contraste et de texte trop petit,
+      infobulles relues sur chaque outil ; pont (les alertes dans `etat`).
+- [ ] Lot 4 : couleur, fond, thème. Pipette, photo en fond de page, thème clair ou sombre ;
+      pont.
+- [ ] Lot 5 : Pexels, photos et vidéos, dès que la clé d'Alexandre est dans le `.env`.
+- [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité faite de bout en bout
+      par le pont dans Tauri, suites repassées, livraison. Puis le rapport de fin, qui rassemble
+      les commandes à lancer avant les essais d'Alexandre.

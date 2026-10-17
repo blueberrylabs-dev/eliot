@@ -5,6 +5,7 @@
 import { create } from "zustand";
 import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
+import { placerDansPile, rassemblerGroupe, sortirDuGroupe } from "../modele/calques";
 import type { ReglagesDessin } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
@@ -131,6 +132,11 @@ interface EtatEditeur {
   copierSelection: () => void;
   coller: () => void;
   deplacerDansPile: (sens: SensPile) => void;
+  /** Panneau des calques (étape 7, lot 1) : pose `ids` juste au-dessus ou au-dessous de `cible`
+   *  dans la pile (les pistes, sur une page vidéo). Une étape d'annulation. */
+  placerCalques: (ids: string[], cible: string, position: "dessus" | "dessous", sortir?: boolean) => void;
+  /** Le nom donné à un élément dans le panneau des calques ; vide : le nom tiré du contenu. */
+  renommerElement: (id: string, libelle: string) => void;
   deplacerSelection: (dx: number, dy: number) => void;
   basculerVerrou: () => void;
   basculerVisibilite: (id: string) => void;
@@ -624,7 +630,25 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const choisis = elementsSelectionnes(get());
     if (choisis.length < 2) return;
     const groupe = nouvelId("g");
-    get().modifierElements(Object.fromEntries(choisis.map((e) => [e.id, { groupe }])));
+    const ids = new Set(choisis.map((e) => e.id));
+    // Le groupe se range d'un bloc dans la pile, à la place du plus haut (page fixe) : le panneau
+    // des calques le montre sur une ligne.
+    get().appliquerPage((p) => rassemblerGroupe({ ...p, elements: p.elements.map((e) => (ids.has(e.id) ? ({ ...e, groupe } as ElementPage) : e)) }, groupe));
+  },
+
+  placerCalques(ids, cible, position, sortir = false) {
+    // `sortir` : un membre glissé hors de son groupe le quitte, dans la même étape.
+    get().appliquerPage((p) => {
+      const place = placerDansPile(p, ids, cible, position);
+      return sortir ? sortirDuGroupe(place, ids) : place;
+    });
+  },
+
+  renommerElement(id, libelle) {
+    const e = parId(elementsCourants(get())).get(id);
+    const propre = libelle.replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!e || (e.libelle ?? "") === propre) return;
+    get().modifierElements({ [id]: { libelle: propre || undefined } });
   },
 
   degrouperSelection() {

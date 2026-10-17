@@ -5,6 +5,65 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7, lot 1 : le panneau des calques
+
+Suite de l'accord d'Alexandre (« Go pour l'étape 7. »). Ce que Claude a fait et décidé :
+
+- Le panneau Calques montre tous les éléments, du premier plan vers le fond, chacun avec son
+  icône (quatorze sortes) ou, pour une photo, une vidéo ou un objet 3D, sa miniature.
+- Glisser une ligne la pose juste au-dessus ou au-dessous d'une autre, un trait montrant où,
+  au pointeur comme les panneaux (le glisser-déposer HTML peut être pris par l'enveloppe). Une
+  étape d'annulation par glisser : deux glissers de suite ne se fondent pas en une. Sur une page
+  vidéo, la ligne posée va sur une piste entre celle de son repère et sa voisine, que la
+  normalisation de la frise numérote ; un clip de la piste principale reste où il est (la
+  frise règle son ordre), et rien ne passe sous elle.
+- Le nom : double-clic, Entrée garde, Échap revient, un nom vide rend celui tiré du contenu. Il
+  va dans un champ à part, `libelle`, gardé avec le design. En route : une icône s'affichait par
+  l'identifiant de son dessin (« heart ») au lieu de « Icône heart », corrigé.
+- Grouper range désormais les membres d'un bloc dans la pile, à la place du plus haut (page
+  fixe), comme Canva : le groupe a sa ligne, « Groupe 1 (2) », ses membres en retrait dessous ;
+  la flèche la replie, un clic la choisit en entier, on la glisse d'un bloc. Un membre glissé
+  hors du groupe le quitte ; un groupe réduit à un membre disparaît. Un groupe d'un document
+  d'avant dont les membres sont éparpillés garde chaque membre à sa place, marqué « groupe ».
+- Survoler une ligne entoure l'élément (ou le groupe) sur la page, du même contour que le survol
+  sur la page ; la ligne propose Dupliquer et Supprimer (pas sur un calque verrouillé), à côté
+  de l'œil et du cadenas.
+- Pont : `modifier` prend `libelle` (null : le nom tiré du contenu) ; `ordre` prend `dessus` ou
+  `dessous`, l'identifiant d'un autre élément, comme un glisser dans le panneau, avec des refus
+  clairs (repère parmi ceux qu'on déplace, introuvable, deux consignes à la fois). Toujours 74
+  outils.
+
+Preuves (conteneur de Claude) : 6 essais vitest de plus (260 : lignes, groupes repliés et
+éparpillés, ordre sur une page fixe et sur une page vidéo, rassembler un groupe, en sortir, le
+nom) ; dans Chromium, 30 vérifications (icônes et miniatures, renommer, Échap, nom vide, Ctrl+Z,
+glisser au-dessus et au-dessous, deux étapes d'annulation, survol, groupe rangé d'un bloc,
+replié, choisi, glissé, membre sorti, masquer, verrouiller, dupliquer, supprimer, page vidéo,
+piste principale, pont et ses refus) ; dans Tauri, 8 (pont, page vidéo, design rouvert qui garde
+les noms, et un vrai glisser à la souris dans le panneau). Repassés : l'essai de l'étape 2
+(33, grouper et dégrouper) et celui de l'étape 4, lot 1 (41, le panneau liste les vidéos ; le
+libellé du bouton d'import y était resté celui d'avant l'étape 6, mis à jour).
+
+## 2026-10-17, étape 7 ouverte : plan du reste du catalogue
+
+Accord d'Alexandre (« Go pour l'étape 7. »). Ce que Claude a décidé :
+
+- Relevé du catalogue du BRIEF (§ 6) contre le logiciel : manquent le panneau des calques
+  complet, le texte courbé, les listes, les styles enregistrés, les règles, la grille, la grille
+  des tiers et les marges de sécurité sur la page, les zones sûres d'une page fixe, les alertes
+  de contraste et de texte trop petit, la pipette, la photo en fond de page, le thème sombre, et
+  Pexels. Le reste du catalogue est là (vérifié dans le code le même jour).
+- Plan de l'étape 7 écrit dans `PLAN.md` : cinq lots (les calques ; le texte ; les aides pour
+  apprendre ; couleur, fond et thème ; Pexels), puis la vérification et le rapport de fin, qui
+  rassemble les commandes à lancer avant les essais.
+- Pexels : la page de son API (pexels.com/api, lue le 2026-10-17) dit encore que la délivrance
+  des nouvelles clés est suspendue ; le `.env` n'a pas de `PEXELS_API_KEY` (Claude n'a regardé
+  que les noms). Le lot attend la clé d'Alexandre et passe en dernier. Ses règles : crédit du photographe et lien
+  vers Pexels, pas de banque concurrente bâtie dessus.
+- Texte courbé par le tracé de texte de Konva : il dessine chaque lettre par `fillText`, que le
+  contexte SVG de l'export enregistre déjà ; rien à apprendre au noyau.
+- Le nom d'un calque : un champ à part (`libelle`), parce que `nom` sert déjà à l'icône
+  (l'identifiant du dessin dans sa collection) ; le renommer changerait le dessin.
+
 ## 2026-10-17, étape 6 : vérification de l'étape
 
 Accord d'Alexandre (« Go. Go. »). Ce que Claude a fait et décidé :

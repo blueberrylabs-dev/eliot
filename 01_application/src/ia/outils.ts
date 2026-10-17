@@ -247,7 +247,7 @@ function resumerFrise() {
 }
 
 /** Propriétés qu'une modification peut toucher, selon le type de l'élément. */
-const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "ombre", "temps", "piste"];
+const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "libelle", "ombre", "temps", "piste"];
 const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
@@ -367,7 +367,12 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
   for (const [cle, valeur] of Object.entries(brut)) {
     if (cle === "id") continue;
     exiger(permises.has(cle), `propriété inconnue pour un élément ${el.type} : ${cle}`);
-    if (cle === "couleur" && el.type !== "texte") {
+    if (cle === "libelle") {
+      // Le nom dans le panneau des calques (étape 7, lot 1) ; null ou vide : celui du contenu.
+      exiger(valeur === null || typeof valeur === "string", "libelle : un texte, ou null pour revenir au nom tiré du contenu");
+      const l = typeof valeur === "string" ? valeur.replace(/\s+/g, " ").trim().slice(0, 80) : "";
+      propre[cle] = l || undefined;
+    } else if (cle === "couleur" && el.type !== "texte") {
       propre[cle] = couleur(valeur, cle) as string;
       exiger(typeof propre[cle] === "string", `${cle} : couleur unie #rrggbb attendue`);
     } else if (cle === "couleur" || cle === "remplissage") propre[cle] = couleur(valeur, cle);
@@ -2268,8 +2273,20 @@ const OUTILS: Record<string, Outil> = {
 
   ordre(args) {
     designOuvert();
-    useEditeur.setState({ selection: listeIds(args.ids) });
-    etat().deplacerDansPile(args.sens as "premier");
+    const ids = listeIds(args.ids);
+    const repere = args.dessus !== undefined ? ["dessus", args.dessus] : args.dessous !== undefined ? ["dessous", args.dessous] : null;
+    if (repere) {
+      // Comme un glisser dans le panneau des calques (étape 7, lot 1).
+      exiger(args.sens === undefined && (args.dessus === undefined || args.dessous === undefined), "ordre : sens, dessus ou dessous, un seul des trois");
+      const cible = String(repere[1]);
+      exiger(elementsCourants(etat()).some((e) => e.id === cible), `élément introuvable sur la page affichée : ${cible}`);
+      exiger(!ids.includes(cible), "ordre : l'élément de repère ne peut pas être parmi ceux qu'on déplace");
+      etat().placerCalques(ids, cible, repere[0] as "dessus" | "dessous");
+    } else {
+      exiger(["premier", "avant", "arriere", "dernier"].includes(String(args.sens)), "ordre : sens (premier, avant, arriere, dernier), ou dessus ou dessous un autre élément");
+      useEditeur.setState({ selection: ids });
+      etat().deplacerDansPile(args.sens as "premier");
+    }
     return { donnees: { ordre: elementsCourants(etat()).map((e) => e.id) } };
   },
 

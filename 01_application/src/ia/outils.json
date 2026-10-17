@@ -2846,7 +2846,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, ombre ({ couleur, flou, x, y, opacite } ou null) ; sur une page vidéo, temps ({ debut, fin } en ms : une vidéo garde la durée de sa coupe et de sa vitesse) et piste (0 : principale, où vidéos et photos se suivent bout à bout ; 1, 2, 3… : superpositions, la plus haute devant ; une piste occupée à cet endroit en fait naître une au-dessus) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1), et sur une page vidéo fonduEntree et fonduSortie (ms : le son monte au début du clip, baisse à la fin ; null : sans fondu) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place). Les animations passent par animer, les images clés par images_cles, les transitions par transition.",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, libelle (le nom de l'élément dans le panneau des calques ; null : celui tiré de son contenu), ombre ({ couleur, flou, x, y, opacite } ou null) ; sur une page vidéo, temps ({ debut, fin } en ms : une vidéo garde la durée de sa coupe et de sa vitesse) et piste (0 : principale, où vidéos et photos se suivent bout à bout ; 1, 2, 3… : superpositions, la plus haute devant ; une piste occupée à cet endroit en fait naître une au-dessus) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1), et sur une page vidéo fonduEntree et fonduSortie (ms : le son monte au début du clip, baisse à la fin ; null : sans fondu) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place). Les animations passent par animer, les images clés par images_cles, les transitions par transition.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -3405,7 +3405,7 @@
   },
   {
     "name": "ordre",
-    "description": "Change l'ordre d'empilement : premier (tout devant), avant (un cran devant), arriere (un cran derrière), dernier (tout derrière).",
+    "description": "Change l'ordre d'empilement : premier (tout devant), avant (un cran devant), arriere (un cran derrière), dernier (tout derrière) ; ou dessus ou dessous : juste au-dessus ou au-dessous d'un autre élément, comme en glissant une ligne du panneau des calques (sur une page vidéo, sur une piste entre la sienne et sa voisine ; un clip de la piste principale ne la quitte pas). Renvoie l'ordre, du fond vers le premier plan.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -3424,11 +3424,18 @@
             "arriere",
             "dernier"
           ]
+        },
+        "dessus": {
+          "type": "string",
+          "description": "L'identifiant d'un élément : ceux de ids viennent juste au-dessus de lui."
+        },
+        "dessous": {
+          "type": "string",
+          "description": "L'identifiant d'un élément : ceux de ids viennent juste au-dessous de lui."
         }
       },
       "required": [
-        "ids",
-        "sens"
+        "ids"
       ]
     }
   },

@@ -109,6 +109,9 @@ interface ElementBase {
   visible: boolean;
   verrouille: boolean;
   nom?: string;
+  /** Le nom donné dans le panneau des calques (étape 7, lot 1) ; sans lui, celui que l'on tire
+   *  du contenu (`nomElement`). À part de `nom`, qui pour une icône désigne son dessin. */
+  libelle?: string;
   /** Étiquette de groupe : les éléments qui la partagent se sélectionnent ensemble. */
   groupe?: string;
   ombre?: Ombre;

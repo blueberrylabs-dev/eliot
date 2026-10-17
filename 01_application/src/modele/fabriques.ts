@@ -381,7 +381,8 @@ const NOMS_FORMES: Record<GenreForme, string> = {
 };
 
 export function nomElement(el: ElementPage): string {
-  if (el.nom) return el.nom;
+  if (el.libelle?.trim()) return el.libelle.trim();
+  if (el.nom && el.type !== "icone") return el.nom;
   switch (el.type) {
     case "texte":
       return el.texte.replace(/\s+/g, " ").slice(0, 28) || "Texte vide";

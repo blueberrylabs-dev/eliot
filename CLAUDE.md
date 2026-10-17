@@ -128,6 +128,13 @@ lourd. Détail : `BRIEF.md`.
   l'essai d'Alexandre, parcours « Essayer l'étape 6 en entier : une publicité 3D » du
   `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application (commande 9)
   et le pont (commande 13).
+- Étape 7, le reste du catalogue : ouverte le 2026-10-17 (relevé du catalogue, plan, lots et
+  choix par défaut dans `PLAN.md`) ; lot 1, le panneau des calques complet (icônes et
+  miniatures, renommer, glisser pour l'ordre et les pistes, groupes repliables, survol, pont :
+  `libelle` et `ordre` dessus ou dessous), livré et vérifié le 2026-10-17 ; essai : « Essayer le
+  panneau des calques (étape 7, lot 1) ». Après cette livraison : la commande 13 (le pont).
+  Pexels (lot 5) attend la clé d'Alexandre, `PEXELS_API_KEY` dans le `.env` ; Pexels suspend
+  encore les nouvelles clés le 2026-10-17.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -359,7 +366,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  254 passed`.
+Vérifier : `Tests  260 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

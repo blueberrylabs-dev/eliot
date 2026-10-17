@@ -474,6 +474,20 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   longtemps (la fenêtre dit « Objets 3D, image par image » et le nombre d'images) ; Annuler
   l'arrête à tout moment.
 
+**Le panneau des calques (étape 7, lot 1)**
+- Onglet Calques du rail : tous les éléments de la page, du premier plan (en haut) vers le fond,
+  chacun avec son icône, ou sa miniature pour une photo, une vidéo ou un objet 3D.
+- Glisser une ligne la pose au-dessus ou au-dessous d'une autre (un trait montre où) ; une étape
+  d'annulation par glisser. Sur une page vidéo, l'ordre, ce sont les pistes : la ligne posée va
+  sur une piste entre celles de ses voisines ; un clip de la piste principale ne se glisse pas
+  ici (son ordre se règle sur la frise).
+- Double-clic sur un nom pour le changer (Entrée garde, Échap revient ; un nom vide rend celui
+  tiré du contenu). Au survol d'une ligne, l'élément est entouré sur la page, et la ligne
+  propose Dupliquer et Supprimer ; l'œil masque, le cadenas verrouille.
+- Grouper range le groupe d'un bloc dans la pile : une ligne « Groupe 1 », ses membres en retrait
+  dessous ; la flèche la replie, un clic choisit tout le groupe, on la glisse d'un bloc. Un
+  membre glissé hors du groupe le quitte.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -845,6 +859,21 @@ Vingt minutes, après les essais des lots (ou à leur place). Avant : recompiler
 Ce qui m'aide le plus en retour : le temps d'export sur le poste et sur le mini PC, la fluidité
 de la lecture avec deux objets 3D qui bougent, et ce qui manque pour une vraie publicité 3D.
 
+## Essayer le panneau des calques (étape 7, lot 1)
+
+Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
+
+1. Un modèle de départ chargé (une affiche, par exemple), onglet Calques : chaque ligne a son
+   icône ou sa miniature. Survoler les lignes : l'élément s'entoure sur la page.
+2. Glisser une ligne plus haut, puis plus bas : la page suit. Ctrl+Z, une fois par glisser.
+3. Double-clic sur un nom, « Titre principal », Entrée.
+4. Choisir deux objets éloignés dans la pile, Ctrl+G : une ligne « Groupe 1 ». La replier, la
+   glisser, puis sortir un membre en glissant sa ligne ailleurs.
+5. Passer la page en Vidéo : glisser une ligne change sa piste dans la frise.
+
+Ce qui m'aide le plus en retour : un glisser qui ne tombe pas là où tu l'attendais, et ce qui
+manque par rapport au panneau des calques de Canva.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -925,7 +954,7 @@ de la lecture avec deux objets 3D qui bougent, et ce qui manque pour une vraie p
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
