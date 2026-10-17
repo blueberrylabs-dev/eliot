@@ -326,7 +326,7 @@ impl ClientFreesound {
             return Err(e);
         }
         let titre = if r.name.trim().is_empty() { format!("Son {}", r.id) } else { r.name.trim().to_string() };
-        let credit = Credit { source: "Freesound".into(), auteur: r.username.clone(), lien: r.url.clone(), licence: Some(licence), titre: Some(titre.clone()) };
+        let credit = Credit { source: "Freesound".into(), auteur: r.username.clone(), lien: r.url.clone(), licence: Some(licence), titre: Some(titre.clone()), lien_auteur: None };
         Ok((credit, titre))
     }
 
@@ -500,7 +500,7 @@ mod tests {
         assert!(fs::read(&cible).unwrap().starts_with(b"SON /previews/1-hq.ogg"));
         assert_eq!(parts.last(), Some(&1.0));
         assert_eq!(titre, "Pluie sur le toit");
-        assert_eq!(credit, Credit { source: "Freesound".into(), auteur: "Anne".into(), lien: "https://freesound.org/people/Anne/sounds/1/".into(), licence: Some("CC BY 4.0".into()), titre: Some("Pluie sur le toit".into()) });
+        assert_eq!(credit, Credit { source: "Freesound".into(), auteur: "Anne".into(), lien: "https://freesound.org/people/Anne/sounds/1/".into(), licence: Some("CC BY 4.0".into()), titre: Some("Pluie sur le toit".into()), lien_auteur: None });
         // Les extraits partent sans la clé.
         assert!(demandes.lock().unwrap().iter().filter(|d| d.0.starts_with("/previews/")).all(|d| d.1.is_none()));
         assert!(matches!(c.telecharger(4, &cache.join("x.ogg"), &mut |_| ()), Err(ErreurFreesound::AdresseRefusee)), "une adresse hors de Freesound est refusée");

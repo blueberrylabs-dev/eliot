@@ -695,7 +695,7 @@ mod tests {
         fs::write(source.join("Textures").join("colormap.png"), png(32, 32)).unwrap();
         fs::write(source.join("pomme.glb"), ecrire_glb(&json, &bin)).unwrap();
         let ressources = dossier.join("ressources");
-        let credit = images::Credit { source: "Kenney".into(), auteur: "Kenney".into(), lien: "https://kenney.nl".into(), licence: Some("CC0 1.0".into()), titre: Some("Pomme".into()) };
+        let credit = images::Credit { source: "Kenney".into(), auteur: "Kenney".into(), lien: "https://kenney.nl".into(), licence: Some("CC0 1.0".into()), titre: Some("Pomme".into()), lien_auteur: None };
         let r = importer_avec_credit(&source.join("pomme.glb"), "Pomme", &ressources, credit.clone()).unwrap();
         assert_eq!(r.nom, "Pomme");
         assert_eq!(r.credit.as_ref(), Some(&credit));

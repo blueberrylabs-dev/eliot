@@ -62,7 +62,7 @@ import { aDesVoisins, CANAUX_COURBE, COULEURS_MELANGEUR, CURSEURS_LABO, normalis
 import { appliquerPrereglage, CATEGORIES_FOURNIES, CATEGORIE_MIENS, PREREGLAGES_FOURNIS, trouverPrereglage } from "../modele/prereglages";
 import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrereglages } from "../labo/prereglages";
 import { normaliser } from "../bibliotheque/recherche";
-import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
+import { NOMS_SOURCES, telechargerPhoto, telechargerVideo, type SourcePhotos } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
 import { STYLES_MAX, trouverStyle } from "../modele/stylesTexte";
 import { ECRAN_TELEPHONE, lecturePage, rgbEnHex, tailleMinimale, type Rgb } from "../modele/lisibilite";
@@ -76,7 +76,7 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, chercherPolyHaven, chercherSketchfab, estCheminEnvironnement, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatSketchfab, urlApercuPolyHaven, urlApercuSketchfab, type LicencesSketchfab, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, chercherPolyHaven, chercherSketchfab, estCheminEnvironnement, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatSketchfab, urlApercuPolyHaven, urlApercuSketchfab, type LicencesSketchfab, etatPiper, etatPixabay, etatPexels, chercherPexels, chercherVideosPexels, urlApercuPexels, urlApercuVideoPexels, type OrientationPexels, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
@@ -596,8 +596,43 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
   return new Promise((ok, ko) => toile.toBlob((b) => (b ? ok(b) : ko(new Error("planche impossible"))), "image/jpeg", 0.82));
 }
 
-const plancheDePhotos = (photos: PhotoPixabay[]) => planche(photos.map((p) => () => urlApercuPixabay(p.id)), 240, 180, true);
-const plancheDeVideos = (videos: VideoPixabay[]) => planche(videos.map((v) => () => urlApercuVideoPixabay(v.id)), 240, 135, true);
+const plancheDePhotos = (photos: PhotoPixabay[], source: SourcePhotos) => planche(photos.map((p) => () => (source === "pexels" ? urlApercuPexels : urlApercuPixabay)(p.id)), 240, 180, true);
+const plancheDeVideos = (videos: VideoPixabay[], source: SourcePhotos) => planche(videos.map((v) => () => (source === "pexels" ? urlApercuVideoPexels : urlApercuVideoPixabay)(v.id)), 240, 135, true);
+
+/** La banque demandée (Pixabay par défaut, Pexels étape 7, lot 5), sa clé vérifiée. */
+async function banquePhotos(args: Arguments): Promise<SourcePhotos> {
+  const source = (texte(args.source) ?? "pixabay") as SourcePhotos;
+  exiger(source === "pixabay" || source === "pexels", "source : pixabay ou pexels");
+  const etatCle = await (source === "pexels" ? etatPexels : etatPixabay)();
+  const nom = NOMS_SOURCES[source];
+  exiger(etatCle, `les photos et les vidéos de ${nom} ne s'ouvrent que dans la fenêtre Eliot`);
+  exiger(etatCle!.cle, `pas de clé ${nom} : Alexandre doit ajouter ${source === "pexels" ? "PEXELS_API_KEY" : "PIXABAY_API_KEY"} dans ${etatCle!.fichier}${source === "pexels" ? " (une clé gratuite se demande sur pexels.com/api ; en attendant, source pixabay)" : ""}`);
+  return source;
+}
+
+const ORIENTATIONS_PEXELS: Record<string, OrientationPexels> = { horizontal: "landscape", vertical: "portrait", carre: "square" };
+
+/** Une photo trouvée par chercher_photos, téléchargée puis posée (ou mise dans un cadre). */
+async function ajouterPhotoTrouvee(source: SourcePhotos, args: Arguments) {
+  designOuvert();
+  const id = nombre(args.id);
+  exiger(id !== undefined && Number.isInteger(id) && id > 0, `id : l'identifiant d'une photo trouvée par chercher_photos${source === "pexels" ? " avec source pexels" : ""}`);
+  const dans = texte(args.dans);
+  const cible = dans ? elementsCourants(etat()).find((e) => e.id === dans) : undefined;
+  if (dans) exiger(cible && recoitPhoto(cible), `cadre ou maquette introuvable sur la page affichée : ${dans}`);
+  const ressource = await telechargerPhoto(source, id!);
+  if (cible) {
+    etat().remplirPhoto(cible.id, ressource.id);
+    return { donnees: { element: elementsCourants(etat()).find((e) => e.id === cible.id), ressource } };
+  }
+  const base = creerImage(etat().document.format, ressource);
+  const largeur = nombre(args.largeur);
+  const hauteur = nombre(args.hauteur);
+  const ratio = ressource.largeur / ressource.hauteur;
+  const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
+  const el = placer(base, { ...args, ...dimensions });
+  return { donnees: { element: ajouter(el), ressource } };
+}
 
 /** Ce que la fenêtre lit d'un modèle 3D en le chargeant : ses matières et ses animations par
  *  leur nom, ses triangles. Un modèle que three.js ne sait pas lire est dit tout de suite. */
@@ -1626,32 +1661,40 @@ const OUTILS: Record<string, Outil> = {
   async chercher_videos(args) {
     const requete = texte(args.requete)?.trim();
     exiger(requete, "requete : quelques mots, en français ou en anglais");
-    const etatCle = await etatPixabay();
-    exiger(etatCle, "les vidéos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
-    exiger(etatCle.cle, `pas de clé Pixabay : Alexandre doit ajouter PIXABAY_API_KEY dans ${etatCle.fichier}`);
+    const source = await banquePhotos(args);
     const orientation = texte(args.orientation);
     if (orientation) exiger(orientation === "horizontal" || orientation === "vertical", "orientation : horizontal ou vertical");
     const page = Math.max(1, Math.min(12, Math.round(nombre(args.page, 1)!)));
-    const resultat = await chercherVideosPixabay(requete!, page);
-    // Pixabay ne filtre pas les vidéos par orientation : le tri se fait ici.
+    // Pexels filtre les vidéos par sens ; Pixabay non : le tri se fait ici.
+    const resultat = source === "pexels" ? await chercherVideosPexels(requete!, page, orientation ? ORIENTATIONS_PEXELS[orientation] : undefined) : await chercherVideosPixabay(requete!, page);
     const triees = resultat.videos.filter((v) => !orientation || (orientation === "vertical" ? v.hauteur > v.largeur : v.largeur >= v.hauteur));
     const nombreVideos = Math.max(1, Math.min(20, Math.round(nombre(args.nombre, 12)!)));
     const videos = triees.slice(0, nombreVideos);
     const donnees = {
       total: resultat.total,
       page,
+      source,
       videos: videos.map((v, i) => ({ numero: i + 1, id: v.id, largeur: v.largeur, hauteur: v.hauteur, duree_s: v.duree, auteur: v.auteur, mots: v.mots })),
-      conseil: "la planche montre une image de chaque vidéo, numérotée ; ajouter_video_pixabay avec l'id choisi",
+      conseil: `la planche montre une image de chaque vidéo, numérotée ; ajouter_video_${source} avec l'id choisi${source === "pexels" ? " (les vidéos de Pexels n'ont pas de son)" : ""}`,
     };
     if (videos.length === 0) return { donnees };
-    return { donnees, image: await base64(await plancheDeVideos(videos)) };
+    return { donnees, image: await base64(await plancheDeVideos(videos, source)) };
   },
 
   async ajouter_video_pixabay(args) {
     designOuvert();
     const id = nombre(args.id);
     exiger(id !== undefined && Number.isInteger(id) && id > 0, "id : l'identifiant d'une vidéo trouvée par chercher_videos");
-    const ressource = await telechargerVideoPixabay(id!);
+    const ressource = await telechargerVideo("pixabay", id!);
+    return { donnees: { element: poserVideo(ressource, args), ressource } };
+  },
+
+  async ajouter_video_pexels(args) {
+    designOuvert();
+    const id = nombre(args.id);
+    exiger(id !== undefined && Number.isInteger(id) && id > 0, "id : l'identifiant d'une vidéo trouvée par chercher_videos avec source pexels");
+    await banquePhotos({ source: "pexels" });
+    const ressource = await telechargerVideo("pexels", id!);
     return { donnees: { element: poserVideo(ressource, args), ressource } };
   },
 
@@ -2002,44 +2045,37 @@ const OUTILS: Record<string, Outil> = {
   async chercher_photos(args) {
     const requete = texte(args.requete)?.trim();
     exiger(requete, "requete : quelques mots, en français ou en anglais");
-    const etatCle = await etatPixabay();
-    exiger(etatCle, "les photos de Pixabay ne s'ouvrent que dans la fenêtre Eliot");
-    exiger(etatCle.cle, `pas de clé Pixabay : Alexandre doit ajouter PIXABAY_API_KEY dans ${etatCle.fichier}`);
+    const source = await banquePhotos(args);
     const orientation = texte(args.orientation);
-    if (orientation) exiger(orientation === "horizontal" || orientation === "vertical", "orientation : horizontal ou vertical");
+    if (orientation) exiger(orientation === "horizontal" || orientation === "vertical" || (source === "pexels" && orientation === "carre"), source === "pexels" ? "orientation : horizontal, vertical ou carre" : "orientation : horizontal ou vertical (carre : Pexels seulement)");
+    const couleur = texte(args.couleur)?.toLowerCase();
+    if (couleur?.startsWith("#")) exiger(source === "pexels" && HEX.test(couleur), "couleur #rrggbb : Pexels seulement (source pexels) ; sinon un nom de la liste");
+    if (couleur && source === "pexels" && !couleur.startsWith("#")) exiger(couleur !== "grayscale", "couleur grayscale : Pixabay seulement");
     const page = Math.max(1, Math.min(12, Math.round(nombre(args.page, 1)!)));
-    const resultat = await chercherPixabay(requete!, page, { orientation: orientation as "horizontal" | "vertical" | undefined, couleur: texte(args.couleur) });
+    const resultat =
+      source === "pexels"
+        ? await chercherPexels(requete!, page, { orientation: orientation ? ORIENTATIONS_PEXELS[orientation] : undefined, couleur: couleur === "lilac" ? "violet" : couleur })
+        : await chercherPixabay(requete!, page, { orientation: orientation as "horizontal" | "vertical" | undefined, couleur });
     const nombrePhotos = Math.max(1, Math.min(20, Math.round(nombre(args.nombre, 12)!)));
     const photos = resultat.photos.slice(0, nombrePhotos);
     const donnees = {
       total: resultat.total,
       page,
+      source,
       photos: photos.map((p, i) => ({ numero: i + 1, id: p.id, largeur: p.largeur, hauteur: p.hauteur, auteur: p.auteur, mots: p.mots })),
-      conseil: "la planche montre les photos numérotées ; ajouter_photo_pixabay avec l'id choisi",
+      conseil: `la planche montre les photos numérotées ; ajouter_photo_${source} avec l'id choisi`,
     };
     if (photos.length === 0) return { donnees };
-    return { donnees, image: await base64(await plancheDePhotos(photos)) };
+    return { donnees, image: await base64(await plancheDePhotos(photos, source)) };
   },
 
-  async ajouter_photo_pixabay(args) {
-    designOuvert();
-    const id = nombre(args.id);
-    exiger(id !== undefined && Number.isInteger(id) && id > 0, "id : l'identifiant d'une photo trouvée par chercher_photos");
-    const dans = texte(args.dans);
-    const cible = dans ? elementsCourants(etat()).find((e) => e.id === dans) : undefined;
-    if (dans) exiger(cible && recoitPhoto(cible), `cadre ou maquette introuvable sur la page affichée : ${dans}`);
-    const ressource = await telechargerPhotoPixabay(id!);
-    if (cible) {
-      etat().remplirPhoto(cible.id, ressource.id);
-      return { donnees: { element: elementsCourants(etat()).find((e) => e.id === cible.id), ressource } };
-    }
-    const base = creerImage(etat().document.format, ressource);
-    const largeur = nombre(args.largeur);
-    const hauteur = nombre(args.hauteur);
-    const ratio = ressource.largeur / ressource.hauteur;
-    const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur / ratio } : hauteur ? { largeur: hauteur * ratio, hauteur } : {};
-    const el = placer(base, { ...args, ...dimensions });
-    return { donnees: { element: ajouter(el), ressource } };
+  ajouter_photo_pixabay(args) {
+    return ajouterPhotoTrouvee("pixabay", args);
+  },
+
+  async ajouter_photo_pexels(args) {
+    await banquePhotos({ source: "pexels" });
+    return ajouterPhotoTrouvee("pexels", args);
   },
 
   marque() {

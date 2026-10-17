@@ -1,16 +1,17 @@
-// Les vidéos libres de Pixabay, dans le panneau Photos (étape 4). Comme pour les photos, tout
-// passe par le Rust, qui seul connaît la clé. Un clic télécharge la vidéo (1080p), la prépare
-// et la pose au centre ; un glisser la pose sous le pointeur.
+// Les vidéos libres de Pixabay (étape 4) et de Pexels (étape 7, lot 5), dans le panneau Photos.
+// Comme pour les photos, tout passe par le Rust, qui seul connaît la clé. Un clic télécharge la
+// vidéo (1080p), la prépare et la pose au centre ; un glisser la pose sous le pointeur.
 
 import { Film, Loader2, Search, X } from "lucide-react";
 import { useEffect, useRef, useState, type PointerEvent as PointeurReact } from "react";
 import { useEditeur } from "../../etat/editeur";
-import { telechargerVideoPixabay } from "../../etat/photos";
+import { telechargerVideo, type SourcePhotos } from "../../etat/photos";
 import { creerVideo } from "../../modele/fabriques";
 import type { Ressource } from "../../modele/types";
-import { chercherVideosPixabay, ouvrirLien, urlApercuVideoPixabay, type VideoPixabay } from "../../pont/tauri";
+import { chercherVideosPexels, chercherVideosPixabay, urlApercuVideoPexels, urlApercuVideoPixabay, type VideoPixabay } from "../../pont/tauri";
 import { glisserDepuisPanneau } from "../glisser";
 import { dureeLisible } from "../videos";
+import { MentionBanque } from "./PanneauPhotos";
 
 const SUGGESTIONS = ["mer", "ville la nuit", "nature", "café", "bureau", "sport", "nuages", "fumée", "particules", "fond abstrait", "cuisine", "voyage"];
 const PAR_PAGE = 40;
@@ -25,11 +26,20 @@ interface Recherche {
   page: number;
 }
 
-// La dernière recherche reste là quand on change d'onglet.
-let memoire: Recherche | null = null;
+/** Une vidéo trouvée, d'une banque ou de l'autre (Pexels donne aussi la page de son auteur). */
+type VideoTrouvee = VideoPixabay & { lienAuteur?: string };
+
+const ORIENTATION_PEXELS = { paysage: "landscape", portrait: "portrait" } as const;
+
+/** Chercher des vidéos : Pexels sait les filtrer par sens ; pour Pixabay, Eliot trie ensuite. */
+const chercher = (source: SourcePhotos, requete: string, page: number, orientation: Orientation): Promise<{ total: number; videos: VideoTrouvee[] }> =>
+  source === "pexels" ? chercherVideosPexels(requete, page, orientation === "toutes" ? undefined : ORIENTATION_PEXELS[orientation]) : chercherVideosPixabay(requete, page);
+
+// La dernière recherche de chaque banque reste là quand on change d'onglet.
+const memoire: Record<SourcePhotos, Recherche | null> = { pixabay: null, pexels: null };
 let orientationMemoire: Orientation = "toutes";
 
-function CarteVideo({ video }: { video: VideoPixabay }) {
+function CarteVideo({ video, source }: { video: VideoTrouvee; source: SourcePhotos }) {
   const [url, setUrl] = useState<string | null>(null);
   const [occupe, setOccupe] = useState(false);
   const carte = useRef<HTMLButtonElement>(null);
@@ -42,7 +52,7 @@ function CarteVideo({ video }: { video: VideoPixabay }) {
       (entrees) => {
         if (!entrees.some((e) => e.isIntersecting)) return;
         observateur.disconnect();
-        urlApercuVideoPixabay(video.id).then(
+        (source === "pexels" ? urlApercuVideoPexels : urlApercuVideoPixabay)(video.id).then(
           (u) => actif && setUrl(u),
           () => undefined,
         );
@@ -54,7 +64,7 @@ function CarteVideo({ video }: { video: VideoPixabay }) {
       actif = false;
       observateur.disconnect();
     };
-  }, [video.id]);
+  }, [video.id, source]);
 
   const debut = (e: PointeurReact<HTMLButtonElement>) => {
     if (occupe) return;
@@ -62,7 +72,7 @@ function CarteVideo({ video }: { video: VideoPixabay }) {
     const telecharger = () => {
       if (!promesse) {
         setOccupe(true);
-        promesse = telechargerVideoPixabay(video.id).finally(() => setOccupe(false));
+        promesse = telechargerVideo(source, video.id).finally(() => setOccupe(false));
         promesse.catch((erreur) => useEditeur.getState().notifier(`Vidéo non téléchargée : ${String(erreur)}`, { erreur: true }));
       }
       return promesse;
@@ -80,7 +90,8 @@ function CarteVideo({ video }: { video: VideoPixabay }) {
     <button
       ref={carte}
       data-video={video.id}
-      title={`${video.mots} (vidéo de ${video.auteur}, ${dureeLisible(video.duree * 1000)})`}
+      data-source={source}
+      title={`${video.mots} (vidéo de ${video.auteur}${source === "pexels" ? " sur Pexels" : ""}, ${dureeLisible(video.duree * 1000)})`}
       onPointerDown={debut}
       className="group relative mb-2 block w-full cursor-grab overflow-hidden rounded-lg bg-neutral-800 hover:ring-2 hover:ring-accent-500"
       style={{ aspectRatio: `${video.largeur} / ${video.hauteur}` }}
@@ -98,24 +109,24 @@ function CarteVideo({ video }: { video: VideoPixabay }) {
   );
 }
 
-export function SectionVideosPixabay() {
-  const [saisie, setSaisie] = useState(memoire?.requete ?? "");
-  const [recherche, setRecherche] = useState<Recherche | null>(memoire);
+export function SectionVideos({ source }: { source: SourcePhotos }) {
+  const [saisie, setSaisie] = useState(memoire[source]?.requete ?? "");
+  const [recherche, setRecherche] = useState<Recherche | null>(memoire[source]);
   const [orientation, setOrientation] = useState<Orientation>(orientationMemoire);
   const [occupe, setOccupe] = useState(false);
   const [erreur, setErreur] = useState<string | null>(null);
 
-  const lancer = async (requete: string, page = 1) => {
+  const lancer = async (requete: string, page = 1, sens: Orientation = orientation) => {
     if (!requete.trim()) return;
     setOccupe(true);
     setErreur(null);
     try {
-      const resultat = await chercherVideosPixabay(requete.trim(), page);
+      const resultat = await chercher(source, requete.trim(), page, sens);
       const suite: Recherche =
         page === 1 || !recherche
           ? { requete: requete.trim(), videos: resultat.videos, total: resultat.total, page }
           : { ...recherche, videos: [...recherche.videos, ...resultat.videos.filter((v) => !recherche.videos.some((w) => w.id === v.id))], page };
-      memoire = suite;
+      memoire[source] = suite;
       setRecherche(suite);
     } catch (e) {
       setErreur(String(e));
@@ -124,7 +135,8 @@ export function SectionVideosPixabay() {
     }
   };
 
-  // Pixabay ne filtre pas les vidéos par orientation : le tri se fait ici, sur les résultats.
+  // Pixabay ne filtre pas les vidéos par orientation : le tri se fait ici, sur les résultats
+  // (ceux de Pexels sont déjà dans le bon sens).
   const visibles = (recherche?.videos ?? []).filter((v) => orientation === "toutes" || (orientation === "portrait" ? v.hauteur > v.largeur : v.largeur >= v.hauteur));
   const plus = recherche && recherche.videos.length < recherche.total && recherche.page < PAGES_MAX && recherche.videos.length >= recherche.page * PAR_PAGE;
 
@@ -146,7 +158,7 @@ export function SectionVideosPixabay() {
             onClick={() => {
               setSaisie("");
               setRecherche(null);
-              memoire = null;
+              memoire[source] = null;
             }}
             className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-700"
           >
@@ -162,6 +174,8 @@ export function SectionVideosPixabay() {
           onChange={(e) => {
             orientationMemoire = e.target.value as Orientation;
             setOrientation(orientationMemoire);
+            // Pexels filtre chez lui : la recherche repart dans le nouveau sens.
+            if (source === "pexels" && recherche) void lancer(recherche.requete, 1, orientationMemoire);
           }}
           className="h-7 rounded-md border border-neutral-300 bg-white px-1 text-xs"
         >
@@ -171,13 +185,7 @@ export function SectionVideosPixabay() {
         </select>
       </div>
 
-      <p className="mb-3 text-[11px] text-neutral-500">
-        Vidéos libres de{" "}
-        <button onClick={() => void ouvrirLien("https://pixabay.com/videos/")} className="font-medium text-accent-700 hover:underline">
-          Pixabay
-        </button>
-        {" : gratuites, sans obligation de citer l'auteur (Eliot garde son nom avec la vidéo). Interdit : les revendre telles quelles. Une vidéo se télécharge en 1080p, puis Eliot la prépare : compte quelques secondes."}
-      </p>
+      <MentionBanque source={source} genre="videos" />
 
       {!recherche && !occupe && (
         <div className="flex flex-wrap gap-1.5">
@@ -206,7 +214,7 @@ export function SectionVideosPixabay() {
           {orientation !== "toutes" && visibles.length === 0 && recherche.videos.length > 0 && <p className="mb-2 text-xs text-neutral-500">Aucune vidéo dans ce sens parmi celles chargées.</p>}
           <div className="columns-2 gap-2">
             {visibles.map((v) => (
-              <CarteVideo key={v.id} video={v} />
+              <CarteVideo key={v.id} video={v} source={source} />
             ))}
           </div>
           {plus && (

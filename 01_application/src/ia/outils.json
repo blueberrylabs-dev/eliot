@@ -1112,10 +1112,18 @@
   },
   {
     "name": "chercher_photos",
-    "description": "Cherche des photos libres sur Pixabay (gratuites, sans obligation de citer l'auteur ; jamais dans un logo ni un nom de marque ; prudence avec les visages et les marques reconnaissables). Renvoie les photos trouvées et une planche d'aperçus numérotés pour les regarder avant de choisir. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la photo choisie.",
+    "description": "Cherche des photos libres sur Pixabay (par défaut) ou sur Pexels (source pexels) : gratuites, sans obligation de citer l'auteur (Eliot garde son nom avec la photo ; Pexels demande de citer le photographe quand c'est possible : « Photo de … sur Pexels ») ; jamais dans un logo ni un nom de marque ; prudence avec les visages et les marques reconnaissables ; Pexels interdit aussi de laisser croire que les personnes montrées approuvent un produit. Renvoie les photos trouvées et une planche d'aperçus numérotés pour les regarder avant de choisir. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la photo choisie. Pexels : 200 recherches par heure au plus.",
     "inputSchema": {
       "type": "object",
       "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "pixabay",
+            "pexels"
+          ],
+          "description": "La banque : pixabay (par défaut) ou pexels (étape 7 ; avec la clé PEXELS_API_KEY d'Alexandre). Les identifiants d'une banque ne valent pas chez l'autre."
+        },
         "requete": {
           "type": "string",
           "description": "Quelques mots, en français ou en anglais : « café latte », « femme qui court plage »."
@@ -1124,33 +1132,20 @@
           "type": "string",
           "enum": [
             "horizontal",
-            "vertical"
-          ]
+            "vertical",
+            "carre"
+          ],
+          "description": "carre : Pexels seulement."
         },
         "couleur": {
           "type": "string",
-          "enum": [
-            "red",
-            "orange",
-            "yellow",
-            "green",
-            "turquoise",
-            "blue",
-            "lilac",
-            "pink",
-            "white",
-            "gray",
-            "black",
-            "brown",
-            "grayscale"
-          ],
-          "description": "Couleur dominante."
+          "description": "Couleur dominante : un nom de la liste (lilac devient violet chez Pexels ; grayscale : Pixabay seulement), ou, avec source pexels, un code #rrggbb (une couleur de la marque)."
         },
         "page": {
           "type": "integer",
           "minimum": 1,
           "maximum": 12,
-          "description": "Page de résultats (40 photos par page chez Pixabay)."
+          "description": "Page de résultats (40 photos par page)."
         },
         "nombre": {
           "type": "integer",
@@ -1173,6 +1168,46 @@
         "id": {
           "type": "integer",
           "description": "Identifiant de la photo donné par chercher_photos."
+        },
+        "dans": {
+          "type": "string",
+          "description": "Identifiant d'un cadre ou d'une maquette de la page affichée."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_photo_pexels",
+    "description": "Télécharge une photo trouvée par chercher_photos avec source pexels (dans sa taille d'origine), la range dans le design avec le nom du photographe, sa page et celle de la photo (le crédit « Photo de … sur Pexels »), puis la pose sur la page (centrée par défaut) ou, avec dans, la met dans un cadre ou l'écran d'une maquette.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Identifiant de la photo donné par chercher_photos (source pexels)."
         },
         "dans": {
           "type": "string",
@@ -1291,10 +1326,18 @@
   },
   {
     "name": "chercher_videos",
-    "description": "Cherche des vidéos libres sur Pixabay (gratuites, sans obligation de citer l'auteur ; interdit de les revendre telles quelles). Renvoie les vidéos trouvées (taille, durée en secondes, auteur) et une planche numérotée avec une image de chacune. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la vidéo choisie.",
+    "description": "Cherche des vidéos libres sur Pixabay (par défaut) ou sur Pexels (source pexels) : gratuites, sans obligation de citer l'auteur ; interdit de les revendre telles quelles ; les vidéos de Pexels n'ont pas de son. Renvoie les vidéos trouvées (taille, durée en secondes, auteur) et une planche numérotée avec une image de chacune. Les recherches restent 24 h en cache ; le réseau ne sert qu'ici et au téléchargement de la vidéo choisie.",
     "inputSchema": {
       "type": "object",
       "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "pixabay",
+            "pexels"
+          ],
+          "description": "La banque : pixabay (par défaut) ou pexels (étape 7 ; avec la clé PEXELS_API_KEY d'Alexandre). Les identifiants d'une banque ne valent pas chez l'autre."
+        },
         "requete": {
           "type": "string",
           "description": "Quelques mots, en français ou en anglais : « mer vagues », « ville la nuit »."
@@ -1305,7 +1348,7 @@
             "horizontal",
             "vertical"
           ],
-          "description": "Trié par Eliot parmi les résultats (Pixabay ne filtre pas les vidéos par sens)."
+          "description": "Pexels filtre lui-même ; pour Pixabay, Eliot trie parmi les résultats."
         },
         "page": {
           "type": "integer",
@@ -1334,6 +1377,77 @@
         "id": {
           "type": "integer",
           "description": "Identifiant de la vidéo donné par chercher_videos."
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "coupe": {
+          "type": "object",
+          "description": "La partie du fichier qui joue, en millisecondes du fichier : { debut, fin } (fin absente : jusqu'au bout). Absente : toute la vidéo.",
+          "properties": {
+            "debut": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "fin": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "vitesse": {
+          "type": "number",
+          "enum": [
+            0.25,
+            0.5,
+            0.75,
+            1,
+            1.25,
+            1.5,
+            2,
+            3,
+            4
+          ],
+          "description": "1 : vitesse normale."
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "0 : muet ; 1 par défaut."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_video_pexels",
+    "description": "Télécharge une vidéo trouvée par chercher_videos avec source pexels (1080p, sans son), la prépare comme une vidéo importée, la range dans le design avec le nom de son auteur et sa page, puis la pose comme ajouter_video.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Identifiant de la vidéo donné par chercher_videos (source pexels)."
         },
         "x": {
           "type": "number"

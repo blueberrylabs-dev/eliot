@@ -691,6 +691,8 @@ export interface Credit {
    *  « CC BY 4.0 ») et son titre. */
   licence?: string;
   titre?: string;
+  /** La page de l'auteur sur le site d'origine (Pexels : celle du photographe). */
+  lienAuteur?: string;
 }
 
 /** Où vit un design : son rayon (`designs` ou `modeles`) et son dossier. */

@@ -266,7 +266,7 @@ impl ClientPolyHaven {
 
     fn credit(id: &str, b: &Brut) -> Credit {
         let e = Self::element(id, b);
-        Credit { source: "Poly Haven".into(), auteur: e.auteur, lien: e.lien, licence: Some("CC0 1.0".into()), titre: Some(e.nom) }
+        Credit { source: "Poly Haven".into(), auteur: e.auteur, lien: e.lien, licence: Some("CC0 1.0".into()), titre: Some(e.nom), lien_auteur: None }
     }
 
     /// Télécharge un modèle en glTF (`1k` ou `2k`) dans `dossier` (le fichier glTF et ce qu'il

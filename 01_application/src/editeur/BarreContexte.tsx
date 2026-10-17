@@ -583,18 +583,30 @@ const FORMES_CADRE: { forme: FormeCadre; nom: string }[] = [
   { forme: "coeur", nom: "Cœur" },
 ];
 
-/** Le crédit d'une photo ou d'une vidéo venue de Pixabay : auteur, et un clic ouvre sa page. */
+/** Le crédit d'une photo ou d'une vidéo venue de Pixabay ou de Pexels : auteur, et un clic ouvre
+ *  sa page. Pour Pexels, ses mots (« Photo de … sur Pexels ») et, à côté, la page du photographe,
+ *  comme ses règles le demandent. */
 function CreditPhoto({ ressource }: { ressource: string | undefined }) {
   const r = useEditeur((s) => (ressource ? s.ressources[ressource] : undefined));
   const credit = r?.credit;
   if (!credit) return null;
   const genre = r.video ? "vidéo" : "photo";
+  const classe = "h-8 shrink-0 rounded-md px-2 text-xs whitespace-nowrap text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800";
+  if (credit.source === "Pexels")
+    return (
+      <span data-credit-photo className="flex shrink-0 items-center">
+        <button title={`Ouvrir la page de la ${genre} sur Pexels`} onClick={() => void ouvrirLien(credit.lien)} className={classe}>
+          {r.video ? "Vidéo" : "Photo"} de {credit.auteur} sur Pexels
+        </button>
+        {credit.lienAuteur && (
+          <button data-lien-auteur title={`Ouvrir la page de ${credit.auteur} sur Pexels`} onClick={() => void ouvrirLien(credit.lienAuteur!)} className={`${classe} -ml-1 underline decoration-dotted`}>
+            son profil
+          </button>
+        )}
+      </span>
+    );
   return (
-    <button
-      title={`Ouvrir la page de la ${genre} sur ${credit.source}`}
-      onClick={() => void ouvrirLien(credit.lien)}
-      className="h-8 shrink-0 rounded-md px-2 text-xs whitespace-nowrap text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
-    >
+    <button data-credit-photo title={`Ouvrir la page de la ${genre} sur ${credit.source}`} onClick={() => void ouvrirLien(credit.lien)} className={classe}>
       {r.video ? "Vidéo" : "Photo"} : {credit.auteur}, {credit.source}
     </button>
   );

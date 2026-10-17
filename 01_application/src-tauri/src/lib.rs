@@ -12,6 +12,7 @@ pub fn lancer() {
         .manage(commandes::VerrouProjets::default())
         .manage(commandes::PolicesPoste::default())
         .manage(commandes::Pixabay::default())
+        .manage(commandes::Pexels::default())
         .manage(commandes::Freesound::default())
         .manage(commandes::PolyHaven::default())
         .manage(commandes::Sketchfab::default())
@@ -71,6 +72,13 @@ pub fn lancer() {
             commandes::pixabay_chercher_videos,
             commandes::pixabay_apercu_video,
             commandes::pixabay_importer_video,
+            commandes::pexels_etat,
+            commandes::pexels_chercher,
+            commandes::pexels_apercu,
+            commandes::pexels_importer,
+            commandes::pexels_chercher_videos,
+            commandes::pexels_apercu_video,
+            commandes::pexels_importer_video,
             commandes::freesound_etat,
             commandes::freesound_chercher,
             commandes::freesound_extrait,

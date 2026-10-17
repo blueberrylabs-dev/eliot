@@ -34,7 +34,7 @@ interface RessourceNoyau {
   largeur: number;
   hauteur: number;
   transparence: boolean;
-  credit?: (Omit<Credit, "licence" | "titre"> & { licence?: string | null; titre?: string | null }) | null;
+  credit?: (Omit<Credit, "licence" | "titre" | "lienAuteur"> & { licence?: string | null; titre?: string | null; lien_auteur?: string | null }) | null;
   son?: { duree: number; copie: string; lufs?: number | null; crete?: number | null; origine?: string | null; marque?: number | null } | null;
   video?: {
     duree: number;
@@ -75,6 +75,7 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
           lien: r.credit.lien,
           ...(r.credit.licence ? { licence: r.credit.licence } : {}),
           ...(r.credit.titre ? { titre: r.credit.titre } : {}),
+          ...(r.credit.lien_auteur ? { lienAuteur: r.credit.lien_auteur } : {}),
         },
       }
     : {}),
@@ -1254,6 +1255,148 @@ export async function importerVideoPixabay(ref: RefRessources, id: number, suivi
 }
 
 // ========================================================================================
+// Photos et vidéos de Pexels (étape 7, lot 5) : le même chemin que Pixabay, par le Rust, qui
+// seul connaît la clé ; les identifiants de Pexels ont leurs propres aperçus en mémoire.
+// ========================================================================================
+
+export interface PhotoPexels {
+  id: number;
+  largeur: number;
+  hauteur: number;
+  /** Le photographe, et sa page sur Pexels. */
+  auteur: string;
+  lienAuteur: string;
+  /** La page de la photo sur Pexels. */
+  lien: string;
+  mots: string;
+  /** Sa couleur moyenne, le fond de la vignette avant l'aperçu. */
+  couleur: string;
+}
+
+export interface PagePexels {
+  total: number;
+  photos: PhotoPexels[];
+}
+
+export type OrientationPexels = "landscape" | "portrait" | "square";
+
+export interface FiltresPexels {
+  orientation?: OrientationPexels;
+  /** Une couleur de Pexels (red, violet…) ou un code #rrggbb. */
+  couleur?: string;
+}
+
+export interface VideoPexels {
+  id: number;
+  largeur: number;
+  hauteur: number;
+  /** Secondes. */
+  duree: number;
+  auteur: string;
+  lienAuteur: string;
+  lien: string;
+  mots: string;
+}
+
+export interface PageVideosPexels {
+  total: number;
+  videos: VideoPexels[];
+}
+
+/** Les essais de l'interface dans un navigateur peuvent poser un faux Pexels dans
+ *  `window.__pexelsEssai` (en développement seulement), comme pour Pixabay. */
+interface PexelsEssai {
+  etat(): Promise<EtatPixabay>;
+  chercher(requete: string, page: number, filtres: FiltresPexels): Promise<PagePexels>;
+  apercu(id: number): Promise<Blob>;
+  importer(id: number): Promise<{ fichier: File; credit: Credit }>;
+  chercherVideos(requete: string, page: number, orientation?: OrientationPexels): Promise<PageVideosPexels>;
+  apercuVideo(id: number): Promise<Blob>;
+  importerVideo(id: number): Promise<{ fichier: File; credit: Credit }>;
+}
+const pexelsEssai = (): PexelsEssai | undefined =>
+  !dansTauri && import.meta.env.DEV ? (window as unknown as { __pexelsEssai?: PexelsEssai }).__pexelsEssai : undefined;
+
+const HORS_FENETRE_PEXELS = "les photos et les vidéos de Pexels ne s'ouvrent que dans la fenêtre Eliot";
+
+export async function etatPexels(): Promise<EtatPixabay | null> {
+  if (dansTauri) return invoke<EtatPixabay>("pexels_etat");
+  return (await pexelsEssai()?.etat()) ?? null;
+}
+
+export async function chercherPexels(requete: string, page: number, filtres: FiltresPexels = {}): Promise<PagePexels> {
+  if (dansTauri) return invoke<PagePexels>("pexels_chercher", { requete, page, filtres });
+  const essai = pexelsEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PEXELS);
+  return essai.chercher(requete, page, filtres);
+}
+
+const urlsApercusPexels = new Map<string, Promise<string>>();
+
+function apercuPexels(cle: string, commande: string, id: number, essai: (e: PexelsEssai) => Promise<Blob>): Promise<string> {
+  let promesse = urlsApercusPexels.get(cle);
+  if (!promesse) {
+    promesse = aTonTour(async () => {
+      if (dansTauri) {
+        const octets = await invoke<ArrayBuffer>(commande, { id });
+        return URL.createObjectURL(new Blob([octets], { type: "image/jpeg" }));
+      }
+      const e = pexelsEssai();
+      if (!e) throw new Error("indisponible");
+      return URL.createObjectURL(await essai(e));
+    });
+    promesse.catch(() => urlsApercusPexels.delete(cle));
+    urlsApercusPexels.set(cle, promesse);
+  }
+  return promesse;
+}
+
+/** Adresse locale de l'aperçu d'une photo de Pexels (350 px de haut). */
+export const urlApercuPexels = (id: number): Promise<string> => apercuPexels(`photo-${id}`, "pexels_apercu", id, (e) => e.apercu(id));
+
+/** Adresse locale de l'image d'aperçu d'une vidéo de Pexels. */
+export const urlApercuVideoPexels = (id: number): Promise<string> => apercuPexels(`video-${id}`, "pexels_apercu_video", id, (e) => e.apercuVideo(id));
+
+/** Télécharge la photo choisie (sa taille d'origine) et la range dans le design, avec son crédit. */
+export async function importerPexels(ref: RefRessources, id: number): Promise<Ressource> {
+  if (dansTauri) return versRessource(await invoke<RessourceNoyau>("pexels_importer", { rayonNom: ref.rayon, projetId: ref.id, id }));
+  const essai = pexelsEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PEXELS);
+  const { fichier, credit } = await essai.importer(id);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource = bilan.ressources[0];
+  ressource.credit = credit;
+  return ressource;
+}
+
+export async function chercherVideosPexels(requete: string, page: number, orientation?: OrientationPexels): Promise<PageVideosPexels> {
+  if (dansTauri) return invoke<PageVideosPexels>("pexels_chercher_videos", { requete, page, orientation: orientation ?? null });
+  const essai = pexelsEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PEXELS);
+  return essai.chercherVideos(requete, page, orientation);
+}
+
+/** Télécharge la vidéo choisie (1080p) et l'importe dans le design, avec son crédit. `suivi`
+ *  reçoit la part faite, téléchargement puis préparation. */
+export async function importerVideoPexels(ref: RefRessources, id: number, suivi?: (part: number) => void): Promise<Ressource> {
+  if (dansTauri) {
+    const canal = new Channel<{ fichier: number; part: number }>();
+    canal.onmessage = (a) => suivi?.(a.part);
+    suivi?.(0);
+    return versRessource(await invoke<RessourceNoyau>("pexels_importer_video", { rayonNom: ref.rayon, projetId: ref.id, id, avancement: canal }));
+  }
+  const essai = pexelsEssai();
+  if (!essai) throw new Error(HORS_FENETRE_PEXELS);
+  const { fichier, credit } = await essai.importerVideo(id);
+  const bilan = await importerFichiersNavigateur([fichier]);
+  if (bilan.erreurs.length) throw new Error(bilan.erreurs[0]);
+  const ressource = bilan.ressources[0];
+  ressource.credit = credit;
+  return ressource;
+}
+
+// ========================================================================================
 // Sons de Freesound (étape 4, lot 5) : même chemin, par le Rust, qui seul connaît la clé
 // ========================================================================================
 
@@ -1755,6 +1898,14 @@ export async function enregistrerPrereglages(liste: unknown): Promise<void> {
 /** Ouvre une page web (le crédit d'une photo) dans le navigateur du poste. */
 export async function ouvrirLien(adresse: string): Promise<void> {
   if (!/^https:\/\//.test(adresse)) return;
+  // L'adresse écrite en entier (« https://kenney.nl » devient « https://kenney.nl/ ») : la
+  // fenêtre n'ouvre que les sites d'où viennent les photos, les sons et les modèles
+  // (src-tauri/capabilities), et les compare à la lettre.
+  try {
+    adresse = new URL(adresse).href;
+  } catch {
+    return;
+  }
   if (dansTauri) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");
     await openUrl(adresse);

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Droits de la fenêtre d'Eliot : dialogues d'ouverture et d'enregistrement, afficher un fichier dans son dossier, ouvrir la page d'une photo de Pixabay dans le navigateur, plein écran, thème clair ou sombre de la barre de titre, fermeture après le dernier enregistrement",
+  "description": "Droits de la fenêtre d'Eliot : dialogues d'ouverture et d'enregistrement, afficher un fichier dans son dossier, ouvrir dans le navigateur la page d'une photo, d'une vidéo, d'un son ou d'un modèle 3D sur le site d'où il vient (et ces sites seulement), plein écran, thème clair ou sombre de la barre de titre, fermeture après le dernier enregistrement",
   "windows": [
     "main"
   ],
@@ -20,6 +20,30 @@
       "allow": [
         {
           "url": "https://pixabay.com/*"
+        },
+        {
+          "url": "https://www.pexels.com/*"
+        },
+        {
+          "url": "https://freesound.org/*"
+        },
+        {
+          "url": "https://polyhaven.com/*"
+        },
+        {
+          "url": "https://sketchfab.com/*"
+        },
+        {
+          "url": "https://kenney.nl/*"
+        },
+        {
+          "url": "https://www.mixamo.com/*"
+        },
+        {
+          "url": "https://www.youtube.com/audiolibrary*"
+        },
+        {
+          "url": "https://freemusicarchive.org/*"
         }
       ]
     }

@@ -5,6 +5,65 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7, lot 5 : Pexels, construit avant la clé
+
+Demande d'Alexandre : Pexels ne délivre toujours pas de nouvelles clés, « mais si tu peux déjà
+le construire, et le jour où il y aura les API de retour, je le mettrai dans Env ». Ce que
+Claude a fait et décidé :
+
+- L'API relue le 2026-10-17 (pexels.com/api/documentation) : `v1/search` et `v1/videos/search`,
+  la clé dans l'en-tête `Authorization`, 200 demandes par heure et 20 000 par mois, un lien bien
+  visible vers Pexels là où ses résultats s'affichent, le photographe cité quand c'est possible.
+  Licence (pexels.com/license) : citer n'est pas obligé ; interdit de revendre une photo telle
+  quelle, de s'en servir dans une marque, de laisser croire qu'une personne montrée approuve un
+  produit. Les deux adresses de recherche répondent 401 sans clé (elles existent) ; aucune clé
+  n'a servi.
+- Noyau : `noyau/src/pexels.rs`, sur le modèle de Pixabay : la clé lue dans le `.env`
+  (`PEXELS_API_KEY`), envoyée à l'API seulement, jamais aux serveurs d'images ni dans une
+  adresse ; recherches et aperçus 24 h en cache (Pexels n'en dit rien : la même discipline que
+  Pixabay) ; la photo choisie dans sa taille d'origine (Pixabay ne donne que 1 280 px) ; la
+  vidéo en 1080p (le plus grand fichier MP4 dont le petit côté ne dépasse pas 1080, ni le 4K
+  ni le HLS) ; seules les adresses de Pexels sont téléchargées ; un message clair pour une clé
+  refusée et pour la limite atteinte. Tant que la clé manque, chaque demande relit le `.env` :
+  la clé ajoutée sert sans relancer Eliot.
+- Le crédit gagne la page de l'auteur (`lien_auteur`, facultatif : les designs d'avant ne
+  changent pas) : « Photo de … sur Pexels » dans la barre du haut, un clic ouvre la page de la
+  photo, « son profil » celle du photographe.
+- Panneau Photos : en haut, Pixabay ou Pexels, pour les photos comme pour les vidéos ; la même
+  recherche passe de l'une à l'autre, chacune garde la sienne, le choix est gardé. Les filtres
+  sont les mêmes pour les deux et chacune reçoit ce qu'elle sait faire : le carré et une couleur
+  de la marque (un code #rrggbb) chez Pexels seulement, le noir et blanc chez Pixabay seulement,
+  le lilas devient violet chez Pexels ; les vidéos de Pexels se filtrent par sens chez Pexels.
+  Sans clé, le panneau dit où ajouter `PEXELS_API_KEY` et propose les photos de Pixabay.
+- Correction : la fenêtre n'ouvrait que les liens de pixabay.com ; ceux de Freesound, de Kenney,
+  de Mixamo, des bibliothèques de musique et les pages des crédits de Freesound, Poly Haven et
+  Sketchfab ne s'ouvraient pas, sans message (constaté dans le code du greffon : la liste est
+  comparée à la lettre). La liste des sites permis compte maintenant ces sites et Pexels, et
+  seulement eux ; l'adresse est écrite en entier avant d'être comparée.
+- Pont : `source` (pixabay par défaut, ou pexels) dans `chercher_photos` et `chercher_videos`,
+  deux outils neufs, `ajouter_photo_pexels` et `ajouter_video_pexels` (79 outils).
+
+Preuves (conteneur de Claude, contre un faux Pexels) : 7 essais Rust de plus (146 : la clé dans
+l'en-tête et jamais vers les images, les filtres envoyés, le cache, les origines refusées, le
+choix du fichier vidéo, clé refusée et limite, rien sans clé, le nettoyage du cache) ; dans
+Chromium, 24 vérifications (la bascule, la clé qui manque puis « Réessayer », les filtres
+traduits, une couleur de la marque, la photo posée et son crédit, les trois liens ouverts, la
+même requête chez Pixabay, la recherche gardée, les vidéos par sens, le pont) ; dans Tauri, 18
+(sans clé, le panneau et le pont ; la clé ajoutée au fichier, « Réessayer » sans relancer ; une
+recherche et une photo posée à la souris ; la clé dans l'en-tête de l'API seulement ;
+l'originale téléchargée ; le lien « Pexels » ouvert par la fenêtre, noté par un faux xdg-open ;
+le pont, le 1080p d'une vidéo en portrait ; les crédits relus à la réouverture ; le PNG du noyau
+; Pixabay relancé par la bascule, une de ses photos posée à la souris). Repassés : Chromium,
+l'étape 3, lot 3 (29 ; deux vérifications suivent le panneau : le lien « Pixabay » cherché par
+son repère, l'orientation choisie par son nouveau nom), l'étape 4, lots 1, 6 et 7 (41, 37, 44 ;
+celle du lot 1 cherchait le bouton Son par une infobulle que le lot 3 de l'étape 7 a rallongée :
+rendue exacte), l'étape 7, lots 2 et 4 (53, 46) ; Tauri, l'étape 7, lot 4 (15), l'étape 6, lot 3
+(34), le pont des vidéos et de l'animation de l'étape 4 (25, 16), et celui des sons (24 sur 26)
+: ses deux vérifications du son joué, mesurées sur la sortie de PulseAudio du conteneur, tombent
+à côté d'un essai à l'autre (de 0,1 à 0,8 s), sans rapport avec ce lot ; elles sont à reprendre
+à la vérification de l'étape. Les vérifications qui comptaient les outils (61, 63, 77) en
+comptent 79.
+
 ## 2026-10-17, étape 7, lot 4 : couleur, fond, thème
 
 Suite du feu vert d'Alexandre pour le lot 4. Ce que Claude a fait et décidé :

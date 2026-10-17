@@ -2,8 +2,8 @@
 
 L'éditeur, étapes 1 à 5 du `BRIEF.md` et début de l'étape 6 : un accueil qui range tes
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
-d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
-marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
+d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay et de
+Pexels, un kit de marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
 leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et
 les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG,
 JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, l'export des vidéos en MP4 ou en
@@ -85,8 +85,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   l'ancienne (« Recadrer » pour choisir la partie gardée). Le détourage, propre à l'ancienne
   photo, part : « Détourer » le refait. Une étape d'annulation. Dans un cadre ou une maquette,
   « Remplacer » change la photo et remet son cadrage au centre.
-- Panneau Photos : photos libres de Pixabay, cherchées en français, filtrées par orientation
-  et par couleur. Rien ne part sur internet avant une recherche ; les résultats restent 24 h
+- Panneau Photos : photos libres de Pixabay (et de Pexels, plus bas), cherchées en français,
+  filtrées par orientation et par couleur. Rien ne part sur internet avant une recherche ; les résultats restent 24 h
   en cache. La photo choisie est copiée dans le design avec le nom de son auteur, visible dans
   la barre du haut quand elle est choisie. Il faut la clé Pixabay dans le `.env` du dossier
   Eliot (`PIXABAY_API_KEY=…`) ; Eliot la lit côté Rust et ne l'affiche jamais.
@@ -539,13 +539,32 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   bureau). Seule l'interface change : la page, ses couleurs, les vignettes et les exports restent
   les mêmes, au pixel près. Le choix est gardé d'une ouverture à l'autre.
 
+**Pexels (étape 7, lot 5)**
+- Panneau Photos, en haut : Pixabay ou Pexels, pour les photos comme pour les vidéos ; la même
+  recherche passe de l'une à l'autre, et chacune garde la sienne. Le choix est gardé d'une
+  ouverture à l'autre.
+- Chez Pexels, les filtres : paysage, portrait ou carré, une couleur de la liste, ou une
+  couleur de ta marque (Pexels cherche les photos qui en sont proches). Les vidéos se filtrent
+  par sens chez Pexels même ; elles n'ont pas de son.
+- La photo choisie se télécharge dans sa taille d'origine (la vidéo en 1080p) et garde son
+  crédit : « Photo de … sur Pexels » dans la barre du haut, un clic ouvre sa page, « son
+  profil » celle du photographe, comme Pexels le demande. Le lien « Pexels » du panneau mène à
+  son site. Interdit par sa licence : revendre une photo telle quelle, s'en servir dans une
+  marque, laisser croire que les personnes montrées approuvent ton produit.
+- Il faut la clé `PEXELS_API_KEY` dans le `.env` du dossier Eliot. Sans elle, le panneau dit
+  où l'ajouter ; une fois ajoutée, « Réessayer » suffit, sans relancer Eliot. Pexels peut
+  suspendre un temps la délivrance des nouvelles clés (c'était le cas le 2026-10-17).
+- Les liens vers les sites d'où viennent les photos, les sons et les modèles (Pexels, Pixabay,
+  Freesound, Poly Haven, Sketchfab, Kenney, Mixamo, YouTube Audio Library, Free Music Archive)
+  s'ouvrent dans ton navigateur ; la fenêtre n'en ouvre pas d'autres.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design (avec les alertes de lisibilité de la page), poser et modifier des objets
   (courber un texte, en faire une liste, ranger et nommer les calques), montrer les aides à
   l'écran ou changer le thème, poser ou détacher une photo en fond, lire la couleur d'un point
   de la page (sa pipette), gérer les pages, importer une image du
-  poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
+  poste, chercher et poser des photos et des vidéos de Pixabay ou de Pexels, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
   lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
   styles de texte pour la vidéo), importer, chercher (Freesound) et poser des sons, les
@@ -984,6 +1003,26 @@ Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : un endroit de l'interface mal lisible en sombre, et une
 couleur prise par la pipette qui n'est pas celle que tu vois.
 
+## Essayer Pexels (étape 7, lot 5)
+
+Le jour où Pexels redonne des clés : demande la tienne sur https://www.pexels.com/api/ (compte
+Pexels gratuit), puis ajoute la ligne `PEXELS_API_KEY=ta_clé` au fichier
+`/home/nushoko/Bureau/Logiciels/Eliot/.env`, à côté de celle de Pixabay. Cinq minutes, Eliot
+lancé à la main, carte graphique libre (commande 10).
+
+1. Panneau Photos, en haut, Pexels : la recherche paraît (sinon, « Réessayer »). Chercher
+   « café » : des photos de Pexels, le nom du photographe au survol.
+2. Orientation Carré, puis une couleur de ta marque (la rangée « Couleurs de la marque ») :
+   les photos changent. Revenir sur Pixabay : la même recherche y est faite.
+3. Une photo de Pexels posée sur la page, choisie : « Photo de … sur Pexels » dans la barre du
+   haut ; un clic ouvre sa page dans ton navigateur, « son profil » celle du photographe.
+4. Vidéos, Pexels, « mer », Portrait (story) : des vidéos verticales ; une posée sur une page
+   vidéo se prépare comme celles de Pixabay.
+5. Le lien « Pexels », au-dessus des photos, ouvre pexels.com.
+
+Ce qui m'aide le plus en retour : une recherche où Pexels donne mieux (ou moins bien) que
+Pixabay, et un crédit qui manque quelque part.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -1043,6 +1082,9 @@ couleur prise par la pipette qui n'est pas celle que tu vois.
   commande 20) et le modèle `birefnet.onnx` (commande 21).
 - Les paquets 3D de Kenney : `Eliot/telechargements/kenney/` (les .zip), hors git ; leurs
   modèles prêts dans `public/bibliotheque/kenney/` (commande 8 bis).
+- Les caches des photos et des vidéos libres : `~/.cache/fr.alexandredo.eliot/pixabay/` et
+  `.../pexels/` (recherches et aperçus, 24 h) ; la photo ou la vidéo choisie entre dans le
+  design avec son crédit (dans `infos/`).
 - Les caches des banques 3D : `~/.cache/fr.alexandredo.eliot/polyhaven/` (index 24 h, aperçus
   7 jours) et `.../sketchfab/` (recherches et aperçus, 24 h) ; les téléchargements y passent
   avant d'entrer dans le design, puis en partent.
@@ -1059,7 +1101,7 @@ couleur prise par la pipette qui n'est pas celle que tu vois.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs), les environnements HDRI (environnements3d.rs), les banques 3D (polyhaven.rs, sketchfab.rs, et reseau.rs pour leurs téléchargements) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Pexels (pexels.rs), Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs), les environnements HDRI (environnements3d.rs), les banques 3D (polyhaven.rs, sketchfab.rs, et reseau.rs pour leurs téléchargements) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages, modèles de Kenney : fabriqués par npm run bibliotheque, hors git

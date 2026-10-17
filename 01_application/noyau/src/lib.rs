@@ -20,6 +20,7 @@ pub mod modeles3d;
 pub mod montage;
 pub mod parole;
 pub mod perspective;
+pub mod pexels;
 pub mod piper;
 pub mod pixabay;
 pub mod polices;

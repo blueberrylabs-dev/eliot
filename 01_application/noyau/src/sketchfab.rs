@@ -285,7 +285,7 @@ impl ClientSketchfab {
         } else {
             return Err(ErreurSketchfab::Illisible("ni GLB ni glTF proposé".into()));
         };
-        let credit = Credit { source: "Sketchfab".into(), auteur: fiche.auteur.clone(), lien: fiche.lien.clone(), licence: Some(fiche.licence.clone()), titre: Some(fiche.nom.clone()) };
+        let credit = Credit { source: "Sketchfab".into(), auteur: fiche.auteur.clone(), lien: fiche.lien.clone(), licence: Some(fiche.licence.clone()), titre: Some(fiche.nom.clone()), lien_auteur: None };
         Ok((credit, fiche.nom, chemin))
     }
 

@@ -474,7 +474,7 @@ mod tests {
         }
         assert!(images::chemin_ressource(&autre, &r.id, images::Genre::Vignettes).is_err());
         // Un crédit de banque se garde.
-        let credit = Credit { source: "Freesound".into(), auteur: "Anne".into(), lien: "https://freesound.org/people/Anne/sounds/1/".into(), licence: Some("CC BY 4.0".into()), titre: Some("Pluie".into()) };
+        let credit = Credit { source: "Freesound".into(), auteur: "Anne".into(), lien: "https://freesound.org/people/Anne/sounds/1/".into(), licence: Some("CC BY 4.0".into()), titre: Some("Pluie".into()), lien_auteur: None };
         let r2 = importer_avec_credit(&source, "freesound-1-pluie.ogg", &ressources, credit.clone(), &mut |_| ()).unwrap();
         assert_eq!(r2.credit, Some(credit.clone()));
         assert_eq!(images::infos(&ressources, &r.id).unwrap().credit, Some(credit));

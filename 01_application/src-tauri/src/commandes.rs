@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use noyau::{detourage, environnements3d, export, fichiers, freesound, images, labo, marque, micro, montage, parole, piper, pixabay, polices, polyhaven, projet, rendu_page, sketchfab, sons, videos, voix};
+use noyau::{detourage, environnements3d, export, fichiers, freesound, images, labo, marque, micro, montage, parole, pexels, piper, pixabay, polices, polyhaven, projet, rendu_page, sketchfab, sons, videos, voix};
 use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use serde_json::Value;
@@ -27,6 +27,12 @@ pub struct PolicesPoste(Mutex<Option<Vec<polices::PoliceInstallee>>>);
 /// le Rust, et ne quitte jamais ce fichier (BRIEF, règle 12).
 #[derive(Default)]
 pub struct Pixabay(Mutex<Option<Arc<pixabay::ClientPixabay>>>);
+
+/// Le client Pexels (étape 7, lot 5), créé de même à la première demande qui trouve une clé :
+/// tant que `PEXELS_API_KEY` manque, chaque demande relit les `.env`, et la clé ajoutée sert
+/// sans relancer Eliot.
+#[derive(Default)]
+pub struct Pexels(Mutex<Option<Arc<pexels::ClientPexels>>>);
 
 /// Le client Freesound (étape 4, lot 5), créé de même à la première demande qui trouve une clé.
 #[derive(Default)]
@@ -566,7 +572,7 @@ pub async fn police_design_lire(app: AppHandle, rayon_nom: String, projet_id: St
 // Photos de Pixabay (étape 3)
 // ----------------------------------------------------------------------------------------
 
-/// Les fichiers où chercher une clé (Pixabay, Freesound) : en développement, le `.env` du dépôt
+/// Les fichiers où chercher une clé (Pixabay, Pexels, Freesound, Sketchfab) : en développement, le `.env` du dépôt
 /// (en remontant depuis `src-tauri/`) ; toujours, `cles.env` dans le dossier de configuration
 /// d'Eliot.
 fn fichiers_cle(app: &AppHandle) -> Vec<PathBuf> {
@@ -682,6 +688,102 @@ pub async fn pixabay_importer_video(app: AppHandle, rayon_nom: String, projet_id
         let temporaire = dossier.join(format!(".telechargement-pixabay-{id}-{}.mp4", std::process::id()));
         let resultat = (|| {
             let (credit, nom) = client_pixabay(&app)?.telecharger_video(id, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.3)).map_err(|e| e.to_string())?;
+            videos::importer_avec_credit(&temporaire, &nom, &dossier, &videos::ReglageCopie::default(), credit, &mut rapporteur(&avancement, 0, 0.3, 1.0)).map_err(|e| e.to_string())
+        })();
+        let _ = std::fs::remove_file(&temporaire);
+        resultat
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+// ----------------------------------------------------------------------------------------
+// Photos et vidéos de Pexels (étape 7, lot 5)
+// ----------------------------------------------------------------------------------------
+
+fn client_pexels(app: &AppHandle) -> Result<Arc<pexels::ClientPexels>, String> {
+    let etat = app.state::<Pexels>();
+    let mut garde = etat.0.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(client) = garde.as_ref() {
+        return Ok(client.clone());
+    }
+    let cle = pexels::lire_cle(&fichiers_cle(app)).ok_or_else(|| pexels::ErreurPexels::CleAbsente.to_string())?;
+    let cache = app.path().app_cache_dir().map_err(|e| format!("dossier de cache introuvable : {e}"))?.join("pexels");
+    // Essais de développement : un faux Pexels local peut remplacer le vrai.
+    let adresse_essai = if cfg!(debug_assertions) { std::env::var("ELIOT_PEXELS_ADRESSE").ok() } else { None };
+    let client = match adresse_essai {
+        Some(adresse) => {
+            let origine: String = adresse.split('/').take(3).collect::<Vec<_>>().join("/") + "/";
+            pexels::ClientPexels::avec_adresse(cle, cache, adresse, vec![origine.clone()], vec![origine])
+        }
+        None => pexels::ClientPexels::new(cle, cache),
+    };
+    client.nettoyer();
+    let client = Arc::new(client);
+    *garde = Some(client.clone());
+    Ok(client)
+}
+
+#[tauri::command]
+pub async fn pexels_etat(app: AppHandle) -> Result<EtatPixabay, String> {
+    tauri::async_runtime::spawn_blocking(move || EtatPixabay { cle: client_pexels(&app).is_ok(), fichier: fichier_cle_conseille(&app) })
+        .await
+        .map_err(|e| format!("lecture interrompue : {e}"))
+}
+
+#[tauri::command]
+pub async fn pexels_chercher(app: AppHandle, requete: String, page: u32, filtres: pexels::Filtres) -> Result<pexels::PagePhotosPexels, String> {
+    tauri::async_runtime::spawn_blocking(move || client_pexels(&app)?.chercher(&requete, page, &filtres).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn pexels_apercu(app: AppHandle, id: u64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_pexels(&app)?.apercu(id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge la photo choisie (sa taille d'origine) et la range dans le design, avec son
+/// crédit (le photographe et sa page).
+#[tauri::command]
+pub async fn pexels_importer(app: AppHandle, rayon_nom: String, projet_id: String, id: u64) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (octets, credit, nom) = client_pexels(&app)?.telecharger(id).map_err(|e| e.to_string())?;
+        images::importer_avec_credit(&octets, &nom, &dossier, credit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| format!("téléchargement interrompu : {e}"))?
+}
+
+#[tauri::command]
+pub async fn pexels_chercher_videos(app: AppHandle, requete: String, page: u32, orientation: Option<String>) -> Result<pexels::PageVideosPexels, String> {
+    tauri::async_runtime::spawn_blocking(move || client_pexels(&app)?.chercher_videos(&requete, page, orientation.as_deref()).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("recherche interrompue : {e}"))?
+}
+
+#[tauri::command]
+pub async fn pexels_apercu_video(app: AppHandle, id: u64) -> Result<Response, String> {
+    let octets = tauri::async_runtime::spawn_blocking(move || client_pexels(&app)?.apercu_video(id).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("aperçu interrompu : {e}"))??;
+    Ok(Response::new(octets))
+}
+
+/// Télécharge la vidéo choisie (le premier tiers de l'avancement) puis l'importe comme une
+/// vidéo du poste, avec son crédit.
+#[tauri::command]
+pub async fn pexels_importer_video(app: AppHandle, rayon_nom: String, projet_id: String, id: u64, avancement: Channel<Avancement>) -> Result<images::Ressource, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::create_dir_all(&dossier).map_err(|e| e.to_string())?;
+        let temporaire = dossier.join(format!(".telechargement-pexels-{id}-{}.mp4", std::process::id()));
+        let resultat = (|| {
+            let (credit, nom) = client_pexels(&app)?.telecharger_video(id, &temporaire, &mut rapporteur(&avancement, 0, 0.0, 0.3)).map_err(|e| e.to_string())?;
             videos::importer_avec_credit(&temporaire, &nom, &dossier, &videos::ReglageCopie::default(), credit, &mut rapporteur(&avancement, 0, 0.3, 1.0)).map_err(|e| e.to_string())
         })();
         let _ = std::fs::remove_file(&temporaire);
@@ -1136,6 +1238,7 @@ pub async fn piper_ajouter(app: AppHandle, rayon_nom: String, projet_id: String,
             lien: trouvee.voix.donnees.clone().unwrap_or_else(|| "https://github.com/OHF-Voice/piper1-gpl".into()),
             licence: trouvee.voix.licence.clone(),
             titre: Some(nom.clone()),
+            lien_auteur: None,
         };
         sons::importer_fait(&fichier, &nom, "synthese", None, Some(credit), &dossier, &mut |_| ()).map_err(|e| e.to_string())
     })

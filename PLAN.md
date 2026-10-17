@@ -674,7 +674,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       Chromium (46) et dans Tauri (15, dont la pipette à la souris) (JOURNAL). Essai
       d'Alexandre : « Essayer la pipette, la photo en fond et le thème (étape 7, lot 4) » du
       `01_application/LISEZMOI.md`.
-- [ ] Lot 5 : Pexels, photos et vidéos, dès que la clé d'Alexandre est dans le `.env`.
+- [x] Lot 5 : Pexels, photos et vidéos, dès que la clé d'Alexandre est dans le `.env`.
+      Construit le 2026-10-17 avant la clé, à la demande d'Alexandre : `noyau/src/pexels.rs`,
+      la bascule Pixabay ou Pexels du panneau Photos, le crédit avec la page du photographe ;
+      `source` dans `chercher_photos` et `chercher_videos`, `ajouter_photo_pexels` et
+      `ajouter_video_pexels` (79 outils). Vérifié contre un faux Pexels dans Chromium (24) et
+      dans Tauri (18) (JOURNAL). S'allume dès que `PEXELS_API_KEY` est dans le `.env`. Essai
+      d'Alexandre : « Essayer Pexels (étape 7, lot 5) » du `01_application/LISEZMOI.md`.
 - [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité faite de bout en bout
       par le pont dans Tauri, suites repassées, livraison. Puis le rapport de fin, qui rassemble
       les commandes à lancer avant les essais d'Alexandre.

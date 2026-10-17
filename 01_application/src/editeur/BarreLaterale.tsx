@@ -30,7 +30,7 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode; aide: string }[]
   { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} />, aide: "Modèles : des designs prêts à reprendre, et les tiens" },
   { id: "elements", libelle: "Éléments", icone: <Shapes size={22} />, aide: "Éléments : formes, lignes, icônes, emojis, personnages, cadres photo, maquettes, graphiques, tableaux, QR codes" },
   { id: "textes", libelle: "Texte", icone: <Type size={22} />, aide: "Texte : titres, associations de polices, styles enregistrés, styles pour la vidéo" },
-  { id: "photos", libelle: "Photos", icone: <IconeImage size={22} />, aide: "Photos : photos et vidéos libres de Pixabay, à poser d'un clic" },
+  { id: "photos", libelle: "Photos", icone: <IconeImage size={22} />, aide: "Photos : photos et vidéos libres de Pixabay et de Pexels, à poser d'un clic" },
   { id: "images", libelle: "Importer", icone: <CloudUpload size={22} />, aide: "Importer : tes images, tes vidéos et tes modèles 3D, rangés avec le design" },
   { id: "3d", libelle: "3D", icone: <Box size={22} />, aide: "3D : modèles des banques libres (Kenney, Poly Haven, Sketchfab) et environnements de lumière" },
   { id: "audio", libelle: "Audio", icone: <Music size={22} />, aide: "Audio : musiques, bruitages, voix au micro ou de synthèse, pour une page vidéo" },

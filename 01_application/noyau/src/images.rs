@@ -75,11 +75,15 @@ pub struct Ressource {
 /// Le crédit d'une image, d'une vidéo ou d'un son venus d'une banque (BRIEF, règle 12).
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Credit {
-    /// `Pixabay`, `Freesound`, `Poly Haven`, `Sketchfab`, `Kenney`, plus tard `Pexels`.
+    /// `Pixabay`, `Pexels`, `Freesound`, `Poly Haven`, `Sketchfab`, `Kenney`.
     pub source: String,
     pub auteur: String,
     /// La page de la photo ou du son sur le site d'origine.
     pub lien: String,
+    /// La page de l'auteur sur le site d'origine (Pexels : celle du photographe, que ses règles
+    /// demandent de citer).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lien_auteur: Option<String>,
     /// Un son de Freesound : sa licence (`CC0 1.0`, `CC BY 4.0`) et son titre.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub licence: Option<String>,
