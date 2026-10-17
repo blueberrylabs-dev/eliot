@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Eliot",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "identifier": "fr.alexandredo.eliot",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "npm run build && npm run pont",
     "frontendDist": "../dist"
   },
   "app": {
@@ -26,8 +26,10 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb"],
-    "category": "Graphics",
+    "targets": [
+      "deb"
+    ],
+    "category": "GraphicsAndDesign",
     "shortDescription": "Éditeur graphique de bureau",
     "icon": [
       "icons/32x32.png",
@@ -35,6 +37,24 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "longDescription": "Éditeur graphique local, proche de Canva, pour apprendre la création publicitaire en photos et en vidéos : bibliothèque, photos libres, labo photo, vidéo, son, 3D, et un pont pour piloter Eliot avec une IA.",
+    "publisher": "Alexandre Do",
+    "copyright": "Alexandre Do",
+    "linux": {
+      "deb": {
+        "depends": [
+          "ffmpeg",
+          "gstreamer1.0-libav",
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-bad"
+        ],
+        "files": {
+          "/usr/bin/eliot-mcp": "../eliot-mcp/target/release/eliot-mcp",
+          "/usr/share/doc/eliot/LICENSE": "../../LICENSE",
+          "/usr/share/doc/eliot/LICENCES-TIERS.md": "../LICENCES-TIERS.md"
+        }
+      }
+    }
   }
 }

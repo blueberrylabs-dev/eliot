@@ -5,6 +5,55 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 8 : la version installée, et la préparation de la publication
+
+Demandes d'Alexandre : « le rendre exécutable comme un vrai logiciel, comme si on l'installait
+sur l'ordinateur. J'ai l'impression qu'il manque aussi un requirement.txt », puis « et pouvoir
+le mettre aussi sur GitHub en open source ». Ses décisions, en réponse aux questions de Claude :
+le dépôt dans l'organisation Blueberry Labs (« l'organisation pour tout type de logiciel »,
+distincte de Blackberrylabs), licence MIT, historique gardé avec l'adresse des commits
+remplacée par l'adresse noreply de GitHub, tout en français (« Tout en français »). Ce que
+Claude a fait et décidé :
+
+- Le paquet `.deb`, format déjà prévu au § 6 du BRIEF : version 0.9.0 (1.0.0 après les essais
+  et leurs corrections) ; il contient Eliot, dont l'interface et la bibliothèque (69 Mo) sont
+  dans le programme, le pont `/usr/bin/eliot-mcp`, l'entrée du menu (catégorie Graphisme), la
+  licence et `LICENCES-TIERS.md` ; il fait installer par apt ffmpeg, GStreamer (libav, good,
+  bad) et le moteur web. 34 Mo. La version installée lisait déjà ses clés dans
+  `~/.config/fr.alexandredo.eliot/cles.env` et ses modèles dans
+  `~/.local/share/fr.alexandredo.eliot/` ; seul le chemin du pont montré dans les réglages
+  était celui du dépôt : il devient celui installé à côté d'Eliot.
+- `01_application/paquet.sh` construit le paquet (vérifie les outils et Rust 1.92, `npm
+  install`, la bibliothèque si elle manque, `tauri build` sur 4 cœurs, l'empreinte dans
+  `paquets/SHA256SUMS`, hors git). `01_application/installer.sh` l'installe par apt, puis relie
+  la version installée au poste par des liens : `cles.env` vers le `.env` du dépôt, `voix`,
+  `whisper` et `detourage` vers `telechargements/`. Choix de Claude : des liens plutôt qu'une
+  copie, parce que la clé reste dans un seul fichier, que l'environnement Python du détourage
+  ne survit pas à un déplacement, et qu'aucun fichier n'est effacé. Ni l'un ni l'autre ne
+  lance Eliot (règle 9).
+- `01_application/requirements.txt` : le seul environnement Python qu'Eliot fait tourner, celui
+  du détourage (onnxruntime 1.30.0, numpy 2.3.5) ; la commande 20 s'en sert. Le reste n'est pas
+  du Python : ses versions sont fixées par `package-lock.json` et les `Cargo.lock` ; Piper et
+  Whisper sont des programmes à part, installés par `uv tool` avec leurs versions.
+- Le dépôt prêt à publier : `LICENSE` (MIT), `README.md` (la page publique, en français :
+  fonctions, principes, installation par le paquet ou depuis les sources, modules facultatifs,
+  pont, fichiers, licence et éléments tiers), `CHANGELOG.md` (0.9.0), la question Q2 du BRIEF
+  tranchée. Relevé de l'historique (59 commits) : aucune clé, aucun secret ; une seule adresse,
+  `adresse retirée avant la publication`, celle des commits et de deux phrases du BRIEF et du JOURNAL, que la
+  réécriture remplace.
+- Vérifié : le nom `blueberrylabs` est déjà pris sur GitHub, par un compte qui porte un dépôt
+  « successstory » (page lue le 2026-10-17) ; à confirmer par Alexandre avant de créer le
+  dépôt. La création du dépôt, le `git push` et la version publiée restent à Alexandre.
+
+Vérifié dans le conteneur (Ubuntu 24.04, comme le poste), 18 vérifications : le paquet (nom,
+version, dépendances, contenu, 36 Mo) ; `installer.sh` (apt installe, les liens posés, une clé
+déjà là laissée telle quelle, relancé sans rien reconstruire) ; l'entrée du menu ; Eliot
+installé lancé depuis `/usr/bin/eliot` sans serveur Vite, piloté par `/usr/bin/eliot-mcp` (80
+outils) : la bibliothèque, un titre courbé en Anton et une image, l'export PNG contre la
+fenêtre (0,03 sur 255), une vidéo préparée et une page exportée en MP4, la voix de synthèse et
+le détourage par les modèles reliés. La première construction a échoué sur la catégorie du
+menu (`Graphics` n'est pas un nom de Tauri : `GraphicsAndDesign`), corrigée.
+
 ## 2026-10-17, étape 7 : vérification de l'étape, et rapport de fin
 
 Accord d'Alexandre (« Go. »). Ce que Claude a fait et décidé :

@@ -698,3 +698,37 @@ Choix par défaut de Claude, modifiables sur simple demande :
       `01_application/LISEZMOI.md` (commandes, clés, ordre des parcours, dont un parcours neuf
       pour les étapes 1 à 3).
 - [ ] Essais d'Alexandre, dans l'ordre du rapport de fin, puis les corrections.
+
+## Étape 8. La version installée et la publication (ouverte le 2026-10-17)
+
+Demandes d'Alexandre du 2026-10-17 : « le rendre exécutable comme un vrai logiciel, comme si on
+l'installait sur l'ordinateur », « il manque aussi un requirement.txt », « pouvoir le mettre
+aussi sur GitHub en open source ». Décisions (réponses aux questions de Claude, même jour) :
+organisation Blueberry Labs (« pour tout type de logiciel »), licence MIT, historique gardé
+avec l'adresse noreply de GitHub, tout en français.
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Un paquet `.deb` (le format prévu au § 6 du BRIEF, « Deux postes »), version 0.9.0 jusqu'aux
+  essais, 1.0.0 une fois les corrections faites. Il contient Eliot (l'interface et la
+  bibliothèque sont dans le programme) et le pont `/usr/bin/eliot-mcp`, et fait installer par
+  apt ffmpeg et GStreamer. Pas d'AppImage ni de .rpm pour l'instant.
+- La version installée lit ses clés dans `~/.config/fr.alexandredo.eliot/cles.env` et ses
+  modèles dans `~/.local/share/fr.alexandredo.eliot/` (déjà prévu dans le code). Sur le poste
+  d'Alexandre, `installer.sh` les relie au `.env` et à `telechargements/` par des liens : la clé
+  reste dans un seul fichier, l'environnement Python du détourage garde son chemin, rien n'est
+  copié.
+- Un `requirements.txt` pour le seul environnement Python qu'Eliot fait tourner (le
+  détourage) ; Piper et Whisper restent des programmes à part, installés par `uv tool`.
+
+- [x] Paquet et scripts : `tauri.conf.json` (version, dépendances, le pont et les licences
+      dans le paquet), `paquet.sh`, `installer.sh`, `requirements.txt`, le chemin du pont
+      installé dans les réglages d'Eliot.
+- [x] Le paquet construit et installé dans le conteneur, Eliot installé essayé par son pont
+      (18 vérifications, JOURNAL du 2026-10-17).
+- [x] Le dépôt prêt à publier : `LICENSE` (MIT), `README.md`, `CHANGELOG.md`, le BRIEF à jour
+      (Q2 tranchée), aucun secret dans l'historique (relevé du 2026-10-17).
+- [ ] L'adresse des commits remplacée dans tout l'historique, juste avant la publication.
+- [ ] Alexandre : confirmer le nom de l'organisation (`blueberrylabs` est déjà pris sur GitHub
+      par un compte), créer le dépôt, `git push`, puis la version 0.9.0 avec le `.deb` et
+      `SHA256SUMS`.

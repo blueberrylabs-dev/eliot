@@ -1,6 +1,6 @@
 [package]
 name = "eliot-mcp"
-version = "0.1.0"
+version = "0.9.0"
 description = "Pont MCP vers Eliot ouvert : relaie les appels d'outils d'une IA vers la fenêtre d'Eliot."
 authors = ["Alexandre Do"]
 edition = "2024"

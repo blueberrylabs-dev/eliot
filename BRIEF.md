@@ -911,12 +911,16 @@ gratuite (et une clé Pexels si la pause se lève). Fait le 2026-10-14 pour Pixa
 est dans le `.env` à la racine du dépôt (`PIXABAY_API_KEY`), exclu de git le même jour ;
 Claude ne l'a pas lue et ne la demande pas.
 
+Tranchée le 2026-10-17 par Alexandre (Q2, en répondant aux questions de Claude) : Eliot
+devient open source, sous licence MIT (`LICENSE`), dans un dépôt public de l'organisation
+GitHub Blueberry Labs (`blueberrylabs/eliot`), « l'organisation pour tout type de logiciel »,
+distincte de Blackberrylabs. Tout en français : la page publique (`README.md`), le journal des
+versions (`CHANGELOG.md`), le code et ces notes. L'historique est gardé ; l'adresse des
+commits devient l'adresse noreply de GitHub, celle de ses autres logiciels publiés. La
+version installée est le paquet `.deb` du § 6 (« Deux postes »), qui embarque aussi le pont.
+
 Ouvertes, avec la proposition de Claude :
 
 - Q1. Le mini PC : modèle, système, processeur, carte graphique, définition de l'écran
   (quand il sera disponible).
-- Q2. Open source : licence permissive (MIT ou Apache-2.0, chacun peut réutiliser le code,
-  même dans un produit fermé) ou copyleft (GPL-3.0, toute version modifiée et distribuée doit
-  rester ouverte) ? Sur quel compte GitHub ? Proposition : trancher avant la première
-  publication ; d'ici là, tous droits réservés.
 

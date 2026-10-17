@@ -158,6 +158,21 @@ lourd. Détail : `BRIEF.md`.
   les commandes à lancer avant les essais et l'ordre des parcours : section « Avant les essais :
   les commandes, dans l'ordre » du `01_application/LISEZMOI.md`. Restent : les essais
   d'Alexandre et leurs corrections, le mini PC, la clé Pexels.
+- **Version installée 0.9.0** (2026-10-17, à la demande d'Alexandre : « le rendre exécutable
+  comme un vrai logiciel ») : un paquet `.deb` qui contient Eliot (interface, bibliothèque,
+  noyau) et le pont `/usr/bin/eliot-mcp`, et fait installer par apt ffmpeg et GStreamer ;
+  `01_application/paquet.sh` le construit, `01_application/installer.sh` l'installe et relie
+  la version installée à la clé (`.env`) et aux modèles (`telechargements/`) par des liens
+  (commandes 22 à 24). L'environnement Python du détourage est fixé par
+  `01_application/requirements.txt`. Le mode développement (commande 10) reste pour les
+  corrections.
+- **Open source** (décisions d'Alexandre du 2026-10-17) : dépôt public `blueberrylabs/eliot`,
+  sous l'organisation Blueberry Labs, « pour tout type de logiciel » (distincte de
+  Blackberrylabs, la famille des outils pour agents IA) ; licence MIT (`LICENSE`) ; tout en
+  français (`README.md`, `CHANGELOG.md`) ; historique gardé, l'adresse des commits remplacée
+  par l'adresse noreply de GitHub. Le nom `blueberrylabs` est déjà pris sur GitHub par un
+  compte (constaté le 2026-10-17) : à confirmer par Alexandre avant de créer le dépôt. La
+  création du dépôt et le `git push` sont à Alexandre.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -541,7 +556,7 @@ CUDA), environ 120 Mo dans `telechargements/detourage/env/`, hors git. Versions 
 vérifiées dans le conteneur de Claude le 2026-10-16 :
 
 ```
-uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12 && uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env onnxruntime==1.30.0 numpy==2.3.5
+uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12 && uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env -r /home/nushoko/Bureau/Logiciels/Eliot/01_application/requirements.txt
 ```
 
 Vérifier :
@@ -571,11 +586,47 @@ Détourage. Pour une machine plus modeste, la version légère (deux fois plus r
 juste, 190 Mo) : la même commande suivie de ` --modele birefnet-lite` (Eliot prend BiRefNet s'il
 est là, sinon la version légère). Revenir en arrière : supprimer `birefnet.onnx`.
 
+### La version installée (2026-10-17)
+
+**22. Installer Eliot comme un logiciel** (processeur seulement, 4 cœurs ; plusieurs minutes la
+première fois ; apt demande ton mot de passe ; Eliot n'est pas lancé) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && ./installer.sh
+```
+
+Il construit le paquet s'il n'existe pas pour la version (commande 23), l'installe avec apt
+(qui ajoute ffmpeg et GStreamer s'ils manquent), puis relie la version installée au dépôt :
+`~/.config/fr.alexandredo.eliot/cles.env` vers le `.env`, et
+`~/.local/share/fr.alexandredo.eliot/voix`, `whisper` et `detourage` vers ceux de
+`telechargements/`. Rien n'est copié ni effacé ; ce qui existe déjà n'est pas touché.
+Vérifier : la dernière partie dit « Eliot 0.9.0 est installé » ; Eliot est dans le menu des
+applications. Le pont installé est `/usr/bin/eliot-mcp` : dans le fichier de l'application
+Claude (commande 15), remplacer le chemin du dépôt par celui-ci, ou garder l'extension
+(commande 15 bis).
+
+**23. Construire seulement le paquet** (pour le mini PC ou une version publiée) :
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && ./paquet.sh
+```
+
+Vérifier : `01_application/paquets/Eliot_0.9.0_amd64.deb` et `SHA256SUMS`. Sur le mini PC
+(Ubuntu ou Debian, x86-64), copier ce fichier, puis `sudo apt install ./Eliot_0.9.0_amd64.deb` ;
+ses clés et modèles vont dans les mêmes dossiers (`README.md`, « Les modules facultatifs »).
+
+**24. Désinstaller** (tes designs, dans `~/Documents/Eliot`, restent) :
+
+```
+sudo apt remove eliot
+```
+
 ## Arborescence
 
 ```
 Eliot/
 ├── CLAUDE.md  BRIEF.md  PLAN.md  JOURNAL.md  .gitignore
+├── README.md  CHANGELOG.md  LICENSE   la page publique, les versions, la licence MIT
 ├── 00_banc_essai/      étape 0 : mesure de fluidité, jetable (voir son LISEZMOI.md)
 ├── 01_application/     Eliot lui-même (voir son LISEZMOI.md)
 └── telechargements/    archives, voix et modèles installés à la main (personnages, voix de Piper, Whisper, détourage, paquets 3D de Kenney), hors git

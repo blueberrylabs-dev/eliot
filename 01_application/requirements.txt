@@ -1,0 +1,14 @@
+# Le seul environnement Python qu'Eliot fait tourner lui-même : celui du détourage, qui lance
+# le modèle BiRefNet sur le processeur (noyau/src/detourer.py). Versions vérifiées le
+# 2026-10-16. Installation (commande 20 du CLAUDE.md) :
+#
+#   uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12
+#   uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env -r requirements.txt
+#
+# Le reste d'Eliot n'est pas en Python : ses dépendances sont fixées par package-lock.json
+# (l'interface) et les Cargo.lock (le noyau, la fenêtre, le pont). Piper (voix de synthèse) et
+# Whisper (sous-titres) sont des programmes à part, installés avec leurs versions fixées par
+# `uv tool install` (commandes 16 et 18) ; la conversion du modèle (commande 21) se fait une
+# fois, avec ses propres versions.
+onnxruntime==1.30.0
+numpy==2.3.5

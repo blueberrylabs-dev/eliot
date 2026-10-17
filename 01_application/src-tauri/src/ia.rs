@@ -215,8 +215,15 @@ pub fn au_demarrage(app: &AppHandle) {
     }
 }
 
-/// Le programme `eliot-mcp` compilé à côté de l'application (développement).
+/// Le programme `eliot-mcp` : installé à côté d'Eliot par le paquet .deb (`/usr/bin/eliot-mcp`),
+/// sinon, en développement, celui compilé dans le dépôt.
 fn chemin_binaire() -> PathBuf {
+    if !cfg!(debug_assertions)
+        && let Some(installe) = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("eliot-mcp")))
+        && installe.is_file()
+    {
+        return installe;
+    }
     let chemin = PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../eliot-mcp/target/release/eliot-mcp"));
     chemin.canonicalize().unwrap_or(chemin)
 }

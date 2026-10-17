@@ -3,3 +3,6 @@ dist/
 *.tsbuildinfo
 # Fabriquée sur le poste par npm run bibliotheque (étape 3), hors git
 public/bibliotheque/
+
+# Paquets .deb construits par paquet.sh, à joindre à une version publiée
+paquets/

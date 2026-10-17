@@ -12,8 +12,9 @@ et pour apprendre le métier : des calques qu'on range et qu'on nomme, des aides
 grilles, zones sûres, alertes quand un texte se lit mal), une pipette et un thème sombre. Une IA
 comme Claude peut tout faire par le pont.
 
-**Avant les essais** : la section « Avant les essais : les commandes, dans l'ordre » plus bas
-rassemble ce qu'il faut lancer une fois, puis l'ordre des parcours.
+**Installer et essayer** : la section « Avant les essais : les commandes, dans l'ordre » plus
+bas installe Eliot comme un logiciel (paquet `.deb`, menu des applications), puis donne
+l'ordre des parcours. La page publique du projet est le `README.md` à la racine.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -609,11 +610,11 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 
 ## Avant les essais : les commandes, dans l'ordre
 
-Le rapport de fin (2026-10-17) : tout ce qu'il faut lancer une fois avant d'essayer Eliot en
-entier, dans un terminal du poste principal. Processeur seulement : rien ne touche la carte
-graphique, sauf Eliot lui-même au point 9. Chaque commande se recopie telle quelle ; le détail
-(quoi vérifier, comment revenir en arrière) est au `CLAUDE.md`, à la commande donnée entre
-parenthèses.
+Le rapport de fin (2026-10-17) : ce qu'il faut lancer une fois avant d'essayer Eliot en
+entier, dans un terminal du poste principal. Les essais se font sur la **version installée**,
+celle que tu utiliseras ensuite. Processeur seulement : rien ne touche la carte graphique, sauf
+Eliot lui-même au point 5. Chaque commande se recopie telle quelle ; le détail (quoi vérifier,
+comment revenir en arrière) est au `CLAUDE.md`, à la commande donnée entre parenthèses.
 
 1. Vérifier les outils (commande 1) ; Rust doit être en 1.92 au moins pour l'export PDF :
 
@@ -627,38 +628,31 @@ parenthèses.
    rustup update
    ```
 
-2. Les dépendances JavaScript (commande 8 ; three.js est arrivé à l'étape 6) :
+2. Installer Eliot (commande 22) : le script construit le paquet `.deb` (dépendances
+   JavaScript, bibliothèque si elle manque, interface, noyau et pont ; plusieurs minutes la
+   première fois, 4 cœurs), l'installe avec apt (mot de passe demandé), puis relie la version
+   installée à ta clé (`.env`) et à tes modèles (`telechargements/`). Avant, si tu veux les
+   modèles 3D de Kenney : un ou deux paquets .zip de kenney.nl rangés dans
+   `/home/nushoko/Bureau/Logiciels/Eliot/telechargements/kenney/`, puis la commande 8 bis.
 
    ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm install
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && ./installer.sh
    ```
 
-3. La bibliothèque (commande 8 bis). Avant, si tu veux les modèles 3D de Kenney : un ou deux
-   paquets .zip de kenney.nl rangés dans `/home/nushoko/Bureau/Logiciels/Eliot/telechargements/kenney/`.
+   Attendu, à la fin : « Eliot 0.9.0 est installé ». Eliot est dans le menu des applications.
+
+3. Le pont vers Claude (commande 15 bis) : l'extension, refaite avec le pont que le paquet
+   vient de compiler, puis, dans l'application Claude, Réglages, Extensions, réinstaller
+   `01_application/eliot-mcp/target/eliot.mcpb` (80 outils) :
 
    ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run bibliotheque
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && python3 emballer_mcpb.py
    ```
 
-   Attendu : `7750 icônes, 4047 emojis, 95 polices`, puis les personnages, puis les modèles de
-   Kenney s'il y en a.
-
-4. L'application (commande 9 ; plusieurs minutes, quelques Go dans `src-tauri/target/`) :
-
-   ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/src-tauri && cargo build -j 4
-   ```
-
-5. Le pont vers Claude (commandes 13 et 15 bis), compilé puis emballé en extension :
-
-   ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && cargo build --release -j 4 && python3 emballer_mcpb.py
-   ```
-
-   Puis, dans l'application Claude : Réglages, Extensions, réinstaller le fichier
-   `01_application/eliot-mcp/target/eliot.mcpb` (80 outils).
-
-6. La voix de synthèse (commandes 16 et 17) : Piper, puis deux voix françaises (135 Mo) :
+4. Ce qui manque encore pour la voix et les sous-titres (le détourage et le modèle de Whisper
+   sont déjà dans `telechargements/`) : Piper et deux voix françaises (commandes 16 et 17),
+   puis Whisper (commande 18) s'il n'est pas installé (`whisper-ctranslate2 --version` doit
+   dire `0.5.7`).
 
    ```
    uv tool install piper-tts==1.8.0
@@ -668,36 +662,17 @@ parenthèses.
    for v in siwis upmc; do d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/voix/fr_FR-$v-medium; mkdir -p $d && for f in fr_FR-$v-medium.onnx fr_FR-$v-medium.onnx.json MODEL_CARD; do wget -nc -P $d "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/$v/medium/$f"; done; done
    ```
 
-7. Les sous-titres (commandes 18 et 19) : Whisper, puis son modèle (485 Mo) :
-
    ```
    uv tool install whisper-ctranslate2==0.5.7 --with ctranslate2==4.8.2 --with faster-whisper==1.2.1 --with av==18.1.0
    ```
 
-   ```
-   d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/whisper/faster-whisper-small; mkdir -p $d && for f in README.md config.json model.bin tokenizer.json vocabulary.txt; do wget -nc -P $d "https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/$f"; done
-   ```
+5. Lancer Eliot depuis le menu des applications, carte graphique libre, puis Fichier,
+   « Réglages et pont IA… », l'interrupteur du pont.
 
-8. Le détourage (commandes 20 et 21) : le programme, puis le modèle (environ quatre minutes,
-   jusqu'à 4 Go de mémoire, 894 Mo à la fin) :
-
-   ```
-   uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12 && uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env onnxruntime==1.30.0 numpy==2.3.5
-   ```
-
-   ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && CUDA_VISIBLE_DEVICES= uv run --no-project --python 3.12 --index https://download.pytorch.org/whl/cpu --with "torch==2.14.0+cpu" --with "torchvision==0.29.0+cpu" --with timm==1.0.20 --with transformers==4.57.1 --with einops==0.8.2 --with kornia==0.8.3 --with safetensors==0.8.0 --with onnx==1.19.1 --with onnxscript==0.7.2 --with onnxruntime==1.30.0 --with numpy==2.3.5 python outils/convertir_birefnet.py
-   ```
-
-9. Lancer Eliot, carte graphique libre (commande 10), puis Fichier, « Réglages et pont IA… »,
-   l'interrupteur du pont :
-
-   ```
-   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run tauri dev
-   ```
-
-Facultatif, les tests sans fenêtre (commandes 11 et 12) : le noyau doit dire `146 passed`,
-l'interface `Tests  306 passed`.
+Pour une correction, le mode développement reste là : `npm run tauri dev` (commande 10), puis
+`./installer.sh` de nouveau pour la version installée, une fois la correction faite (avec un
+numéro de version plus haut). Facultatif, les tests sans fenêtre (commandes 11 et 12) : le
+noyau doit dire `146 passed`, l'interface `Tests  306 passed`.
 
 ```
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
@@ -707,12 +682,17 @@ cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Les clés, dans `/home/nushoko/Bureau/Logiciels/Eliot/.env` : `PIXABAY_API_KEY`,
-`FREESOUND_API_KEY` et `SKETCHFAB_API_KEY` y sont ; `PEXELS_API_KEY` le jour où Pexels redonne
-des clés (Eliot fonctionne sans, avec Pixabay).
+Les clés, dans `/home/nushoko/Bureau/Logiciels/Eliot/.env` (la version installée le lit par le
+lien que pose le script) : `PIXABAY_API_KEY`, `FREESOUND_API_KEY` et `SKETCHFAB_API_KEY` y
+sont ; `PEXELS_API_KEY` le jour où Pexels redonne des clés (Eliot fonctionne sans, avec
+Pixabay).
 
 **L'ordre des essais**, du plus simple au plus complet ; chaque parcours dit ce qui m'aide le
 plus en retour :
+
+Les parcours ont été écrits lot par lot, pour le mode développement : « Eliot lancé à la main
+(commande 10) » s'y lit « Eliot lancé depuis le menu des applications », et « recompiler
+l'application et le pont (commandes 9 et 13) » est fait par `./installer.sh`.
 
 1. « Essayer l'éditeur et la bibliothèque (étapes 1 à 3) », juste en dessous.
 2. « Essayer la vidéo (étape 4) ».
@@ -1297,6 +1277,8 @@ qui t'a appris quelque chose (ou qui t'a gêné), et l'onglet Projets comparé �
 ├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Pexels (pexels.rs), Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs), les environnements HDRI (environnements3d.rs), les banques 3D (polyhaven.rs, sketchfab.rs, et reseau.rs pour leurs téléchargements) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
+├── paquet.sh         construit le paquet .deb (dans paquets/, hors git) ; installer.sh l'installe et relie clés et modèles
+├── requirements.txt  l'environnement Python du détourage
 ├── public/bibliotheque/  icônes, emojis, polices, personnages, modèles de Kenney : fabriqués par npm run bibliotheque, hors git
 ├── src/
 │   ├── App.tsx       l'accueil ou l'éditeur
