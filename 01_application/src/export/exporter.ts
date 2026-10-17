@@ -8,7 +8,8 @@
 
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
-import { FORMATS_PAGE, type Format, type PageEliot } from "../modele/types";
+import type { Format, PageEliot } from "../modele/types";
+import { estPapier } from "../modele/aides";
 import { dansTauri, ecrireExport, exporterDocument, type FormatExport } from "../pont/tauri";
 import { avecFinesse } from "../trois/moteur";
 import { decrirePage, type PoliceCalques } from "./calques";
@@ -51,9 +52,7 @@ export const PIXELS_MAX = 100_000_000;
 
 /** Une page au format A4 ou A5 (300 dpi), dans un sens ou dans l'autre : ses tailles se disent
  *  en dpi. */
-export function formatPapier(format: Format): boolean {
-  return FORMATS_PAGE.some((f) => (f.id === "a4" || f.id === "a5") && ((f.largeur === format.largeur && f.hauteur === format.hauteur) || (f.largeur === format.hauteur && f.hauteur === format.largeur)));
-}
+export const formatPapier = (format: Format): boolean => estPapier(format);
 
 /** Les tailles proposées : 150 et 300 dpi pour l'A4 et l'A5, sinon ×1 à ×4 ; celles qui
  *  dépassent la taille permise sont retirées (×1 reste toujours). */

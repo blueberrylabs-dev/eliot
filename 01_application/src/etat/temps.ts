@@ -5,7 +5,7 @@
 // suivre. L'horloge qui le fait avancer est dans `editeur/frise/horloge.ts`.
 
 import { create } from "zustand";
-import type { IdZones } from "../modele/zonesSures";
+import { IDS_ZONES, type IdZones } from "../modele/zonesSures";
 
 export const PX_PAR_SECONDE_MIN = 8;
 export const PX_PAR_SECONDE_MAX = 600;
@@ -17,7 +17,7 @@ const CLE_ZONES = "eliot-zones-sures";
 function zonesGardees(): IdZones | null {
   try {
     const z = localStorage.getItem(CLE_ZONES);
-    return z === "tiktok" || z === "reels" || z === "shorts" ? z : null;
+    return IDS_ZONES.includes(z as IdZones) ? (z as IdZones) : null;
   } catch {
     return null;
   }

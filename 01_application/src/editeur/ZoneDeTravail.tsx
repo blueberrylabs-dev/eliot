@@ -32,6 +32,7 @@ import { noeudElement, scene, signalerGeste, surSurvolCalques } from "./scene";
 import { surDepotFichiers } from "../pont/tauri";
 import { useTemps } from "../etat/temps";
 import { CalqueZonesSures } from "./ZonesSures";
+import { CalqueAides, lignesDesAides, MarquesAlertes, Regles } from "./Aides";
 import { CadreRognage } from "../labo/CadreRognage";
 import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
 import { CadrePerspective } from "../labo/CadrePerspective";
@@ -103,7 +104,6 @@ export function ZoneDeTravail() {
   const [taille, setTaille] = useState({ l: 900, h: 600 });
   const format = useEditeur((s) => s.document.format);
   const fond = useEditeur((s) => pageCourante(s).fond);
-  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const idPage = useEditeur((s) => s.pageActive);
   const elements = useEditeur(elementsCourants);
   const selection = useEditeur((s) => s.selection);
@@ -360,7 +360,10 @@ export function ZoneDeTravail() {
       const liste = [...noeuds].map((n) => ({ n, rang: n.zIndex() })).sort((a, b) => a.rang - b.rang);
       liste.forEach(({ n }) => n.moveTo(gg));
       tr.moveTo(calqueGesteRef.current!);
-      geste.current = { noeuds: liste, cibles: cibles(formatCourant, autres) };
+      // Les lignes des aides montrées (grille, tiers, marges) aimantent aussi (étape 7, lot 3).
+      const c = cibles(formatCourant, autres);
+      const aides = lignesDesAides(formatCourant);
+      geste.current = { noeuds: liste, cibles: { verticales: [...c.verticales, ...aides.verticales], horizontales: [...c.horizontales, ...aides.horizontales] } };
 
       survolRef.current?.visible(false);
       calquePageRef.current?.batchDraw();
@@ -856,11 +859,12 @@ export function ZoneDeTravail() {
         <Layer ref={calqueGesteRef}>
           <Group ref={groupeGesteRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur} />
           <Group ref={reperesRef} {...transformationPage} listening={false} />
-          {pageVideo && (
-            <Group {...transformationPage} listening={false}>
-              <CalqueZonesSures format={format} />
-            </Group>
-          )}
+          {/* Les aides (étape 7, lot 3) : grille, tiers, marges, zones sûres sur toute page en
+              9:16, fixe ou vidéo. Jamais exportées. */}
+          <Group {...transformationPage} listening={false}>
+            <CalqueAides format={format} echelle={echelle} />
+            <CalqueZonesSures format={format} />
+          </Group>
         </Layer>
         <Layer ref={calqueInterfaceRef}>
           <Rect ref={survolRef} name="survol" visible={false} stroke={ACCENT} strokeWidth={1.5} listening={false} />
@@ -895,6 +899,8 @@ export function ZoneDeTravail() {
           <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
         </Layer>
       </Stage>
+      <MarquesAlertes echelle={echelle} ox={ox} oy={oy} />
+      <Regles taille={taille} echelle={echelle} ox={ox} oy={oy} format={format} />
       <EditeurTexte />
       <EditeurCellule />
       <MiniBarre taille={taille} ouvrirMenu={(x, y) => setMenu({ x, y })} />

@@ -179,11 +179,23 @@ function Reglage({ def, valeur, changer, debut, fin }: { def: DefinitionReglage;
   );
 }
 
+/** Ce que fait chaque section du panneau 3D, en une phrase (l'infobulle de son titre). */
+const AIDES_SECTIONS: Record<string, string> = {
+  Vue: "L'angle et la distance de la caméra ; sur la page, Tourner (ou un double-clic) pour la régler à la souris",
+  Lumière: "D'où vient la lumière principale, sa couleur, l'environnement qui éclaire et se reflète",
+  "Ombre au sol": "Une ombre sur un sol invisible : l'objet se pose sur la page au lieu de flotter",
+  Matières: "La couleur et la brillance de chaque matière du modèle",
+  Mouvement: "Sur une page vidéo : un plateau tournant, ou une caméra menée par des images clés",
+  "Animation du modèle": "Les animations rangées dans le fichier (marche, danse…), jouées sur la frise",
+};
+
 function Section({ titre, children, droite }: { titre: string; children: ReactNode; droite?: ReactNode }) {
   return (
     <section className="border-t border-neutral-200 py-2" data-section={titre}>
       <div className="flex items-center py-1">
-        <p className="flex-1 text-sm font-semibold text-neutral-800">{titre}</p>
+        <p className="flex-1 text-sm font-semibold text-neutral-800" title={AIDES_SECTIONS[titre] ? `${titre} : ${AIDES_SECTIONS[titre]}` : undefined}>
+          {titre}
+        </p>
         {droite}
       </div>
       {children}

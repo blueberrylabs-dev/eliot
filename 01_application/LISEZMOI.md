@@ -503,10 +503,29 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Un texte courbé ou en liste n'entre pas par morceaux (lettre par lettre, mot par mot) sur une
   page vidéo ; une telle entrée devient un fondu.
 
+**Les aides pour apprendre (étape 7, lot 3)**
+- Bouton Aides, dans la barre du bas, à côté des pages : ce qui se montre par-dessus la page,
+  jamais exporté. Règles le long de la page (en pixels, en millimètres pour une A4 ou une A5 ;
+  Maj+R), grille au pas réglable, grille des tiers, marges de sécurité (5 % du bord sur un
+  écran, 5 mm sur le papier), zones sûres de TikTok, Reels, Shorts ou d'une story sur toute
+  page en 9:16, fixe ou vidéo. Un objet glissé s'aimante aux lignes montrées. Les choix sont
+  gardés d'une ouverture à l'autre.
+- Alertes de lisibilité, recalculées une seconde après chaque changement : un texte peu
+  contrasté sur ce qui est derrière lui (le rapport du WCAG : 4,5 : 1, ou 3 : 1 pour un grand
+  texte ; mesuré sur la page rendue, photo comprise, à l'instant de la tête sur une page
+  vidéo), ou trop petit là où la page sera vue (sur un téléphone tenu droit : moins de 12 px
+  vus ; imprimé : moins de 8 points). Une marque ambrée au coin du texte, leur nombre sur le
+  bouton Aides et leur liste dans son menu ; le bouton Lisibilité de la barre du texte dit
+  pourquoi et propose une correction d'un clic (lettres en blanc ou en noir quand ça suffit,
+  surlignage, taille conseillée). Un contour sombre ou un surlignage comptent.
+- Chaque outil a son infobulle ; celles des onglets du rail, des réglages du texte, des
+  sections du labo et du panneau 3D disent aussi à quoi l'outil sert.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
-  alors lire le design, poser et modifier des objets (courber un texte, en faire une liste, ranger
-  et nommer les calques), gérer les pages, importer une image du
+  alors lire le design (avec les alertes de lisibilité de la page), poser et modifier des objets
+  (courber un texte, en faire une liste, ranger et nommer les calques), montrer les aides à
+  l'écran, gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
   lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
@@ -906,6 +925,25 @@ Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : une courbe qui serre ou coupe des lettres, une police qui s'y
 tient mal, et ce qui manque par rapport au texte de Canva.
 
+## Essayer les aides pour apprendre (étape 7, lot 3)
+
+Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
+
+1. Un modèle de départ chargé (une affiche, par exemple), bouton Aides en bas : cocher les
+   règles, la grille des tiers et les marges. Glisser un titre près d'une ligne des tiers : il
+   s'y colle. Maj+R masque les règles.
+2. Poser un texte gris clair sur un fond clair, et un texte de 20 px : une marque ambrée apparaît
+   à leur coin, en une seconde. Choisir l'un d'eux, bouton Lisibilité de sa barre : lire
+   pourquoi, puis cliquer la correction proposée ; la marque s'en va.
+3. Un texte blanc posé à cheval sur une photo claire et une zone sombre : le surlignage est
+   proposé, pas une couleur.
+4. Un nouveau design en Story 9:16, bouton Aides, Zones sûres « Story » : les bandes que
+   l'application recouvre se montrent sans passer la page en vidéo.
+5. Un design A4 : la règle compte en millimètres, un texte de 25 px est signalé en points.
+
+Ce qui m'aide le plus en retour : une alerte qui tombe à tort (ou qui manque) sur un de tes
+designs, et une infobulle qui ne t'apprend rien.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -933,6 +971,7 @@ tient mal, et ce qui manque par rapport au texte de Canva.
 | Espace, Échap (pendant une prise de voix) | finir la prise, l'abandonner |
 | ←, → sans sélection (Maj : d'une seconde), Début, Fin | tête de lecture d'une image, au début, à la fin |
 | F11 | aperçu en plein écran |
+| Maj+R | montrer ou masquer les règles |
 | Maj+clic, rectangle tracé à la souris | sélection de plusieurs objets |
 | Alt+clic | un seul objet d'un groupe |
 
@@ -986,11 +1025,11 @@ tient mal, et ce qui manque par rapport au texte de Canva.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts), les règles, la grille, les tiers et les marges (aides.ts), le contraste du WCAG et la taille vue (lisibilite.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts), les aides et leur menu (Aides.tsx), les alertes de lisibilité mesurées au repos (alertes.ts)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
 │   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx), les banques et l'onglet 3D du rail (banques.ts, PanneauBanques.tsx)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)

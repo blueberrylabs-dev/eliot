@@ -178,10 +178,22 @@ function Histogramme({ el }: { el: ElementRetouchable }) {
   return <canvas ref={toile} data-histogramme width={576} height={150} className="h-[75px] w-full rounded-md bg-neutral-900" />;
 }
 
+/** Ce que fait chaque section du labo, en une phrase (l'infobulle de son titre). */
+const AIDES_SECTIONS: Record<string, string> = {
+  Préréglages: "Un rendu tout prêt d'un clic (naturel, film, noir et blanc…), et les tiens",
+  "Recadrer et redresser": "Garder la bonne partie de la photo, remettre l'horizon droit",
+  Perspective: "Poser la photo sur un écran, une affiche ou une boîte vus de biais, par ses quatre coins",
+  Détourage: "Retirer le fond de la photo (calculé sur le processeur), reprendre les bords au pinceau",
+  Lumière: "Exposition, contraste, hautes lumières et ombres, blancs et noirs, la courbe des tonalités",
+  Couleur: "Température, teinte, vibrance et saturation, et chaque couleur à part (mélangeur)",
+  Effets: "Texture, clarté, voile, flou, vignetage, grain",
+  Détail: "Netteté et réduction du bruit",
+};
+
 function Section({ titre, ouverte, basculer, children }: { titre: string; ouverte: boolean; basculer: () => void; children: React.ReactNode }) {
   return (
     <section className="border-t border-neutral-200 py-2" data-section={titre}>
-      <button onClick={basculer} className="flex w-full items-center gap-1 py-1 text-left text-sm font-semibold text-neutral-800">
+      <button onClick={basculer} title={AIDES_SECTIONS[titre] ? `${titre} : ${AIDES_SECTIONS[titre]}` : undefined} className="flex w-full items-center gap-1 py-1 text-left text-sm font-semibold text-neutral-800">
         {ouverte ? <ChevronDown size={16} /> : <ChevronRight size={16} />} {titre}
       </button>
       {ouverte && <div className="pt-1">{children}</div>}

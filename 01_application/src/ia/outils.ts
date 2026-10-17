@@ -65,6 +65,11 @@ import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
 import { STYLES_MAX, trouverStyle } from "../modele/stylesTexte";
+import { ECRAN_TELEPHONE, lecturePage, tailleMinimale } from "../modele/lisibilite";
+import { alertesAJour } from "../editeur/alertes";
+import { useAides } from "../etat/aides";
+import { margeSecurite, pasGrilleParDefaut, unitePage } from "../modele/aides";
+import { estVerticale916, IDS_ZONES, type IdZones } from "../modele/zonesSures";
 import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
@@ -826,7 +831,23 @@ async function base64(blob: Blob): Promise<string> {
 type Outil = (args: Arguments) => Promise<Resultat> | Resultat;
 
 const OUTILS: Record<string, Outil> = {
-  etat: () => ({ donnees: resumer() }),
+  async etat() {
+    const r = resumer();
+    if (!r.designOuvert) return { donnees: r };
+    // Les alertes de lisibilité (étape 7, lot 3), mesurées à l'instant sur la page affichée.
+    const alertes = await alertesAJour();
+    const lecture = lecturePage(etat().document.format);
+    return {
+      donnees: {
+        ...r,
+        lisibilite: {
+          vue: lecture.support === "papier" ? "imprimée (300 dpi) : tailles en points" : `sur un téléphone tenu droit (${ECRAN_TELEPHONE.largeur} px de large)`,
+          taillePoliceMinimale: tailleMinimale(lecture),
+        },
+        alertes: alertes.map((a) => ({ element: a.id, genre: a.genre, message: a.message, valeur: a.valeur, seuil: a.seuil, conseil: a.conseil })),
+      },
+    };
+  },
 
   async capture(args) {
     designOuvert();
@@ -2039,6 +2060,42 @@ const OUTILS: Record<string, Outil> = {
       ...(polices ? { polices: { ...k.polices, ...(polices as KitMarque["polices"]) } } : {}),
     }));
     return { donnees: resumerMarque(useMarque.getState().kit) };
+  },
+
+  aides(args) {
+    // Les aides à l'écran (étape 7, lot 3) : pour Alexandre, jamais dans une capture ni un export.
+    const a = useAides.getState();
+    for (const cle of ["regles", "grille", "tiers", "marges", "alertes"] as const) {
+      if (args[cle] === undefined) continue;
+      exiger(typeof args[cle] === "boolean", `${cle} : true ou false`);
+      a.basculer(cle, args[cle] as boolean);
+    }
+    if (args.pas !== undefined) {
+      const pas = args.pas === null ? null : nombre(args.pas);
+      exiger(pas === null || (pas !== undefined && pas >= 4 && pas <= 2000), "pas : le pas de la grille en pixels de la page, de 4 à 2000 (null : celui du format)");
+      a.definirPas(pas);
+    }
+    if (args.zonesSures !== undefined) {
+      exiger(args.zonesSures === null || IDS_ZONES.includes(args.zonesSures as IdZones), `zonesSures : ${IDS_ZONES.join(", ")} ou null`);
+      useTemps.getState().choisirZonesSures((args.zonesSures as IdZones | null) ?? null);
+    }
+    const b = useAides.getState();
+    const format = etat().document.format;
+    return {
+      donnees: {
+        regles: b.regles,
+        unite: unitePage(format).nom,
+        grille: b.grille,
+        pas: b.pasGrille ?? pasGrilleParDefaut(format),
+        tiers: b.tiers,
+        marges: b.marges,
+        marge: margeSecurite(format),
+        zonesSures: useTemps.getState().zonesSures,
+        zonesVisibles: estVerticale916(format),
+        alertes: b.alertes,
+
+      },
+    };
   },
 
   async styles_texte(args) {

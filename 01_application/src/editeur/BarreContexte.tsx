@@ -43,6 +43,7 @@ import {
   Replace,
   Sparkles,
   Strikethrough,
+  TriangleAlert,
   Scissors,
   SlidersHorizontal,
   Trash2,
@@ -67,6 +68,8 @@ import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
 import { bornerCourbe, estCourbe } from "../modele/texteCourbe";
 import { poserStyleTexte, useMarque } from "../etat/marque";
+import { useAlertesMontrees } from "./Aides";
+import { hexEnRgb, luminance } from "../modele/lisibilite";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 import { remplacerDepuisFichier } from "./remplacer";
@@ -139,7 +142,7 @@ function ReglagePosition({ nombreBlocs }: { nombreBlocs: number }) {
   const surPage = nombreBlocs <= 1;
   const case_ = "flex items-center gap-2 rounded-md border border-neutral-200 px-2 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50";
   return (
-    <Bulle titre="Position" largeur={260} bouton={<><LayoutGrid size={16} /><span className="text-sm">Position</span></>}>
+    <Bulle titre="Position : aligner sur la page, passer devant ou derrière les autres objets" largeur={260} bouton={<><LayoutGrid size={16} /><span className="text-sm">Position</span></>}>
       <p className="mb-1.5 text-xs font-medium text-neutral-500">{surPage ? "Aligner sur la page" : "Aligner entre eux"}</p>
       <div className="mb-3 grid grid-cols-3 gap-1.5">
         {POSITIONS.map((p) => (
@@ -173,6 +176,7 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
   ];
   return (
     <>
+      <AlertesTexte t={t} modifier={modifier} />
       <SelecteurPolice
         valeur={t.police}
         surChoix={(famille) => {
@@ -208,7 +212,7 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
       <Bouton titre="Barré" enfoncé={!!t.barre} surClic={() => modifier({ barre: !t.barre })}>
         <Strikethrough size={16} />
       </Bouton>
-      <Bouton titre="Capitales" enfoncé={!!t.majuscules} surClic={() => modifier({ majuscules: !t.majuscules })}>
+      <Bouton titre="Capitales : tout en majuscules, sans retaper le texte" enfoncé={!!t.majuscules} surClic={() => modifier({ majuscules: !t.majuscules })}>
         <CaseUpper size={18} />
       </Bouton>
       {separateur}
@@ -218,7 +222,7 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
         </Bouton>
       ))}
       {separateur}
-      <Bulle titre="Espacement" bouton={<SlidersHorizontal size={16} />}>
+      <Bulle titre="Espacement : entre les lignes (interligne) et entre les lettres" bouton={<SlidersHorizontal size={16} />}>
         <label className="mb-3 block text-xs text-neutral-600">
           <span className="mb-1 flex justify-between">Entre les lignes <span className="tabular-nums">{t.interligne.toFixed(2)}</span></span>
           <input type="range" min={0.8} max={2.5} step={0.05} value={t.interligne} onChange={(e) => modifier({ interligne: Number(e.target.value) }, "interligne")} className="w-full accent-accent-600" />
@@ -228,10 +232,10 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
           <input type="range" min={-5} max={40} step={0.5} value={t.espacement} onChange={(e) => modifier({ espacement: Number(e.target.value) }, "espacement")} className="w-full accent-accent-600" />
         </label>
       </Bulle>
-      <Bouton titre="Liste à puces" enfoncé={t.liste === "puces"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "puces" ? undefined : "puces" })}>
+      <Bouton titre="Liste à puces : une puce devant chaque ligne" enfoncé={t.liste === "puces"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "puces" ? undefined : "puces" })}>
         <List size={16} />
       </Bouton>
-      <Bouton titre="Liste numérotée" enfoncé={t.liste === "numeros"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "numeros" ? undefined : "numeros" })}>
+      <Bouton titre="Liste numérotée : un numéro devant chaque ligne" enfoncé={t.liste === "numeros"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "numeros" ? undefined : "numeros" })}>
         <ListOrdered size={16} />
       </Bouton>
       <CourbeTexte t={t} modifier={modifier} />
@@ -241,11 +245,61 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
   );
 }
 
+/** Les alertes de lisibilité d'un texte (étape 7, lot 3) : ce qui ne va pas, pourquoi, et une
+ *  correction d'un clic. Rien quand tout va bien. */
+function AlertesTexte({ t, modifier }: { t: ElementTexte; modifier: (m: Partial<ElementTexte>, etiquette?: string) => void }) {
+  const alertes = useAlertesMontrees().get(t.id);
+  if (!alertes?.length) return null;
+  const clair = luminance(hexEnRgb(couleurPrincipale(t.couleur)) ?? [0, 0, 0]) > 0.4;
+  const bouton = "rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50";
+  return (
+    <Bulle
+      titre="Lisibilité : ce texte risque de mal se lire"
+      largeur={300}
+      classeBouton="mr-1 flex h-8 shrink-0 items-center gap-1 rounded-md bg-amber-100 px-2 text-sm font-medium whitespace-nowrap text-amber-800 hover:bg-amber-200"
+      donneesBouton={{ "data-alerte-texte": "" }}
+      bouton={
+        <>
+          <TriangleAlert size={16} /> Lisibilité
+        </>
+      }
+    >
+      {alertes.map((a) => (
+        <div key={a.genre} className="mb-3">
+          <p className="mb-1.5 text-xs text-neutral-700">{a.message}</p>
+          {a.genre === "contraste" ? (
+            <div className="flex flex-wrap gap-1">
+              {a.conseil && (
+                <button data-corriger-couleur className={bouton} title="Des lettres de la couleur qui tranche assez sur ce qui est derrière elles" onClick={() => modifier({ couleur: String(a.conseil) })}>
+                  Lettres en {a.conseil === "#ffffff" ? "blanc" : "noir"}
+                </button>
+              )}
+              <button
+                data-corriger-surlignage
+                className={bouton}
+                title="Un bandeau derrière les lettres : elles gardent leur couleur et se lisent sur n'importe quel fond"
+                onClick={() => modifier({ surlignage: { couleur: clair ? "#111111" : "#ffffff", marge: Math.round(t.taillePolice * 0.25), arrondi: Math.round(t.taillePolice * 0.15) } })}
+              >
+                Surlignage
+              </button>
+            </div>
+          ) : (
+            <button data-corriger-taille className={bouton} title="La plus petite taille qui se lit bien là où la page sera vue" onClick={() => modifier({ taillePolice: Number(a.conseil) })}>
+              Agrandir à {a.conseil} px
+            </button>
+          )}
+        </div>
+      ))}
+      <p className="text-[11px] text-neutral-500">Les alertes se recalculent une seconde après chaque changement. Menu Aides, en bas, pour les masquer.</p>
+    </Bulle>
+  );
+}
+
 /** Le texte courbé (étape 7, lot 2) : un curseur de -100 (sourire) à 100 (arche). */
 function CourbeTexte({ t, modifier }: { t: ElementTexte; modifier: (m: Partial<ElementTexte>, etiquette?: string) => void }) {
   const courbe = t.courbe ?? 0;
   return (
-    <Bulle titre="Courbe" largeur={260} donneesBouton={{ "data-courbe-texte": "" }} bouton={<><Spline size={16} /><span className="text-sm">Courbe</span></>}>
+    <Bulle titre="Courbe : poser le texte sur un arc, en arche ou en sourire" largeur={260} donneesBouton={{ "data-courbe-texte": "" }} bouton={<><Spline size={16} /><span className="text-sm">Courbe</span></>}>
       <label className="block text-xs text-neutral-600">
         <span className="mb-1 flex justify-between">
           Courbe <span className="tabular-nums" data-valeur-courbe>{courbe}</span>
@@ -273,7 +327,7 @@ function StylesEnregistres({ textes }: { textes: ElementTexte[] }) {
   const [nom, setNom] = useState("");
   const t = textes[0];
   return (
-    <Bulle titre="Styles enregistrés" largeur={280} donneesBouton={{ "data-styles-texte": "" }} bouton={<><Bookmark size={16} /><span className="text-sm">Styles</span></>}>
+    <Bulle titre="Styles enregistrés : garder l'allure de ce texte dans le kit de marque, la reposer d'un clic" largeur={280} donneesBouton={{ "data-styles-texte": "" }} bouton={<><Bookmark size={16} /><span className="text-sm">Styles</span></>}>
       {styles.length === 0 && <p className="mb-2 text-xs text-neutral-500">Aucun style enregistré : garde celui de ce texte pour le reposer d'un clic, dans n'importe quel design.</p>}
       <div className="mb-3 flex max-h-56 flex-col gap-1 overflow-y-auto">
         {styles.map((s) => (
@@ -316,7 +370,7 @@ function EffetsTexte({ t, modifier }: { t: ElementTexte; modifier: (m: Partial<E
     { nom: "Surligné", effet: { surlignage: { couleur: "#ffde59", marge: Math.round(t.taillePolice * 0.15), arrondi: Math.round(t.taillePolice * 0.12) }, ombre: undefined, contour: undefined } },
   ];
   return (
-    <Bulle titre="Effets" largeur={280} bouton={<><Sparkles size={16} /><span className="text-sm">Effets</span></>}>
+    <Bulle titre="Effets : ombre, néon, contour, surlignage ; un texte qui ressort sur une photo" largeur={280} bouton={<><Sparkles size={16} /><span className="text-sm">Effets</span></>}>
       {t.temps && (
         <>
           <p className="mb-1 text-xs font-medium text-neutral-700">Styles pour la vidéo (police, couleurs, animations)</p>
@@ -431,7 +485,7 @@ function ReglagesForme({ formes, modifier }: { formes: ElementForme[]; modifier:
       {tousRectangles && (
         <>
           {separateur}
-          <Bulle titre="Arrondi des coins" bouton={<span className="text-sm">Coins</span>}>
+          <Bulle titre="Coins arrondis : adoucir les angles de la forme" bouton={<span className="text-sm">Coins</span>}>
             <label className="block text-xs text-neutral-600">
               <span className="mb-1 flex justify-between">Rayon <span className="tabular-nums">{f.arrondi} px</span></span>
               <input type="range" min={0} max={Math.round(Math.min(f.largeur, f.hauteur) / 2)} step={1} value={f.arrondi} onChange={(e) => modifier({ arrondi: Number(e.target.value) }, "arrondi")} className="w-full accent-accent-600" />
@@ -607,7 +661,7 @@ function ReglagesMaquette({ m, modifier }: { m: ElementMaquette; modifier: (x: P
 /** Bordure d'une photo ou d'un cadre : présente ou non, couleur, épaisseur. */
 function ReglesBordure({ bordure, surChange }: { bordure: { couleur: string; epaisseur: number } | undefined; surChange: (b: { couleur: string; epaisseur: number } | undefined, etiquette?: string) => void }) {
   return (
-    <Bulle titre="Bordure" bouton={<span className="text-sm">Bordure</span>}>
+    <Bulle titre="Bordure : un cadre de couleur autour de la photo" bouton={<span className="text-sm">Bordure</span>}>
       <label className="mb-2 flex items-center gap-2 text-xs font-medium text-neutral-700">
         <input type="checkbox" checked={!!bordure} onChange={(e) => surChange(e.target.checked ? { couleur: "#ffffff", epaisseur: 12 } : undefined)} className="accent-accent-600" />
         Bordure
@@ -780,7 +834,7 @@ export function BarreContexte() {
             <FlipVertical2 size={16} />
           </Bouton>
           {separateur}
-          <Bulle titre="Coins arrondis" bouton={<span className="text-sm">Coins</span>}>
+          <Bulle titre="Coins arrondis : adoucir les angles de la photo" bouton={<span className="text-sm">Coins</span>}>
             <Curseur
               libelle="Rayon"
               valeur={(choisis[0] as ElementImage).arrondi ?? 0}
@@ -807,11 +861,11 @@ export function BarreContexte() {
           {separateur}
           {(choisis.every((e) => e.temps) || choisis.every((e) => !e.temps)) && <ReglagesAnimation choisis={choisis} />}
           {textes.length === 0 && qrs.length === 0 && (
-            <Bulle titre="Ombre" largeur={260} bouton={<span className="text-sm">Ombre</span>}>
+            <Bulle titre="Ombre : une ombre portée détache l'objet du fond" largeur={260} bouton={<span className="text-sm">Ombre</span>}>
               <ReglesOmbre ombre={choisis[0].ombre} etiquette="ombre" surChange={(o, e) => modifier({ ombre: o }, e)} />
             </Bulle>
           )}
-          <Bulle titre="Transparence" bouton={<Blend size={16} />}>
+          <Bulle titre="Transparence : laisser voir ce qui est derrière" bouton={<Blend size={16} />}>
             <Opacite choisis={choisis} />
           </Bulle>
           <ReglagePosition nombreBlocs={groupes.size} />

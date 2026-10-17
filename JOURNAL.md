@@ -5,6 +5,78 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7, lot 3 : les aides pour apprendre
+
+Suite du feu vert d'Alexandre pour le lot 3. Ce que Claude a fait et décidé :
+
+- Un bouton Aides dans la barre du bas, à côté des pages, et son menu : règles, grille (pas
+  réglable), grille des tiers, marges de sécurité, zones sûres, alertes de lisibilité. Rien de
+  tout cela n'entre dans le document ni dans un export ; les choix sont gardés par la fenêtre,
+  comme la hauteur de la frise. Un objet glissé s'aimante aux lignes montrées (grille, tiers,
+  bords des marges), en plus des repères d'avant.
+- Règles : le long du haut et de la gauche de la zone de travail, la page en blanc, la
+  sélection en couleur, un grand trait chiffré tous les 60 px d'écran au moins (pas de 1, 2 ou
+  5 fois une puissance de dix). En pixels de la page ; en millimètres pour une A4 ou une A5
+  (300 dpi). Maj+R, comme dans Canva.
+- Marges de sécurité : 5 % du plus petit côté sur un écran (le bord arrondi d'un téléphone, un
+  recadrage), 5 mm sur le papier (ce que l'imprimeur peut rogner). Grille : 60 px par défaut,
+  10 mm sur le papier.
+- Zones sûres : sur toute page en 9:16, fixe ou vidéo (elles n'étaient que sous la frise), et
+  une quatrième, « Story » : la zone sûre unique de Meta pour le 9:16, telle que le garde-fou
+  du gestionnaire de publicités l'applique (14 % en haut, 35 % en bas, 6 % sur les côtés ;
+  relevée par adsuploader.com, page du 2026-07-31, lue le 2026-10-17). Prudente pour une story
+  sans publicité.
+- Alertes de lisibilité, calculées au repos (0,9 s après le dernier changement, pas pendant la
+  lecture ni pendant un geste) sur la page affichée :
+  - Contraste : le rapport du WCAG 2 (luminances relatives) entre les lettres et ce qui est
+    derrière elles, mesuré sur la page rendue hors écran (photo, vidéo à l'instant de la tête,
+    objets 3D compris) : la page jusqu'au texte, son surlignage compris, et les lettres seules,
+    dans la zone du texte ; le fond se lit sous les lettres et autour d'elles. Le rapport retenu
+    est celui que tient presque tout le texte (le 15e centile) : un texte dont un sixième se perd
+    compte comme peu lisible. Seuil du niveau AA : 4,5 : 1, ou 3 : 1 pour un grand texte (24 px
+    vus, ou 18,66 en gras). Un contour épais qui tranche à la fois sur le fond et sur les lettres
+    compte ; l'opacité aussi ; une ombre, non.
+  - Taille : là où la page sera vue. Sur un téléphone tenu droit (390 × 844 px, la page tient
+    entière) : sous 12 px vus, un texte se lit mal (34 px de page pour un post carré, 60 pour
+    une vidéo paysage). Imprimée (A4, A5) : sous 8 points (34 px à 300 dpi).
+  - Une marque ambrée au coin du texte (un clic le choisit), le nombre sur le bouton Aides, la
+    liste dans son menu ; le bouton Lisibilité de la barre du texte dit pourquoi et propose une
+    correction d'un clic : lettres blanches ou presque noires si l'une des deux suffit partout
+    (sinon, sur un fond trop varié, seulement le surlignage), un surlignage, la taille
+    conseillée.
+  - Mesure : un cache par texte (rien ne se remesure si ni lui ni ce qui est sous lui n'a
+    changé), et tous les rendus d'une mesure montés d'un coup. Dans WebKitGTK, rendre chaque
+    zone à part coûtait 5 s pour cinq textes (le montage et l'attente d'image dominaient) ;
+    groupés, 0,3 s.
+- Infobulles : un relevé dans Chromium de tous les boutons à icône seule et de tous les
+  réglages, dans 25 états de l'interface (accueil, chaque onglet du rail, chaque sorte
+  d'élément choisie, labo, page vidéo, menus) : aucun sans infobulle. Celles qui ne faisaient
+  que nommer l'outil disent maintenant à quoi il sert : les onglets du rail, Fichier,
+  Redimensionner, Exporter, les réglages du texte (position, espacement, listes, courbe,
+  styles, effets, capitales), coins, bordure, ombre, transparence, les sections du labo et du
+  panneau 3D.
+- Pont : `etat` donne la lisibilité de la page (où elle sera vue, la taille de police minimale)
+  et ses alertes, mesurées à l'instant de l'appel, chacune avec son conseil ; un outil neuf,
+  `aides`, montre ou masque les aides à l'écran (pour montrer quelque chose à Alexandre) :
+  76 outils.
+
+Preuves (conteneur de Claude) : 18 essais vitest de plus (292 : unités, graduations, grille,
+tiers, marges ; luminances et rapports de référence du WCAG, dont #767676 sur blanc ; mesure sur
+des rendus fabriqués, à cheval sur deux fonds, opacité, contour ; taille vue sur un téléphone et
+en points ; alertes et conseils) ; dans Chromium, 30 vérifications (menu, choix gardés, règle
+lue au pixel, Maj+R, aimantation au tiers, cinq textes et leurs alertes, marques, puce,
+corrections, plus d'alerte une fois corrigé, le pont et l'outil aides, alertes masquées, rendu
+sans aide, story fixe, A4 en millimètres et en points, infobulles du rail) ; dans Tauri, 10
+(mêmes alertes mesurées par WebKit, temps de la mesure, marques à l'écran et un clic à la
+souris, aides à l'écran, Maj+R au clavier, PNG du noyau sans aide, page vidéo mesurée sur le
+bleu puis sur le jaune d'un clip). Repassés : Chromium, étapes 2 (33), 3, lots 1 et 3 (23, 29),
+4, lots 2 à 7 (38, 44, 18, 44, 37, 44), correctifs (23), étape 5 (15 et le recadrage, 27),
+étape 6, lots 1 à 4 (63, 48, 34, 44), étape 7, lots 1 et 2 (30, 53) ; Tauri, les exports de
+l'étape 5 (62), la vérification de l'étape 6 (17, avec les vraies banques), les rendus croisés
+(4), le film 3D (20), l'étape 7, lots 1 et 2 (8, 16), l'animation de l'étape 4 par le pont (16).
+Deux vérifications d'avant cherchaient une infobulle par son texte exact (« Effets »,
+« Police ») : mises à jour.
+
 ## 2026-10-17, étape 7, lot 2 : le texte
 
 Suite de l'accord d'Alexandre (« Feu vert. »). Ce que Claude a fait et décidé :

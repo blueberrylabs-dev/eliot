@@ -26,17 +26,17 @@ import { PanneauTextes } from "./panneaux/PanneauTextes";
 
 type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "3d" | "audio" | "marque" | "dessin" | "calques";
 
-const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode }[] = [
-  { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} /> },
-  { id: "elements", libelle: "Éléments", icone: <Shapes size={22} /> },
-  { id: "textes", libelle: "Texte", icone: <Type size={22} /> },
-  { id: "photos", libelle: "Photos", icone: <IconeImage size={22} /> },
-  { id: "images", libelle: "Importer", icone: <CloudUpload size={22} /> },
-  { id: "3d", libelle: "3D", icone: <Box size={22} /> },
-  { id: "audio", libelle: "Audio", icone: <Music size={22} /> },
-  { id: "marque", libelle: "Marque", icone: <Palette size={22} /> },
-  { id: "dessin", libelle: "Dessin", icone: <Brush size={22} /> },
-  { id: "calques", libelle: "Calques", icone: <Layers size={22} /> },
+const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode; aide: string }[] = [
+  { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} />, aide: "Modèles : des designs prêts à reprendre, et les tiens" },
+  { id: "elements", libelle: "Éléments", icone: <Shapes size={22} />, aide: "Éléments : formes, lignes, icônes, emojis, personnages, cadres photo, maquettes, graphiques, tableaux, QR codes" },
+  { id: "textes", libelle: "Texte", icone: <Type size={22} />, aide: "Texte : titres, associations de polices, styles enregistrés, styles pour la vidéo" },
+  { id: "photos", libelle: "Photos", icone: <IconeImage size={22} />, aide: "Photos : photos et vidéos libres de Pixabay, à poser d'un clic" },
+  { id: "images", libelle: "Importer", icone: <CloudUpload size={22} />, aide: "Importer : tes images, tes vidéos et tes modèles 3D, rangés avec le design" },
+  { id: "3d", libelle: "3D", icone: <Box size={22} />, aide: "3D : modèles des banques libres (Kenney, Poly Haven, Sketchfab) et environnements de lumière" },
+  { id: "audio", libelle: "Audio", icone: <Music size={22} />, aide: "Audio : musiques, bruitages, voix au micro ou de synthèse, pour une page vidéo" },
+  { id: "marque", libelle: "Marque", icone: <Palette size={22} />, aide: "Marque : tes couleurs, tes polices, tes logos et tes jingles, gardés d'un design à l'autre" },
+  { id: "dessin", libelle: "Dessin", icone: <Brush size={22} />, aide: "Dessin : crayon, marqueur, surligneur et gomme, à main levée" },
+  { id: "calques", libelle: "Calques", icone: <Layers size={22} />, aide: "Calques : l'ordre des objets, leurs noms ; glisser une ligne pour passer devant ou derrière" },
 ];
 
 export function BarreLaterale() {
@@ -92,6 +92,7 @@ export function BarreLaterale() {
           <button
             key={o.id}
             data-onglet={o.id}
+            title={o.aide}
             onClick={() => choisir(o.id)}
             className={`flex w-16 flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium ${onglet === o.id && !special ? "bg-accent-50 text-accent-700" : "text-neutral-600 hover:bg-neutral-100"}`}
           >

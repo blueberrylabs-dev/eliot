@@ -660,9 +660,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       dans Chromium (53) et dans Tauri (16, dont PNG, PDF et SVG contre la fenêtre, et un coin
       tiré à la souris) (JOURNAL). Essai d'Alexandre : « Essayer le texte courbé, les listes et
       les styles (étape 7, lot 2) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 3 : les aides pour apprendre. Règles, grille, grille des tiers, marges de sécurité,
+- [x] Lot 3 : les aides pour apprendre. Règles, grille, grille des tiers, marges de sécurité,
       zones sûres sur toute page verticale, alertes de contraste et de texte trop petit,
-      infobulles relues sur chaque outil ; pont (les alertes dans `etat`).
+      infobulles relues sur chaque outil ; pont (les alertes dans `etat`). Livré le 2026-10-17 :
+      `src/modele/aides.ts`, `src/modele/lisibilite.ts`, `src/editeur/Aides.tsx` et
+      `src/editeur/alertes.ts` ; une zone sûre « Story » ; l'outil `aides` (76 outils). Vérifié
+      dans Chromium (30) et dans Tauri (10) (JOURNAL). Essai d'Alexandre : « Essayer les aides
+      pour apprendre (étape 7, lot 3) » du `01_application/LISEZMOI.md`.
 - [ ] Lot 4 : couleur, fond, thème. Pipette, photo en fond de page, thème clair ou sombre ;
       pont.
 - [ ] Lot 5 : Pexels, photos et vidéos, dès que la clé d'Alexandre est dans le `.env`.

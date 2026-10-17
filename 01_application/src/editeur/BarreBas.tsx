@@ -7,6 +7,7 @@ import { useShallow } from "zustand/react/shallow";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { glisserPourReordonner } from "./reordonner";
 import { Vignette } from "./Vignette";
+import { MenuAides } from "./Aides";
 
 const LARGEUR_VIGNETTE = 96;
 const ZOOM_MIN = 0.1;
@@ -114,6 +115,8 @@ export function BarreBas() {
         <span className="ml-1 text-sm text-neutral-500 tabular-nums">
           {rang + 1} / {nombrePages}
         </span>
+        <span className="mx-1 h-5 w-px bg-neutral-200" />
+        <MenuAides classeBouton={bouton()} />
         <span className="flex-1" />
         <input
           type="range"

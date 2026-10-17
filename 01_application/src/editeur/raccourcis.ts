@@ -4,6 +4,7 @@
 import { useEffect } from "react";
 import { elementsSelectionnes, pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
+import { useAides } from "../etat/aides";
 import { scene } from "./scene";
 import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 import { finirRecadrage, glisserImage, photoOuClip, useRecadrage } from "../labo/recadrage";
@@ -127,6 +128,8 @@ export function useRaccourcis(): void {
         useTemps.getState().allerA(e.key === "Home" ? 0 : Math.max(0, (page.duree ?? 1) - 1));
       }
       else if (ctrl && touche === "a") etat.toutSelectionner();
+      // Maj+R : les règles (étape 7, lot 3), comme dans Canva.
+      else if (!ctrl && e.shiftKey && !e.altKey && touche === "r") useAides.getState().basculer("regles");
       else if (ctrl && touche === "g" && e.shiftKey) etat.degrouperSelection();
       else if (ctrl && touche === "g") etat.grouperSelection();
       else if (ctrl && (touche === "0" || e.code === "Digit0" || e.code === "Numpad0")) etat.definirZoom(null);

@@ -68,7 +68,8 @@ function Rendu({ page, format, instant, imagesVideo, sansEffets, pret }: { page:
   );
 }
 
-export async function rendrePage(page: PageEliot, format: Format, options: OptionsRendu): Promise<Blob> {
+/** Monte la page hors écran, images chargées, et passe son groupe Konva à `faire`. */
+async function avecRendu<T>(page: PageEliot, format: Format, options: { instant?: number; sansEffets?: boolean; transparent?: boolean }, faire: (groupe: Konva.Group) => Promise<T>): Promise<T> {
   const instant = options.instant ?? 0;
   const [, imagesVideo] = await Promise.all([prechargerPage(page), imagesDesVideos(page, instant)]);
   const support = document.createElement("div");
@@ -77,8 +78,15 @@ export async function rendrePage(page: PageEliot, format: Format, options: Optio
     const groupe = await new Promise<Konva.Group>((pret) => racine.render(createElement(Rendu, { page, format, instant, imagesVideo, sansEffets: options.sansEffets, pret })));
     // Une image laisse au moteur le temps de finir ses décodages en cours.
     await new Promise((r) => requestAnimationFrame(() => r(null)));
-    const fond = groupe.findOne(".fond-page");
-    if (options.transparent && options.type === "image/png") fond?.visible(false);
+    if (options.transparent) groupe.findOne(".fond-page")?.visible(false);
+    return await faire(groupe);
+  } finally {
+    racine.unmount();
+  }
+}
+
+export async function rendrePage(page: PageEliot, format: Format, options: OptionsRendu): Promise<Blob> {
+  return avecRendu(page, format, { instant: options.instant, sansEffets: options.sansEffets, transparent: options.transparent && options.type === "image/png" }, async (groupe) => {
     const blob = await groupe.toBlob({
       x: 0,
       y: 0,
@@ -90,6 +98,81 @@ export async function rendrePage(page: PageEliot, format: Format, options: Optio
     });
     if (!(blob instanceof Blob)) throw new Error("le rendu est vide");
     return blob;
+  });
+}
+
+export interface DemandeZone {
+  page: PageEliot;
+  /** La zone, en pixels de la page. */
+  zone: { x: number; y: number; largeur: number; hauteur: number };
+  pixelRatio: number;
+  /** Page vidéo : l'instant montré, en ms. */
+  instant?: number;
+  /** Sans le fond de la page (transparent). */
+  transparent?: boolean;
+}
+
+/** Plusieurs pages, chacune dans son groupe, montées ensemble hors écran. */
+function RenduMultiple({ format, demandes, sansEffets, pret }: { format: Format; demandes: (DemandeZone & { imagesVideo: Map<string, CanvasImageSource> })[]; sansEffets?: boolean; pret: (g: Konva.Group[]) => void }) {
+  const groupes = useRef<Konva.Group[]>([]);
+  useEffect(() => {
+    pret(groupes.current);
+  }, [pret]);
+  return createElement(
+    Stage,
+    { width: 1, height: 1 },
+    createElement(
+      Layer,
+      null,
+      demandes.map((d, i) =>
+        createElement(
+          Group,
+          {
+            key: i,
+            ref: (g: Konva.Group | null) => {
+              if (g) groupes.current[i] = g;
+            },
+          },
+          createElement(PageStatique, { page: d.page, format, instant: d.instant, imagesVideo: d.imagesVideo, sansEffets }),
+        ),
+      ),
+    ),
+  );
+}
+
+/** Ce qui demande au moteur de finir un décodage avant d'être dessiné (photos, vidéos, dessins
+ *  en SVG) ; des textes et des formes se dessinent tout de suite. */
+const aDesImages = (page: PageEliot) => page.elements.some((e) => !["texte", "forme", "qr", "tableau", "graphique", "dessin"].includes(e.type));
+
+/**
+ * Les pixels de zones de pages, rendues hors écran : pour mesurer ce qui s'y voit (les alertes
+ * de lisibilité, étape 7, lot 3). Toutes les demandes se montent d'un coup (un seul montage,
+ * une seule attente d'image) : chacun de ces temps coûte cher dans WebKitGTK. `source` : la
+ * page d'où viennent les demandes, dont les images et celles des vidéos se chargent une fois
+ * par instant.
+ */
+export async function rendreZones(format: Format, source: PageEliot, demandes: DemandeZone[], options: { sansEffets?: boolean } = {}): Promise<ImageData[]> {
+  if (demandes.length === 0) return [];
+  const parInstant = new Map<number, Promise<Map<string, CanvasImageSource>>>();
+  const images = (instant: number) => {
+    if (!parInstant.has(instant)) parInstant.set(instant, imagesDesVideos(source, instant));
+    return parInstant.get(instant)!;
+  };
+  await prechargerPage(source);
+  const prets = await Promise.all(demandes.map(async (d) => ({ ...d, imagesVideo: await images(d.instant ?? 0) })));
+  const support = document.createElement("div");
+  const racine = createRoot(support);
+  try {
+    const groupes = await new Promise<Konva.Group[]>((pret) => racine.render(createElement(RenduMultiple, { format, demandes: prets, sansEffets: options.sansEffets, pret })));
+    if (prets.some((d) => aDesImages(d.page))) await new Promise((r) => requestAnimationFrame(() => r(null)));
+    return groupes.map((g, i) => {
+      const d = prets[i];
+      if (d.transparent) g.findOne(".fond-page")?.visible(false);
+      const toile = g.toCanvas({ x: d.zone.x, y: d.zone.y, width: d.zone.largeur, height: d.zone.hauteur, pixelRatio: d.pixelRatio });
+      const ctx = toile.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("le rendu est vide");
+      return ctx.getImageData(0, 0, toile.width, toile.height);
+    });
   } finally {
     racine.unmount();
   }

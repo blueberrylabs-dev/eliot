@@ -1,6 +1,6 @@
-// Les zones sûres sur une page vidéo verticale (étape 4, lot 4) : un calque d'aide, jamais
-// exporté, qui montre où TikTok, Reels ou Shorts posent leurs boutons et leurs légendes, et le
-// bouton de la frise qui le choisit.
+// Les zones sûres sur une page verticale (étape 4, lot 4 ; toute page en 9:16 depuis l'étape 7,
+// lot 3) : un calque d'aide, jamais exporté, qui montre où TikTok, Reels, Shorts ou une story
+// posent leurs boutons et leurs légendes, et le bouton de la frise qui le choisit.
 
 import { ShieldCheck } from "lucide-react";
 import { Group, Rect, Text } from "react-konva";
@@ -32,7 +32,7 @@ export function CalqueZonesSures({ format }: { format: Format }) {
   );
 }
 
-const CHOIX: (IdZones | null)[] = [null, "tiktok", "reels", "shorts"];
+export const CHOIX_ZONES: (IdZones | null)[] = [null, "tiktok", "reels", "shorts", "story"];
 
 /** Le choix des zones sûres, dans la barre de la frise. */
 export function ChoixZonesSures({ format, bouton }: { format: Format; bouton: string }) {
@@ -48,7 +48,7 @@ export function ChoixZonesSures({ format, bouton }: { format: Format; bouton: st
         onChange={(e) => useTemps.getState().choisirZonesSures((e.target.value || null) as IdZones | null)}
         className="cursor-pointer bg-transparent text-sm text-zinc-200 outline-none disabled:cursor-default [&>option]:text-neutral-900"
       >
-        {CHOIX.map((c) => (
+        {CHOIX_ZONES.map((c) => (
           <option key={c ?? "aucune"} value={c ?? ""}>
             {c ? ZONES_SURES[c].nom : "Zones sûres"}
           </option>

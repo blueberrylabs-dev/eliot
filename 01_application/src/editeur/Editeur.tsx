@@ -16,6 +16,7 @@ import { useRaccourcis } from "./raccourcis";
 import { useLecteurSons } from "./sons";
 import { VueGrille } from "./VueGrille";
 import { ZoneDeTravail } from "./ZoneDeTravail";
+import { surveillerAlertes } from "./alertes";
 
 const MARQUE_PRESSE_PAPIERS = "application/x-eliot";
 
@@ -66,6 +67,8 @@ export function Editeur() {
   useRaccourcis();
   usePressePapiers();
   useLecteurSons();
+  // Les alertes de lisibilité se recalculent au repos (étape 7, lot 3).
+  useEffect(() => surveillerAlertes(), []);
   const vueGrille = useEditeur((s) => s.vueGrille);
   const apercu = useEditeur((s) => s.apercu);
   const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);

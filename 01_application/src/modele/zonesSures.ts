@@ -1,10 +1,13 @@
 // Les zones sûres des vidéos verticales (étape 4, lot 4) : là où TikTok, Reels et Shorts posent
-// leurs boutons, le nom du compte et la légende. Un texte posé là risque d'être caché. Les
+// leurs boutons, le nom du compte et la légende ; depuis l'étape 7, lot 3, celles d'une story,
+// et sur toute page verticale en 9:16, fixe ou vidéo. Un texte posé là risque d'être caché. Les
 // marges sont données pour une vidéo de 1080 × 1920 et se ramènent à la page en proportion.
 // Relevées le 2026-10-15 (sources dans le JOURNAL) ; elles varient avec la longueur de la
 // légende et les versions des applications : ce sont des repères, pas des règles exactes.
 
-export type IdZones = "tiktok" | "reels" | "shorts";
+export type IdZones = "tiktok" | "reels" | "shorts" | "story";
+
+export const IDS_ZONES: IdZones[] = ["tiktok", "reels", "shorts", "story"];
 
 /** Une zone que l'application recouvre, en fractions de la page (0 à 1). */
 export interface ZoneCachee {
@@ -49,6 +52,11 @@ export const ZONES_SURES: Record<IdZones, ZonesSures> = {
   // Gabarit de Google pour les vidéos verticales, relevé par adkit.so (2026-09-10) : 288 px en
   // haut, 672 en bas, 48 à gauche, 192 à droite.
   shorts: { nom: "Shorts", zones: bandes(288, 672, 48, 192, { haut: "Recherche et menu", bas: "Titre, chaîne et son", droite: "Boutons" }) },
+  // Story Instagram : la zone sûre unique de Meta pour le 9:16 (garde-fou du gestionnaire de
+  // publicités, relevé par adsuploader.com, page du 2026-07-31) : 14 % en haut, 35 % en bas,
+  // 6 % sur les côtés. Une story sans publicité laisse plus de place en bas (la barre de
+  // réponse) : la zone est prudente.
+  story: { nom: "Story", zones: bandes(0.14 * H, 0.35 * H, 0.06 * L, 0.06 * L, { haut: "Nom du compte et barre de progression", bas: "Réponse, lien et appel à l'action", droite: "" }) },
 };
 
 /** La page est-elle verticale en 9:16 (à 2 % près) ? Les zones n'ont de sens que là. */

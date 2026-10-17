@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles, crédit) et environnements HDRI (environnements3d), crédits des objets 3D de la page à recopier sous la publication (credits3d), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles, crédit) et environnements HDRI (environnements3d), crédits des objets 3D de la page à recopier sous la publication (credits3d), polices disponibles, et la lisibilité de la page affichée (étape 7) : lisibilite (là où la page sera vue, et taillePoliceMinimale, en pixels de la page, sous laquelle un texte se lit mal) et alertes, mesurées à l'instant, une par texte qui risque de mal se lire : genre contraste (le rapport du WCAG entre les lettres et ce qui est derrière elles, sous 4,5 : 1, ou 3 : 1 pour un grand texte ; conseil : la couleur unie qui suffirait, ou null si le fond est trop varié et qu'un surlignage s'impose) ou taille (conseil : la taille de police minimale). Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -2865,6 +2865,52 @@
       "required": [
         "action"
       ]
+    }
+  },
+  {
+    "name": "aides",
+    "description": "Montre ou masque les aides à l'écran d'Eliot (étape 7), pour Alexandre : jamais dans une capture ni un export. regles (le long de la page, en pixels, en millimètres pour une A4 ou une A5), grille (et son pas en pixels de la page), tiers (la grille des tiers : les points forts sur ses lignes ou leurs croisements), marges (de sécurité : 5 % du bord sur un écran, 5 mm sur le papier ; textes et logos dedans), zonesSures (tiktok, reels, shorts ou story, sur une page en 9:16 ; null : aucune), alertes (les marques des alertes de lisibilité ; etat les donne toujours). Un objet glissé à la souris s'aimante aux lignes montrées. Sans argument, dit ce qui est montré. N'y touche que si Alexandre le demande, ou pour lui montrer quelque chose (la grille des tiers pour expliquer une composition).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "regles": {
+          "type": "boolean"
+        },
+        "grille": {
+          "type": "boolean"
+        },
+        "pas": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 4,
+          "maximum": 2000,
+          "description": "Le pas de la grille, en pixels de la page ; null : celui du format (60 px, ou 10 mm sur le papier)."
+        },
+        "tiers": {
+          "type": "boolean"
+        },
+        "marges": {
+          "type": "boolean"
+        },
+        "zonesSures": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "tiktok",
+            "reels",
+            "shorts",
+            "story",
+            null
+          ]
+        },
+        "alertes": {
+          "type": "boolean"
+        }
+      }
     }
   },
   {

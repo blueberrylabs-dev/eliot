@@ -420,10 +420,10 @@ export function BarreHaut() {
         </svg>
         <span className="font-semibold">Accueil</span>
       </button>
-      <button className={texte} onMouseDown={(e) => e.stopPropagation()} onClick={() => setOuvert(ouvert === "fichier" ? null : "fichier")}>
+      <button className={texte} title="Fichier : nouveau design, copie, modèle maison, import et export d'un projet, réglages et pont IA" onMouseDown={(e) => e.stopPropagation()} onClick={() => setOuvert(ouvert === "fichier" ? null : "fichier")}>
         Fichier <ChevronDown size={14} />
       </button>
-      <button className={texte} onClick={() => setRedimension(true)} title="Passer le design dans un autre format">
+      <button className={texte} onClick={() => setRedimension(true)} title="Redimensionner : décliner le design dans un autre format (une story depuis un post), les objets suivent">
         <Maximize2 size={15} /> Redimensionner
       </button>
       <BasculeVideo />
@@ -444,7 +444,7 @@ export function BarreHaut() {
       <span className="mr-3 text-sm text-white/80 tabular-nums">
         {format.largeur} × {format.hauteur} px
       </span>
-      <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setOuvert(ouvert === "export" ? null : "export")} className="flex h-9 items-center gap-2 rounded-lg bg-white px-3.5 text-sm font-medium text-accent-700 hover:bg-accent-50">
+      <button title="Exporter : en image (PNG, JPEG, WebP), en document (PDF, SVG), en film (MP4, GIF), avec des réglages prêts par plateforme" onMouseDown={(e) => e.stopPropagation()} onClick={() => setOuvert(ouvert === "export" ? null : "export")} className="flex h-9 items-center gap-2 rounded-lg bg-white px-3.5 text-sm font-medium text-accent-700 hover:bg-accent-50">
         <Download size={16} /> Exporter
       </button>
       {ouvert === "export" && <PanneauExport fermer={() => setOuvert(null)} />}
