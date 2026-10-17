@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles), polices disponibles. Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -1375,6 +1375,180 @@
           "minimum": 0,
           "maximum": 1,
           "description": "0 : muet ; 1 par défaut."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "importer_modele3d",
+    "description": "Importe un modèle 3D du poste (chemin absolu d'un fichier .glb, .gltf, .fbx ou .obj) dans le design ouvert. Un .gltf entre avec les fichiers rangés à côté de lui (.bin, textures) : il devient un seul GLB. Le noyau vérifie le fichier et prépare la copie que la fenêtre affiche (textures ramenées à 2048 px au plus) ; l'original n'est jamais modifié. Un FBX (Mixamo, par exemple) et un OBJ sont gardés tels quels. Renvoie la ressource (à passer à ajouter_objet3d) et ce que la fenêtre lit du modèle : matières et animations par leur nom, triangles. Un modèle illisible est signalé ici.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "chemin": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "chemin"
+      ]
+    }
+  },
+  {
+    "name": "ajouter_objet3d",
+    "description": "Pose sur la page affichée un modèle 3D déjà importé (ressource donnée par importer_modele3d ou par modeles3d dans etat), comme une photo détourée : fond transparent, éclairage de studio, le modèle centré dans sa boîte. Par défaut une boîte carrée au centre (60 % du petit côté de la page), vue de trois quarts. Avec seulement largeur ou seulement hauteur, la boîte reste carrée. La caméra se règle ici ou ensuite par regler_objet3d ; juger le rendu avec capture. L'export (PNG, JPEG, WebP, PDF, SVG) rend l'objet à la finesse demandée.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "ressource": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "largeur": {
+          "type": "number"
+        },
+        "hauteur": {
+          "type": "number"
+        },
+        "rotation": {
+          "type": "number"
+        },
+        "opacite": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "vue": {
+          "type": "string",
+          "enum": [
+            "face",
+            "trois-quarts",
+            "profil",
+            "dos",
+            "dessus",
+            "contre-plongee"
+          ],
+          "description": "Une vue prête (ses angles), appliquée avant les autres réglages."
+        },
+        "azimut": {
+          "type": "number",
+          "description": "La rotation autour du modèle, en degrés : 0 de face, 90 le profil droit, 180 le dos, -90 le profil gauche.",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "elevation": {
+          "type": "number",
+          "description": "La hauteur de vue, en degrés : 0 à hauteur, positif au-dessus (89 : de dessus), négatif en contre-plongée.",
+          "minimum": -89,
+          "maximum": 89
+        },
+        "zoom": {
+          "type": "number",
+          "description": "1 cadre tout le modèle dans la boîte ; 2 le montre deux fois plus grand (il déborde), 0,5 deux fois plus petit.",
+          "minimum": 0.2,
+          "maximum": 8
+        },
+        "focale": {
+          "type": "number",
+          "description": "En millimètres d'un appareil plein format : 50 par défaut, 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective marquée.",
+          "minimum": 18,
+          "maximum": 200
+        },
+        "decalage": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "minimum": -3,
+            "maximum": 3
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Le point visé, déplacé de [x, y, z] dans le repère du modèle (rayon 1 : le modèle tient dans une sphère de rayon 1 centrée en 0) ; y positif monte le point visé, ce qui fait descendre le modèle dans l'image. null : au centre."
+        },
+        "recentrer": {
+          "type": "boolean",
+          "description": "Vrai : zoom 1, sans décalage (avant les autres réglages)."
+        }
+      },
+      "required": [
+        "ressource"
+      ]
+    }
+  },
+  {
+    "name": "regler_objet3d",
+    "description": "Règle la caméra d'un objet 3D de la page affichée (élément de type objet3d) : elle tourne autour du modèle, qui reste centré et éclairé de la même façon. Ordre : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. La position et la taille de la boîte se changent avec modifier. Une étape d'annulation. Juger le cadrage avec capture. Renvoie l'élément avec sa caméra.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de l'objet 3D (voir etat)."
+        },
+        "vue": {
+          "type": "string",
+          "enum": [
+            "face",
+            "trois-quarts",
+            "profil",
+            "dos",
+            "dessus",
+            "contre-plongee"
+          ],
+          "description": "Une vue prête (ses angles), appliquée avant les autres réglages."
+        },
+        "azimut": {
+          "type": "number",
+          "description": "La rotation autour du modèle, en degrés : 0 de face, 90 le profil droit, 180 le dos, -90 le profil gauche.",
+          "minimum": -360,
+          "maximum": 360
+        },
+        "elevation": {
+          "type": "number",
+          "description": "La hauteur de vue, en degrés : 0 à hauteur, positif au-dessus (89 : de dessus), négatif en contre-plongée.",
+          "minimum": -89,
+          "maximum": 89
+        },
+        "zoom": {
+          "type": "number",
+          "description": "1 cadre tout le modèle dans la boîte ; 2 le montre deux fois plus grand (il déborde), 0,5 deux fois plus petit.",
+          "minimum": 0.2,
+          "maximum": 8
+        },
+        "focale": {
+          "type": "number",
+          "description": "En millimètres d'un appareil plein format : 50 par défaut, 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective marquée.",
+          "minimum": 18,
+          "maximum": 200
+        },
+        "decalage": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "number",
+            "minimum": -3,
+            "maximum": 3
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "Le point visé, déplacé de [x, y, z] dans le repère du modèle (rayon 1 : le modèle tient dans une sphère de rayon 1 centrée en 0) ; y positif monte le point visé, ce qui fait descendre le modèle dans l'image. null : au centre."
+        },
+        "recentrer": {
+          "type": "boolean",
+          "description": "Vrai : zoom 1, sans décalage (avant les autres réglages)."
         }
       },
       "required": [

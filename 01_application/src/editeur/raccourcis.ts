@@ -7,6 +7,7 @@ import { useTemps } from "../etat/temps";
 import { scene } from "./scene";
 import { collerReglages, copierReglages, useLabo } from "../labo/retouche";
 import { finirRecadrage, glisserImage, photoOuClip, useRecadrage } from "../labo/recadrage";
+import { finirOrbite, flechesOrbite, useOrbite } from "../trois/orbite";
 import { finirPerspective, tirerCoin, usePerspective } from "../labo/miseEnPerspective";
 import { basculerModePinceau, finirPinceau, reglerPinceau, useDetourage } from "../labo/detourage";
 
@@ -62,6 +63,22 @@ export function useRaccourcis(): void {
           const pas = e.shiftKey ? 10 : 1;
           tirerCoin(el, coins.coin, e.key === "ArrowLeft" ? -pas : e.key === "ArrowRight" ? pas : 0, e.key === "ArrowUp" ? -pas : e.key === "ArrowDown" ? pas : 0, `perspective-fleches:${coins.id}:${coins.coin}`);
         } else if (e.key.startsWith("Arrow")) traite = true;
+        else traite = false;
+        if (traite) {
+          e.preventDefault();
+          return;
+        }
+        traite = true;
+      }
+
+      // En tournant un objet 3D (étape 6) : Entrée finit, Échap revient à la vue d'avant, les
+      // flèches le tournent ; Suppr ne supprime rien.
+      const orbite = useOrbite.getState().id;
+      if (orbite && !ctrl && !e.altKey) {
+        if (e.key === "Enter") finirOrbite();
+        else if (e.key === "Escape") finirOrbite(true);
+        else if (e.key === "Delete" || e.key === "Backspace") traite = true;
+        else if (e.key.startsWith("Arrow")) flechesOrbite(orbite, e.key, e.shiftKey);
         else traite = false;
         if (traite) {
           e.preventDefault();

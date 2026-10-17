@@ -16,9 +16,12 @@ import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, u
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
+import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
+import { DECALAGE_MAX, ELEVATION_MAX, FOCALE_MAX, FOCALE_MIN, normaliserCamera, VUES_PRETES, vuePrete, ZOOM_MAX, ZOOM_MIN } from "../modele/objet3d";
+import { chargerModele } from "../trois/moteur";
+import { poserCamera } from "../trois/orbite";
 import type { SensAlignement } from "../modele/geometrie";
-import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
+import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
@@ -43,7 +46,7 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatPiper, etatPixabay, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
@@ -151,7 +154,9 @@ function resumer() {
     fond: page.fond,
     elements: page.elements,
     selection: s.selection,
-    images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son),
+    images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son && !r.modele3d),
+    // Les modèles 3D importés (étape 6) : à poser avec ajouter_objet3d.
+    modeles3d: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.modele3d),
     // Les sons importés dans le design (lot 5) : durée en ms, niveau sonore, crédit.
     sons: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r?.son),
     // Les polices de la bibliothèque ; celles du poste (souvent des dizaines) par lister_polices.
@@ -231,6 +236,8 @@ const PAR_TYPE: Record<ElementPage["type"], string[]> = {
   dessin: ["couleur", "epaisseur", "outil"],
   graphique: ["genre", "etiquettes", "series", "couleursParts", "police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "unite", "maximum"],
   tableau: ["cellules", "colonnes", "entete", "police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge"],
+  // Un objet 3D : sa caméra se règle par regler_objet3d, qui la vérifie.
+  objet3d: [],
 };
 
 /** Une ombre envoyée par l'IA : couleur, flou, décalage, opacité ; `null` l'enlève. */
@@ -520,6 +527,52 @@ async function planche(adresses: (() => Promise<string>)[], l: number, h: number
 
 const plancheDePhotos = (photos: PhotoPixabay[]) => planche(photos.map((p) => () => urlApercuPixabay(p.id)), 240, 180, true);
 const plancheDeVideos = (videos: VideoPixabay[]) => planche(videos.map((v) => () => urlApercuVideoPixabay(v.id)), 240, 135, true);
+
+/** Ce que la fenêtre lit d'un modèle 3D en le chargeant : ses matières et ses animations par
+ *  leur nom, ses triangles. Un modèle que three.js ne sait pas lire est dit tout de suite. */
+async function lireModele3d(r: Ressource) {
+  try {
+    const m = await chargerModele(r);
+    return { format: r.modele3d?.format, matieres: m.matieres, animations: m.animations.map((a) => a.name || "sans nom"), triangles: m.triangles, texturesReduites: r.modele3d?.texturesReduites ?? 0 };
+  } catch (e) {
+    throw new ErreurOutil(`modèle 3D illisible dans la fenêtre : ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
+/** La caméra d'un objet 3D demandée par l'IA : `vue` (une vue prête) d'abord, puis azimut,
+ *  élévation, zoom, focale et décalage ; `recentrer` remet le zoom à 1 sans décalage. */
+function cameraDemandee(depart: Camera3d, args: Arguments): Camera3d {
+  let c: Camera3d = { ...depart };
+  const vue = texte(args.vue);
+  if (vue !== undefined) {
+    const v = vuePrete(c, vue);
+    exiger(v, `vue : ${VUES_PRETES.map((x) => x.id).join(", ")}`);
+    c = v!;
+  }
+  if (args.recentrer === true) {
+    c.zoom = 1;
+    delete c.decalage;
+  }
+  const bornes: Record<"azimut" | "elevation" | "zoom" | "focale", [number, number, string]> = {
+    azimut: [-360, 360, "degrés, 0 de face, 90 : le profil droit du modèle"],
+    elevation: [-ELEVATION_MAX, ELEVATION_MAX, "degrés, 0 à hauteur, positif au-dessus"],
+    zoom: [ZOOM_MIN, ZOOM_MAX, "1 cadre tout le modèle"],
+    focale: [FOCALE_MIN, FOCALE_MAX, "millimètres, plein format"],
+  };
+  for (const [cle, [min, max, sens]] of Object.entries(bornes) as [keyof typeof bornes, [number, number, string]][]) {
+    if (args[cle] === undefined) continue;
+    const v = nombre(args[cle]);
+    exiger(v !== undefined && v >= min && v <= max, `${cle} : de ${min} à ${max} (${sens})`);
+    c[cle] = v!;
+  }
+  if (args.decalage === null) delete c.decalage;
+  else if (args.decalage !== undefined) {
+    const d = args.decalage as unknown[];
+    exiger(Array.isArray(d) && d.length === 3 && d.every((x) => typeof x === "number" && Number.isFinite(x) && Math.abs(x) <= DECALAGE_MAX), `decalage : [x, y, z], chacun de -${DECALAGE_MAX} à ${DECALAGE_MAX} (en rayons du modèle), ou null`);
+    c.decalage = d as [number, number, number];
+  }
+  return normaliserCamera(c);
+}
 
 /** Pose un élément sur la page affichée et le renvoie tel que la page l'a rangé (sur une page
  *  vidéo : avec son temps et sa piste). */
@@ -1058,7 +1111,7 @@ const OUTILS: Record<string, Outil> = {
     const forme = texte(args.forme) as FormeCadre;
     exiger(formes.includes(forme), `forme : ${formes.join(", ")}`);
     const ressource = texte(args.ressource);
-    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
+    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video && !etat().ressources[ressource].modele3d, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
     const el = placer(creerCadre(etat().document.format, forme, ressource), args);
     return { donnees: ajouter(el) };
   },
@@ -1077,7 +1130,7 @@ const OUTILS: Record<string, Outil> = {
     const appareil = texte(args.appareil) as Appareil;
     exiger(appareil in APPAREILS, "appareil : telephone, tablette, ordinateur ou montre");
     const ressource = texte(args.ressource);
-    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
+    if (ressource) exiger(etat().ressources[ressource] && !etat().ressources[ressource].video && !etat().ressources[ressource].modele3d, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
     const base = creerMaquette(etat().document.format, appareil, (couleur(args.couleur ?? "#1c1c1e", "couleur") as string) ?? "#1c1c1e", ressource);
     // Les proportions de l'appareil sont gardées : la hauteur suit la largeur, ou l'inverse.
     const proportion = APPAREILS[appareil].proportion;
@@ -1095,7 +1148,7 @@ const OUTILS: Record<string, Outil> = {
       // Une photo posée : remplacée à la même place (vérification de l'étape 5).
       const ressource = texte(args.ressource);
       exiger(ressource, "ressource : l'image qui prend la place de cette photo (voir etat ou importer_image)");
-      exiger(etat().ressources[ressource!] && !etat().ressources[ressource!].video && !etat().ressources[ressource!].son, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
+      exiger(etat().ressources[ressource!] && !etat().ressources[ressource!].video && !etat().ressources[ressource!].modele3d && !etat().ressources[ressource!].son, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image)`);
       exiger(!el.verrouille, "cette photo est verrouillée");
       const avait = !!el.detourage;
       if (el.ressource !== ressource) remplacerPar(el.id, ressource!);
@@ -1105,7 +1158,7 @@ const OUTILS: Record<string, Outil> = {
     exiger(el && recoitPhoto(el), `cadre, maquette ou photo introuvable sur la page affichée : ${String(args.id)}`);
     const ressource = texte(args.ressource);
     if (ressource) {
-      exiger(etat().ressources[ressource] && !etat().ressources[ressource].video, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
+      exiger(etat().ressources[ressource] && !etat().ressources[ressource].video && !etat().ressources[ressource].modele3d, `image inconnue dans ce design : ${ressource} (voir etat ou importer_image ; une vidéo se pose avec ajouter_video)`);
       etat().remplirPhoto(el.id, ressource);
     }
     const apres = elementsCourants(etat()).find((e) => e.id === el.id);
@@ -1142,6 +1195,40 @@ const OUTILS: Record<string, Outil> = {
     exiger(bilan.ressources.length, bilan.erreurs.join(" ; ") || "import impossible");
     etat().ajouterRessources(bilan.ressources);
     return { donnees: bilan.ressources[0] };
+  },
+
+  async importer_modele3d(args) {
+    designOuvert();
+    const chemin = texte(args.chemin);
+    exiger(chemin?.startsWith("/"), "chemin absolu attendu");
+    exiger(estCheminModele(chemin!), "fichier 3D attendu : .glb, .gltf (avec ses fichiers rangés à côté), .fbx ou .obj");
+    const bilan = await importerChemins(etat().projet!, [chemin!]);
+    exiger(bilan.ressources.length, bilan.erreurs.join(" ; ") || "import impossible");
+    etat().ajouterRessources(bilan.ressources);
+    return { donnees: { ressource: bilan.ressources[0], modele: await lireModele3d(bilan.ressources[0]) } };
+  },
+
+  async ajouter_objet3d(args) {
+    designOuvert();
+    const r = etat().ressources[String(args.ressource)];
+    exiger(r?.modele3d, `modèle 3D inconnu dans ce design : ${String(args.ressource)} (voir modeles3d dans etat, ou importer_modele3d)`);
+    const modele = await lireModele3d(r!);
+    const base = creerObjet3d(etat().document.format, r!);
+    // Une seule dimension donnée : la boîte reste carrée.
+    const largeur = nombre(args.largeur);
+    const hauteur = nombre(args.hauteur);
+    const dimensions = largeur && hauteur ? { largeur, hauteur } : largeur ? { largeur, hauteur: largeur } : hauteur ? { largeur: hauteur, hauteur } : {};
+    const el = { ...placer(base, { ...args, ...dimensions }), camera: cameraDemandee(base.camera, args) };
+    return { donnees: { element: ajouter(el), modele } };
+  },
+
+  regler_objet3d(args) {
+    designOuvert();
+    const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
+    exiger(el?.type === "objet3d", `objet 3D introuvable sur la page affichée : ${String(args.id)} (voir etat)`);
+    exiger(!el.verrouille, "cet objet est verrouillé");
+    poserCamera(el.id, cameraDemandee(el.camera, args));
+    return { donnees: elementsCourants(etat()).find((e) => e.id === el.id) };
   },
 
   ajouter_video(args) {
@@ -1430,6 +1517,7 @@ const OUTILS: Record<string, Outil> = {
     const r = etat().ressources[String(args.ressource)];
     exiger(r, `image inconnue dans ce design : ${String(args.ressource)} (voir etat ou importer_image)`);
     if (r.video) return OUTILS.ajouter_video(args);
+    if (r.modele3d) return OUTILS.ajouter_objet3d(args);
     const base = creerImage(etat().document.format, r);
     const largeur = nombre(args.largeur);
     const hauteur = nombre(args.hauteur);

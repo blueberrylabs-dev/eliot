@@ -322,6 +322,7 @@ pub fn importer(chemin: &Path, dossier: &Path, avancement: &mut dyn FnMut(f32)) 
         format_apercu: String::new(),
         credit: None,
         video: None,
+        modele3d: None,
         son: Some(InfosSon { duree, copie: "webm".into(), lufs: niveau.lufs, crete: niveau.crete, origine: None, marque: None }),
     };
     ecrire_atomiquement(&infos, &serde_json::to_vec_pretty(&ressource).expect("ressource sérialisable"))?;

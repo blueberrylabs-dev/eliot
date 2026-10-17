@@ -406,6 +406,7 @@ pub fn importer(chemin: &Path, dossier: &Path, reglage: &ReglageCopie, avancemen
         format_apercu: "jpg".into(),
         credit: None,
         son: None,
+        modele3d: None,
         video: Some(InfosVideo {
             duree: sondage.duree,
             images_par_seconde: sondage.images_par_seconde,

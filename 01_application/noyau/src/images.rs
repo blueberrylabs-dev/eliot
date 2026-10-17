@@ -64,6 +64,9 @@ pub struct Ressource {
     /// Pour un son (lot 5) : durée, copie d'écoute, niveau. Ni dimensions, ni aperçu.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub son: Option<InfosSon>,
+    /// Pour un modèle 3D (étape 6) : format, copie de la fenêtre, animations, matières.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modele3d: Option<crate::modeles3d::InfosModele3d>,
 }
 
 /// Le crédit d'une image, d'une vidéo ou d'un son venus d'une banque (BRIEF, règle 12).
@@ -131,6 +134,15 @@ pub fn chemin_ressource(dossier: &Path, id: &str, genre: Genre) -> Result<PathBu
             Genre::Onde => Ok(dossier.join("ondes").join(format!("{id}.json"))),
             Genre::Original => original(dossier, id),
             Genre::Apercu | Genre::Miniature | Genre::Vignettes => Err(ErreurImage::IdentifiantInvalide),
+        };
+    }
+    if infos.modele3d.is_some() {
+        return match genre {
+            Genre::Copie => crate::modeles3d::chemin_copie(dossier, &infos).ok_or(ErreurImage::IdentifiantInvalide),
+            Genre::Original => original(dossier, id),
+            Genre::Apercu => Ok(dossier.join("apercus").join(format!("{id}.png"))),
+            Genre::Miniature => Ok(dossier.join("miniatures").join(format!("{id}.png"))),
+            Genre::Vignettes | Genre::Onde => Err(ErreurImage::IdentifiantInvalide),
         };
     }
     Ok(match genre {
@@ -250,6 +262,7 @@ pub fn importer(octets: &[u8], nom: &str, dossier: &Path) -> Result<Ressource, E
         credit: None,
         video: None,
         son: None,
+        modele3d: None,
     };
     let infos = serde_json::to_vec_pretty(&ressource).map_err(|e| ErreurImage::Decodage(e.to_string()))?;
     ecrire_atomiquement(&chemin_infos(dossier, &id), &infos)?;
@@ -317,16 +330,24 @@ pub fn copier(source: &Path, cible: &Path, ids: &[String]) -> Result<Vec<Ressour
             .map_err(|e| ErreurImage::Decodage(e.to_string()))?;
         let nom_original = original.file_name().expect("fichier nommé");
         copier_atomiquement(&original, &cible.join("originaux").join(nom_original))?;
-        // Un son n'a ni aperçu ni miniature.
+        // Un son n'a ni aperçu ni miniature ; un modèle 3D peut ne pas encore avoir la sienne.
         let genres: &[Genre] = if infos.son.is_some() { &[] } else { &[Genre::Apercu, Genre::Miniature] };
         for genre in genres {
             let depuis = chemin_ressource(source, id, *genre)?;
+            if infos.modele3d.is_some() && !depuis.exists() {
+                continue;
+            }
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }
         // Une vidéo emporte sa copie d'aperçu, ses vignettes et sa forme d'onde ; un son, sa
         // copie d'écoute et sa forme d'onde ; une photo détourée, ses masques (lot 7).
-        for depuis in videos::fichiers_en_plus(source, &infos).into_iter().chain(sons::fichiers_en_plus(source, &infos)).chain(crate::detourage::masques_de(source, id)) {
+        for depuis in videos::fichiers_en_plus(source, &infos)
+            .into_iter()
+            .chain(sons::fichiers_en_plus(source, &infos))
+            .chain(crate::detourage::masques_de(source, id))
+            .chain(crate::modeles3d::fichiers_en_plus(source, &infos))
+        {
             let relatif = depuis.strip_prefix(source).expect("sous la source");
             copier_atomiquement(&depuis, &cible.join(relatif))?;
         }

@@ -1,6 +1,6 @@
 # CLAUDE.md — Eliot
 
-Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-16.
+Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-17.
 Règles communes à tous mes projets : `/home/nushoko/Bureau/Projets/00_moi/CONVENTIONS.md`,
 `/home/nushoko/Bureau/Projets/00_moi/AUTONOMIE.md`. Qui je suis :
 `/home/nushoko/Bureau/Projets/00_moi/IDENTITE.md`.
@@ -12,7 +12,7 @@ de Canva, pour apprendre la création publicitaire en photos et en vidéos. Taur
 fenêtre, React et Konva pour l'interface et le dessin, un noyau Rust natif pour le travail
 lourd. Détail : `BRIEF.md`.
 
-## État au 2026-10-16
+## État au 2026-10-17
 
 - `BRIEF.md` : révision 7, **validée par Alexandre le 2026-10-14** : bibliothèque, Pixabay
   puis Pexels, modèles de départ, création de contenu pour YouTube, TikTok et Instagram, vidéo
@@ -98,6 +98,12 @@ lourd. Détail : `BRIEF.md`.
   d'Alexandre, parcours « Essayer l'étape 5 en entier : une publicité de produit » du
   `01_application/LISEZMOI.md`. Après cette livraison : recompiler l'application (commande 9)
   et le pont (commande 13).
+- Étape 6, le studio 3D : ouverte le 2026-10-17 (plan, lots et choix par défaut dans
+  `PLAN.md`) ; lot 1, l'objet 3D dans la page (import GLB, glTF, FBX, OBJ préparé par le noyau,
+  rendu par three.js dans la fenêtre, mode Tourner sur la page, panneau « Vue 3D », export à la
+  finesse demandée, trois outils de plus pour le pont IA, 69 en tout), livré et vérifié le
+  2026-10-17 ; essai : « Essayer l'objet 3D (étape 6, lot 1) » du `01_application/LISEZMOI.md`.
+  Avant cet essai : `npm install` (commande 8, three.js arrive), puis les commandes 9 et 13.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -310,7 +316,7 @@ en MP4 occupe tout le processeur le temps du film (jamais la carte graphique).
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
 ```
 
-Vérifier : `test result: ok. 125 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
+Vérifier : `test result: ok. 129 passed; 0 failed; 2 ignored` (les essais ignorés servent aux
 comparaisons de Claude dans le conteneur ; l'essai du vrai Whisper ne tourne que dans le
 conteneur et passe ailleurs sans rien faire, comme celui du vrai modèle du détourage). La
 première fois après le lot 6 de l'étape 4, `cargo` télécharge la bibliothèque `nnnoiseless`
@@ -323,7 +329,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  216 passed`.
+Vérifier : `Tests  223 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

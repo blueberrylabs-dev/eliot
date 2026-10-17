@@ -99,6 +99,11 @@ export function useImageRessource(id: string | undefined, genre: GenreImage = "a
 export async function prechargerPage(page: PageEliot, options: { retouches?: boolean } = {}): Promise<void> {
   const projet = useEditeur.getState().projet;
   const ids = [...new Set(page.elements.flatMap((e) => (e.type === "image" || e.type === "video" ? [e.ressource] : (e.type === "cadre" || e.type === "maquette") && e.ressource ? [e.ressource] : [])))];
+  // Les modèles 3D (étape 6) : chargés par le moteur 3D avant le rendu.
+  if (page.elements.some((e) => e.type === "objet3d")) {
+    const { prechargerModeles } = await import("../trois/moteur");
+    await prechargerModeles(page);
+  }
   await Promise.all([
     ...ids.map((id) => imageDeRessource(projet, id, "apercu").catch(() => undefined)),
     prechargerVecteurs(page.elements),

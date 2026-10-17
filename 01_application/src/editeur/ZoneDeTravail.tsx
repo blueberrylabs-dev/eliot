@@ -35,6 +35,8 @@ import { CadreRognage } from "../labo/CadreRognage";
 import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
 import { CadrePerspective } from "../labo/CadrePerspective";
 import { CadrePinceau } from "../labo/CadrePinceau";
+import { CadreOrbite } from "../trois/CadreOrbite";
+import { commencerOrbite, molette, useOrbite } from "../trois/orbite";
 import { useDetourage } from "../labo/detourage";
 import { commencerPerspective, usePerspective } from "../labo/miseEnPerspective";
 
@@ -112,6 +114,7 @@ export function ZoneDeTravail() {
   // Une photo ou un clip dont on pose les coins (lot 6) : de même.
   const enPerspective = usePerspective((s) => s.id);
   const enPinceau = useDetourage((s) => s.pinceau);
+  const enOrbite = useOrbite((s) => s.id);
   const zoom = useEditeur((s) => s.zoom);
   const styleCopie = useEditeur((s) => s.styleCopie);
   const dessin = useEditeur((s) => s.dessin);
@@ -195,6 +198,12 @@ export function ZoneDeTravail() {
       if (ajuste && recoitPhoto(ajuste) && !e.ctrlKey) {
         const zoom = Math.max(1, Math.min(5, ajuste.recadrage.zoom * Math.exp(-e.deltaY * 0.0015)));
         etat.modifierElements({ [ajuste.id]: { recadrage: { ...ajuste.recadrage, zoom } } as Partial<ElementPage> }, `zoom-photo:${ajuste.id}`);
+        return;
+      }
+      // En tournant un objet 3D (étape 6), la molette le rapproche ou l'éloigne.
+      const orbite = useOrbite.getState().id;
+      if (orbite && !e.ctrlKey && !e.metaKey) {
+        molette(orbite, Math.exp(-e.deltaY * 0.0015));
         return;
       }
       // En recadrant, la molette rapproche la photo sous le cadre, ou l'éloigne.
@@ -317,12 +326,12 @@ export function ZoneDeTravail() {
     const gp = groupePageRef.current;
     if (!tr || !gp || geste.current) return;
     const noeuds = selection
-      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective && id !== enPinceau)
+      .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective && id !== enPinceau && id !== enOrbite)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
       .filter((n): n is Konva.Group => !!n && n.isVisible());
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
-  }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective, enPinceau]);
+  }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective, enPinceau, enOrbite]);
 
   // ---- Gestes : glisser et transformer ----
 
@@ -738,6 +747,7 @@ export function ZoneDeTravail() {
     // Double-clic sur un cadre rempli : on ajuste la photo ; sur une photo ou un clip : on le
     // recadre ; sur un texte : on l'écrit.
     if (el && recoitPhoto(el) && el.ressource) etat.commencerAjustement(el.id);
+    else if (el?.type === "objet3d" && !el.verrouille) commencerOrbite(el.id);
     else if (el && (el.type === "image" || el.type === "video") && !el.verrouille) {
       // En perspective, le double-clic reprend ses coins ; à plat, il recadre.
       if (el.perspective) commencerPerspective(el.id);
@@ -842,6 +852,7 @@ export function ZoneDeTravail() {
             <CadreRognage echelle={echelle} />
             <CadrePerspective echelle={echelle} />
             <CadrePinceau echelle={echelle} />
+            <CadreOrbite echelle={echelle} />
           </Group>
           <Rect ref={rectangleRef} visible={false} fill="rgba(79,70,229,0.08)" stroke={ACCENT} strokeWidth={1} listening={false} />
           <Circle ref={curseurGommeRef} visible={false} stroke="#1f1f1d" strokeWidth={1} fill="rgba(255,255,255,0.35)" dash={[3, 3]} listening={false} />
@@ -865,6 +876,11 @@ export function ZoneDeTravail() {
       {enPerspective && (
         <div data-aide-perspective className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
           Pose chaque coin sur un coin de l'écran, de la boîte ou de l'affiche ; les flèches poussent le dernier coin. Entrée pour finir, Échap pour annuler.
+        </div>
+      )}
+      {enOrbite && (
+        <div data-aide-orbite className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 rounded-full bg-neutral-900/90 px-3 py-1 text-xs text-white">
+          Glisse pour tourner l'objet, molette pour le rapprocher, Maj et glisser pour le décaler, flèches pour 5°. Entrée pour finir, Échap pour revenir.
         </div>
       )}
       {enPinceau && (

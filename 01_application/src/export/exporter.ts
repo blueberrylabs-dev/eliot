@@ -3,12 +3,14 @@
 // originaux des photos et les fichiers de police : PNG, JPEG, WebP, PDF vectoriel, SVG
 // (`noyau/src/rendu_page.rs`). Hors de l'application (`npm run dev` dans un navigateur) : la
 // page est rendue par Konva à sa taille native, quel que soit le zoom (règle 7), et téléchargée,
-// en PNG ou en JPEG seulement.
+// en PNG ou en JPEG seulement. Les objets 3D (étape 6) sont rendus par la fenêtre à la finesse de
+// l'export (`finesseExport`) ; le noyau pose leur image avec le reste.
 
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
 import { FORMATS_PAGE, type Format, type PageEliot } from "../modele/types";
 import { dansTauri, ecrireExport, exporterDocument, type FormatExport } from "../pont/tauri";
+import { avecFinesse } from "../trois/moteur";
 import { decrirePage, type PoliceCalques } from "./calques";
 import { rendrePage } from "./rendu";
 
@@ -76,6 +78,13 @@ function pagesDemandees(options: OptionsExport): { page: PageEliot; instant: num
   return pages.map((page) => ({ page, instant: page.duree !== undefined && page.id === etat.pageActive ? useTemps.getState().tete : 0 }));
 }
 
+/** La finesse du rendu des objets 3D pour un export : l'échelle d'une image ; pour un PDF ou un
+ *  SVG, deux pixels par pixel de la page (un pixel d'un format papier, déjà à 300 dpi). */
+export function finesseExport(options: Pick<OptionsExport, "format" | "echelle">, format: Format): number {
+  if (options.format === "pdf" || options.format === "svg") return formatPapier(format) ? 1 : 2;
+  return options.echelle;
+}
+
 /** Exporte et renvoie les chemins écrits (un par page, ou le PDF). */
 export async function exporter(options: OptionsExport, progression?: Progression): Promise<string[]> {
   // Un texte en cours de saisie est validé avant le rendu.
@@ -90,7 +99,7 @@ export async function exporter(options: OptionsExport, progression?: Progression
     const pages: { description: Awaited<ReturnType<typeof decrirePage>>; instant: number }[] = [];
     for (const [rang, d] of demandees.entries()) {
       progression?.(rang, demandees.length, "description");
-      pages.push({ description: await decrirePage(d.page, doc.format), instant: d.instant });
+      pages.push({ description: await avecFinesse(finesseExport(options, doc.format), () => decrirePage(d.page, doc.format)), instant: d.instant });
     }
     // Les polices une fois pour toutes les pages ; les sons ne servent qu'au film.
     const polices: PoliceCalques[] = [];
@@ -113,13 +122,13 @@ export async function exporter(options: OptionsExport, progression?: Progression
   const ecrits: string[] = [];
   for (const [rang, { page, instant }] of demandees.entries()) {
     progression?.(rang, demandees.length, "rendu");
-    const blob = await rendrePage(page, doc.format, {
+    const blob = await avecFinesse(options.echelle, () => rendrePage(page, doc.format, {
       pixelRatio: options.echelle,
       type: options.format === "png" ? "image/png" : "image/jpeg",
       transparent: options.transparent,
       qualite: options.qualite !== undefined ? bornerQualite(options.qualite) / 100 : undefined,
       instant,
-    });
+    }));
     const octets = new Uint8Array(await blob.arrayBuffer());
     const nom = demandees.length > 1 ? `${base}_page-${deux(rang + 1)}` : base;
     ecrits.push(await ecrireExport(octets, options.format, nom, demandees.length === 1 ? options.chemin : undefined));

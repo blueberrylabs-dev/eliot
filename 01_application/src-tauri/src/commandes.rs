@@ -336,6 +336,49 @@ pub async fn importer_sons(app: AppHandle, rayon_nom: String, projet_id: String,
     .map_err(|e| format!("import interrompu : {e}"))
 }
 
+/// Importe des modèles 3D (étape 6, lot 1 : GLB, glTF et les fichiers rangés à côté de lui,
+/// FBX, OBJ), choisis ou déposés, l'un après l'autre. Le noyau range l'original et prépare la
+/// copie de la fenêtre (textures de 2048 px au plus) ; la miniature viendra de la fenêtre.
+#[tauri::command]
+pub async fn importer_modeles3d(app: AppHandle, rayon_nom: String, projet_id: String, chemins: Vec<String>) -> Result<Vec<ResultatImport>, String> {
+    let dossier = ressources_du_projet(&app, &rayon_nom, &projet_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        chemins
+            .into_iter()
+            .map(|chemin| match noyau::modeles3d::importer_fichier(std::path::Path::new(&chemin), &dossier) {
+                Ok(ressource) => ResultatImport { chemin, ressource: Some(ressource), erreur: None },
+                Err(e) => ResultatImport { chemin, ressource: None, erreur: Some(e.to_string()) },
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| format!("import interrompu : {e}"))
+}
+
+/// Importe un modèle 3D reçu en octets (un fichier déposé hors de Tauri, une banque, lot 3).
+/// En-têtes : `x-rayon`, `x-projet`, `x-nom`. Un glTF reçu ainsi doit tout contenir.
+#[tauri::command]
+pub async fn importer_modele3d_octets(app: AppHandle, requete: Request<'_>) -> Result<images::Ressource, String> {
+    let octets = corps_brut(&requete)?;
+    let nom = entete(&requete, "x-nom").unwrap_or_else(|| "modele.glb".to_string());
+    let dossier = ressources_du_projet(&app, &entete_requis(&requete, "x-rayon")?, &entete_requis(&requete, "x-projet")?)?;
+    tauri::async_runtime::spawn_blocking(move || noyau::modeles3d::importer(&octets, &nom, None, &dossier).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("import interrompu : {e}"))?
+}
+
+/// Range la miniature d'un modèle 3D, rendue par la fenêtre (PNG). En-têtes : `x-rayon`,
+/// `x-projet`, `x-id`.
+#[tauri::command]
+pub async fn miniature_modele3d(app: AppHandle, requete: Request<'_>) -> Result<images::Ressource, String> {
+    let octets = corps_brut(&requete)?;
+    let id = entete_requis(&requete, "x-id")?;
+    let dossier = ressources_du_projet(&app, &entete_requis(&requete, "x-rayon")?, &entete_requis(&requete, "x-projet")?)?;
+    tauri::async_runtime::spawn_blocking(move || noyau::modeles3d::enregistrer_miniature(&dossier, &id, &octets).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("miniature interrompue : {e}"))?
+}
+
 /// Importe une image reçue en octets (collage depuis le presse-papiers). En-têtes : `x-rayon`,
 /// `x-projet`, `x-nom`.
 #[tauri::command]

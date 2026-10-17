@@ -15,6 +15,7 @@ pub mod images;
 pub mod labo;
 pub mod marque;
 pub mod micro;
+pub mod modeles3d;
 pub mod montage;
 pub mod parole;
 pub mod perspective;

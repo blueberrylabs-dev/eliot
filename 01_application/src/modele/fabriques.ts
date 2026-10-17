@@ -7,6 +7,7 @@ import { donneesDeDepart, GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE } from "./graphiqu
 import { mesurePolice } from "./mesure";
 import { disposerTableau } from "./tableaux";
 import { boiteDeDepart, type Boite } from "./personnages";
+import { CAMERA_PAR_DEFAUT } from "./objet3d";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
@@ -22,6 +23,7 @@ import {
   type FormeCadre,
   type ElementIcone,
   type ElementImage,
+  type ElementObjet3d,
   type ElementVideo,
   type ElementQr,
   type ElementPersonnage,
@@ -285,11 +287,38 @@ export function creerImage(page: Format, ressource: Ressource): ElementImage {
   };
 }
 
+/** Un objet 3D (étape 6) entre au centre, dans un carré de 60 % du petit côté de la page,
+ *  vu de trois quarts. */
+export function creerObjet3d(page: Format, ressource: Ressource): ElementObjet3d {
+  const cote = Math.round(Math.min(page.largeur, page.hauteur) * 0.6);
+  return {
+    id: nouvelId(),
+    type: "objet3d",
+    ressource: ressource.id,
+    x: Math.round((page.largeur - cote) / 2),
+    y: Math.round((page.hauteur - cote) / 2),
+    largeur: cote,
+    hauteur: cote,
+    rotation: 0,
+    opacite: 1,
+    visible: true,
+    verrouille: false,
+    nom: ressource.nom,
+    camera: { ...CAMERA_PAR_DEFAUT },
+  };
+}
+
 /** La vidéo entre comme une image : à 60 % de la page au plus, proportions gardées, au
  *  centre ; tout le fichier joue, à vitesse normale. */
 export function creerVideo(page: Format, ressource: Ressource): ElementVideo {
   const image = creerImage(page, ressource);
   return { ...image, type: "video" };
+}
+
+/** L'élément qui montre une ressource importée : une photo, un clip ou un objet 3D. */
+export function creerDepuisRessource(page: Format, ressource: Ressource): ElementImage | ElementVideo | ElementObjet3d {
+  if (ressource.modele3d) return creerObjet3d(page, ressource);
+  return ressource.video ? creerVideo(page, ressource) : creerImage(page, ressource);
 }
 
 /** Durée qui joue d'une vidéo, en millisecondes du fichier, vitesse comprise. */
@@ -380,6 +409,8 @@ export function nomElement(el: ElementPage): string {
       return `Graphique ${GENRES_GRAPHIQUE.find((g) => g.id === el.genre)?.libelle.toLowerCase() ?? ""}`.trim();
     case "tableau":
       return "Tableau";
+    case "objet3d":
+      return "Objet 3D";
   }
 }
 

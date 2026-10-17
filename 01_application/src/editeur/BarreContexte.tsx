@@ -16,6 +16,7 @@ import {
   ArrowUp,
   Blend,
   Bold,
+  Box,
   ClipboardPaste,
   CopyPlus,
   Crop,
@@ -29,6 +30,7 @@ import {
   LockOpen,
   Minus,
   Move,
+  Move3d,
   CaseUpper,
   Paintbrush,
   Plus,
@@ -69,6 +71,7 @@ import { poseA } from "../modele/animation";
 import { collerReglages, useLabo } from "../labo/retouche";
 import { commencerRecadrage } from "../labo/recadrage";
 import { commencerPinceau, retirerLeFond } from "../labo/detourage";
+import { commencerOrbite, finirOrbite, ouvrirPanneau3d, useOrbite } from "../trois/orbite";
 
 const OMBRE_DOUCE: Ombre = { couleur: "#000000", flou: 24, x: 0, y: 10, opacite: 0.35 };
 
@@ -572,6 +575,7 @@ export function BarreContexte() {
   const choisis = useEditeur(useShallow(elementsSelectionnes));
   const sonsChoisis = useEditeur((s) => s.selectionAudio.length > 0);
   const copieReglages = useLabo((s) => !!s.copie);
+  const orbite = useOrbite((s) => s.id);
   const etat = useEditeur.getState();
 
   const modifier = (modif: Partial<ElementPage>, etiquette?: string) =>
@@ -654,6 +658,28 @@ export function BarreContexte() {
               <Replace size={16} /> Remplacer
             </button>
           )}
+          {separateur}
+        </>
+      )}
+      {choisis.length === 1 && choisis[0].type === "objet3d" && (
+        <>
+          <button
+            data-tourner-3d
+            title={orbite === choisis[0].id ? "Finir de tourner l'objet (Entrée)" : "Tourner l'objet sur la page (double-clic sur l'objet) : glisser le tourne, Maj et glisser le décale, la molette le rapproche"}
+            disabled={choisis[0].verrouille}
+            onClick={() => (orbite === choisis[0].id ? finirOrbite() : commencerOrbite(choisis[0].id))}
+            className={`flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium disabled:opacity-40 ${orbite === choisis[0].id ? "bg-accent-50 text-accent-700" : "text-neutral-800 hover:bg-neutral-100"}`}
+          >
+            <Move3d size={16} /> Tourner
+          </button>
+          <button
+            data-regler-3d
+            title="Le panneau 3D : vues prêtes, rotation, hauteur de vue, zoom, focale"
+            onClick={() => ouvrirPanneau3d(choisis[0].id)}
+            className="flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+          >
+            <Box size={16} /> Vue 3D
+          </button>
           {separateur}
         </>
       )}

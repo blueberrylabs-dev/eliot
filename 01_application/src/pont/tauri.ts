@@ -4,7 +4,7 @@
 // sans recompiler le Rust : les designs vivent alors dans la mémoire de l'onglet.
 
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
-import type { Credit, DocumentEliot, InfoProjet, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
+import type { Credit, DocumentEliot, InfoProjet, InfosModele3d, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
 import type { ReglagesPhoto } from "../modele/labo";
 import type { AnalyseParole, LangueParole } from "../modele/parole";
 
@@ -20,6 +20,9 @@ export const estCheminVideo = (chemin: string) => EXTENSIONS_VIDEOS.includes(ext
 export const estCheminImage = (chemin: string) => EXTENSIONS_IMAGES.includes(extension(chemin));
 export const estCheminSon = (chemin: string) => EXTENSIONS_SONS.includes(extension(chemin));
 export const estFichierSon = (f: File) => f.type.startsWith("audio/") || estCheminSon(f.name);
+/** Les mêmes que le noyau (`modeles3d::EXTENSIONS`, étape 6). */
+export const EXTENSIONS_MODELES = ["glb", "gltf", "fbx", "obj"];
+export const estCheminModele = (chemin: string) => EXTENSIONS_MODELES.includes(extension(chemin));
 
 /** Ce que renvoie le noyau pour une image, une vidéo ou un son. */
 interface RessourceNoyau {
@@ -37,6 +40,7 @@ interface RessourceNoyau {
     copie: string;
     vignettes: { nombre: number; intervalle: number; largeur: number; hauteur: number };
   } | null;
+  modele3d?: { format: string; copie: string; animations?: string[]; matieres?: string[]; triangles?: number; texturesReduites?: number; miniature?: boolean } | null;
 }
 
 /** Où en est un import : le fichier en cours (à partir de 0), sa part faite de 0 à 1, et le
@@ -91,6 +95,19 @@ const versRessource = (r: RessourceNoyau): Ressource => ({
           copie: r.video.copie === "mp4" ? "mp4" : "webm",
           vignettes: { ...r.video.vignettes },
         } satisfies InfosVideo,
+      }
+    : {}),
+  ...(r.modele3d
+    ? {
+        modele3d: {
+          format: r.modele3d.format === "fbx" || r.modele3d.format === "obj" ? r.modele3d.format : "glb",
+          copie: r.modele3d.copie,
+          animations: r.modele3d.animations ?? [],
+          matieres: r.modele3d.matieres ?? [],
+          triangles: r.modele3d.triangles ?? 0,
+          texturesReduites: r.modele3d.texturesReduites ?? 0,
+          miniature: !!r.modele3d.miniature,
+        } satisfies InfosModele3d,
       }
     : {}),
 });
@@ -338,6 +355,32 @@ function blobCopie(ref: RefRessources, ressource: Ressource): Promise<Blob> {
   return promesse;
 }
 
+/** Le modèle 3D que la fenêtre charge (étape 6) : sa copie préparée par le noyau, textures de
+ *  2048 px au plus, ou l'original quand rien n'était à réduire (FBX, OBJ). */
+export async function lireModele(ref: RefRessources, ressource: Ressource): Promise<ArrayBuffer> {
+  const navigateur = ressourcesNavigateur.get(ressource.id);
+  if (navigateur?.urls.copie) return (await fetch(navigateur.urls.copie)).arrayBuffer();
+  return invoke<ArrayBuffer>("lire_ressource", { rayonNom: ref.rayon, projetId: ref.id, id: ressource.id, genre: "copie" });
+}
+
+/** Range la miniature d'un modèle 3D, rendue par la fenêtre (PNG) : le noyau en fait l'aperçu
+ *  (512 px) et la miniature (256 px). Les adresses déjà demandées sont oubliées. */
+export async function enregistrerMiniatureModele(ref: RefRessources, ressource: Ressource, png: Uint8Array): Promise<Ressource> {
+  const navigateur = ressourcesNavigateur.get(ressource.id);
+  for (const genre of ["apercu", "miniature"] as const) urls.delete(cleUrl(ref, ressource.id, genre));
+  if (!dansTauri || navigateur) {
+    const url = URL.createObjectURL(new Blob([png as BlobPart], { type: "image/png" }));
+    const r: Ressource = { ...ressource, modele3d: { ...ressource.modele3d!, miniature: true } };
+    if (navigateur) {
+      navigateur.urls.apercu = url;
+      navigateur.urls.miniature = url;
+      navigateur.ressource = r;
+    }
+    return r;
+  }
+  return versRessource(await invoke<RessourceNoyau>("miniature_modele3d", png, { headers: enTetes({ "x-rayon": ref.rayon, "x-projet": ref.id, "x-id": ressource.id }) }));
+}
+
 /**
  * Une adresse neuve de la copie d'aperçu d'une vidéo, pour une balise qui naît, à libérer quand
  * elle disparaît (le fichier n'est lu qu'une fois). Mesuré dans WebKitGTK : une balise qui
@@ -469,9 +512,16 @@ function bilanDe(resultats: ResultatImport[], bilan: BilanImport = { ressources:
 export async function importerChemins(ref: RefRessources, chemins: string[], suivi?: SuiviImport, suiviSons?: SuiviImport): Promise<BilanImport> {
   const videos = chemins.filter(estCheminVideo);
   const sons = chemins.filter(estCheminSon);
-  const images = chemins.filter((c) => !estCheminVideo(c) && !estCheminSon(c));
+  // Les modèles 3D (étape 6) : un glTF entre avec les fichiers rangés à côté de lui, que le noyau
+  // va lire lui-même ; un .bin ou une texture de son dossier, choisis avec lui, ne sont pas des
+  // images à poser.
+  const dossiersGltf = chemins.filter((c) => extension(c) === "gltf").map((c) => c.replace(/[^/\\]*$/, ""));
+  const voisinDUnGltf = (c: string) => (extension(c) === "bin" || EXTENSIONS_IMAGES.includes(extension(c))) && dossiersGltf.some((d) => c.startsWith(d));
+  const modeles = chemins.filter(estCheminModele);
+  const images = chemins.filter((c) => !estCheminVideo(c) && !estCheminSon(c) && !estCheminModele(c) && !voisinDUnGltf(c));
   const bilan: BilanImport = { ressources: [], erreurs: [] };
   if (images.length) bilanDe(await invoke<ResultatImport[]>("importer_images", { rayonNom: ref.rayon, projetId: ref.id, chemins: images }), bilan);
+  if (modeles.length) bilanDe(await invoke<ResultatImport[]>("importer_modeles3d", { rayonNom: ref.rayon, projetId: ref.id, chemins: modeles }), bilan);
   if (videos.length) {
     const canal = new Channel<{ fichier: number; part: number }>();
     canal.onmessage = (a) => suivi?.(a.fichier, a.part, videos.length);
@@ -510,9 +560,10 @@ export async function choisirEtImporterImages(ref: RefRessources, suivi?: SuiviI
     const { open } = await import("@tauri-apps/plugin-dialog");
     const filtres = videos
       ? [
-          { name: "Images et vidéos", extensions: [...EXTENSIONS_IMAGES, ...EXTENSIONS_VIDEOS] },
+          { name: "Images, vidéos et modèles 3D", extensions: [...EXTENSIONS_IMAGES, ...EXTENSIONS_VIDEOS, ...EXTENSIONS_MODELES] },
           { name: "Images", extensions: EXTENSIONS_IMAGES },
           { name: "Vidéos", extensions: EXTENSIONS_VIDEOS },
+          { name: "Modèles 3D (GLB, glTF, FBX, OBJ)", extensions: EXTENSIONS_MODELES },
         ]
       : [{ name: "Images", extensions: EXTENSIONS_IMAGES }];
     const choix = await open({ multiple: plusieurs, directory: false, title: videos ? "Importer des images ou des vidéos" : plusieurs ? "Importer des images" : "Choisir une image", filters: filtres });
@@ -533,7 +584,9 @@ export async function importerFichiers(ref: RefRessources, fichiers: File[]): Pr
   for (const fichier of fichiers) {
     try {
       const octets = new Uint8Array(await fichier.arrayBuffer());
-      const r = await invoke<RessourceNoyau>("importer_image_octets", octets, {
+      // Un modèle 3D (étape 6) : le noyau le vérifie et prépare sa copie.
+      const commande = estCheminModele(fichier.name) ? "importer_modele3d_octets" : "importer_image_octets";
+      const r = await invoke<RessourceNoyau>(commande, octets, {
         headers: enTetes({ "x-rayon": ref.rayon, "x-projet": ref.id, "x-nom": fichier.name || "image collée" }),
       });
       ressources.push(versRessource(r));
@@ -558,7 +611,7 @@ function choisirFichiersNavigateur(videos = false, sons = false, plusieurs = tru
     const champ = document.createElement("input");
     champ.type = "file";
     champ.multiple = plusieurs;
-    champ.accept = sons ? "audio/*" : videos ? "image/*,video/*" : "image/*";
+    champ.accept = sons ? "audio/*" : videos ? "image/*,video/*,.glb,.gltf,.fbx,.obj" : "image/*";
     champ.addEventListener("change", () => resoudre(Array.from(champ.files ?? [])));
     champ.click();
   });
@@ -654,6 +707,21 @@ async function importerFichiersNavigateur(fichiers: File[]): Promise<BilanImport
         const ressource: Ressource = { id, nom: fichier.name || "son", largeur: 0, hauteur: 0, transparence: false, son: { duree, copie: "webm" } };
         ressourcesNavigateur.set(id, { ressource, urls: { apercu: "", miniature: "", copie: URL.createObjectURL(fichier) } });
         ondesNavigateur.set(id, onde);
+        ressources.push(ressource);
+        continue;
+      }
+      if (estCheminModele(fichier.name)) {
+        // Un modèle 3D (étape 6) : gardé tel quel ; la miniature viendra du rendu de la fenêtre.
+        const ext = extension(fichier.name);
+        const ressource: Ressource = {
+          id,
+          nom: fichier.name,
+          largeur: 512,
+          hauteur: 512,
+          transparence: true,
+          modele3d: { format: ext === "fbx" || ext === "obj" ? ext : "glb", copie: "original", animations: [], matieres: [], triangles: 0, texturesReduites: 0, miniature: false },
+        };
+        ressourcesNavigateur.set(id, { ressource, urls: { apercu: "", miniature: "", copie: URL.createObjectURL(fichier) } });
         ressources.push(ressource);
         continue;
       }

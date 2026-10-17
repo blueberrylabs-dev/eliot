@@ -1,13 +1,14 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 à 4 du `BRIEF.md` et début de l'étape 5 : un accueil qui range tes
+L'éditeur, étapes 1 à 5 du `BRIEF.md` et début de l'étape 6 : un accueil qui range tes
 designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
 d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay, un kit de
 marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
 leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et
 les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG,
 JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, l'export des vidéos en MP4 ou en
-GIF, et un labo pour retoucher les photos comme dans Lightroom.
+GIF, un labo pour retoucher les photos comme dans Lightroom, et des objets 3D posés dans la page
+comme des photos détourées, que l'on tourne à la souris.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -399,6 +400,29 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Une photo seulement : un clip demanderait un masque par image. Le programme et le modèle
   s'installent une fois : commandes 20 et 21 du `CLAUDE.md`.
 
+**Le studio 3D (étape 6, lot 1)**
+- Importer un modèle 3D comme une image : bouton du panneau Importer, ou dépôt sur la page. GLB,
+  glTF (avec ses fichiers rangés à côté de lui : choisir ou déposer le `.gltf` seul suffit),
+  FBX (les personnages de Mixamo, par exemple) et OBJ. Le noyau vérifie le fichier et prépare la
+  copie que la fenêtre affiche, textures ramenées à 2048 px ; l'original reste tel quel dans le
+  design. La carte du panneau Importer montre le modèle rendu, avec la mention « 3D ».
+- Posé au centre comme une photo détourée : fond transparent, éclairage de studio, le modèle
+  centré dans sa boîte, vu de trois quarts. La boîte se déplace, se redimensionne, se tourne,
+  prend une ombre et de la transparence comme une photo.
+- Le tourner sur la page : double-clic sur l'objet, ou « Tourner » dans la barre du haut.
+  Glisser le tourne, Maj et glisser le décale, la molette le rapproche, les flèches le tournent
+  de 5° (Maj : de 15°). Entrée finit, Échap revient à la vue d'avant. Un geste, une étape
+  d'annulation.
+- « Vue 3D » dans la barre : le panneau 3D. Vues prêtes (face, trois-quarts, profil, dos,
+  dessus, contre-plongée), rotation, hauteur de vue, zoom et focale (en millimètres, comme sur
+  un appareil photo : 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective
+  marquée), « Recentrer », « Départ » ; et ce que l'on sait du modèle (format, triangles,
+  matières, animations).
+- L'export rend l'objet à la finesse demandée : à ×2, il est dessiné à ×2, pas agrandi. Dans le
+  PDF et le SVG, il devient une image deux fois plus fine que sa boîte (à la finesse de la page
+  pour un A4 ou un A5). L'objet est rendu par la fenêtre, en WebGL ; le noyau le pose avec le
+  reste de la page.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
@@ -413,7 +437,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'une maquette au labo (courbe et préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
-  pinceau), remplacer une photo à sa place, regarder une capture de la page et exporter (en
+  pinceau), remplacer une photo à sa place, importer un modèle 3D, le poser et régler sa
+  caméra, regarder une capture de la page et exporter (en
   PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -641,6 +666,29 @@ Vingt minutes, après les essais des lots (ou à leur place). Avant : recompiler
 Ce qui m'aide le plus en retour : ce qui manque pour une vraie publicité, les gestes qui
 coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
 
+## Essayer l'objet 3D (étape 6, lot 1)
+
+Dix minutes, Eliot lancé à la main, carte graphique libre (commande 10) : la 3D s'affiche par la
+carte graphique, comme toute la fenêtre. Avant : `npm install` (commande 8, three.js arrive),
+recompiler l'application (commande 9) et le pont (commande 13). Un modèle pour l'essai : un GLB
+gratuit de Poly Haven (polyhaven.com, onglet Models, format glTF, 1k), ou un personnage de
+Mixamo en FBX.
+
+1. Un post carré. Onglet Importer, « Importer des images, des vidéos, de la 3D », le modèle :
+   il se pose au centre, fond transparent ; sa carte apparaît dans le panneau, rendue.
+2. Double-clic sur l'objet : le bandeau « Glisser pour tourner » s'affiche. Le tourner, le
+   rapprocher à la molette, le décaler avec Maj. Échap : il revient comme avant. Recommencer,
+   puis Entrée.
+3. « Vue 3D » : essayer les vues prêtes, puis la focale à 24 mm et à 135 mm (la perspective
+   change, pas la taille). « Recentrer ».
+4. Ombre dans la barre du haut : elle suit la silhouette du modèle. Un titre au-dessus.
+5. Exporter en PNG ×2 : zoomer sur l'objet, il est net. Puis en PDF.
+6. Fermer le design, le rouvrir : l'objet a gardé sa vue.
+
+Ce qui m'aide le plus en retour : la fluidité quand on tourne un gros modèle (sur le poste et
+sur le mini PC), un modèle qui ne s'ouvre pas (son format, d'où il vient), et ce qui manque
+d'abord pour une publicité : la lumière, les couleurs des matières (lot 2).
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -655,6 +703,7 @@ coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
 | Ctrl+Alt+C, Ctrl+Alt+V | copier le style, le coller sur la sélection |
 | Ctrl+Maj+C, Ctrl+Maj+V | copier les réglages du labo d'une photo ou d'un clip, les coller sur ceux choisis |
 | Double-clic sur une photo ou un clip | recadrer ; puis Entrée pour finir, Échap pour revenir au cadre d'avant, flèches pour pousser la photo, molette pour la rapprocher |
+| Double-clic sur un objet 3D | le tourner ; glisser tourne, Maj et glisser décale, molette rapproche, flèches tournent de 5° (Maj : 15°) ; Entrée pour finir, Échap pour revenir à la vue d'avant |
 | Double-clic sur un visuel en perspective | reprendre ses coins ; puis Entrée pour finir, Échap pour revenir aux coins d'avant, flèches pour pousser le dernier coin tiré (Maj : de dix) |
 | X, [ et ], Entrée, Échap (pinceau du détourage) | effacer ou garder, taille plus petite ou plus grande, finir, revenir au détourage d'avant |
 | Entrée | écrire dans le texte sélectionné |
@@ -678,7 +727,10 @@ coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
   images ; pour les vidéos, aussi `copies/`, `vignettes/` et `ondes/` ; pour les sons,
   `copies/` et `ondes/` ; pour les voix nettoyées, `traitees/`, refait au besoin ; pour la
   parole, `transcriptions/`, où l'on parle et ce qui est dit, quelques kilo-octets ; pour les
-  photos détourées, `masques/`, le masque du modèle, 1024 x 1024 en niveaux de gris). Le dossier
+  photos détourées, `masques/`, le masque du modèle, 1024 x 1024 en niveaux de gris ; pour les
+  modèles 3D, l'original dans `originaux/` (un glTF y devient un GLB), la copie aux textures
+  réduites dans `copies/` quand il en faut une, l'aperçu et la miniature rendus par la fenêtre).
+  Le dossier
   se copie tel quel d'une machine à l'autre ; le fichier `.eliot` en est une archive zip (sans
   `traitees/`).
 - Les prises de voix : rangées dans le design comme les sons importés (`Prise 1`, `Prise 2`, et ainsi de suite).
@@ -701,7 +753,7 @@ coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
 
 ```
 01_application/
-├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle) (cargo test)
+├── noyau/            Rust sans Tauri : images, vidéos (videos.rs), sons (sons.rs, son.rs), la voix (micro.rs, voix.rs, piper.rs), la parole et Whisper (parole.rs), designs (projet.rs), exports, export vidéo (montage.rs, animation.rs, sous_titres.rs), polices, Pixabay, Freesound (freesound.rs), kit de marque, export d'une page en image, PDF et SVG (rendu_page.rs), le labo photo (labo.rs), l'horizon d'une photo (horizon.rs), la perspective (perspective.rs), le détourage (detourage.rs, et detourer.py, le programme qui fait tourner le modèle), les modèles 3D (modeles3d.rs) (cargo test)
 ├── src-tauri/        la fenêtre, les commandes de l'interface (src/commandes.rs), le pont IA (src/ia.rs)
 ├── eliot-mcp/        le programme que lance l'application Claude pour piloter Eliot (MCP)
 ├── public/bibliotheque/  icônes, emojis, polices, personnages : fabriqués par npm run bibliotheque, hors git
@@ -709,12 +761,13 @@ coincent, et la qualité de JPEG que tu retiens pour tes réseaux.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
 │   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
+│   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
 │   └── reglages/     la fenêtre des réglages

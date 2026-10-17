@@ -416,7 +416,32 @@ export interface ElementTableau extends ElementBase {
   marge: number;
 }
 
-export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVideo | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau;
+/**
+ * La caméra d'un objet 3D (étape 6) : elle tourne autour du modèle, centré et ramené à une
+ * sphère de rayon 1. Azimut : 0 de face, positif vers la droite du modèle ; élévation : 0 à
+ * hauteur, positive au-dessus ; zoom : 1 cadre tout le modèle, plus grand le rapproche ;
+ * focale : en millimètres, comme sur un appareil photo plein format (24 × 36), 50 par défaut,
+ * plus long aplatit la perspective ; décalage : le point visé, déplacé dans le repère du modèle
+ * (rayon 1).
+ */
+export interface Camera3d {
+  azimut: number;
+  elevation: number;
+  zoom: number;
+  focale: number;
+  decalage?: [number, number, number];
+}
+
+/** Un objet 3D (étape 6) : un modèle posé dans la page comme une photo détourée, fond
+ *  transparent, rendu par la fenêtre. */
+export interface ElementObjet3d extends ElementBase {
+  type: "objet3d";
+  /** Le modèle (GLB, FBX, OBJ), ressource du design. */
+  ressource: string;
+  camera: Camera3d;
+}
+
+export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVideo | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau | ElementObjet3d;
 
 /** Les éléments qui reçoivent une photo glissée dessus. */
 export type ElementAPhoto = ElementCadre | ElementMaquette;
@@ -555,6 +580,23 @@ export interface Ressource {
   video?: InfosVideo;
   /** Présent pour un son (ni aperçu, ni miniature, ni dimensions). */
   son?: InfosSon;
+  /** Présent pour un modèle 3D (étape 6) : l'aperçu et la miniature sont rendus par la
+   *  fenêtre après l'import. */
+  modele3d?: InfosModele3d;
+}
+
+/** Ce que le noyau sait d'un modèle 3D importé (`noyau/src/modeles3d.rs`). */
+export interface InfosModele3d {
+  /** Format de l'original : `glb` (un glTF importé devient un GLB), `fbx`, `obj`. */
+  format: "glb" | "fbx" | "obj";
+  /** L'extension de la copie chargée par la fenêtre, ou `original`. */
+  copie: string;
+  animations: string[];
+  matieres: string[];
+  triangles: number;
+  texturesReduites: number;
+  /** La miniature a été rendue et rangée. */
+  miniature: boolean;
 }
 
 /** Le crédit d'une photo venue d'une banque d'images : rangé avec l'image dans le design. */

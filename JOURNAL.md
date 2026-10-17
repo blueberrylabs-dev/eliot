@@ -5,6 +5,80 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6, lot 1 : l'objet 3D dans la page
+
+Suite de l'accord d'Alexandre (« Ok, tu peux démarrer l'étape 6 »). Ce que Claude a fait et
+décidé :
+
+- Import : GLB, glTF, FBX, OBJ, par le bouton du panneau Importer, le dépôt sur la page ou le
+  collage. Le noyau (`noyau/src/modeles3d.rs`) vérifie le fichier, range l'original et, si une
+  texture dépasse 2048 px, prépare une copie GLB aux textures réduites (règle 5) ; un glTF et
+  les fichiers rangés à côté de lui sont empaquetés en un seul GLB, ses chemins lus seulement
+  sous son dossier. Il lit dans un GLB les matières, les animations et les triangles ; pour un
+  FBX ou un OBJ, la fenêtre les lit en chargeant le modèle. Un `.bin` ou une texture choisis
+  avec leur glTF ne deviennent pas des images du design.
+- Document : l'élément `objet3d` (la ressource et la caméra : azimut, élévation, zoom, focale,
+  décalage), champs facultatifs, version inchangée. La focale est en millimètres d'un appareil
+  plein format (50 par défaut, de 18 à 200), plutôt qu'un angle de vue : c'est le réglage que
+  connaît un photographe de produit. Le modèle est centré et ramené à une sphère de rayon 1 ; à
+  zoom 1, la caméra cadre toute la sphère dans le plus étroit des deux angles de vue.
+- Rendu : three.js 0.186.1, un seul moteur WebGL hors de la page (`src/trois/moteur.ts`),
+  éclairage de studio (environnement RoomEnvironment, une lumière principale, rendu des tons
+  neutre), fond transparent. Chaque objet a sa toile, refaite seulement quand la caméra, le
+  modèle ou la taille changent, à la définition de l'écran par paliers de 64 px (2048 px au
+  plus). Pendant qu'on tourne l'objet, la page montre la toile du moteur elle-même, sans la
+  recopier (règle 11, comme le labo). Les miniatures sont rendues par la fenêtre et rangées par
+  le noyau (aperçu 512 px, miniature 256 px).
+- Le mode Tourner sur la page : double-clic ou « Tourner » ; glisser, Maj et glisser pour
+  décaler, molette, flèches (5°, 15° avec Maj), Entrée, Échap. Pendant le glisser, la caméra
+  vit hors du document ; une étape d'annulation par geste. Le panneau « Vue 3D » : vues prêtes,
+  rotation, hauteur de vue, zoom (curseur en logarithme), focale, recentrer, vue de départ, et
+  ce que l'on sait du modèle.
+- Export : la fenêtre rend l'objet à la finesse de l'export (l'échelle d'une image ; deux pixels
+  par pixel de la page pour un PDF ou un SVG, un seul pour un format papier, déjà à 300 dpi),
+  4096 px au plus de côté ; l'image entre dans la description de la page comme un PNG et le
+  noyau la pose avec le reste. L'ombre suit la silhouette du modèle, comme celle d'une photo
+  détourée.
+- Pont IA : `importer_modele3d`, `ajouter_objet3d`, `regler_objet3d` (69 outils) ; `etat` liste
+  les modèles à part (`modeles3d`) ; `ajouter_image` d'un modèle pose un objet 3D ; un modèle ne
+  va pas dans un cadre ni une maquette.
+- Écarté pour ce lot : la lumière, l'ombre au sol et les matières (lot 2), l'animation (lot 4),
+  le film (lot 5 : une page vidéo pose aujourd'hui l'objet tel qu'il est au repos).
+
+Preuves (conteneur de Claude, WebGL sur le processeur, jamais de carte graphique) : modèles
+d'essai fabriqués par `fabriquer_modeles3d.py` (un flacon à trois matières, une étiquette de
+3000 × 1200 px, une animation ; le même en glTF à fichiers séparés ; un cube en OBJ et en FBX
+texte) ; 4 essais du noyau (129 en tout) ; 7 essais de la caméra (vitest, 223 en tout) ; dans
+Chromium, 63 vérifications (import, rendu, miniature, mode Tourner, toile du moteur montrée en
+direct pendant le glisser, panneau, OBJ et FBX, fichier abîmé, pont, export à finesse 2 plus net
+qu'à finesse 1) ; dans Tauri par le pont, 33 (copie à 2048 px, glTF empaqueté, miniatures
+rangées, fenêtre et export PNG à 0,00 sur 255, x2 réduit à 0,14, PDF à 0,40, SVG avec l'objet en
+1600 px pour une boîte de 800, ombre à 0,03 et qui suit la silhouette, vue de dessus, design
+rouvert). Les suites de Chromium des étapes 3 à 5 repassent.
+
+## 2026-10-17, étape 6 ouverte : plan du studio 3D
+
+Accord d'Alexandre (« Ok, tu peux démarrer l'étape 6 »). Ce que Claude a décidé :
+
+- Plan de l'étape 6 écrit dans `PLAN.md` : cinq lots (l'objet 3D dans la page ; lumière,
+  ombre, matières ; les banques ; l'animation sur la frise ; l'export vidéo du calque 3D),
+  puis la vérification, et les choix par défaut de Claude.
+- Vérifié le jour même : three.js 0.186.1 est toujours la dernière version (MIT) ; l'API de
+  Poly Haven est gratuite, même pour un usage commercial, sans clé, et demande un User-Agent
+  propre à l'application et la mention « Poly Haven » ; Sketchfab sert ses modèles en glTF, GLB
+  et USDZ (jamais en FBX ni en OBJ), et ses lignes directrices demandent que chaque utilisateur
+  se connecte à son compte (OAuth) et que l'auteur, la licence et la mention « Sketchfab »
+  suivent le modèle. Les deux API répondent depuis le conteneur de Claude.
+- Pas de banc à lancer sur le poste pour cette étape : dans la fenêtre, la 3D n'a qu'une voie
+  (WebGL, three.js) ; les mesures sur le poste viendront avec les essais de la fin.
+- Sketchfab : le jeton personnel d'API d'Alexandre dans le `.env`, plutôt qu'une connexion
+  OAuth qu'il faudrait faire déclarer chez Sketchfab ; à vérifier au lot 3, repli OAuth si le
+  jeton ne suffit pas. Action d'Alexandre avant le lot 3, quand il veut : créer le compte et y
+  relever son jeton.
+- Le noyau prépare pour la fenêtre une copie de chaque modèle, textures ramenées à 2048 px
+  (règle 5), comme l'aperçu d'une photo ; la fenêtre rend les miniatures et, à l'export, le
+  calque 3D à la taille voulue (exception du BRIEF à « le Rust rend les calques »).
+
 ## 2026-10-16, étape 5 : le labo sur les photos des cadres et des maquettes
 
 Demande d'Alexandre (« On termine l'étape 5 avant l'étape 6 ») : le dernier point laissé de

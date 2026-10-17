@@ -474,11 +474,85 @@ Choix par défaut de Claude, modifiables sur simple demande :
       sélection d'un cadre rempli ramenée à celle du cadre. Détail au JOURNAL.
 - [ ] Plus tard : l'aperçu en direct confirmé sur le mini PC, quand il sera là.
 
-## Étape 6. Le studio 3D (révision 9 du BRIEF, 2026-10-15)
+## Étape 6. Le studio 3D (révision 9 du BRIEF, ouverte le 2026-10-17)
 
-Objet 3D dans la page (glTF, GLB, FBX, OBJ ; orbite, éclairage HDRI, ombre, matières
-recolorables), banques (Poly Haven par son API, Kenney par ses paquets, Sketchfab par la
-connexion au compte, CC0 et CC BY seulement ; Mixamo à la main), animation sur la frise
-(plateau tournant, caméra, animations du modèle), export du calque 3D rendu par la fenêtre.
+Résultat visible attendu : un modèle 3D (un flacon, une chaussure, une mascotte) se pose dans
+la page comme une photo détourée, fond transparent ; on le tourne à la souris, on le cadre, on
+l'éclaire comme en studio, on recolore ses matières aux couleurs de la marque ; il tourne sur un
+plateau ou s'anime sur la frise ; l'export le sort avec le reste de la page, en image comme en
+film. Les modèles viennent de l'ordinateur, de Poly Haven, de Kenney, de Sketchfab ou de
+Mixamo. Claude peut tout faire par le pont. Détail : `BRIEF.md` § 6 (« Le studio 3D ») et § 7.
+
+Choix par défaut de Claude, modifiables sur simple demande :
+
+- Affichage : three.js 0.186.1 (MIT, version du jour, la même qu'au BRIEF), en WebGL. Un seul
+  moteur pour toute la page, sur une toile hors de la page : il dessine un objet quand
+  quelque chose change (la caméra, la lumière, l'instant), la page pose l'image comme celle
+  d'une photo. Pendant qu'on tourne l'objet, la page montre la toile du moteur sans la
+  recopier (règle 11), comme le labo.
+- Pas de banc cette fois : dans la fenêtre, la 3D n'a qu'une voie, WebGL (WebKitGTK n'a pas
+  WebGPU), et le BRIEF a déjà choisi three.js. Les mesures sur le poste viendront avec les
+  essais de la fin (décision du 2026-10-16). Risque noté : le mini PC et sa carte modeste ;
+  la fenêtre réduira alors la définition du rendu pendant les gestes.
+- Ressource : un modèle entre comme une image (empreinte, original rangé une fois, rien dans
+  git). Le noyau vérifie le fichier (en-têtes, tailles) et prépare la copie que la fenêtre
+  charge : un GLB unique, textures ramenées à 2048 px au plus (règle 5, comme l'aperçu d'une
+  photo) ; un glTF accompagné de ses fichiers devient ce GLB. Un FBX (Mixamo) ou un OBJ est
+  chargé tel quel. La miniature est rendue par la fenêtre, qui seule sait dessiner la 3D, et
+  rangée par le noyau.
+- Document : un nouveau type d'élément, `objet3d` : la ressource ; la caméra (azimut,
+  élévation, zoom, focale, décalage) autour du modèle centré et ramené à une taille fixe ;
+  puis, au fil des lots, la lumière, l'ombre, les couleurs des matières et l'animation. Champs
+  facultatifs, version du document inchangée.
+- Export : exception du BRIEF à « le Rust rend les calques » : la fenêtre rend le calque 3D à
+  la taille de l'export (×1 à ×4, 300 dpi), fond transparent, et le noyau le pose avec le
+  reste ; dans un PDF ou un SVG, l'objet devient une image assez fine. Un film : image par
+  image (lot 5).
+- Sketchfab : le jeton personnel d'API d'Alexandre (réglages de son compte Sketchfab), rangé
+  dans le `.env` (`SKETCHFAB_API_TOKEN`) et lu par le Rust, comme les clés Pixabay et
+  Freesound. Les lignes directrices de Sketchfab demandent qu'une application fasse se
+  connecter chaque utilisateur à son compte (OAuth) : pour un outil personnel, le jeton du
+  compte d'Alexandre en tient lieu ; si Eliot devient public, chacun mettra le sien, ou une
+  connexion OAuth viendra (application à déclarer chez Sketchfab). À vérifier au lot 3 : que
+  le téléchargement accepte ce jeton. Seuls les modèles CC0 et CC BY, en GLB ; licence, auteur
+  et lien gardés avec le modèle, mention « Sketchfab ».
+- Poly Haven : API sans clé, un User-Agent propre à Eliot, la mention « Poly Haven » à côté des
+  résultats ; modèles en 1k ou 2k, environnements HDRI en 1k (l'éclairage n'en demande pas
+  plus). Kenney : ses paquets 3D (.zip) rangés à la main dans `telechargements/kenney/`, lus
+  par `npm run bibliotheque`. Mixamo : téléchargement à la main (FBX), puis import ; les
+  conditions d'Adobe sont revérifiées au lot 3 ; ses fichiers ne vont jamais dans git.
+
+- [x] Lot 1 : l'objet 3D dans la page. Import (GLB, glTF, FBX, OBJ ; Importer et
+      glisser-déposer), ressource et copie préparées par le noyau, miniature ; élément
+      `objet3d` posé comme une photo, fond transparent, éclairage de studio par défaut ;
+      caméra : tourner à la souris sur la page (double-clic, glisser, molette, Maj pour
+      décaler, Entrée, Échap), vues prêtes (face, trois-quarts, profil, dessus), panneau « 3D »
+      ; export en image (PNG, JPEG, WebP, PDF, SVG) depuis le rendu de la fenêtre à la taille
+      de l'export ; pont : `importer_modele3d`, `ajouter_objet3d`, `regler_objet3d`.
+      Livré le 2026-10-17 : `noyau/src/modeles3d.rs` (vérification, original rangé, copie GLB
+      aux textures de 2048 px au plus, glTF et ses fichiers empaquetés, matières, animations et
+      triangles lus), `src/trois/` (moteur three.js unique, toile par objet, toile du moteur
+      montrée en direct pendant un geste, miniatures rendues par la fenêtre et rangées par le
+      noyau, mode Tourner, panneau « Vue 3D ») ; focale en millimètres (50 par défaut) ; six vues
+      prêtes ; export à la finesse demandée ; 69 outils pour le pont. Vérifié dans Chromium
+      (63 vérifications) et dans Tauri par le pont (33) : fenêtre et export PNG à 0,00 sur 255,
+      PDF à 0,40, ombre qui suit la silhouette à 0,03 (JOURNAL).
+- [ ] Lot 2 : lumière, ombre, matières. Environnement HDRI (studio par défaut ; importé ou de
+      Poly Haven au lot 3), son intensité et sa rotation ; lumière principale (direction,
+      intensité, couleur) ; ombre au sol (opacité, douceur) ; exposition ; matières du modèle
+      recolorables (couleur, couleurs du kit de marque, brillance) ; pont.
+- [ ] Lot 3 : les banques. Poly Haven (modèles et environnements), Kenney (paquets), Sketchfab
+      (jeton d'Alexandre, CC0 et CC BY), Mixamo (import et marche à suivre) ; crédits gardés
+      avec le modèle ; pont : chercher et poser un modèle, choisir un environnement. Action
+      d'Alexandre avant ce lot, quand il veut : créer son compte Sketchfab et mettre son jeton
+      dans le `.env` ; ranger quelques paquets de Kenney dans `telechargements/kenney/`.
+- [ ] Lot 4 : l'animation sur la frise. Plateau tournant (vitesse, sens), caméra par images
+      clés (azimut, élévation, zoom, décalage, avec les courbes des autres images clés),
+      animations du modèle (choix de l'animation, vitesse, boucle) ; lecture en direct ; pont.
+- [ ] Lot 5 : l'export vidéo du calque 3D. La fenêtre rend chaque image du calque à la taille
+      du film, le noyau la pose et encode (MP4, GIF) ; comparaison au pixel entre la fenêtre et
+      le film, temps d'export mesuré.
+- [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité 3D faite de bout en
+      bout par le pont dans Tauri, suites repassées, livraison.
 
 ## Étape 7. Le reste du catalogue

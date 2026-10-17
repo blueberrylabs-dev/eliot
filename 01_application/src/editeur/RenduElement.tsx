@@ -28,6 +28,7 @@ import { imagesAffichees } from "../labo/recadrage";
 import { normaliserReglages, reglagesDeRendu } from "../modele/labo";
 import { matriceRognage, type Rognage } from "../modele/rognage";
 import { calquePerspective, dessinerEnPerspective } from "../labo/moteurPerspective";
+import { RenduObjet3d } from "../trois/RenduObjet3d";
 
 /** L'élément se voit-il à l'instant de la tête de lecture (ou à `instant`, pour un rendu
  *  figé) ? Le composant ne se redessine que quand la réponse change. */
@@ -847,6 +848,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
         {el.type === "dessin" && <Dessin el={el} />}
         {el.type === "graphique" && <Graphique el={el} />}
         {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
+        {el.type === "objet3d" && <RenduObjet3d el={el} statique={statique} ombre={ombreKonva} />}
       </>
     ),
     [el, enEdition, unites?.genre, unites?.sens, unites?.p, statique, anime, imageVideo, enAjustement, celluleMasquee, instant],
