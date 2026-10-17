@@ -47,7 +47,7 @@ function Miniature({ refProjet, info }: { refProjet: RefProjet; info: InfoProjet
     };
   }, [refProjet.rayon, refProjet.id, info.modifie, info.miniature]);
   return (
-    <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg bg-[#e9e7e2]">
+    <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-lg bg-plan">
       {url ? (
         <img src={url} alt="" className="max-h-full max-w-full object-contain shadow-sm" draggable={false} />
       ) : (
@@ -230,7 +230,7 @@ export function Accueil() {
   const titre = "mb-3 text-base font-semibold text-neutral-900";
 
   return (
-    <div className="flex h-full flex-col bg-[#f4f3ef]">
+    <div className="flex h-full flex-col bg-accueil">
       <header className="flex h-14 shrink-0 items-center gap-3 bg-gradient-to-r from-accent-700 to-accent-500 px-5 text-white">
         <svg width="30" height="30" viewBox="0 0 1024 1024" aria-hidden>
           <rect x="40" y="40" width="944" height="944" rx="230" fill="#ffffff" fillOpacity="0.18" />

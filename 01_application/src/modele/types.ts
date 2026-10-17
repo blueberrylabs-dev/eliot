@@ -346,6 +346,9 @@ export interface ElementCadre extends ElementBase {
   /** Les réglages du labo photo pour sa photo (vérification de l'étape 5), comme ceux d'un
    *  élément image ; ils restent quand la photo change. */
   reglages?: ReglagesPhoto;
+  /** La photo du fond de la page (étape 7, lot 4) : le cadre couvre la page, reste dessous et
+   *  ne se choisit pas d'un clic sur la page ; un double-clic l'ajuste. Page fixe seulement. */
+  enFond?: boolean;
 }
 
 export type Appareil = "telephone" | "tablette" | "ordinateur" | "montre";

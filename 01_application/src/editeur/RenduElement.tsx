@@ -10,6 +10,7 @@ import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { useImagePersonnage } from "../bibliotheque/personnages";
 import { creuxEtoile, disposerListe, estTrait, geometrieTexte, pointsEtoile, pointsPolygone, styleTexte, texteAffiche, texteCourbe } from "../modele/fabriques";
 import { estCourbe } from "../modele/texteCourbe";
+import { estFondPhoto } from "../modele/fond";
 import { ecranAppareil, partieVisible, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
 import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type SousTitre } from "../modele/types";
 import { motActif, nombreDeMots } from "../modele/sousTitres";
@@ -960,8 +961,10 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
       scaleY={pose?.echelle ?? 1}
       opacity={pose?.opacite ?? el.opacite}
       visible={el.visible && dansLeTemps}
-      draggable={!statique && !fige && !el.verrouille && !enEdition && !enAjustement}
-      listening={!statique}
+      draggable={!statique && !fige && !el.verrouille && !enEdition && !enAjustement && !estFondPhoto(el)}
+      // La photo du fond (étape 7, lot 4) ne se prend pas d'un clic sur la page, sauf pour
+      // l'ajuster (un double-clic sur la page).
+      listening={!statique && (!estFondPhoto(el) || !!enAjustement)}
       onDragEnd={statique ? undefined : rien}
     >
       {el.temps === undefined ? (

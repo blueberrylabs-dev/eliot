@@ -18,7 +18,7 @@ export function VueGrille() {
   const largeur = format.largeur >= format.hauteur ? 240 : Math.round((240 * format.largeur) / format.hauteur);
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-y-auto bg-[#e9e7e2] p-6 defilement-fin">
+    <div className="relative min-h-0 flex-1 overflow-y-auto bg-plan p-6 defilement-fin">
       <div className="mb-4 flex items-center">
         <p className="text-sm font-semibold text-neutral-800">Toutes les pages</p>
         <p className="ml-3 text-xs text-neutral-500">Glisse une page pour changer son ordre ; clique pour l'ouvrir.</p>

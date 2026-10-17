@@ -346,3 +346,43 @@ describe("le labo sur la photo d'un cadre (vérification de l'étape 5)", () => 
     expect(c.reglages).toEqual({ saturation: -100, vignetage: -30 });
   });
 });
+
+describe("la photo en fond de page (étape 7, lot 4)", () => {
+  const large = { id: "d".repeat(64), nom: "large.jpg", largeur: 3000, hauteur: 2000, transparence: false };
+  const autre = { id: "e".repeat(64), nom: "autre.jpg", largeur: 1000, hauteur: 1500, transparence: false };
+  beforeEach(() => etat().ajouterRessources([large, autre]));
+
+  it("posée sous tout le reste, couvrant la page ; Ctrl+A ne la prend pas ; une étape d'annulation", () => {
+    etat().ajouterElements([forme("a"), { ...creerImage({ largeur: 1080, hauteur: 1080 }, large), id: "p" }]);
+    expect(etat().mettreEnFond("p")).toBe(true);
+    const [f, a] = elementsCourants(etat());
+    expect(f).toMatchObject({ id: "p", type: "cadre", enFond: true, x: 0, y: 0, largeur: 1080, hauteur: 1080 });
+    expect(a.id).toBe("a");
+    etat().toutSelectionner();
+    expect(etat().selection).toEqual(["a"]);
+    etat().annuler();
+    expect(elementsCourants(etat()).map((e) => [e.id, e.type])).toEqual([["a", "forme"], ["p", "image"]]);
+  });
+
+  it("une autre photo en fond détache la première ; détacher la rend à la page, choisie", () => {
+    etat().ajouterElements([{ ...creerImage({ largeur: 1080, hauteur: 1080 }, large), id: "p" }, { ...creerImage({ largeur: 1080, hauteur: 1080 }, autre), id: "q" }]);
+    etat().mettreEnFond("p");
+    etat().mettreEnFond("q");
+    const els = elementsCourants(etat()) as ElementCadre[];
+    expect(els.map((e) => [e.id, !!e.enFond])).toEqual([["q", true], ["p", false]]);
+    expect(etat().detacherFond()).toBe("q");
+    expect(etat().selection).toEqual(["q"]);
+    expect(elementsCourants(etat()).some((e) => (e as ElementCadre).enFond)).toBe(false);
+    expect(etat().detacherFond()).toBeNull();
+  });
+
+  it("le format change : elle couvre encore la page ; une page vidéo n'en a pas", () => {
+    etat().ajouterElements([{ ...creerImage({ largeur: 1080, hauteur: 1080 }, large), id: "p" }]);
+    etat().mettreEnFond("p");
+    etat().modifierFormat({ largeur: 1080, hauteur: 1920 }, true);
+    expect(elementsCourants(etat())[0]).toMatchObject({ enFond: true, x: 0, y: 0, largeur: 1080, hauteur: 1920, rotation: 0 });
+    etat().basculerPageVideo(true);
+    expect((elementsCourants(etat())[0] as ElementCadre).enFond).toBeUndefined();
+    expect(etat().mettreEnFond("p")).toBe(false);
+  });
+});

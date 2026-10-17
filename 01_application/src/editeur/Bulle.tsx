@@ -3,6 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { usePipette } from "../etat/pipette";
 
 interface Proprietes {
   titre: string;
@@ -29,6 +30,9 @@ export function Bulle({ titre, bouton, largeur = 240, children, classeBouton, st
     const h = b.getBoundingClientRect().height;
     if (r.bottom + 6 + h > window.innerHeight - 8 && r.top - 6 - h > 8) setPosition((p) => (p.y === r.top - 6 - h ? p : { ...p, y: r.top - 6 - h }));
   }, [ouverte, position]);
+
+  // Une pipette qui commence ferme la bulle : la page se voit en entier.
+  useEffect(() => usePipette.subscribe((s, avant) => s.attente && !avant.attente && setOuverte(false)), []);
 
   useEffect(() => {
     if (!ouverte) return;

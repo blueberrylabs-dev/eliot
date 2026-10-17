@@ -15,6 +15,7 @@ import { clesActives, elementsCourants, pageCourante, useEditeur } from "../etat
 import { poserCle } from "../modele/animation";
 import { estTrait, nouvelId } from "../modele/fabriques";
 import { estCourbe } from "../modele/texteCourbe";
+import { estFondPhoto } from "../modele/fond";
 import { deplacerRecadrage, ecranAppareil } from "../modele/cadres";
 import { creerTrait, distanceAuTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
@@ -33,6 +34,9 @@ import { surDepotFichiers } from "../pont/tauri";
 import { useTemps } from "../etat/temps";
 import { CalqueZonesSures } from "./ZonesSures";
 import { CalqueAides, lignesDesAides, MarquesAlertes, Regles } from "./Aides";
+import { CouchePipette } from "./Pipette";
+import { usePipette } from "../etat/pipette";
+import { useTheme } from "../etat/theme";
 import { CadreRognage } from "../labo/CadreRognage";
 import { commencerRecadrage, useRecadrage, zoomerSousLeCadre } from "../labo/recadrage";
 import { CadrePerspective } from "../labo/CadrePerspective";
@@ -120,6 +124,11 @@ export function ZoneDeTravail() {
   const styleCopie = useEditeur((s) => s.styleCopie);
   const dessin = useEditeur((s) => s.dessin);
   const celluleEnEdition = useEditeur((s) => s.celluleEnEdition);
+  // La pipette (étape 7, lot 4) : une couche par-dessus la zone reçoit le pointeur.
+  const pipette = usePipette((s) => s.attente !== null);
+  // En thème sombre (étape 7, lot 4), un liseré discret détache la page du plan : son ombre ne
+  // s'y voit plus. Il est dessiné hors de la page, sous elle.
+  const sombre = useTheme((s) => s.effectif === "sombre");
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [voulue, setVoulue] = useState<{ x: number; y: number } | null>(null);
   const [depotFichiers, setDepotFichiers] = useState(false);
@@ -332,7 +341,8 @@ export function ZoneDeTravail() {
     const noeuds = selection
       .filter((id) => id !== enEdition && id !== enAjustement && id !== enRecadrage && id !== enPerspective && id !== enPinceau && id !== enOrbite)
       .map((id) => gp.findOne((n: Konva.Node) => n.id() === id && n.hasName("element")))
-      .filter((n): n is Konva.Group => !!n && n.isVisible());
+      // La photo du fond (étape 7, lot 4) n'a pas de poignées : elle couvre toujours la page.
+      .filter((n): n is Konva.Group => !!n && n.isVisible() && !estFondPhoto(elements.find((e) => e.id === n.id()) ?? ({} as ElementPage)));
     tr.nodes(noeuds);
     tr.getLayer()?.batchDraw();
   }, [selection, elements, enEdition, enAjustement, enRecadrage, enPerspective, enPinceau, enOrbite]);
@@ -615,7 +625,7 @@ export function ZoneDeTravail() {
     if (boite.width < 3 && boite.height < 3) return;
     const gp = groupePageRef.current!;
     const ids = gp
-      .getChildren((n) => n.hasName("element") && n.isVisible())
+      .getChildren((n) => n.hasName("element") && n.isVisible() && n.listening())
       .filter((n) => Konva.Util.haveIntersection(boite, n.getClientRect()))
       .map((n) => n.id());
     useEditeur.getState().selectionner(ids, debut.ajout);
@@ -771,7 +781,13 @@ export function ZoneDeTravail() {
 
   const surDoubleClic = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const g = groupeElement(e.target);
-    if (!g) return;
+    if (!g) {
+      // Un double-clic sur la page, hors des objets : ajuster la photo du fond, s'il y en a une.
+      const etat = useEditeur.getState();
+      const fond = elementsCourants(etat).find(estFondPhoto);
+      if (fond && !etat.dessin && !fond.verrouille) etat.commencerAjustement(fond.id);
+      return;
+    }
     const etat = useEditeur.getState();
     if (etat.dessin) return;
     const el = elementsCourants(etat).find((x) => x.id === g.id());
@@ -810,7 +826,7 @@ export function ZoneDeTravail() {
     <div
       ref={conteneur}
       data-zone-de-travail
-      className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#e9e7e2]"
+      className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-plan"
       onContextMenu={(e) => e.preventDefault()}
       // Hors de Tauri (navigateur), le dépôt de fichiers passe par les événements HTML.
       onDragOver={(e) => {
@@ -837,7 +853,7 @@ export function ZoneDeTravail() {
         onContextMenu={surClicDroit}
       >
         <Layer listening={false}>
-          <Rect x={ox} y={oy} width={format.largeur * echelle} height={format.hauteur * echelle} fill="#ffffff" shadowColor="#000000" shadowBlur={18} shadowOpacity={0.14} shadowOffsetY={4} />
+          <Rect x={ox} y={oy} width={format.largeur * echelle} height={format.hauteur * echelle} fill="#ffffff" shadowColor="#000000" shadowBlur={18} shadowOpacity={0.14} shadowOffsetY={4} {...(sombre ? { stroke: "#45454b", strokeWidth: 2 } : {})} />
         </Layer>
         <Layer ref={calquePageRef}>
           <Group ref={groupePageRef} {...transformationPage} clipX={0} clipY={0} clipWidth={format.largeur} clipHeight={format.hauteur}>
@@ -941,6 +957,7 @@ export function ZoneDeTravail() {
           Clique sur un objet pour lui donner ce style. Échap pour annuler.
         </div>
       )}
+      {pipette && <CouchePipette calque={calquePageRef} ox={ox} oy={oy} echelle={echelle} format={format} />}
       {depotFichiers && (
         <div className="pointer-events-none absolute inset-3 flex items-center justify-center rounded-2xl border-2 border-dashed border-accent-500 bg-accent-50/60 text-sm font-medium text-accent-700">
           Lâche tes images ici

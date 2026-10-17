@@ -7,6 +7,7 @@ import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, nou
 import { estCourbe } from "../modele/texteCourbe";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
 import { placerDansPile, rassemblerGroupe, sortirDuGroupe } from "../modele/calques";
+import { detacherFond, estFondPhoto, mettreEnFond, peutAllerEnFond, rangerFond } from "../modele/fond";
 import type { ReglagesDessin } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
 import { ajouterRangee, disposerTableau } from "../modele/tableaux";
@@ -174,6 +175,11 @@ interface EtatEditeur {
   terminerAjustement: () => void;
   /** Met une photo du design dans un cadre ou un écran de maquette (cadrage remis au centre). */
   remplirPhoto: (id: string, ressource: string) => void;
+  /** La photo `id` (ou un cadre rempli) devient la photo du fond de la page fixe affichée ; elle
+   *  remplace celle qui y était, qui redevient un cadre (étape 7, lot 4). */
+  mettreEnFond: (id: string) => boolean;
+  /** La photo du fond de la page affichée redevient un cadre comme un autre, choisi. */
+  detacherFond: () => string | null;
   retirerPhoto: (id: string) => void;
   /** Remplace la photo d'un élément image par une autre image du design, à la même place : la
    *  boîte, la retouche, la perspective et le style restent ; la nouvelle photo est recadrée au
@@ -287,9 +293,14 @@ export const dureesDe = (ressources: Record<string, Ressource>): Durees => (id) 
 /** Remet d'aplomb les pages vidéo qu'une modification a touchées (voir `modele/frise.ts`). */
 function normaliserPages(suivant: DocumentEliot, avant: DocumentEliot, durees: Durees): DocumentEliot {
   let change = false;
+  // Un autre format : toutes les pages se rangent (la photo du fond suit la page).
+  const format = suivant.format;
+  const toutes = format !== avant.format;
   const pages = suivant.pages.map((p) => {
-    if (!estPageVideo(p) || avant.pages.includes(p)) return p;
-    const n = normaliser(p, durees);
+    if (avant.pages.includes(p) && !toutes) return p;
+    // La photo du fond (étape 7, lot 4) : tout en dessous, couvrant la page.
+    let n = rangerFond(p, format);
+    if (estPageVideo(n)) n = normaliser(n, durees);
     if (n !== p) change = true;
     return n;
   });
@@ -800,7 +811,25 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
   },
 
   toutSelectionner() {
-    set({ selection: elementsCourants(get()).filter((e) => e.visible).map((e) => e.id), selectionAudio: [] });
+    set({ selection: elementsCourants(get()).filter((e) => e.visible && !estFondPhoto(e)).map((e) => e.id), selectionAudio: [] });
+  },
+
+  mettreEnFond(id) {
+    const page = pageCourante(get());
+    const el = page.elements.find((e) => e.id === id);
+    if (!el || estPageVideo(page) || !peutAllerEnFond(el)) return false;
+    const format = get().document.format;
+    get().appliquerPage((p) => ({ ...p, elements: p.elements.map((e) => (e.id === id ? mettreEnFond(el, format) : estFondPhoto(e) ? detacherFond(e) : e)) }));
+    set({ selection: [] });
+    return true;
+  },
+
+  detacherFond() {
+    const fond = pageCourante(get()).elements.find(estFondPhoto);
+    if (!fond) return null;
+    get().appliquerPage((p) => ({ ...p, elements: p.elements.map((e) => (e.id === fond.id && estFondPhoto(e) ? detacherFond(e) : e)) }));
+    set({ selection: [fond.id] });
+    return fond.id;
   },
 
   deselectionner() {

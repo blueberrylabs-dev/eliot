@@ -521,11 +521,30 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Chaque outil a son infobulle ; celles des onglets du rail, des réglages du texte, des
   sections du labo et du panneau 3D disent aussi à quoi l'outil sert.
 
+**Couleur, fond et thème (étape 7, lot 4)**
+- Pipette : dans chaque choix de couleur (texte, forme, fond de la page, contour ; le départ et
+  l'arrivée d'un dégradé), le bouton Pipette ferme la bulle et fait du pointeur un viseur ; une
+  loupe grossit les pixels qu'il survole et dit leur couleur. Un clic sur la page prend la
+  couleur que l'on y voit, photo, retouches et objets compris ; Échap, un clic droit ou un clic
+  à côté de la page renoncent, et la sélection reste. La fenêtre d'Eliot n'a pas la pipette du
+  système : on prend les couleurs sur la page, pas ailleurs sur l'écran.
+- Photo en fond : une photo ou un cadre rempli choisi, « Mettre en fond ». Elle couvre la page,
+  passe sous tout le reste et ne se prend plus d'un clic sur la page, ni par le rectangle de
+  sélection, ni par Ctrl+A : on choisit et on glisse ce qui est posé dessus sans la bouger. Un
+  double-clic sur la page (ou le bouton Ajuster de la barre) la fait glisser et grandir dans la
+  page ; « Photo du fond », dans la barre de la page, la choisit pour la retoucher au labo ;
+  « Détacher du fond » en refait un cadre comme un autre. Une seule par page ; elle suit un
+  changement de format ; une page vidéo n'en a pas (sa piste principale fait le fond).
+- Thème : Réglages, Apparence : clair (par défaut), sombre, ou comme le système (le thème du
+  bureau). Seule l'interface change : la page, ses couleurs, les vignettes et les exports restent
+  les mêmes, au pixel près. Le choix est gardé d'une ouverture à l'autre.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design (avec les alertes de lisibilité de la page), poser et modifier des objets
   (courber un texte, en faire une liste, ranger et nommer les calques), montrer les aides à
-  l'écran, gérer les pages, importer une image du
+  l'écran ou changer le thème, poser ou détacher une photo en fond, lire la couleur d'un point
+  de la page (sa pipette), gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
   lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
@@ -944,6 +963,27 @@ Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : une alerte qui tombe à tort (ou qui manque) sur un de tes
 designs, et une infobulle qui ne t'apprend rien.
 
+## Essayer la pipette, la photo en fond et le thème (étape 7, lot 4)
+
+Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
+
+1. Un design carré, une photo posée (onglet Photos ou Importer). Choisie, « Mettre en fond » :
+   elle couvre la page. Poser un titre dessus : un clic sur la photo ne choisit rien, un clic sur
+   le titre le choisit, et le glisser ne bouge pas la photo.
+2. Double-clic sur la page, hors du titre : glisser la photo, molette pour la rapprocher, Échap.
+   « Détacher du fond », dans la barre de la page : elle redevient un cadre qui se déplace.
+   La remettre en fond.
+3. Le titre choisi, couleur du texte, « Pipette » : survoler la photo (la loupe dit la couleur),
+   cliquer sur une couleur qui te plaît ; le titre la prend. Recommencer et appuyer sur Échap :
+   rien ne change. Essayer aussi le départ d'un dégradé, onglet Dégradé.
+4. Fichier, « Réglages et pont IA… », Apparence, Sombre : l'interface passe en sombre, la page
+   reste la même. Puis « Comme le système », et changer le style du bureau (Paramètres,
+   Apparence, Clair ou Sombre) : Eliot suit.
+5. Exporter en PNG : la photo du fond y est, telle qu'à l'écran.
+
+Ce qui m'aide le plus en retour : un endroit de l'interface mal lisible en sombre, et une
+couleur prise par la pipette qui n'est pas celle que tu vois.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -972,6 +1012,8 @@ designs, et une infobulle qui ne t'apprend rien.
 | ←, → sans sélection (Maj : d'une seconde), Début, Fin | tête de lecture d'une image, au début, à la fin |
 | F11 | aperçu en plein écran |
 | Maj+R | montrer ou masquer les règles |
+| Échap (pipette) | renoncer à prendre une couleur |
+| Double-clic sur la page, hors des objets | ajuster la photo du fond ; Échap pour finir |
 | Maj+clic, rectangle tracé à la souris | sélection de plusieurs objets |
 | Alt+clic | un seul objet d'un groupe |
 
@@ -1025,16 +1067,16 @@ designs, et une infobulle qui ne t'apprend rien.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts), les règles, la grille, les tiers et les marges (aides.ts), le contraste du WCAG et la taille vue (lisibilite.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts), les règles, la grille, les tiers et les marges (aides.ts), le contraste du WCAG et la taille vue (lisibilite.ts), la photo en fond de page (fond.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
-│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
+│   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts), la pipette en attente d'un clic (pipette.ts), le thème de l'interface (theme.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts), les aides et leur menu (Aides.tsx), les alertes de lisibilité mesurées au repos (alertes.ts)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts), les aides et leur menu (Aides.tsx), les alertes de lisibilité mesurées au repos (alertes.ts), la pipette sur la page et sa loupe (Pipette.tsx)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
 │   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx), les banques et l'onglet 3D du rail (banques.ts, PanneauBanques.tsx)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)
 │   ├── ia/           les outils offerts à l'IA (outils.json, outils.ts) et leur pilote
-│   └── reglages/     la fenêtre des réglages
+│   └── reglages/     la fenêtre des réglages : l'apparence (le thème), le pont
 └── outils/           fabrication de la bibliothèque (personnages : personnages.mjs ; paquets de Kenney : kenney.mjs), dessin de l'icône, prototype du texte animé, conversion du modèle du détourage (convertir_birefnet.py)
 ```
 

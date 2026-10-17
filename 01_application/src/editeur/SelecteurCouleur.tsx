@@ -1,10 +1,12 @@
 // Choix d'une couleur : couleurs de la marque, du document, palette de départ, sélecteur du
-// système ; et,
-// là où c'est permis (fond, forme, texte), un dégradé linéaire ou radial.
+// système, pipette (étape 7, lot 4 : un clic sur la page en prend la couleur) ; et, là où c'est
+// permis (fond, forme, texte), un dégradé linéaire ou radial.
 
+import { Pipette } from "lucide-react";
 import { useState } from "react";
 import { useEditeur } from "../etat/editeur";
 import { useMarque } from "../etat/marque";
+import { usePipette } from "../etat/pipette";
 import { couleurPrincipale, type Couleur, type Degrade } from "../modele/types";
 import { Bulle } from "./Bulle";
 import { cssDeCouleur, memeCouleur } from "./couleurs";
@@ -59,6 +61,21 @@ function couleursDuDocument(): string[] {
 
 const hexValide = (c: string) => (/^#[0-9a-f]{6}$/i.test(c) ? c : "#000000");
 
+/** La pipette : la bulle se ferme, le pointeur devient un viseur sur la page (Pipette.tsx). */
+function BoutonPipette({ recevoir, cote, titre, libelle }: { recevoir: (hex: string) => void; cote: string; titre: string; libelle?: string }) {
+  return (
+    <button
+      data-pipette={cote}
+      title={`${titre} Échap pour annuler.`}
+      onClick={() => usePipette.getState().commencer(recevoir)}
+      className="flex h-7 shrink-0 items-center gap-1 rounded border border-neutral-300 px-1.5 text-xs text-neutral-700 hover:bg-neutral-50"
+    >
+      <Pipette size={14} />
+      {libelle}
+    </button>
+  );
+}
+
 interface Proprietes {
   valeur: Couleur;
   surChoix: (couleur: Couleur) => void;
@@ -78,16 +95,20 @@ function EditeurDegrade({ valeur, surChoix }: { valeur: Degrade; surChoix: (d: D
       <div className="mb-2 h-6 rounded-md border border-neutral-200" style={{ background: cssDeCouleur(valeur) }} />
       <div className="mb-2 flex items-center gap-2 text-xs text-neutral-600">
         <input type="color" value={hexValide(debut)} onChange={(e) => avec({ arrets: arrets(e.target.value, fin) })} className="h-7 w-9 cursor-pointer rounded border border-neutral-300" title="Couleur de départ" />
+        <BoutonPipette cote="debut" titre="Pipette : la couleur de départ, prise d'un clic sur la page." recevoir={(hex) => avec({ arrets: arrets(hex, fin) })} />
         <input type="color" value={hexValide(fin)} onChange={(e) => avec({ arrets: arrets(debut, e.target.value) })} className="h-7 w-9 cursor-pointer rounded border border-neutral-300" title="Couleur d'arrivée" />
+        <BoutonPipette cote="fin" titre="Pipette : la couleur d'arrivée, prise d'un clic sur la page." recevoir={(hex) => avec({ arrets: arrets(debut, hex) })} />
         <button className="rounded border border-neutral-300 px-1.5 py-1 hover:bg-neutral-50" title="Inverser" onClick={() => avec({ arrets: arrets(fin, debut) })}>
           ⇄
         </button>
-        <span className="flex-1" />
+      </div>
+      <label className="mb-2 flex items-center justify-between text-xs text-neutral-600">
+        Forme
         <select value={valeur.type} onChange={(e) => avec({ type: e.target.value as Degrade["type"] })} className="h-7 rounded border border-neutral-300 bg-white px-1 text-xs">
           <option value="lineaire">Linéaire</option>
           <option value="radial">Radial</option>
         </select>
-      </div>
+      </label>
       {valeur.type === "lineaire" && (
         <label className="block text-xs text-neutral-600">
           <span className="mb-1 flex justify-between">
@@ -147,10 +168,13 @@ export function SelecteurCouleur({ valeur, surChoix, titre, lettre, degrade = fa
           <div className="mb-3 grid grid-cols-6 gap-1.5">{couleursDuDocument().map(pastille)}</div>
           <p className="mb-1.5 text-xs font-medium text-neutral-500">Palette</p>
           <div className="mb-3 grid grid-cols-6 gap-1.5">{PALETTE.map(pastille)}</div>
-          <label className="flex items-center gap-2 text-xs text-neutral-600">
-            <input type="color" value={hexValide(couleurPrincipale(valeur))} onChange={(e) => surChoix(e.target.value)} className="h-7 w-10 cursor-pointer rounded border border-neutral-300" />
-            Autre couleur
-          </label>
+          <div className="flex items-center gap-2">
+            <label className="flex flex-1 items-center gap-2 text-xs text-neutral-600">
+              <input type="color" value={hexValide(couleurPrincipale(valeur))} onChange={(e) => surChoix(e.target.value)} className="h-7 w-10 cursor-pointer rounded border border-neutral-300" />
+              Autre couleur
+            </label>
+            <BoutonPipette cote="uni" titre="Pipette : prendre une couleur d'un clic sur la page (photos comprises)." libelle="Pipette" recevoir={surChoix} />
+          </div>
         </>
       ) : (
         <>

@@ -11,7 +11,7 @@ import { enregistrerMaintenant } from "../etat/enregistrement";
 import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
 import { bornerQualite, echellesPossibles, exporter, FORMATS_DU_NOYAU, LIBELLES_EXPORT } from "../export/exporter";
 import { exporterVideo, type IdPlateforme } from "../export/video";
-import { rendrePage } from "../export/rendu";
+import { rendrePage, rendreZones } from "../export/rendu";
 import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, urlSvg } from "../bibliotheque/bibliotheque";
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
@@ -65,9 +65,11 @@ import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
 import { STYLES_MAX, trouverStyle } from "../modele/stylesTexte";
-import { ECRAN_TELEPHONE, lecturePage, tailleMinimale } from "../modele/lisibilite";
+import { ECRAN_TELEPHONE, lecturePage, rgbEnHex, tailleMinimale, type Rgb } from "../modele/lisibilite";
+import { fondPhoto, peutAllerEnFond } from "../modele/fond";
 import { alertesAJour } from "../editeur/alertes";
 import { useAides } from "../etat/aides";
+import { THEMES, useTheme, type Theme } from "../etat/theme";
 import { margeSecurite, pasGrilleParDefaut, unitePage } from "../modele/aides";
 import { estVerticale916, IDS_ZONES, type IdZones } from "../modele/zonesSures";
 import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
@@ -181,6 +183,8 @@ function resumer() {
     pages: s.document.pages.length,
     pageAffichee: s.document.pages.findIndex((p) => p.id === page.id) + 1,
     fond: page.fond,
+    // La photo du fond (étape 7, lot 4) : un cadre marqué enFond, le premier des éléments.
+    photoDuFond: fondPhoto(page)?.id ?? null,
     elements: page.elements,
     selection: s.selection,
     images: s.ordreRessources.map((id) => s.ressources[id]).filter((r) => r && !r.son && !r.modele3d && !r.environnement3d),
@@ -2079,6 +2083,11 @@ const OUTILS: Record<string, Outil> = {
       exiger(args.zonesSures === null || IDS_ZONES.includes(args.zonesSures as IdZones), `zonesSures : ${IDS_ZONES.join(", ")} ou null`);
       useTemps.getState().choisirZonesSures((args.zonesSures as IdZones | null) ?? null);
     }
+    // Le thème de l'interface (étape 7, lot 4) : un choix de la vue, comme les aides.
+    if (args.theme !== undefined) {
+      exiger(THEMES.includes(args.theme as Theme), `theme : ${THEMES.join(", ")}`);
+      useTheme.getState().choisir(args.theme as Theme);
+    }
     const b = useAides.getState();
     const format = etat().document.format;
     return {
@@ -2093,7 +2102,8 @@ const OUTILS: Record<string, Outil> = {
         zonesSures: useTemps.getState().zonesSures,
         zonesVisibles: estVerticale916(format),
         alertes: b.alertes,
-
+        theme: useTheme.getState().theme,
+        themeMontre: useTheme.getState().effectif,
       },
     };
   },
@@ -2456,8 +2466,57 @@ const OUTILS: Record<string, Outil> = {
 
   fond_page(args) {
     designOuvert();
-    etat().modifierFond(couleur(args.couleur, "couleur")!);
-    return { donnees: { fond: pageCourante(etat()).fond } };
+    exiger(["couleur", "photo", "image", "cadrage"].some((k) => args[k] !== undefined), "couleur, photo, image ou cadrage");
+    if (args.couleur !== undefined) etat().modifierFond(couleur(args.couleur, "couleur")!);
+    // La photo du fond (étape 7, lot 4).
+    const page = pageCourante(etat());
+    if (args.photo !== undefined || args.image !== undefined) exiger(!estPageVideo(page), "la photo du fond va sur une page fixe (sur une page vidéo, la piste principale fait le fond)");
+    if (args.photo === null) {
+      exiger(fondPhoto(page), "pas de photo en fond sur la page affichée");
+      etat().detacherFond();
+    } else if (args.photo !== undefined) {
+      const id = texte(args.photo) ?? "";
+      const el = page.elements.find((e) => e.id === id);
+      exiger(el && peutAllerEnFond(el), `photo : l'identifiant d'une photo ou d'un cadre rempli de la page affichée (pas ${id || "rien"})`);
+      etat().mettreEnFond(id);
+    }
+    if (args.image !== undefined) {
+      const id = texte(args.image) ?? "";
+      const r = etat().ressources[id];
+      exiger(r && !r.son && !r.video && !r.modele3d && !r.environnement3d, `image : l'identifiant d'une image importée dans le design (voir etat, images ; pas ${id || "rien"})`);
+      const el = creerImage(etat().document.format, r);
+      etat().ajouterElements([el]);
+      etat().mettreEnFond(el.id);
+    }
+    if (args.cadrage !== undefined) {
+      const fond = fondPhoto(pageCourante(etat()));
+      exiger(fond, "cadrage : pas de photo en fond sur la page affichée");
+      const c = args.cadrage as { zoom?: unknown; x?: unknown; y?: unknown };
+      exiger(c && typeof c === "object", "cadrage : { zoom de 1 à 5, x et y de 0 à 1 }");
+      const b = (v: unknown, d: number, min: number, max: number) => Math.max(min, Math.min(max, nombre(v) ?? d));
+      etat().modifierElements({ [fond!.id]: { recadrage: { zoom: b(c.zoom, fond!.recadrage.zoom, 1, 5), x: b(c.x, fond!.recadrage.x, 0, 1), y: b(c.y, fond!.recadrage.y, 0, 1) } } as Partial<ElementPage> });
+    }
+    const apres = pageCourante(etat());
+    return { donnees: { fond: apres.fond, photo: fondPhoto(apres) ?? null } };
+  },
+
+  async couleur_page(args) {
+    designOuvert();
+    // La pipette (étape 7, lot 4) : la couleur vue à un point de la page affichée.
+    const s = etat();
+    const { largeur: L, hauteur: H } = s.document.format;
+    const x = nombre(args.x);
+    const y = nombre(args.y);
+    exiger(x !== undefined && y !== undefined && x >= 0 && y >= 0 && x < L && y < H, `x et y : un point de la page, de 0 à ${L} et de 0 à ${H}`);
+    const taille = Math.round(Math.max(1, Math.min(100, nombre(args.taille) ?? 1)));
+    const page = pageCourante(s);
+    const zone = { x: Math.max(0, Math.round(x! - taille / 2)), y: Math.max(0, Math.round(y! - taille / 2)), largeur: Math.min(taille, L), hauteur: Math.min(taille, H) };
+    const [img] = await rendreZones(s.document.format, page, [{ page, zone, pixelRatio: 1, instant: page.duree !== undefined ? useTemps.getState().tete : undefined }], { sansEffets: true });
+    const somme = [0, 0, 0];
+    const n = img.width * img.height;
+    for (let i = 0; i < n; i++) for (let k = 0; k < 3; k++) somme[k] += img.data[i * 4 + k];
+    const hex = rgbEnHex(somme.map((v) => v / n) as Rgb);
+    return { donnees: { couleur: hex, x: Math.round(x!), y: Math.round(y!), taille } };
   },
 
   pages(args) {

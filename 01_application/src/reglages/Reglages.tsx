@@ -1,8 +1,10 @@
-// Les réglages : pour l'instant, le pont qui laisse une IA piloter Eliot (BRIEF § 6).
+// Les réglages : l'apparence (le thème de l'interface, étape 7, lot 4) et le pont qui laisse une
+// IA piloter Eliot (BRIEF § 6).
 
-import { Bot, Check, Copy, X } from "lucide-react";
+import { Bot, Check, Copy, Monitor, Moon, Sun, SunMoon, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useEditeur } from "../etat/editeur";
+import { useTheme, type Theme } from "../etat/theme";
 import { activerIa, dansTauri, infosIa, type InfosIa } from "../pont/tauri";
 
 function Bloc({ titre, texte }: { titre: string; texte: string }) {
@@ -24,6 +26,43 @@ function Bloc({ titre, texte }: { titre: string; texte: string }) {
         >
           {copie ? <Check size={14} /> : <Copy size={14} />}
         </button>
+      </div>
+    </div>
+  );
+}
+
+const CHOIX_THEMES: { id: Theme; libelle: string; icone: typeof Sun }[] = [
+  { id: "clair", libelle: "Clair", icone: Sun },
+  { id: "sombre", libelle: "Sombre", icone: Moon },
+  { id: "systeme", libelle: "Comme le système", icone: Monitor },
+];
+
+/** Clair, sombre, ou comme le système : l'interface seule, jamais la page. */
+function Apparence() {
+  const { theme, choisir } = useTheme();
+  return (
+    <div className="mb-5 flex items-start gap-3">
+      <SunMoon size={22} className="mt-0.5 shrink-0 text-accent-600" />
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-neutral-900">Apparence</p>
+        <p className="mt-1 text-xs leading-relaxed text-neutral-600">
+          Le thème de l'interface. La page et ses couleurs ne changent jamais avec lui : ce que la page montre est ce que tu exportes.
+        </p>
+        <div className="mt-2 flex gap-1 rounded-lg bg-neutral-100 p-0.5" role="radiogroup" aria-label="Thème de l'interface">
+          {CHOIX_THEMES.map(({ id, libelle, icone: Icone }) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={theme === id}
+              data-choix-theme={id}
+              onClick={() => choisir(id)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium ${theme === id ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}
+            >
+              <Icone size={14} />
+              {libelle}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -69,7 +108,9 @@ export function Reglages() {
           </button>
         </div>
 
-        <div className="mb-3 flex items-start gap-3">
+        <Apparence />
+
+        <div className="mb-3 flex items-start gap-3 border-t border-neutral-200 pt-5">
           <Bot size={22} className="mt-0.5 shrink-0 text-accent-600" />
           <div className="flex-1">
             <p className="text-sm font-semibold text-neutral-900">Laisser une IA piloter Eliot</p>

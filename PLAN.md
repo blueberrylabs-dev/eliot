@@ -667,8 +667,13 @@ Choix par défaut de Claude, modifiables sur simple demande :
       `src/editeur/alertes.ts` ; une zone sûre « Story » ; l'outil `aides` (76 outils). Vérifié
       dans Chromium (30) et dans Tauri (10) (JOURNAL). Essai d'Alexandre : « Essayer les aides
       pour apprendre (étape 7, lot 3) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 4 : couleur, fond, thème. Pipette, photo en fond de page, thème clair ou sombre ;
-      pont.
+- [x] Lot 4 : couleur, fond, thème. Pipette, photo en fond de page, thème clair ou sombre ;
+      pont. Livré le 2026-10-17 : `src/modele/fond.ts` (la photo du fond, un cadre marqué
+      `enFond`), `src/editeur/Pipette.tsx` et `src/etat/pipette.ts`, `src/etat/theme.ts` et le
+      thème sombre dans `src/styles.css` ; l'outil `couleur_page` (77 outils). Vérifié dans
+      Chromium (46) et dans Tauri (15, dont la pipette à la souris) (JOURNAL). Essai
+      d'Alexandre : « Essayer la pipette, la photo en fond et le thème (étape 7, lot 4) » du
+      `01_application/LISEZMOI.md`.
 - [ ] Lot 5 : Pexels, photos et vidéos, dès que la clé d'Alexandre est dans le `.env`.
 - [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité faite de bout en bout
       par le pont dans Tauri, suites repassées, livraison. Puis le rapport de fin, qui rassemble

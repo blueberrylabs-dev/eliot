@@ -14,6 +14,23 @@
   --color-repere: #ff3d8b;
 }
 
+/* Les fonds de l'interface : la zone de travail autour de la page (le plan), l'accueil, les
+   règles. Le thème sombre les redéfinit plus bas. */
+@theme static {
+  --color-plan: #e9e7e2;
+  --color-accueil: #f4f3ef;
+  --color-regle: #efeee9;
+  --color-regle-page: #ffffff;
+  --color-regle-trait: #8d8c86;
+  --color-regle-texte: #5f5e59;
+  --color-regle-bord: #c9c8c2;
+}
+
+:root {
+  --texte-interface: #1f1f1d;
+  --barre-defilement: #cfcbc2;
+}
+
 html,
 body,
 #racine {
@@ -24,8 +41,8 @@ body,
 
 body {
   font-family: Inter, system-ui, "Ubuntu", "Noto Sans", sans-serif;
-  color: #1f1f1d;
-  background: #e9e7e2;
+  color: var(--texte-interface);
+  background: var(--color-plan);
   -webkit-user-select: none;
   user-select: none;
 }
@@ -40,5 +57,112 @@ select {
 /* Barre de défilement discrète dans les panneaux. */
 .defilement-fin {
   scrollbar-width: thin;
-  scrollbar-color: #cfcbc2 transparent;
+  scrollbar-color: var(--barre-defilement) transparent;
+}
+
+/* Thème sombre (étape 7, lot 4) : l'interface seule. La page, ses couleurs, les vignettes, les
+   couleurs des pastilles et les exports sont dessinés par Konva ou par des styles en ligne : ils
+   ne changent jamais. Les gris de Tailwind s'inversent (le texte sombre devient clair, les fonds
+   clairs deviennent sombres) ; le blanc des surfaces devient un gris très sombre. */
+:root[data-theme="sombre"] {
+  color-scheme: dark;
+  --texte-interface: #ecebef;
+  --barre-defilement: #4b4b51;
+  --surface-sombre: #232326;
+  --color-plan: #18181a;
+  --color-accueil: #1c1c1f;
+  --color-regle: #26262a;
+  --color-regle-page: #303035;
+  --color-regle-trait: #77767d;
+  --color-regle-texte: #a3a2a9;
+  --color-regle-bord: #3b3b40;
+  --color-neutral-50: #2a2a2e;
+  --color-neutral-100: #313135;
+  --color-neutral-200: #3b3b40;
+  --color-neutral-300: #4b4b51;
+  --color-neutral-400: #808087;
+  --color-neutral-500: #9b9aa1;
+  --color-neutral-600: #b3b2b8;
+  --color-neutral-700: #cbcad0;
+  --color-neutral-800: #dfdee3;
+  --color-neutral-900: #efeef2;
+  --color-neutral-950: #f8f8fa;
+  --color-accent-50: #25234a;
+  --color-accent-100: #2e2b5c;
+  --color-accent-200: #3f3a86;
+  --color-amber-50: #3a2f14;
+  --color-amber-100: #4a3b16;
+  --color-amber-700: #fbbf24;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+  --color-red-50: #3a1d1f;
+}
+
+/* Les îlots déjà sombres (la frise, les bulles d'aide, les tuiles des styles de texte, le bloc
+   des commandes, l'aperçu) gardent les couleurs du thème clair, pour lesquelles ils sont faits. */
+:root[data-theme="sombre"] :is([data-frise], .bg-zinc-900, .bg-neutral-700, .bg-neutral-800, .bg-neutral-900, .bg-neutral-900\/90, .bg-black) {
+  --color-neutral-50: oklch(98.5% 0 none);
+  --color-neutral-100: oklch(97% 0 none);
+  --color-neutral-200: oklch(92.2% 0 none);
+  --color-neutral-300: oklch(87% 0 none);
+  --color-neutral-400: oklch(70.8% 0 none);
+  --color-neutral-500: oklch(55.6% 0 none);
+  --color-neutral-600: oklch(43.9% 0 none);
+  --color-neutral-700: oklch(37.1% 0 none);
+  --color-neutral-800: oklch(26.9% 0 none);
+  --color-neutral-900: oklch(20.5% 0 none);
+  --color-neutral-950: oklch(14.5% 0 none);
+  --color-accent-50: #eef2ff;
+  --color-accent-100: #e0e7ff;
+  --color-accent-200: #c7d2fe;
+}
+
+/* Dans la couche des classes, au même poids qu'elles : un survol (hover:bg-neutral-50) garde
+   la main sur une surface blanche devenue sombre. */
+@layer utilities {
+  :where(:root[data-theme="sombre"]) .bg-white:not(:where([data-frise] *, .bg-zinc-900 *, .bg-black *)) {
+    background-color: var(--surface-sombre);
+  }
+  :where(:root[data-theme="sombre"]) .bg-white\/90:not(:where([data-frise] *)),
+  :where(:root[data-theme="sombre"]) .bg-white\/85:not(:where([data-frise] *)) {
+    background-color: color-mix(in oklab, var(--surface-sombre) 90%, transparent);
+  }
+  :where(:root[data-theme="sombre"]) .bg-white\/60:not(:where([data-frise] *)) {
+    background-color: color-mix(in oklab, var(--surface-sombre) 60%, transparent);
+  }
+  :where(:root[data-theme="sombre"]) .text-accent-600 {
+    color: #8b95fb;
+  }
+  :where(:root[data-theme="sombre"]) .text-accent-700 {
+    color: #a5b4fc;
+  }
+  :where(:root[data-theme="sombre"]) .text-accent-800 {
+    color: #c7d2fe;
+  }
+  :where(:root[data-theme="sombre"]) .text-red-600 {
+    color: #f87171;
+  }
+  :where(:root[data-theme="sombre"]) .text-red-700 {
+    color: #fca5a5;
+  }
+  :where(:root[data-theme="sombre"]) .text-red-800 {
+    color: #fecaca;
+  }
+  :where(:root[data-theme="sombre"]) .text-emerald-700 {
+    color: #6ee7b7;
+  }
+  @media (hover: hover) {
+    :where(:root[data-theme="sombre"]) .hover\:bg-white:hover:not(:where([data-frise] *)) {
+      background-color: var(--surface-sombre);
+    }
+    :where(:root[data-theme="sombre"]) .hover\:text-accent-600:hover {
+      color: #8b95fb;
+    }
+    :where(:root[data-theme="sombre"]) .hover\:text-accent-700:hover {
+      color: #a5b4fc;
+    }
+    :where(:root[data-theme="sombre"]) .hover\:text-red-600:hover {
+      color: #f87171;
+    }
+  }
 }

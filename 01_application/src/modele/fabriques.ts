@@ -448,6 +448,8 @@ const NOMS_FORMES: Record<GenreForme, string> = {
 
 export function nomElement(el: ElementPage): string {
   if (el.libelle?.trim()) return el.libelle.trim();
+  // La photo du fond (étape 7, lot 4) se dit telle, avant le nom de son fichier.
+  if (el.type === "cadre" && el.enFond) return "Photo du fond";
   if (el.nom && el.type !== "icone") return el.nom;
   switch (el.type) {
     case "texte":

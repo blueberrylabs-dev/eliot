@@ -10,6 +10,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useAides, type CleAide } from "../etat/aides";
 import { elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
 import { useTemps } from "../etat/temps";
+import { useTheme } from "../etat/theme";
 import { ecrireValeur, estPapier, graduations, lignesGrille, lignesTiers, MM_PAR_PIXEL_PAPIER, pasGrilleParDefaut, rectangleMarges, unitePage, type Lignes } from "../modele/aides";
 import { boiteDe } from "../modele/geometrie";
 import type { Alerte } from "../modele/lisibilite";
@@ -106,17 +107,20 @@ function dessinerRegle(toile: HTMLCanvasElement, sens: "h" | "v", longueur: numb
   // Une règle verticale se dessine comme une horizontale, tournée d'un quart de tour.
   if (sens === "v") ctx.transform(0, 1, 1, 0, 0, 0);
   const E = EPAISSEUR_REGLE;
-  ctx.fillStyle = "#efeee9";
+  // Les couleurs du thème de l'interface (étape 7, lot 4), clair ou sombre.
+  const css = getComputedStyle(toile);
+  const couleur = (nom: string, sinon: string) => css.getPropertyValue(nom).trim() || sinon;
+  ctx.fillStyle = couleur("--color-regle", "#efeee9");
   ctx.fillRect(0, 0, longueur, E);
   const tailleCote = (sens === "h" ? format.largeur : format.hauteur) * echelle;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = couleur("--color-regle-page", "#ffffff");
   ctx.fillRect(origine, 0, tailleCote, E);
   if (selection) {
     ctx.fillStyle = "rgba(79,70,229,0.16)";
     ctx.fillRect(selection[0], 0, selection[1] - selection[0], E);
   }
-  ctx.strokeStyle = "#8d8c86";
-  ctx.fillStyle = "#5f5e59";
+  ctx.strokeStyle = couleur("--color-regle-trait", "#8d8c86");
+  ctx.fillStyle = couleur("--color-regle-texte", "#5f5e59");
   ctx.lineWidth = 1;
   ctx.font = "9px Inter, sans-serif";
   ctx.textBaseline = "top";
@@ -140,13 +144,15 @@ function dessinerRegle(toile: HTMLCanvasElement, sens: "h" | "v", longueur: numb
     }
   }
   ctx.stroke();
-  ctx.fillStyle = "#c9c8c2";
+  ctx.fillStyle = couleur("--color-regle-bord", "#c9c8c2");
   ctx.fillRect(0, E - 1, longueur, 1);
 }
 
 /** Les règles, le long du haut et de la gauche de la zone de travail. */
 export function Regles({ taille, echelle, ox, oy, format }: { taille: { l: number; h: number }; echelle: number; ox: number; oy: number; format: Format }) {
   const montrees = useAides((s) => s.regles);
+  // Un autre thème redessine les règles.
+  useTheme((s) => s.effectif);
   const choisis = useEditeur(useShallow((s) => elementsCourants(s).filter((e) => s.selection.includes(e.id))));
   const haut = useRef<HTMLCanvasElement>(null);
   const gauche = useRef<HTMLCanvasElement>(null);
@@ -162,7 +168,7 @@ export function Regles({ taille, echelle, ox, oy, format }: { taille: { l: numbe
     <>
       <canvas ref={haut} data-regle="haut" className="absolute top-0 left-0" title={`Règle en ${unite === "mm" ? "millimètres" : "pixels de la page"} (Maj+R pour la masquer)`} />
       <canvas ref={gauche} data-regle="gauche" className="absolute top-0 left-0" title={`Règle en ${unite === "mm" ? "millimètres" : "pixels de la page"} (Maj+R pour la masquer)`} />
-      <div className="absolute top-0 left-0 flex items-center justify-center border-r border-b border-[#c9c8c2] bg-[#efeee9] text-[9px] font-medium text-neutral-500" style={{ width: EPAISSEUR_REGLE, height: EPAISSEUR_REGLE }} title={unite === "mm" ? "Millimètres (page A4 ou A5)" : "Pixels de la page"}>
+      <div className="absolute top-0 left-0 flex items-center justify-center border-r border-b border-regle-bord bg-regle text-[9px] font-medium text-neutral-500" style={{ width: EPAISSEUR_REGLE, height: EPAISSEUR_REGLE }} title={unite === "mm" ? "Millimètres (page A4 ou A5)" : "Pixels de la page"}>
         {unite}
       </div>
     </>

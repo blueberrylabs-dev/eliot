@@ -5,6 +5,66 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7, lot 4 : couleur, fond, thème
+
+Suite du feu vert d'Alexandre pour le lot 4. Ce que Claude a fait et décidé :
+
+- Pipette : un bouton Pipette dans chaque choix de couleur (onglet Uni), et une petite pipette
+  pour le départ et pour l'arrivée d'un dégradé. La fenêtre de WebKitGTK n'a pas la pipette du
+  système (l'EyeDropper des navigateurs n'y existe pas) : la pipette lit la page. Le clic prend
+  le pixel affiché par le calque de la page (photo, retouches, objets 3D, vidéo à l'instant de
+  la tête) ; si cette toile ne se lisait pas, la page est rendue hors écran en ce point. Une
+  loupe grossit 11 × 11 pixels de l'écran sous le viseur et dit leur couleur. Échap, un clic
+  droit, un clic à côté de la page ou dans une barre renoncent, sans ôter la sélection. La
+  bulle se ferme quand la pipette commence, pour voir la page entière. Écarté : prendre une
+  couleur hors de la page (la fenêtre ne voit pas le reste de l'écran).
+- Photo en fond : un cadre marqué `enFond`, toujours le premier élément, à la taille de la
+  page, rectangulaire, droit, hors de tout groupe. Une photo y passe en devenant un cadre
+  (recadrée au centre, ses retouches et son nom gardés), un cadre rempli tel quel ; une autre
+  photo mise en fond détache la précédente. Elle n'écoute pas la souris, sauf pendant son
+  ajustement : un clic, le rectangle de sélection et Ctrl+A ne la prennent pas, ce qui est
+  posé dessus se choisit et se glisse sans la bouger ; un double-clic sur la page, hors des
+  objets, l'ajuste ; pas de poignées. Elle se range après chaque modification (ordre, format,
+  pont) : rien ne passe dessous, un changement de format la recale sur la page. Une page vidéo
+  n'en a pas : sa piste principale fait déjà le fond (la marque s'en va quand la page devient
+  vidéo, le bouton est grisé). Écarté : une image dans le réglage du fond de la page ; le cadre
+  garde ce qu'un cadre sait faire (ajuster, labo, exports du noyau) sans rien de neuf ailleurs.
+- Thème : clair (par défaut, comme Eliot l'a toujours été), sombre, ou comme le système, dans
+  les Réglages (Apparence) ; gardé par la fenêtre. Les gris de l'interface s'inversent par les
+  variables de couleur de Tailwind, le blanc des surfaces devient un gris très sombre ; les
+  îlots déjà sombres (frise, bulles d'aide, tuiles des styles, bloc des commandes, aperçu)
+  gardent leurs couleurs. La page, ses couleurs, les vignettes et les exports sont dessinés par
+  Konva et par le noyau : ils ne changent pas ; un liseré discret autour de la page la détache
+  du plan sombre, où son ombre ne se voit plus. Dans Tauri, la barre de titre suit (droit
+  `core:window:allow-set-theme` ajouté) et « comme le système » lit le thème de GTK par la
+  fenêtre, puis ses changements. Un relevé du contraste de chaque texte visible, dans 20 états
+  de l'interface (accueil, chaque onglet du rail, un texte et une photo choisis, la bulle des
+  couleurs, le labo, les menus, les réglages, l'export, une page vidéo), en clair puis en
+  sombre : aucun ne se lit moins bien en sombre ; les plus pâles (les astuces) passent de
+  2,6 : 1 à 4 : 1.
+- Pont : `fond_page` met en fond une photo de la page ou une image importée, la détache
+  (`photo: null`) et règle son cadrage ; `etat` donne `photoDuFond` ; un outil neuf,
+  `couleur_page`, la pipette de Claude : la couleur vue en un point, ou la moyenne d'un carré
+  autour (77 outils) ; `aides` change le thème.
+
+Preuves (conteneur de Claude) : 8 essais vitest de plus (300 : la photo devenue fond, détachée,
+rangée, ôtée d'une page vidéo ; dans le store, l'annulation, Ctrl+A, deux photos, le format ; la
+pipette qui donne la couleur une fois) ; dans Chromium, 46 vérifications (mettre en fond,
+capture, clic, rectangle de sélection, Ctrl+A, double-clic et glisser de l'ajustement, ordre,
+format, détacher, annuler ; pipette d'un texte avec sa loupe, Échap, clic à côté, clic dans un
+panneau, départ d'un dégradé, fond de la page ; couleur_page et fond_page ; thème sombre avec la
+page et la capture identiques au pixel, bulle d'aide restée sombre, règles redessinées, choix
+gardé, comme le système en suivant ses changements ; page vidéo) ; dans Tauri, 15 (image
+importée mise en fond par le pont, PNG et PDF du noyau contre la fenêtre, couleur_page mesurée
+par WebKit, un clic et un double-clic à la souris, la pipette à la souris qui lit la toile de
+WebKit, à une unité près, #c1392b pour le #c0392b de la photo, comme couleur_page, Échap, le
+thème sombre à l'écran avec la page au pixel près, le thème de GTK lu, le design rouvert).
+Repassés : Chromium, étapes 2 (33), 3, lots 1 et 3 (23, 29), 4, lots 2 à 7 (38, 44, 18, 44, 37,
+44), correctifs (23), étape 5 (15 et le recadrage, 27), étape 6, lots 1 à 4 (63, 48, 34, 44),
+étape 7, lots 1 à 3 (30, 53, 30) ; Tauri, l'étape 7, lots 1 à 3 (8, 16, 10), les exports de
+l'étape 5 (62), l'étape 6, lots 4 et 5 (19, 20), l'animation de l'étape 4 par le pont (16). Les
+vérifications d'avant qui comptaient 76 outils en comptent 77.
+
 ## 2026-10-17, étape 7, lot 3 : les aides pour apprendre
 
 Suite du feu vert d'Alexandre pour le lot 3. Ce que Claude a fait et décidé :

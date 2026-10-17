@@ -44,6 +44,9 @@ import {
   Sparkles,
   Strikethrough,
   TriangleAlert,
+  ImageUp,
+  ImageMinus,
+  Image as ImageIcon,
   Scissors,
   SlidersHorizontal,
   Trash2,
@@ -69,6 +72,7 @@ import { ouvrirLien } from "../pont/tauri";
 import { bornerCourbe, estCourbe } from "../modele/texteCourbe";
 import { poserStyleTexte, useMarque } from "../etat/marque";
 import { useAlertesMontrees } from "./Aides";
+import { fondPhoto, peutAllerEnFond } from "../modele/fond";
 import { hexEnRgb, luminance } from "../modele/lisibilite";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
@@ -114,6 +118,8 @@ function ReglesOmbre({ ombre, surChange, etiquette }: { ombre: Ombre | undefined
 
 function ReglagePage() {
   const fond = useEditeur((s) => pageCourante(s).fond);
+  const photo = useEditeur((s) => fondPhoto(pageCourante(s)));
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const rang = useEditeur((s) => s.document.pages.findIndex((p) => p.id === s.pageActive));
   const nombre = useEditeur((s) => s.document.pages.length);
   const modifierFond = useEditeur((s) => s.modifierFond);
@@ -123,6 +129,20 @@ function ReglagePage() {
       {separateur}
       <span className="text-sm text-neutral-600">Fond</span>
       <SelecteurCouleur titre="Couleur de fond" degrade valeur={fond} surChoix={(c) => modifierFond(c, "fond")} />
+      {photo ? (
+        <>
+          {separateur}
+          <button data-choisir-fond title="Choisir la photo du fond : la retoucher, l'ajuster, la détacher" onClick={() => useEditeur.getState().selectionner([photo.id])} className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm text-neutral-700 hover:bg-neutral-100">
+            <ImageIcon size={16} /> Photo du fond
+          </button>
+          <Bouton titre="Ajuster la photo du fond (ou un double-clic sur la page)" surClic={() => useEditeur.getState().commencerAjustement(photo.id)}>
+            <Move size={16} />
+          </Bouton>
+          <BoutonDetacherFond />
+        </>
+      ) : (
+        !pageVideo && <span className="ml-2 shrink-0 text-xs text-neutral-400">Une photo en fond : choisis-la, puis « Mettre en fond ».</span>
+      )}
       <span className="ml-4 truncate text-xs text-neutral-400">Astuce : double-clic sur un texte pour l'écrire, Maj+clic pour sélectionner plusieurs objets, Alt+clic pour un seul objet d'un groupe.</span>
     </>
   );
@@ -625,7 +645,47 @@ function ReglagesPhotoCadree({ el }: { el: ElementCadre | ElementMaquette }) {
   );
 }
 
+/** Mettre une photo (ou un cadre rempli) en fond de page (étape 7, lot 4). Sur une page vidéo,
+ *  c'est la piste principale qui fait le fond. */
+function BoutonMettreEnFond({ el }: { el: ElementPage }) {
+  const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
+  if (!peutAllerEnFond(el)) return null;
+  return (
+    <button
+      data-mettre-en-fond
+      disabled={pageVideo}
+      title={pageVideo ? "Mettre en fond : sur une page fixe (sur une page vidéo, la piste principale fait le fond)" : "Mettre en fond : la photo couvre la page, passe sous tout le reste et ne se prend plus d'un clic (un double-clic sur la page l'ajuste)"}
+      onClick={() => useEditeur.getState().mettreEnFond(el.id)}
+      className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100 disabled:opacity-40"
+    >
+      <ImageUp size={16} /> Mettre en fond
+    </button>
+  );
+}
+
+function BoutonDetacherFond() {
+  return (
+    <button
+      data-detacher-fond
+      title="Détacher du fond : la photo redevient un cadre comme un autre, qu'on déplace et qu'on agrandit"
+      onClick={() => useEditeur.getState().detacherFond()}
+      className="flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-neutral-800 hover:bg-neutral-100"
+    >
+      <ImageMinus size={16} /> Détacher du fond
+    </button>
+  );
+}
+
 function ReglagesCadre({ c, modifier }: { c: ElementCadre; modifier: (m: Partial<ElementCadre>, etiquette?: string) => void }) {
+  if (c.enFond)
+    return (
+      <>
+        <span className="mr-1 text-sm font-medium text-neutral-600">Photo du fond</span>
+        <ReglagesPhotoCadree el={c} />
+        {separateur}
+        <BoutonDetacherFond />
+      </>
+    );
   return (
     <>
       <select title="Forme du cadre" value={c.forme} onChange={(e) => modifier({ forme: e.target.value as FormeCadre })} className="h-8 shrink-0 rounded-md border border-neutral-300 bg-white px-1.5 text-sm">
@@ -637,6 +697,7 @@ function ReglagesCadre({ c, modifier }: { c: ElementCadre; modifier: (m: Partial
       </select>
       {separateur}
       <ReglagesPhotoCadree el={c} />
+      <BoutonMettreEnFond el={c} />
       {separateur}
       <ReglesBordure bordure={c.bordure} surChange={(b, e) => modifier({ bordure: b }, e)} />
     </>
@@ -792,6 +853,7 @@ export function BarreContexte() {
               <Replace size={16} /> Remplacer
             </button>
           )}
+          {choisis[0].type === "image" && <BoutonMettreEnFond el={choisis[0]} />}
           {separateur}
         </>
       )}

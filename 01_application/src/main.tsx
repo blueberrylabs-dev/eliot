@@ -12,6 +12,10 @@ import { creerImage, creerTitre } from "./modele/fabriques";
 import { cheminAutotest, importerChemins, lirePolicePoste, listerProjets, ouvrirProjet, policesPoste, rapportAutotest, surFermeture } from "./pont/tauri";
 import { brancherPiloteIa } from "./ia/pilote";
 import { chargerCatalogue, chargerPolicesPoste } from "./polices";
+import { appliquerTheme } from "./etat/theme";
+
+// Le thème de l'interface, posé avant tout affichage (pas d'éclair blanc en thème sombre).
+appliquerTheme();
 
 const attendre = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

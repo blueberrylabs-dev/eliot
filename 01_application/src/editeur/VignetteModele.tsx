@@ -20,7 +20,7 @@ export function VignetteModele({ modele, surClic, occupe = false }: { modele: Mo
   }, [apparu, modele]);
   return (
     <button ref={ref} data-modele={modele.id} title={modele.nom} onClick={surClic} disabled={occupe} className="group block w-full text-left disabled:opacity-60">
-      <span className="flex items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-[#e9e7e2] group-hover:border-accent-500 group-hover:ring-2 group-hover:ring-accent-200" style={{ aspectRatio: `${f.largeur} / ${f.hauteur}` }}>
+      <span className="flex items-center justify-center overflow-hidden rounded-lg border border-neutral-200 bg-plan group-hover:border-accent-500 group-hover:ring-2 group-hover:ring-accent-200" style={{ aspectRatio: `${f.largeur} / ${f.hauteur}` }}>
         {url ? <img src={url} alt={modele.nom} draggable={false} className="h-full w-full object-cover" /> : <span className="text-[10px] text-neutral-400">…</span>}
       </span>
       <span className="mt-1 block truncate text-[11px] text-neutral-600">{modele.nom}</span>

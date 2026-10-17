@@ -139,7 +139,12 @@ lourd. Détail : `BRIEF.md`.
   tiers, marges, zones sûres sur toute page 9:16 et celle d'une story, alertes de contraste et
   de taille avec leurs corrections, infobulles relues, pont : alertes dans `etat` et l'outil
   `aides`, 76 outils), livré et vérifié le 2026-10-17 ; essai : « Essayer les aides pour
-  apprendre (étape 7, lot 3) ». Après cette livraison : la commande 13 (le pont).
+  apprendre (étape 7, lot 3) ». Lot 4, couleur, fond, thème (pipette dans chaque choix de
+  couleur, photo en fond de page, thème clair, sombre ou comme le système ; pont : `fond_page`
+  pour la photo du fond, l'outil `couleur_page`, le thème dans `aides`, 77 outils), livré et
+  vérifié le 2026-10-17 ; essai : « Essayer la pipette, la photo en fond et le thème (étape 7,
+  lot 4) ». Après cette livraison : recompiler l'application (commande 9, un droit de la
+  fenêtre a changé) et le pont (commande 13).
   Pexels (lot 5) attend la clé d'Alexandre, `PEXELS_API_KEY` dans le `.env` ; Pexels suspend
   encore les nouvelles clés le 2026-10-17.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
@@ -373,7 +378,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  292 passed`.
+Vérifier : `Tests  300 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

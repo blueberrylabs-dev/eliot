@@ -1,7 +1,7 @@
 [
   {
     "name": "etat",
-    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles, crédit) et environnements HDRI (environnements3d), crédits des objets 3D de la page à recopier sous la publication (credits3d), polices disponibles, et la lisibilité de la page affichée (étape 7) : lisibilite (là où la page sera vue, et taillePoliceMinimale, en pixels de la page, sous laquelle un texte se lit mal) et alertes, mesurées à l'instant, une par texte qui risque de mal se lire : genre contraste (le rapport du WCAG entre les lettres et ce qui est derrière elles, sous 4,5 : 1, ou 3 : 1 pour un grand texte ; conseil : la couleur unie qui suffirait, ou null si le fond est trop varié et qu'un surlignage s'impose) ou taille (conseil : la taille de police minimale). Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
+    "description": "Où en est Eliot : design ouvert (nom, format en pixels, pages, page affichée), éléments de la page affichée avec toutes leurs propriétés, sélection, images et vidéos importées dans le design (une vidéo porte sa durée en millisecondes, et si elle a du son), sons importés (durée, niveau en LUFS, crédit), modèles 3D importés (modeles3d : format, matières, animations, triangles, crédit) et environnements HDRI (environnements3d), crédits des objets 3D de la page à recopier sous la publication (credits3d), polices disponibles, photoDuFond (étape 7 : l'identifiant de la photo en fond de page, un cadre marqué enFond, toujours le premier des éléments, qu'un clic sur la page ne prend pas ; fond_page la pose ou la détache), et la lisibilité de la page affichée (étape 7) : lisibilite (là où la page sera vue, et taillePoliceMinimale, en pixels de la page, sous laquelle un texte se lit mal) et alertes, mesurées à l'instant, une par texte qui risque de mal se lire : genre contraste (le rapport du WCAG entre les lettres et ce qui est derrière elles, sous 4,5 : 1, ou 3 : 1 pour un grand texte ; conseil : la couleur unie qui suffirait, ou null si le fond est trop varié et qu'un surlignage s'impose) ou taille (conseil : la taille de police minimale). Page vidéo : sa frise (durée, tête de lecture, pistes et clips, en ms ; pistes des sons sous la principale, avec rôle, volume, fondus, boucle ; crédits des sons à coller dans la description de la vidéo), et chaque élément porte temps { debut, fin } et piste. À appeler en premier, et après chaque série de modifications.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -2869,7 +2869,7 @@
   },
   {
     "name": "aides",
-    "description": "Montre ou masque les aides à l'écran d'Eliot (étape 7), pour Alexandre : jamais dans une capture ni un export. regles (le long de la page, en pixels, en millimètres pour une A4 ou une A5), grille (et son pas en pixels de la page), tiers (la grille des tiers : les points forts sur ses lignes ou leurs croisements), marges (de sécurité : 5 % du bord sur un écran, 5 mm sur le papier ; textes et logos dedans), zonesSures (tiktok, reels, shorts ou story, sur une page en 9:16 ; null : aucune), alertes (les marques des alertes de lisibilité ; etat les donne toujours). Un objet glissé à la souris s'aimante aux lignes montrées. Sans argument, dit ce qui est montré. N'y touche que si Alexandre le demande, ou pour lui montrer quelque chose (la grille des tiers pour expliquer une composition).",
+    "description": "Montre ou masque les aides à l'écran d'Eliot (étape 7), pour Alexandre : jamais dans une capture ni un export. regles (le long de la page, en pixels, en millimètres pour une A4 ou une A5), grille (et son pas en pixels de la page), tiers (la grille des tiers : les points forts sur ses lignes ou leurs croisements), marges (de sécurité : 5 % du bord sur un écran, 5 mm sur le papier ; textes et logos dedans), zonesSures (tiktok, reels, shorts ou story, sur une page en 9:16 ; null : aucune), alertes (les marques des alertes de lisibilité ; etat les donne toujours). theme (l'interface d'Eliot : clair, sombre, ou systeme pour suivre le système ; la page, ses couleurs et les exports ne changent jamais avec lui). Un objet glissé à la souris s'aimante aux lignes montrées. Sans argument, dit ce qui est montré. N'y touche que si Alexandre le demande, ou pour lui montrer quelque chose (la grille des tiers pour expliquer une composition).",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2909,6 +2909,14 @@
         },
         "alertes": {
           "type": "boolean"
+        },
+        "theme": {
+          "type": "string",
+          "enum": [
+            "clair",
+            "sombre",
+            "systeme"
+          ]
         }
       }
     }
@@ -3623,14 +3631,66 @@
   },
   {
     "name": "fond_page",
-    "description": "Fond de la page affichée : #rrggbb ou un dégradé (voir ajouter_texte).",
+    "description": "Fond de la page affichée. couleur : #rrggbb ou un dégradé (voir ajouter_texte). La photo du fond (étape 7, page fixe seulement ; sur une page vidéo, la piste principale fait le fond) : photo, l'identifiant d'une photo ou d'un cadre rempli de la page, qui devient la photo du fond (un cadre qui couvre la page, sous tout le reste, qu'un clic sur la page ne prend pas ; la photo d'avant redevient un cadre) ; photo null la détache (elle redevient un cadre comme un autre) ; image, l'identifiant d'une image importée du design (etat, images), posée directement en fond ; cadrage { zoom de 1 à 5, x et y de 0 à 1 } la place dans la page (0,5 et 0,5 : centrée). Elle se retouche comme la photo d'un cadre (retoucher). Renvoie le fond et la photo du fond.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "couleur": {}
+        "couleur": {},
+        "photo": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Une photo ou un cadre rempli de la page, mis en fond ; null : détacher la photo du fond."
+        },
+        "image": {
+          "type": "string",
+          "description": "Une image importée du design, posée en fond."
+        },
+        "cadrage": {
+          "type": "object",
+          "properties": {
+            "zoom": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 5
+            },
+            "x": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "name": "couleur_page",
+    "description": "La pipette (étape 7) : la couleur de la page affichée en un point (x, y en pixels de la page), telle qu'elle se voit (photos, retouches et objets compris ; sur une page vidéo, à la tête de lecture), en #rrggbb. taille : la moyenne d'un carré de ce côté autour du point (1 à 100 px, 1 par défaut). Pour reprendre la couleur d'une photo dans un texte ou une forme.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "taille": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
       },
       "required": [
-        "couleur"
+        "x",
+        "y"
       ]
     }
   },
