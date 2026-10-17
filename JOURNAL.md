@@ -5,6 +5,52 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6, lot 2 : lumière, ombre au sol, matières
+
+Accord d'Alexandre (« Go pour le lot 2 »). Ce que Claude a fait et décidé :
+
+- La lumière tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant :
+  tourner l'objet à la souris ne déplace pas ses reflets dans l'image, ce qu'attend quelqu'un qui
+  « fait tourner un produit ». Le lot 1 tenait la lumière fixe dans la scène : tourner l'objet
+  donnait l'impression de marcher autour d'un objet éclairé, pas de le tourner. L'élévation de
+  la caméra, elle, garde
+  la lumière où elle est (une lumière d'en haut reste en haut quand on regarde de dessus).
+- Quatre environnements fournis, fabriqués par la fenêtre (rien à télécharger) : Studio (celui
+  du lot 1), Boîtes à lumière (pièce sombre, deux grandes boîtes sur les côtés, pour le verre et
+  le métal), Plein air (ciel et soleil de midi), Soleil couchant ; leur force et leur rotation.
+  Les environnements HDRI importés ou de Poly Haven viendront au lot 3 avec les banques.
+- La lumière principale : cinq lumières prêtes (trois-quarts, de face, latérale, contre-jour,
+  zénith), sa direction par rapport à la vue, sa hauteur, sa force, sa couleur ; l'exposition
+  en IL. Le document ne garde la lumière que si elle n'est pas celle de départ.
+- L'ombre au sol : portée par la lumière principale sur un sol invisible au pied du modèle
+  (ombre douce de three.js, VSM), opacité et douceur ; elle s'efface en s'éloignant du modèle,
+  pour ne pas finir par une coupure nette au bord de la boîte ; rien quand la lumière vient
+  d'en dessous. L'ombre de la boîte (celle d'une photo) reste à part.
+- Les matières : couleur (qui teinte une texture) et brillance de 0 à 100, par nom de matière ;
+  le modèle n'est jamais modifié, les matières sont repeintes le temps d'un rendu, si bien qu'un
+  autre objet du même modèle garde les siennes. Une matière sans nom devient « Matière N », N
+  son rang dans le glTF, comme le noyau la nommait déjà. Survoler une matière dans le panneau la
+  montre sur l'objet, en couleur d'accent, sans toucher au document. Les couleurs du kit de
+  marque sont dans chaque pastille.
+- Pendant qu'on tire un curseur du panneau 3D, la page montre la toile du moteur elle-même
+  (règle 11), comme pendant un glisser sur la page. Copier le style d'un objet 3D passe aussi sa
+  lumière, son ombre au sol et ses matières.
+- Pont IA : `regler_objet3d` règle aussi la lumière et l'ombre au sol (caméra, lumière et
+  ombre d'un seul tenant, une étape d'annulation) ; nouvel outil `colorer_objet3d` (la liste des
+  matières, leur couleur et leur brillance d'origine, et les matières repeintes) : 70 outils.
+- Corrigé en chemin : les valeurs rangées dans le document gardaient des traînes de virgule
+  flottante (0,35000000000000003) ; elles sont arrondies proprement.
+
+Preuves (conteneur de Claude, WebGL sur le processeur, jamais de carte graphique) : 5 essais
+vitest de plus (228 en tout) ; dans Chromium, 48 vérifications (environnements, lumières prêtes,
+un geste une étape et la toile du moteur en direct, couleur, exposition ; un cube vu de face et
+après un quart de tour éclairé à l'identique, écart 0,00, contre 5,06 avec une lumière fixe dans
+la scène ; ombre au sol ; matières, survol, autre objet du même modèle intact ; copier le style ;
+pont) ; dans Tauri par le pont, 16 (fenêtre et export PNG à 0,00 sur 255, x2 réduit à 0,14, PDF à
+0,48 ; le verre aux couleurs du kit de marque, le second flacon intact ; l'ombre au sol du côté
+opposé à la lumière ; une étape d'annulation par outil ; « Matière 2 » pour le noyau et pour la
+fenêtre ; le design rouvert identique). Les essais du lot 1 repassent.
+
 ## 2026-10-17, étape 6, lot 1 : l'objet 3D dans la page
 
 Suite de l'accord d'Alexandre (« Ok, tu peux démarrer l'étape 6 »). Ce que Claude a fait et

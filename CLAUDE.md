@@ -104,6 +104,10 @@ lourd. Détail : `BRIEF.md`.
   finesse demandée, trois outils de plus pour le pont IA, 69 en tout), livré et vérifié le
   2026-10-17 ; essai : « Essayer l'objet 3D (étape 6, lot 1) » du `01_application/LISEZMOI.md`.
   Avant cet essai : `npm install` (commande 8, three.js arrive), puis les commandes 9 et 13.
+  Lot 2, lumière, ombre au sol et matières (quatre environnements fournis, lumière principale,
+  exposition, ombre portée sur un sol invisible, couleur et brillance par matière, `regler_objet3d`
+  élargi et `colorer_objet3d`, 70 outils), livré et vérifié le 2026-10-17 ; essai : « Essayer la
+  lumière et les matières (étape 6, lot 2) ». Après cette livraison : la commande 13 (le pont).
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -329,7 +333,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  223 passed`.
+Vérifier : `Tests  228 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

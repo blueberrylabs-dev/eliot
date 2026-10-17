@@ -4,9 +4,12 @@
 // ou son modèle changent ; chaque objet garde sa propre toile, que la page pose comme l'image
 // d'une photo détourée (fond transparent). L'export lit cette toile, rendue à sa taille à lui.
 //
-// La lumière du lot 1 : un studio neutre (l'environnement « RoomEnvironment » de three.js, rien à
-// télécharger) et une lumière principale venue du haut, à gauche. Le rendu passe par le ton
-// « neutre » de Khronos, fait pour montrer des produits sans changer leurs couleurs.
+// La lumière (lot 2) : un environnement qui éclaire et se reflète (quatre fournis, fabriqués ici,
+// rien à télécharger), une lumière principale, l'exposition ; le tout tourne avec la vue autour
+// de l'axe vertical, comme le studio d'un plateau tournant. L'ombre au sol est portée par la
+// lumière principale sur un sol invisible. Les matières repeintes le sont le temps d'un rendu :
+// un même modèle sert à plusieurs objets. Le rendu passe par le ton « neutre » de Khronos, fait
+// pour montrer des produits sans changer leurs couleurs.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -14,8 +17,8 @@ import { FBXLoader } from "three/addons/loaders/FBXLoader.js";
 import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { useEditeur } from "../etat/editeur";
-import { CAMERA_PAR_DEFAUT, placerCamera } from "../modele/objet3d";
-import type { Camera3d, ElementObjet3d, PageEliot, RefProjet, Ressource } from "../modele/types";
+import { brillanceDeRugosite, CAMERA_PAR_DEFAUT, directionLumiere, LUMIERE_PAR_DEFAUT, placerCamera, rotationEnvironnement, rugositeDeBrillance } from "../modele/objet3d";
+import type { Camera3d, ElementObjet3d, Lumiere3d, Matiere3d, OmbreSol3d, PageEliot, RefProjet, Ressource } from "../modele/types";
 import { enregistrerMiniatureModele, lireModele } from "../pont/tauri";
 
 /** Le plus grand côté d'un rendu (la fenêtre comme l'export). */
@@ -25,6 +28,97 @@ interface Moteur {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  principale: THREE.DirectionalLight;
+  /** Le sol invisible qui reçoit l'ombre du modèle. */
+  sol: THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial>;
+  pmrem: THREE.PMREMGenerator;
+  environnements: Map<string, THREE.Texture>;
+}
+
+const RAD = Math.PI / 180;
+/** La force de l'environnement et de la lumière principale quand leur réglage vaut 1. */
+const FORCE_ENVIRONNEMENT = 0.9;
+const FORCE_PRINCIPALE = 1.6;
+/** L'ombre au sol s'efface entre ces deux distances du centre du modèle (rayon du modèle : 1). */
+const FONDU_SOL = [0.9, 2.6];
+
+/** Une sphère qui entoure la scène, teinte du zénith à l'horizon puis au sol (un ciel). */
+function ciel(zenith: [number, number, number], horizon: [number, number, number], sol: [number, number, number]): THREE.Mesh {
+  const g = new THREE.SphereGeometry(50, 64, 32);
+  const couleurs: number[] = [];
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / 50;
+    const c = y >= 0 ? horizon.map((h, k) => h + (zenith[k] - h) * Math.pow(y, 0.6)) : horizon.map((h, k) => h + (sol[k] - h) * Math.min(1, -y * 6));
+    couleurs.push(...c);
+  }
+  g.setAttribute("color", new THREE.Float32BufferAttribute(couleurs, 3));
+  return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide }));
+}
+
+/** Une source lumineuse de l'environnement : une surface de lumière `force` fois le blanc. */
+function lumineux(geometrie: THREE.BufferGeometry, couleur: [number, number, number], force: number): THREE.Mesh {
+  const m = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
+  m.color.setRGB(couleur[0] * force, couleur[1] * force, couleur[2] * force);
+  return new THREE.Mesh(geometrie, m);
+}
+
+/** Un soleil : un disque lumineux dans la direction (azimut, élévation), en degrés. */
+function soleil(azimut: number, elevation: number, couleur: [number, number, number], force: number, taille: number): THREE.Mesh {
+  const s = lumineux(new THREE.SphereGeometry(taille, 16, 8), couleur, force);
+  const a = azimut * RAD;
+  const e = elevation * RAD;
+  s.position.set(45 * Math.cos(e) * Math.sin(a), 45 * Math.sin(e), 45 * Math.cos(e) * Math.cos(a));
+  return s;
+}
+
+/** La scène d'un environnement fourni, que le moteur réduit en éclairage (PMREM). +Z : du côté
+ *  de la caméra, x positif : à droite de l'image. */
+function sceneEnvironnement(id: string): THREE.Scene {
+  if (id === "boites") {
+    const s = new THREE.Scene();
+    const piece = new THREE.Mesh(new THREE.BoxGeometry(24, 16, 24), new THREE.MeshBasicMaterial({ side: THREE.BackSide }));
+    (piece.material as THREE.MeshBasicMaterial).color.setScalar(0.015);
+    s.add(piece);
+    const gauche = lumineux(new THREE.PlaneGeometry(5, 9), [1, 1, 1], 9);
+    gauche.position.set(-7, 1.5, 2);
+    gauche.lookAt(0, 0, 0);
+    const droite = lumineux(new THREE.PlaneGeometry(4, 9), [1, 1, 1], 5);
+    droite.position.set(7, 1.5, 1);
+    droite.lookAt(0, 0, 0);
+    const haut = lumineux(new THREE.PlaneGeometry(10, 2.5), [1, 1, 1], 3);
+    haut.position.set(0, 7.5, -1);
+    haut.lookAt(0, 0, 0);
+    s.add(gauche, droite, haut);
+    return s;
+  }
+  if (id === "plein-air") {
+    const s = new THREE.Scene();
+    s.add(ciel([0.12, 0.3, 0.85], [0.75, 0.85, 1.0], [0.28, 0.25, 0.2]), soleil(-35, 55, [1, 0.96, 0.9], 400, 1.6));
+    return s;
+  }
+  if (id === "couchant") {
+    const s = new THREE.Scene();
+    s.add(ciel([0.12, 0.12, 0.32], [1.6, 0.62, 0.25], [0.12, 0.08, 0.06]), soleil(-55, 6, [1, 0.55, 0.22], 300, 2.2));
+    return s;
+  }
+  return new RoomEnvironment();
+}
+
+/** L'éclairage d'un environnement fourni, fabriqué à la première demande. */
+function environnement(m: Moteur, id: string): THREE.Texture {
+  let t = m.environnements.get(id);
+  if (!t) {
+    const scene = sceneEnvironnement(id);
+    t = m.pmrem.fromScene(scene, id === "studio" ? 0.04 : 0.02).texture;
+    scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      mesh.geometry?.dispose();
+      (mesh.material as THREE.Material | undefined)?.dispose?.();
+    });
+    m.environnements.set(id, t);
+  }
+  return t;
 }
 
 let moteur: Moteur | null | undefined;
@@ -42,16 +136,34 @@ export function moteur3d(): Moteur | null {
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.NeutralToneMapping;
     renderer.toneMappingExposure = 1;
+    // L'ombre au sol : une ombre douce (VSM), floutée selon la douceur demandée.
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.VSMShadowMap;
     const scene = new THREE.Scene();
     const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    pmrem.dispose();
-    scene.environmentIntensity = 0.9;
-    const principale = new THREE.DirectionalLight(0xffffff, 1.6);
-    principale.position.set(-2.5, 4, 3);
-    scene.add(principale);
+    const principale = new THREE.DirectionalLight(0xffffff, FORCE_PRINCIPALE);
+    principale.shadow.mapSize.set(2048, 2048);
+    const ombre = principale.shadow.camera;
+    [ombre.left, ombre.right, ombre.top, ombre.bottom, ombre.near, ombre.far] = [-6, 6, 6, -6, 0.5, 30];
+    principale.shadow.bias = -0.0005;
+    scene.add(principale, principale.target);
+    // Le sol s'efface en s'éloignant du modèle : l'ombre ne finit pas par une coupure nette.
+    const matiereSol = new THREE.ShadowMaterial({ opacity: 0.45, transparent: true, depthWrite: false });
+    matiereSol.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace("void main() {", "varying vec3 vSolEliot;\nvoid main() {")
+        .replace("#include <fog_vertex>", "#include <fog_vertex>\n\tvSolEliot = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace("void main() {", "varying vec3 vSolEliot;\nvoid main() {")
+        .replace("#include <tonemapping_fragment>", `gl_FragColor.a *= 1.0 - smoothstep(${FONDU_SOL[0].toFixed(2)}, ${FONDU_SOL[1].toFixed(2)}, length(vSolEliot.xz));\n\t#include <tonemapping_fragment>`);
+    };
+    const sol = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), matiereSol);
+    sol.rotation.x = -Math.PI / 2;
+    sol.receiveShadow = true;
+    sol.visible = false;
+    scene.add(sol);
     const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 200);
-    moteur = { renderer, scene, camera };
+    moteur = { renderer, scene, camera, principale, sol, pmrem, environnements: new Map() };
   } catch (e) {
     console.warn(`3D : ${e instanceof Error ? e.message : String(e)}`);
     moteur = null;
@@ -63,12 +175,30 @@ export function moteur3d(): Moteur | null {
 // Les modèles
 // ----------------------------------------------------------------------------------------
 
+/** Ce que l'on montre d'une matière du modèle : sa couleur et sa brillance d'origine, si elle a
+ *  une texture (que sa couleur teinte), si elle est métallique. */
+export interface InfosMatiere {
+  nom: string;
+  couleur: string;
+  brillance: number;
+  texture: boolean;
+  metal: boolean;
+}
+
 export interface Modele {
   /** Le modèle centré, ramené à une sphère de rayon 1. */
   racine: THREE.Group;
   animations: THREE.AnimationClip[];
+  /** Les matières, par leur nom : celui du fichier, ou « Matière N » (N : son rang dans un
+   *  glTF, comme le noyau, ou dans l'ordre où elles viennent). */
   matieres: string[];
+  infosMatieres: InfosMatiere[];
+  /** Les matières de three.js derrière chaque nom (une matière peut être copiée par le
+   *  chargeur). */
+  materiaux: Map<string, THREE.Material[]>;
   triangles: number;
+  /** La hauteur du bas du modèle (le sol de l'ombre), dans le repère du modèle ramené. */
+  bas: number;
 }
 
 type EtatModele = { etat: "chargement"; promesse: Promise<Modele> } | { etat: "pret"; modele: Modele } | { etat: "erreur"; erreur: string };
@@ -159,6 +289,7 @@ async function analyser(ressource: Ressource, octets: ArrayBuffer): Promise<Mode
   const format = ressource.modele3d?.format ?? "glb";
   let objet: THREE.Object3D;
   let animations: THREE.AnimationClip[] = [];
+  let rangDansLeGltf: (mat: THREE.Material) => number | undefined = () => undefined;
   if (format === "fbx") {
     objet = new FBXLoader().parse(octets, "");
     animations = objet.animations ?? [];
@@ -170,17 +301,51 @@ async function analyser(ressource: Ressource, octets: ArrayBuffer): Promise<Mode
     const gltf = await new GLTFLoader().parseAsync(octets, "");
     objet = gltf.scene;
     animations = gltf.animations;
+    rangDansLeGltf = (mat) => gltf.parser.associations.get(mat)?.materials;
   }
-  const matieres: string[] = [];
+  // Les noms des matières : une matière sans nom devient « Matière N ».
+  const materiaux = new Map<string, THREE.Material[]>();
+  const rangs = new Map<string, number>();
+  let sansNom = 0;
+  const nomDe = (mat: THREE.Material): string => {
+    if (mat.name) return mat.name;
+    const rang = rangDansLeGltf(mat);
+    const nom = `Matière ${rang !== undefined ? rang + 1 : ++sansNom}`;
+    mat.name = nom;
+    return nom;
+  };
   let triangles = 0;
   objet.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) if (mat.name && !matieres.includes(mat.name)) matieres.push(mat.name);
+    // Le modèle porte l'ombre au sol ; lui-même n'en reçoit pas (pas de taches sur ses faces).
+    m.castShadow = true;
+    m.receiveShadow = false;
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
+      const nom = nomDe(mat);
+      if (!materiaux.has(nom)) {
+        materiaux.set(nom, []);
+        rangs.set(nom, rangDansLeGltf(mat) ?? 1e6 + rangs.size);
+      }
+      if (!materiaux.get(nom)!.includes(mat)) materiaux.get(nom)!.push(mat);
+    }
     const g = m.geometry;
     triangles += Math.floor((g.index ? g.index.count : (g.attributes.position?.count ?? 0)) / 3);
   });
-  return { racine: normaliser(objet), animations, matieres, triangles };
+  const matieres = [...materiaux.keys()].sort((a, b) => rangs.get(a)! - rangs.get(b)!);
+  const infosMatieres = matieres.map((nom): InfosMatiere => {
+    const mat = materiaux.get(nom)![0] as THREE.MeshStandardMaterial;
+    return {
+      nom,
+      couleur: mat.color ? `#${mat.color.getHexString(THREE.SRGBColorSpace)}` : "#ffffff",
+      brillance: typeof mat.roughness === "number" ? brillanceDeRugosite(mat.roughness) : 0,
+      texture: !!mat.map,
+      metal: (mat.metalness ?? 0) > 0.5,
+    };
+  });
+  const racine = normaliser(objet);
+  const boite = new THREE.Box3().setFromObject(racine);
+  return { racine, animations, matieres, infosMatieres, materiaux, triangles, bas: boite.isEmpty() ? -1 : boite.min.y };
 }
 
 /** Le modèle `ressource` s'il est déjà chargé. */
@@ -223,9 +388,56 @@ export async function prechargerModeles(page: PageEliot): Promise<void> {
 // Le rendu
 // ----------------------------------------------------------------------------------------
 
-/** Dessine le modèle vu par `camera` dans la toile du moteur, à `largeur` × `hauteur` px. */
-function dessiner(m: Moteur, modele: Modele, camera: Camera3d, largeur: number, hauteur: number): void {
-  const { renderer, scene } = m;
+/** Ce qu'un rendu montre d'un objet : sa caméra (ou celle d'un geste), sa lumière, son ombre au
+ *  sol, ses matières ; `surligne` : une matière désignée dans le panneau (survol). */
+export interface Reglages3d {
+  camera: Camera3d;
+  lumiere: Lumiere3d;
+  ombreSol?: OmbreSol3d;
+  matieres?: Record<string, Matiere3d>;
+  surligne?: string;
+}
+
+const ACCENT = new THREE.Color(0x4f46e5);
+
+/** Repeint les matières le temps d'un rendu ; renvoie de quoi les remettre. */
+function repeindre(modele: Modele, matieres: Record<string, Matiere3d> | undefined, surligne: string | undefined): () => void {
+  const remises: (() => void)[] = [];
+  const toucher = (nom: string, faire: (mat: THREE.MeshStandardMaterial) => void) => {
+    for (const mat of (modele.materiaux.get(nom) ?? []) as THREE.MeshStandardMaterial[]) {
+      const avant = { couleur: mat.color?.clone(), rugosite: mat.roughness, emissif: mat.emissive?.clone(), force: mat.emissiveIntensity };
+      faire(mat);
+      remises.push(() => {
+        if (avant.couleur) mat.color.copy(avant.couleur);
+        if (avant.rugosite !== undefined) mat.roughness = avant.rugosite;
+        if (avant.emissif) mat.emissive.copy(avant.emissif);
+        if (avant.force !== undefined) mat.emissiveIntensity = avant.force;
+      });
+    }
+  };
+  for (const [nom, r] of Object.entries(matieres ?? {})) {
+    toucher(nom, (mat) => {
+      if (r.couleur && mat.color) mat.color.set(r.couleur);
+      if (r.brillance !== undefined && typeof mat.roughness === "number") mat.roughness = rugositeDeBrillance(r.brillance);
+    });
+  }
+  if (surligne) {
+    toucher(surligne, (mat) => {
+      if (!mat.emissive) return;
+      mat.emissive.copy(ACCENT);
+      mat.emissiveIntensity = 0.85;
+    });
+  }
+  return () => {
+    for (const f of remises.reverse()) f();
+  };
+}
+
+/** Dessine le modèle comme le disent `reglages` dans la toile du moteur, à `largeur` ×
+ *  `hauteur` px. */
+function dessiner(m: Moteur, modele: Modele, reglages: Reglages3d, largeur: number, hauteur: number): void {
+  const { renderer, scene, principale, sol } = m;
+  const { camera, lumiere } = reglages;
   renderer.setSize(largeur, hauteur, false);
   const p = placerCamera(camera, largeur / hauteur);
   m.camera.fov = p.fov;
@@ -236,9 +448,40 @@ function dessiner(m: Moteur, modele: Modele, camera: Camera3d, largeur: number, 
   m.camera.up.set(0, 1, 0);
   m.camera.lookAt(...p.cible);
   m.camera.updateProjectionMatrix();
+  // La lumière, tournée avec la vue.
+  scene.environment = environnement(m, lumiere.environnement.id);
+  scene.environmentIntensity = FORCE_ENVIRONNEMENT * lumiere.environnement.intensite;
+  scene.environmentRotation.set(0, rotationEnvironnement(camera, lumiere) * RAD, 0);
+  const d = directionLumiere(camera, lumiere);
+  principale.position.set(d[0] * 12, d[1] * 12, d[2] * 12);
+  principale.target.position.set(0, 0, 0);
+  principale.intensity = FORCE_PRINCIPALE * lumiere.principale.intensite;
+  principale.color.set(lumiere.principale.couleur);
+  renderer.toneMappingExposure = Math.pow(2, lumiere.exposition);
+  // L'ombre au sol : seulement d'une lumière qui vient d'en haut.
+  const ombre = reglages.ombreSol && lumiere.principale.elevation > 2 && lumiere.principale.intensite > 0 ? reglages.ombreSol : undefined;
+  principale.castShadow = !!ombre;
+  sol.visible = !!ombre;
+  if (ombre) {
+    sol.position.y = modele.bas;
+    sol.material.opacity = ombre.opacite;
+    principale.shadow.radius = 1 + ombre.douceur * 32;
+    principale.shadow.blurSamples = Math.round(8 + ombre.douceur * 16);
+    principale.shadow.needsUpdate = true;
+  }
+  const remettre = repeindre(modele, reglages.matieres, reglages.surligne);
   scene.add(modele.racine);
-  renderer.render(scene, m.camera);
-  scene.remove(modele.racine);
+  try {
+    renderer.render(scene, m.camera);
+  } finally {
+    scene.remove(modele.racine);
+    remettre();
+  }
+}
+
+/** Les réglages de rendu d'un objet, sa caméra à part (celle d'un geste en cours). */
+export function reglagesDe(el: ElementObjet3d, camera: Camera3d = el.camera, surligne?: string): Reglages3d {
+  return { camera, lumiere: el.lumiere ?? LUMIERE_PAR_DEFAUT, ombreSol: el.ombreSol, matieres: el.matieres, surligne };
 }
 
 interface Rendu {
@@ -295,12 +538,13 @@ export function abonnerRendu(cle: string, f: () => void): () => void {
 export type EtatRendu = { etat: "chargement" } | { etat: "erreur"; erreur: string } | { etat: "pret"; toile: HTMLCanvasElement };
 
 /**
- * La toile de l'objet `el` vu par `camera` (la sienne, ou celle d'un geste en cours), rendue à
- * `largeur` × `hauteur` px : refaite seulement quand quelque chose a changé. `cle` distingue
- * les rendus d'un même objet (la page, l'export, une vignette). `direct` (un geste en cours sur
- * cet objet) : la toile du moteur elle-même.
+ * La toile d'un objet du modèle `ressource` rendu comme le disent `reglages` (sa caméra, ou
+ * celle d'un geste en cours ; sa lumière, son ombre au sol, ses matières), à `largeur` ×
+ * `hauteur` px : refaite seulement quand quelque chose a changé. `cle` distingue les rendus
+ * (l'objet sur la page, hors écran pour l'export et les vignettes). `direct` (un geste en cours
+ * sur cet objet) : la toile du moteur elle-même.
  */
-export function rendreObjet(el: ElementObjet3d, ressource: Ressource, camera: Camera3d, largeur: number, hauteur: number, cle = el.id, direct = false): EtatRendu {
+export function rendreObjet(ressource: Ressource, reglages: Reglages3d, largeur: number, hauteur: number, cle: string, direct = false): EtatRendu {
   const etat = modeles.get(ressource.id);
   if (!etat || etat.etat === "chargement") {
     if (!etat) void chargerModele(ressource).catch(() => undefined);
@@ -311,7 +555,7 @@ export function rendreObjet(el: ElementObjet3d, ressource: Ressource, camera: Ca
   if (!m) return { etat: "erreur", erreur: "WebGL 2 indisponible" };
   const l = Math.max(1, Math.min(COTE_MAX_RENDU, Math.round(largeur)));
   const h = Math.max(1, Math.min(COTE_MAX_RENDU, Math.round(hauteur)));
-  const voulu = `${ressource.id}|${JSON.stringify(camera)}|${l}x${h}`;
+  const voulu = `${ressource.id}|${JSON.stringify(reglages)}|${l}x${h}`;
   let r = rendus.get(cle);
   if (!r) {
     r = { toile: document.createElement("canvas"), cle: "" };
@@ -320,7 +564,7 @@ export function rendreObjet(el: ElementObjet3d, ressource: Ressource, camera: Ca
   if (direct) {
     if (dansLeMoteur !== `${cle}|${voulu}`) {
       if (enDirect !== cle) figerEnDirect(m);
-      dessiner(m, etat.modele, camera, l, h);
+      dessiner(m, etat.modele, reglages, l, h);
       dansLeMoteur = `${cle}|${voulu}`;
     }
     enDirect = cle;
@@ -335,7 +579,7 @@ export function rendreObjet(el: ElementObjet3d, ressource: Ressource, camera: Ca
     if (dansLeMoteur !== `${cle}|${voulu}`) {
       // Le moteur sert à autre chose : l'objet affiché en direct reçoit d'abord sa toile.
       figerEnDirect(m);
-      dessiner(m, etat.modele, camera, l, h);
+      dessiner(m, etat.modele, reglages, l, h);
       dansLeMoteur = `${cle}|${voulu}`;
     }
     recopier(r, m, voulu);
@@ -381,7 +625,7 @@ export async function rendreMiniature(ressource: Ressource, projet?: RefProjet |
   const m = moteur3d();
   if (!m) throw new Error("WebGL 2 indisponible");
   figerEnDirect(m);
-  dessiner(m, modele, CAMERA_PAR_DEFAUT, 512, 512);
+  dessiner(m, modele, { camera: CAMERA_PAR_DEFAUT, lumiere: LUMIERE_PAR_DEFAUT }, 512, 512);
   dansLeMoteur = `miniature|${ressource.id}`;
   const blob = await new Promise<Blob | null>((ok) => m.renderer.domElement.toBlob(ok, "image/png"));
   if (!blob) throw new Error("miniature impossible");

@@ -17,11 +17,29 @@ import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheq
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
 import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
-import { DECALAGE_MAX, ELEVATION_MAX, FOCALE_MAX, FOCALE_MIN, normaliserCamera, VUES_PRETES, vuePrete, ZOOM_MAX, ZOOM_MIN } from "../modele/objet3d";
-import { chargerModele } from "../trois/moteur";
-import { poserCamera } from "../trois/orbite";
+import {
+  DECALAGE_MAX,
+  ELEVATION_MAX,
+  ENVIRONNEMENTS,
+  EXPOSITION_MAX,
+  FOCALE_MAX,
+  FOCALE_MIN,
+  INTENSITE_MAX,
+  LUMIERES_PRETES,
+  lumiereDe,
+  lumierePrete,
+  normaliserCamera,
+  normaliserLumiere,
+  normaliserMatieres,
+  normaliserOmbreSol,
+  VUES_PRETES,
+  vuePrete,
+  ZOOM_MAX,
+  ZOOM_MIN,
+} from "../modele/objet3d";
+import { chargerModele, modeleCharge } from "../trois/moteur";
 import type { SensAlignement } from "../modele/geometrie";
-import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
+import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type ElementObjet3d, type Lumiere3d, type Matiere3d, type OmbreSol3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
 import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
@@ -533,10 +551,63 @@ const plancheDeVideos = (videos: VideoPixabay[]) => planche(videos.map((v) => ()
 async function lireModele3d(r: Ressource) {
   try {
     const m = await chargerModele(r);
-    return { format: r.modele3d?.format, matieres: m.matieres, animations: m.animations.map((a) => a.name || "sans nom"), triangles: m.triangles, texturesReduites: r.modele3d?.texturesReduites ?? 0 };
+    return {
+      format: r.modele3d?.format,
+      matieres: m.matieres,
+      animations: m.animations.map((a) => a.name || "sans nom"),
+      triangles: m.triangles,
+      texturesReduites: r.modele3d?.texturesReduites ?? 0,
+      conseil: "regler_objet3d pour la caméra, la lumière et l'ombre au sol ; colorer_objet3d pour les matières",
+    };
   } catch (e) {
     throw new ErreurOutil(`modèle 3D illisible dans la fenêtre : ${e instanceof Error ? e.message : String(e)}`);
   }
+}
+
+/** La lumière d'un objet 3D demandée par l'IA : `depart` (la lumière de départ) d'abord, puis
+ *  `pret` (une lumière prête), puis chaque réglage. `null` : la lumière de départ. */
+function lumiereDemandee(actuelle: Lumiere3d | undefined, brut: unknown): Lumiere3d | undefined {
+  if (brut === null) return undefined;
+  exiger(brut && typeof brut === "object", "lumiere : { environnement?, environnementIntensite?, environnementRotation?, pret?, azimut?, elevation?, intensite?, couleur?, exposition?, depart? } ou null");
+  const a = brut as Arguments;
+  let l = lumiereDe(a.depart === true ? undefined : actuelle);
+  const pret = texte(a.pret);
+  if (pret !== undefined) {
+    const p = lumierePrete(l, pret);
+    exiger(p !== null, `lumiere.pret : ${LUMIERES_PRETES.map((x) => x.id).join(", ")}`);
+    l = lumiereDe(p);
+  }
+  const env = texte(a.environnement);
+  if (env !== undefined) exiger(ENVIRONNEMENTS.some((e) => e.id === env), `lumiere.environnement : ${ENVIRONNEMENTS.map((e) => e.id).join(", ")}`);
+  const borne = (cle: string, min: number, max: number, sens: string) => {
+    if (a[cle] === undefined) return undefined;
+    const v = nombre(a[cle]);
+    exiger(v !== undefined && v >= min && v <= max, `lumiere.${cle} : de ${min} à ${max} (${sens})`);
+    return v;
+  };
+  const ei = borne("environnementIntensite", 0, INTENSITE_MAX, "1 : la force de départ");
+  const er = borne("environnementRotation", -360, 360, "degrés");
+  const az = borne("azimut", -360, 360, "degrés par rapport à la vue : 0 de face, -90 de la gauche de l'image, 90 de la droite, 180 de dos");
+  const el = borne("elevation", -ELEVATION_MAX, ELEVATION_MAX, "degrés au-dessus de l'horizon");
+  const it = borne("intensite", 0, INTENSITE_MAX, "1 : la force de départ, 0 : éteinte");
+  const ex = borne("exposition", -EXPOSITION_MAX, EXPOSITION_MAX, "en IL, 0 au départ");
+  if (a.couleur !== undefined) exiger(typeof a.couleur === "string" && HEX.test(a.couleur), "lumiere.couleur : \"#rrggbb\"");
+  return normaliserLumiere({
+    environnement: { id: env ?? l.environnement.id, intensite: ei ?? l.environnement.intensite, rotation: er ?? l.environnement.rotation },
+    principale: { azimut: az ?? l.principale.azimut, elevation: el ?? l.principale.elevation, intensite: it ?? l.principale.intensite, couleur: (a.couleur as string | undefined) ?? l.principale.couleur },
+    exposition: ex ?? l.exposition,
+  });
+}
+
+/** L'ombre au sol demandée par l'IA : `true` (réglages de départ), { opacite?, douceur? },
+ *  `null` ou `false` (retirée). */
+function ombreSolDemandee(actuelle: OmbreSol3d | undefined, brut: unknown): OmbreSol3d | undefined {
+  if (brut === null || brut === false) return undefined;
+  if (brut === true) return normaliserOmbreSol({ ...actuelle });
+  exiger(brut && typeof brut === "object", "ombreSol : true, { opacite?, douceur? } (de 0 à 1), ou null");
+  const o = brut as Arguments;
+  for (const cle of ["opacite", "douceur"]) if (o[cle] !== undefined) exiger(typeof o[cle] === "number" && (o[cle] as number) >= 0 && (o[cle] as number) <= 1, `ombreSol.${cle} : de 0 à 1`);
+  return normaliserOmbreSol({ ...actuelle, ...o });
 }
 
 /** La caméra d'un objet 3D demandée par l'IA : `vue` (une vue prête) d'abord, puis azimut,
@@ -1227,8 +1298,47 @@ const OUTILS: Record<string, Outil> = {
     const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
     exiger(el?.type === "objet3d", `objet 3D introuvable sur la page affichée : ${String(args.id)} (voir etat)`);
     exiger(!el.verrouille, "cet objet est verrouillé");
-    poserCamera(el.id, cameraDemandee(el.camera, args));
+    // Caméra, lumière et ombre au sol d'un seul tenant : une étape d'annulation.
+    const modif: Partial<ElementObjet3d> = { camera: cameraDemandee(el.camera, args) };
+    if (args.lumiere !== undefined) modif.lumiere = lumiereDemandee(el.lumiere, args.lumiere);
+    if (args.ombreSol !== undefined) modif.ombreSol = ombreSolDemandee(el.ombreSol, args.ombreSol);
+    etat().modifierElements({ [el.id]: modif as Partial<ElementPage> });
     return { donnees: elementsCourants(etat()).find((e) => e.id === el.id) };
+  },
+
+  async colorer_objet3d(args) {
+    designOuvert();
+    const el = elementsCourants(etat()).find((e) => e.id === texte(args.id));
+    exiger(el?.type === "objet3d", `objet 3D introuvable sur la page affichée : ${String(args.id)} (voir etat)`);
+    const r = etat().ressources[el.ressource];
+    exiger(r, "le modèle de cet objet manque dans le design");
+    await lireModele3d(r!);
+    const modele = modeleCharge(r!.id)!;
+    if (args.remettre === true || args.matieres !== undefined) exiger(!el.verrouille, "cet objet est verrouillé");
+    let matieres: Record<string, Matiere3d> = args.remettre === true ? {} : { ...el.matieres };
+    if (args.matieres !== undefined) {
+      exiger(args.matieres && typeof args.matieres === "object" && !Array.isArray(args.matieres), "matieres : { \"<nom>\": { couleur?, brillance? } ou null }");
+      for (const [nom, v] of Object.entries(args.matieres as Record<string, unknown>)) {
+        exiger(modele.matieres.includes(nom), `matière inconnue : « ${nom} » (ce modèle a : ${modele.matieres.join(", ") || "aucune"})`);
+        if (v === null) {
+          delete matieres[nom];
+          continue;
+        }
+        const m = v as Record<string, unknown>;
+        exiger(m && typeof m === "object", `matieres.${nom} : { couleur: "#rrggbb", brillance: 0 à 100 } ou null`);
+        if (m.couleur !== undefined) exiger(typeof m.couleur === "string" && HEX.test(m.couleur), `matieres.${nom}.couleur : "#rrggbb"`);
+        if (m.brillance !== undefined) exiger(typeof m.brillance === "number" && m.brillance >= 0 && m.brillance <= 100, `matieres.${nom}.brillance : de 0 (mate) à 100 (miroir)`);
+        matieres = { ...matieres, [nom]: { ...matieres[nom], ...(m.couleur !== undefined ? { couleur: m.couleur as string } : {}), ...(m.brillance !== undefined ? { brillance: m.brillance as number } : {}) } };
+      }
+    }
+    if (args.remettre === true || args.matieres !== undefined) etat().modifierElements({ [el.id]: { matieres: normaliserMatieres(matieres) } as Partial<ElementPage> });
+    const apres = (elementsCourants(etat()).find((e) => e.id === el.id) as ElementObjet3d | undefined)?.matieres ?? {};
+    return {
+      donnees: {
+        id: el.id,
+        matieres: modele.infosMatieres.map((i) => ({ nom: i.nom, couleurDuModele: i.couleur, brillanceDuModele: i.brillance, texture: i.texture, metal: i.metal, ...apres[i.nom] })),
+      },
+    };
   },
 
   ajouter_video(args) {

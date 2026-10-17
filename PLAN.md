@@ -537,10 +537,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       prêtes ; export à la finesse demandée ; 69 outils pour le pont. Vérifié dans Chromium
       (63 vérifications) et dans Tauri par le pont (33) : fenêtre et export PNG à 0,00 sur 255,
       PDF à 0,40, ombre qui suit la silhouette à 0,03 (JOURNAL).
-- [ ] Lot 2 : lumière, ombre, matières. Environnement HDRI (studio par défaut ; importé ou de
+- [x] Lot 2 : lumière, ombre, matières. Environnement HDRI (studio par défaut ; importé ou de
       Poly Haven au lot 3), son intensité et sa rotation ; lumière principale (direction,
       intensité, couleur) ; ombre au sol (opacité, douceur) ; exposition ; matières du modèle
       recolorables (couleur, couleurs du kit de marque, brillance) ; pont.
+      Livré le 2026-10-17 : la lumière tourne avec la vue (plateau tournant) ; quatre
+      environnements fabriqués par la fenêtre (Studio, Boîtes à lumière, Plein air, Soleil
+      couchant), cinq lumières prêtes, direction, hauteur, force, couleur, exposition ; ombre
+      au sol portée par la lumière principale, qui s'efface en s'éloignant du modèle ; matières
+      repeintes le temps d'un rendu (couleur, brillance), survol qui montre la matière ;
+      `regler_objet3d` (lumière, ombre au sol) et `colorer_objet3d`, 70 outils. Vérifié dans
+      Chromium (48 vérifications) et dans Tauri par le pont (16) : fenêtre et export PNG à 0,00
+      sur 255, PDF à 0,48 (JOURNAL).
 - [ ] Lot 3 : les banques. Poly Haven (modèles et environnements), Kenney (paquets), Sketchfab
       (jeton d'Alexandre, CC0 et CC BY), Mixamo (import et marche à suivre) ; crédits gardés
       avec le modèle ; pont : chercher et poser un modèle, choisir un environnement. Action

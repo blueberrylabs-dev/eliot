@@ -400,7 +400,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Une photo seulement : un clip demanderait un masque par image. Le programme et le modèle
   s'installent une fois : commandes 20 et 21 du `CLAUDE.md`.
 
-**Le studio 3D (étape 6, lot 1)**
+**Le studio 3D (étape 6, lots 1 et 2)**
 - Importer un modèle 3D comme une image : bouton du panneau Importer, ou dépôt sur la page. GLB,
   glTF (avec ses fichiers rangés à côté de lui : choisir ou déposer le `.gltf` seul suffit),
   FBX (les personnages de Mixamo, par exemple) et OBJ. Le noyau vérifie le fichier et prépare la
@@ -418,6 +418,19 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   un appareil photo : 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective
   marquée), « Recentrer », « Départ » ; et ce que l'on sait du modèle (format, triangles,
   matières, animations).
+- La lumière (lot 2), dans « Vue 3D » : quatre environnements qui éclairent et se reflètent
+  (Studio, Boîtes à lumière pour le verre et le métal, Plein air, Soleil couchant), leur force et
+  leur rotation ; la lumière principale, prête (trois-quarts, de face, latérale, contre-jour,
+  zénith) ou réglée (direction, hauteur, force, couleur) ; l'exposition. Elle tourne avec la vue,
+  comme le studio d'un plateau tournant : tourner l'objet ne déplace pas ses reflets.
+- L'ombre au sol : le modèle porte son ombre sur un sol invisible, sous lui, et se pose sur la
+  page au lieu de flotter ; opacité et douceur ; elle part de la lumière principale et s'efface
+  en s'éloignant du modèle. Elle se cumule avec l'ombre de la barre du haut (celle de la boîte).
+- Les matières : chacune, par son nom dans le modèle, prend une couleur (les couleurs du kit de
+  marque sont dans la pastille ; une matière qui a une texture est teintée) et une brillance, de
+  mate à miroir. Survoler une matière la montre sur l'objet. Le modèle n'est pas modifié : un
+  autre objet du même modèle garde ses couleurs. « Copier le style » passe la lumière, l'ombre au
+  sol et les matières d'un objet 3D à un autre.
 - L'export rend l'objet à la finesse demandée : à ×2, il est dessiné à ×2, pas agrandi. Dans le
   PDF et le SVG, il devient une image deux fois plus fine que sa boîte (à la finesse de la page
   pour un A4 ou un A5). L'objet est rendu par la fenêtre, en WebGL ; le noyau le pose avec le
@@ -437,8 +450,9 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   d'une maquette au labo (courbe et préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
-  pinceau), remplacer une photo à sa place, importer un modèle 3D, le poser et régler sa
-  caméra, regarder une capture de la page et exporter (en
+  pinceau), remplacer une photo à sa place, importer un modèle 3D, le poser, régler sa
+  caméra, sa lumière et son ombre au sol, repeindre ses matières, regarder une capture de la page
+  et exporter (en
   PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
@@ -688,6 +702,25 @@ Mixamo en FBX.
 Ce qui m'aide le plus en retour : la fluidité quand on tourne un gros modèle (sur le poste et
 sur le mini PC), un modèle qui ne s'ouvre pas (son format, d'où il vient), et ce qui manque
 d'abord pour une publicité : la lumière, les couleurs des matières (lot 2).
+
+## Essayer la lumière et les matières (étape 6, lot 2)
+
+Dix minutes, à la suite de l'essai du lot 1, Eliot lancé à la main, carte graphique libre.
+
+1. L'objet 3D choisi, « Vue 3D », section Lumière : passer d'un environnement à l'autre, puis
+   « Boîtes à lumière » sur un modèle en verre ou en métal (les reflets).
+2. « Contre-jour », puis « Latérale » ; tirer Direction et Hauteur : l'objet suit sous la souris.
+   Couleur de la lumière : une teinte chaude. Exposition à +0,5.
+3. Double-clic sur l'objet et le tourner : les reflets restent à leur place dans l'image.
+4. Ombre au sol, cocher : l'objet se pose. Douceur à 0 puis à 100 %.
+5. Matières : survoler chaque ligne pour voir laquelle est où ; donner à l'une une couleur du kit
+   de marque, baisser la brillance d'une autre. Dupliquer l'objet (Ctrl+D), puis « Toutes » sur la
+   copie : l'original garde ses couleurs.
+6. Exporter en PNG ×2 et en PDF : la lumière, l'ombre et les couleurs y sont.
+
+Ce qui m'aide le plus en retour : l'environnement qui manque pour tes publicités (un fond de
+studio coloré, une vitrine), une matière mal nommée par le fichier, et la fluidité quand on tire
+un curseur sur le mini PC.
 
 ## Raccourcis
 

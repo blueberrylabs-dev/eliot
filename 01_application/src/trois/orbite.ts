@@ -7,8 +7,8 @@
 import { create } from "zustand";
 import { elementsCourants, etiquetteDeGeste, useEditeur } from "../etat/editeur";
 import { useLabo } from "../labo/retouche";
-import { decaler, normaliserCamera, tourner, vuePrete, zoomer } from "../modele/objet3d";
-import type { Camera3d, ElementObjet3d, ElementPage } from "../modele/types";
+import { decaler, lumiereDe, normaliserCamera, normaliserLumiere, normaliserMatieres, normaliserOmbreSol, tourner, vuePrete, zoomer } from "../modele/objet3d";
+import type { Camera3d, ElementObjet3d, ElementPage, Lumiere3d, Matiere3d, OmbreSol3d } from "../modele/types";
 
 interface EtatOrbite {
   /** L'objet en cours de réglage. */
@@ -17,9 +17,13 @@ interface EtatOrbite {
   entree: Camera3d | null;
   /** La caméra pendant un glisser, avant d'aller au document. */
   geste: Camera3d | null;
+  /** L'objet dont on tire un curseur du panneau 3D (sa toile s'affiche en direct). */
+  curseur: string | null;
+  /** Une matière désignée dans le panneau : l'objet la montre en couleur d'accent. */
+  surligne: { id: string; matiere: string } | null;
 }
 
-export const useOrbite = create<EtatOrbite>(() => ({ id: null, entree: null, geste: null }));
+export const useOrbite = create<EtatOrbite>(() => ({ id: null, entree: null, geste: null, curseur: null, surligne: null }));
 
 /** Le panneau « 3D » de gauche, ouvert pour un objet (à la place du panneau de l'onglet, comme
  *  le labo d'une photo). */
@@ -68,6 +72,42 @@ export function poserCamera(id: string, camera: Camera3d, etiquette?: string): v
   const c = normaliserCamera(camera);
   if (JSON.stringify(c) === JSON.stringify(el.camera)) return;
   useEditeur.getState().modifierElements({ [id]: { camera: c } as Partial<ElementPage> }, etiquette);
+}
+
+/** La lumière d'un objet (lot 2) : `changer` reçoit la lumière actuelle, complète, et rend la
+ *  nouvelle ; le document ne la garde que si elle n'est pas celle de départ. */
+export function poserLumiere(id: string, changer: (l: Lumiere3d) => Lumiere3d, etiquette?: string): void {
+  const el = objet3d(id);
+  if (!el || el.verrouille) return;
+  const l = normaliserLumiere(changer(lumiereDe(el.lumiere)));
+  if (JSON.stringify(l) === JSON.stringify(el.lumiere)) return;
+  useEditeur.getState().modifierElements({ [id]: { lumiere: l } as Partial<ElementPage> }, etiquette);
+}
+
+/** L'ombre au sol d'un objet ; `null` la retire. */
+export function poserOmbreSol(id: string, ombre: Partial<OmbreSol3d> | null, etiquette?: string): void {
+  const el = objet3d(id);
+  if (!el || el.verrouille) return;
+  const o = ombre === null ? undefined : normaliserOmbreSol({ ...el.ombreSol, ...ombre });
+  if (JSON.stringify(o) === JSON.stringify(el.ombreSol)) return;
+  useEditeur.getState().modifierElements({ [id]: { ombreSol: o } as Partial<ElementPage> }, etiquette);
+}
+
+/** Une matière d'un objet repeinte (`null` : remise comme dans le modèle), ou toutes
+ *  (`nom` absent et `null`). */
+export function poserMatiere(id: string, nom: string | null, matiere: Matiere3d | null, etiquette?: string): void {
+  const el = objet3d(id);
+  if (!el || el.verrouille) return;
+  let suivantes: Record<string, Matiere3d> | undefined;
+  if (nom === null) suivantes = matiere === null ? undefined : el.matieres;
+  else {
+    const toutes = { ...el.matieres };
+    if (matiere === null) delete toutes[nom];
+    else toutes[nom] = { ...toutes[nom], ...matiere };
+    suivantes = normaliserMatieres(toutes);
+  }
+  if (JSON.stringify(suivantes) === JSON.stringify(el.matieres)) return;
+  useEditeur.getState().modifierElements({ [id]: { matieres: suivantes } as Partial<ElementPage> }, etiquette);
 }
 
 /** Un glisser en cours : `dx`, `dy` depuis le début, en pixels de l'écran ; `maj` décale au

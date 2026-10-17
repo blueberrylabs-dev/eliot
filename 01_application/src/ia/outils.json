@@ -1399,7 +1399,7 @@
   },
   {
     "name": "ajouter_objet3d",
-    "description": "Pose sur la page affichée un modèle 3D déjà importé (ressource donnée par importer_modele3d ou par modeles3d dans etat), comme une photo détourée : fond transparent, éclairage de studio, le modèle centré dans sa boîte. Par défaut une boîte carrée au centre (60 % du petit côté de la page), vue de trois quarts. Avec seulement largeur ou seulement hauteur, la boîte reste carrée. La caméra se règle ici ou ensuite par regler_objet3d ; juger le rendu avec capture. L'export (PNG, JPEG, WebP, PDF, SVG) rend l'objet à la finesse demandée.",
+    "description": "Pose sur la page affichée un modèle 3D déjà importé (ressource donnée par importer_modele3d ou par modeles3d dans etat), comme une photo détourée : fond transparent, éclairage de studio, le modèle centré dans sa boîte. Par défaut une boîte carrée au centre (60 % du petit côté de la page), vue de trois quarts. Avec seulement largeur ou seulement hauteur, la boîte reste carrée. La caméra se règle ici ou ensuite par regler_objet3d, avec la lumière et l'ombre au sol ; les matières par colorer_objet3d ; juger le rendu avec capture. L'export (PNG, JPEG, WebP, PDF, SVG) rend l'objet à la finesse demandée.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1488,7 +1488,7 @@
   },
   {
     "name": "regler_objet3d",
-    "description": "Règle la caméra d'un objet 3D de la page affichée (élément de type objet3d) : elle tourne autour du modèle, qui reste centré et éclairé de la même façon. Ordre : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. La position et la taille de la boîte se changent avec modifier. Une étape d'annulation. Juger le cadrage avec capture. Renvoie l'élément avec sa caméra.",
+    "description": "Règle un objet 3D de la page affichée (élément de type objet3d) : sa caméra, qui tourne autour du modèle, sa lumière et son ombre au sol. Caméra : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. Lumière : elle tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant (changer l'azimut de la caméra ne déplace pas les reflets dans l'image). Un environnement qui éclaire et se reflète (studio : neutre ; boites : deux grandes boîtes à lumière dans une pièce sombre, reflets nets sur le verre et le métal ; plein-air : ciel et soleil de midi ; couchant : lumière chaude et basse), sa force et sa rotation ; une lumière principale (sa direction par rapport à la vue, sa force, sa couleur), ou une lumière prête ; l'exposition. Ombre au sol : l'ombre que la lumière principale fait porter au modèle sur un sol invisible, sous lui (il se pose au lieu de flotter) ; elle peut déborder de la boîte et y être coupée : agrandir la boîte avec modifier, ou dézoomer. Les couleurs des matières : colorer_objet3d. La position et la taille de la boîte : modifier. Une étape d'annulation. Juger le résultat avec capture. Renvoie l'élément.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1549,6 +1549,140 @@
         "recentrer": {
           "type": "boolean",
           "description": "Vrai : zoom 1, sans décalage (avant les autres réglages)."
+        },
+        "lumiere": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Ce qui n'est pas donné ne change pas. null : la lumière de départ (studio, lumière principale de trois quarts, exposition 0).",
+          "properties": {
+            "depart": {
+              "type": "boolean",
+              "description": "Vrai : repartir de la lumière de départ avant les autres réglages."
+            },
+            "pret": {
+              "type": "string",
+              "enum": [
+                "trois-quarts",
+                "face",
+                "laterale",
+                "contre-jour",
+                "zenith"
+              ],
+              "description": "Une lumière principale prête (sa direction), avant les autres réglages."
+            },
+            "environnement": {
+              "type": "string",
+              "enum": [
+                "studio",
+                "boites",
+                "plein-air",
+                "couchant"
+              ]
+            },
+            "environnementIntensite": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "1 : la force de départ."
+            },
+            "environnementRotation": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360,
+              "description": "En degrés, par rapport à la vue."
+            },
+            "azimut": {
+              "type": "number",
+              "minimum": -360,
+              "maximum": 360,
+              "description": "D'où vient la lumière principale par rapport à la vue, en degrés : 0 de face, -90 de la gauche de l'image, 90 de la droite, 180 de dos (contre-jour). -45 au départ."
+            },
+            "elevation": {
+              "type": "number",
+              "minimum": -89,
+              "maximum": 89,
+              "description": "Sa hauteur au-dessus de l'horizon, en degrés (45 au départ, 89 : à la verticale)."
+            },
+            "intensite": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3,
+              "description": "1 : la force de départ, 0 : éteinte."
+            },
+            "couleur": {
+              "type": "string",
+              "description": "\"#rrggbb\" (blanc au départ ; #ffd9a8 : chaude, #cfe0ff : froide)."
+            },
+            "exposition": {
+              "type": "number",
+              "minimum": -3,
+              "maximum": 3,
+              "description": "En IL : +1 deux fois plus clair, -1 deux fois plus sombre."
+            }
+          }
+        },
+        "ombreSol": {
+          "type": [
+            "object",
+            "boolean",
+            "null"
+          ],
+          "description": "true : l'ombre au sol avec ses réglages de départ (opacité 0,45, douceur 0,5) ; un objet : ses réglages ; null ou false : sans ombre au sol.",
+          "properties": {
+            "opacite": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "douceur": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "0 : nette, 1 : très floue."
+            }
+          }
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "colorer_objet3d",
+    "description": "Repeint les matières d'un objet 3D de la page affichée (élément de type objet3d) : une couleur (qui teinte la texture d'une matière qui en a une) et une brillance, de 0 (mate) à 100 (miroir), par matière, nommée comme dans le modèle. Les couleurs du kit de marque se lisent avec marque. Sans matieres ni remettre : la liste des matières, leur couleur et leur brillance dans le modèle, et ce qui est repeint. Le modèle n'est jamais modifié : un autre objet du même modèle garde ses couleurs. Une étape d'annulation. Renvoie la liste des matières.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de l'objet 3D (voir etat)."
+        },
+        "matieres": {
+          "type": "object",
+          "description": "Par nom de matière : { couleur?: \"#rrggbb\", brillance?: 0 à 100 }, ou null pour la remettre comme dans le modèle.",
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "couleur": {
+                "type": "string"
+              },
+              "brillance": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            }
+          }
+        },
+        "remettre": {
+          "type": "boolean",
+          "description": "Vrai : toutes les matières comme dans le modèle, avant matieres."
         }
       },
       "required": [

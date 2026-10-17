@@ -3,7 +3,7 @@
 // rayon 1 ; la caméra tourne autour du point visé (le centre, déplacé par le décalage), à une
 // distance qui cadre toute la sphère quand le zoom vaut 1.
 
-import type { Camera3d } from "./types";
+import type { Camera3d, Lumiere3d, Matiere3d, OmbreSol3d } from "./types";
 
 export const CAMERA_PAR_DEFAUT: Camera3d = { azimut: 35, elevation: 18, zoom: 1, focale: 50 };
 
@@ -34,7 +34,9 @@ export const VUES_PRETES: { id: string; nom: string; azimut: number; elevation: 
 
 const borner = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 const nombre = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
-const arrondir = (v: number, pas: number) => Math.round(v / pas) * pas || 0;
+/** `v` au pas `pas` près (0,01, 0,001…), sans les traînes du calcul en virgule flottante
+ *  (0,35 et non 0,35000000000000003 : le document reste lisible). */
+const arrondir = (v: number, pas: number) => Number((Math.round(v / pas) * pas).toFixed(Math.max(0, Math.ceil(-Math.log10(pas))))) || 0;
 
 /** Un angle ramené dans ]-180, 180]. */
 export function angleNormalise(a: number): number {
@@ -121,3 +123,118 @@ export function tailleDeRendu(largeur: number, hauteur: number, echelle: number,
   const k = palier / Math.max(largeur, hauteur);
   return [Math.max(1, Math.round(largeur * k)), Math.max(1, Math.round(hauteur * k))];
 }
+
+// ----------------------------------------------------------------------------------------
+// La lumière, l'ombre au sol, les matières (lot 2)
+// ----------------------------------------------------------------------------------------
+
+/** Les environnements fournis, fabriqués par la fenêtre (rien à télécharger). */
+export const ENVIRONNEMENTS: { id: string; nom: string; description: string }[] = [
+  { id: "studio", nom: "Studio", description: "Une pièce claire et des panneaux lumineux : neutre, pour tout montrer." },
+  { id: "boites", nom: "Boîtes à lumière", description: "Une pièce sombre, deux grandes boîtes à lumière sur les côtés : des reflets nets sur le verre et le métal." },
+  { id: "plein-air", nom: "Plein air", description: "Le ciel bleu et le soleil de midi." },
+  { id: "couchant", nom: "Soleil couchant", description: "Une lumière chaude et basse, un ciel orangé." },
+];
+
+export const LUMIERE_PAR_DEFAUT: Lumiere3d = {
+  environnement: { id: "studio", intensite: 1, rotation: 0 },
+  principale: { azimut: -45, elevation: 45, intensite: 1, couleur: "#ffffff" },
+  exposition: 0,
+};
+
+export const INTENSITE_MAX = 3;
+export const EXPOSITION_MAX = 3;
+
+/** Des lumières principales toutes prêtes (sa direction seulement). */
+export const LUMIERES_PRETES: { id: string; nom: string; azimut: number; elevation: number }[] = [
+  { id: "trois-quarts", nom: "Trois-quarts", azimut: -45, elevation: 45 },
+  { id: "face", nom: "De face", azimut: 0, elevation: 20 },
+  { id: "laterale", nom: "Latérale", azimut: -90, elevation: 10 },
+  { id: "contre-jour", nom: "Contre-jour", azimut: 160, elevation: 30 },
+  { id: "zenith", nom: "Zénith", azimut: 0, elevation: 89 },
+];
+
+export const OMBRE_SOL_PAR_DEFAUT: OmbreSol3d = { opacite: 0.45, douceur: 0.5 };
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const hex = (v: unknown, d: string) => (typeof v === "string" && HEX.test(v) ? v.toLowerCase() : d);
+
+/** Une lumière dans les règles, complète ; `undefined` si c'est celle de départ (le document
+ *  reste court). */
+export function normaliserLumiere(l: unknown): Lumiere3d | undefined {
+  const v = (l && typeof l === "object" ? l : {}) as Record<string, Record<string, unknown> | number | undefined>;
+  const e = (v.environnement && typeof v.environnement === "object" ? v.environnement : {}) as Record<string, unknown>;
+  const p = (v.principale && typeof v.principale === "object" ? v.principale : {}) as Record<string, unknown>;
+  const d = LUMIERE_PAR_DEFAUT;
+  const lumiere: Lumiere3d = {
+    environnement: {
+      id: ENVIRONNEMENTS.some((x) => x.id === e.id) ? (e.id as string) : d.environnement.id,
+      intensite: arrondir(borner(nombre(e.intensite, d.environnement.intensite), 0, INTENSITE_MAX), 0.01),
+      rotation: arrondir(angleNormalise(nombre(e.rotation, d.environnement.rotation)), 0.1),
+    },
+    principale: {
+      azimut: arrondir(angleNormalise(nombre(p.azimut, d.principale.azimut)), 0.1),
+      elevation: arrondir(borner(nombre(p.elevation, d.principale.elevation), -ELEVATION_MAX, ELEVATION_MAX), 0.1),
+      intensite: arrondir(borner(nombre(p.intensite, d.principale.intensite), 0, INTENSITE_MAX), 0.01),
+      couleur: hex(p.couleur, d.principale.couleur),
+    },
+    exposition: arrondir(borner(nombre(v.exposition, d.exposition), -EXPOSITION_MAX, EXPOSITION_MAX), 0.01),
+  };
+  return JSON.stringify(lumiere) === JSON.stringify(d) ? undefined : lumiere;
+}
+
+/** La lumière d'un objet, complète (celle de départ s'il n'en a pas). */
+export function lumiereDe(l: Lumiere3d | undefined): Lumiere3d {
+  return normaliserLumiere(l) ?? LUMIERE_PAR_DEFAUT;
+}
+
+/** Une lumière prête : sa direction, le reste gardé. */
+export function lumierePrete(l: Lumiere3d | undefined, id: string): Lumiere3d | undefined | null {
+  const v = LUMIERES_PRETES.find((x) => x.id === id);
+  if (!v) return null;
+  const actuelle = lumiereDe(l);
+  return normaliserLumiere({ ...actuelle, principale: { ...actuelle.principale, azimut: v.azimut, elevation: v.elevation } });
+}
+
+/** D'où vient la lumière principale, dans le repère du modèle (vecteur unité) : sa direction
+ *  par rapport à la vue, tournée avec la caméra autour de l'axe vertical. */
+export function directionLumiere(camera: Camera3d, l: Lumiere3d): [number, number, number] {
+  const az = (camera.azimut + l.principale.azimut) * RAD;
+  const el = l.principale.elevation * RAD;
+  return [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)];
+}
+
+/** La rotation de l'environnement autour de l'axe vertical, en degrés : il tourne avec la vue. */
+export function rotationEnvironnement(camera: Camera3d, l: Lumiere3d): number {
+  return angleNormalise(camera.azimut + l.environnement.rotation);
+}
+
+/** Une ombre au sol dans les règles, ou `undefined` (pas d'ombre). */
+export function normaliserOmbreSol(o: unknown): OmbreSol3d | undefined {
+  if (!o || typeof o !== "object") return undefined;
+  const v = o as Record<string, unknown>;
+  return {
+    opacite: arrondir(borner(nombre(v.opacite, OMBRE_SOL_PAR_DEFAUT.opacite), 0, 1), 0.01),
+    douceur: arrondir(borner(nombre(v.douceur, OMBRE_SOL_PAR_DEFAUT.douceur), 0, 1), 0.01),
+  };
+}
+
+/** Les matières repeintes dans les règles : couleurs en #rrggbb, brillance de 0 à 100 ; une
+ *  matière sans rien est retirée, `undefined` s'il n'en reste aucune. */
+export function normaliserMatieres(m: unknown): Record<string, Matiere3d> | undefined {
+  if (!m || typeof m !== "object") return undefined;
+  const sortie: Record<string, Matiere3d> = {};
+  for (const [nom, brut] of Object.entries(m as Record<string, unknown>)) {
+    if (!brut || typeof brut !== "object" || !nom) continue;
+    const v = brut as Record<string, unknown>;
+    const matiere: Matiere3d = {};
+    if (typeof v.couleur === "string" && HEX.test(v.couleur)) matiere.couleur = v.couleur.toLowerCase();
+    if (typeof v.brillance === "number" && Number.isFinite(v.brillance)) matiere.brillance = Math.round(borner(v.brillance, 0, 100));
+    if (Object.keys(matiere).length) sortie[nom] = matiere;
+  }
+  return Object.keys(sortie).length ? sortie : undefined;
+}
+
+/** La brillance (0 à 100) d'une rugosité de matière (0 à 1), et l'inverse. */
+export const brillanceDeRugosite = (r: number) => Math.round((1 - borner(r, 0, 1)) * 100);
+export const rugositeDeBrillance = (b: number) => 1 - borner(b, 0, 100) / 100;

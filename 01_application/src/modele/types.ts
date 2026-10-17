@@ -432,6 +432,34 @@ export interface Camera3d {
   decalage?: [number, number, number];
 }
 
+/**
+ * La lumière d'un objet 3D (étape 6, lot 2). Elle tourne avec la vue autour de l'axe vertical,
+ * comme le studio d'un plateau tournant : tourner l'objet ne déplace pas ses reflets dans
+ * l'image. Environnement : celui qui éclaire et se reflète (un fourni, voir `ENVIRONNEMENTS`),
+ * sa force (1 par défaut) et sa rotation en degrés. Principale : d'où elle vient par rapport à
+ * la vue (azimut 0 : de face, positif vers la droite de l'image, 180 : de dos ; élévation en
+ * degrés au-dessus de l'horizon), sa force (1 par défaut) et sa couleur. Exposition : en IL.
+ */
+export interface Lumiere3d {
+  environnement: { id: string; intensite: number; rotation: number };
+  principale: { azimut: number; elevation: number; intensite: number; couleur: string };
+  exposition: number;
+}
+
+/** L'ombre que le modèle porte sur un sol invisible, sous lui, venue de la lumière principale :
+ *  opacité et douceur de 0 à 1. */
+export interface OmbreSol3d {
+  opacite: number;
+  douceur: number;
+}
+
+/** Une matière du modèle repeinte (lot 2) : sa couleur (qui teinte sa texture s'il en a une)
+ *  et sa brillance, de 0 (mate) à 100 (miroir). Ce qui manque reste comme dans le modèle. */
+export interface Matiere3d {
+  couleur?: string;
+  brillance?: number;
+}
+
 /** Un objet 3D (étape 6) : un modèle posé dans la page comme une photo détourée, fond
  *  transparent, rendu par la fenêtre. */
 export interface ElementObjet3d extends ElementBase {
@@ -439,6 +467,12 @@ export interface ElementObjet3d extends ElementBase {
   /** Le modèle (GLB, FBX, OBJ), ressource du design. */
   ressource: string;
   camera: Camera3d;
+  /** Absente : la lumière de départ (`LUMIERE_PAR_DEFAUT`). */
+  lumiere?: Lumiere3d;
+  /** Absente : pas d'ombre au sol. */
+  ombreSol?: OmbreSol3d;
+  /** Les matières repeintes, par leur nom dans le modèle. */
+  matieres?: Record<string, Matiere3d>;
 }
 
 export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVideo | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau | ElementObjet3d;
