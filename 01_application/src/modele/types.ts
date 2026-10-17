@@ -148,6 +148,12 @@ export interface ElementTexte extends ElementBase {
   contour?: { couleur: string; epaisseur: number };
   /** Bande de couleur derrière le texte, comme un surligneur. */
   surlignage?: { couleur: string; marge: number; arrondi: number };
+  /** Texte courbé (étape 7, lot 2), de -100 à 100 : positif en arche, négatif en sourire ; sa
+   *  boîte est celle de l'arc (`modele/texteCourbe.ts`), le texte tient sur une ligne. */
+  courbe?: number;
+  /** Liste (étape 7, lot 2) : chaque ligne saisie est un élément, à puces ou numéroté, les
+   *  lignes suivantes en retrait. */
+  liste?: "puces" | "numeros";
   /** Page vidéo : un sous-titre fait depuis la voix (lot 7), qui suit les mots dits. */
   sousTitre?: SousTitre;
 }

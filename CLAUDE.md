@@ -132,7 +132,10 @@ lourd. Détail : `BRIEF.md`.
   choix par défaut dans `PLAN.md`) ; lot 1, le panneau des calques complet (icônes et
   miniatures, renommer, glisser pour l'ordre et les pistes, groupes repliables, survol, pont :
   `libelle` et `ordre` dessus ou dessous), livré et vérifié le 2026-10-17 ; essai : « Essayer le
-  panneau des calques (étape 7, lot 1) ». Après cette livraison : la commande 13 (le pont).
+  panneau des calques (étape 7, lot 1) ». Lot 2, le texte (texte courbé, listes à puces et
+  numérotées, styles de texte gardés dans le kit de marque, pont : `courbe`, `liste` et l'outil
+  `styles_texte`, 75 outils), livré et vérifié le 2026-10-17 ; essai : « Essayer le texte courbé,
+  les listes et les styles (étape 7, lot 2) ». Après cette livraison : la commande 13 (le pont).
   Pexels (lot 5) attend la clé d'Alexandre, `PEXELS_API_KEY` dans le `.env` ; Pexels suspend
   encore les nouvelles clés le 2026-10-17.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
@@ -366,7 +369,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  260 passed`.
+Vérifier : `Tests  274 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

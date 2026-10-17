@@ -8,6 +8,7 @@ import { mesurePolice } from "./mesure";
 import { disposerTableau } from "./tableaux";
 import { boiteDeDepart, type Boite } from "./personnages";
 import { CAMERA_PAR_DEFAUT } from "./objet3d";
+import { dispositionListe, estCourbe, garderCentre, geometrieCourbe, marqueListe, paragraphesListe, retraitListe, type GenreListe } from "./texteCourbe";
 import {
   COULEUR_PAR_DEFAUT_FOND,
   VERSION_DOCUMENT,
@@ -54,20 +55,85 @@ export function documentVide(format: Format = { largeur: 1080, hauteur: 1080 }, 
 /** Le texte tel qu'il s'affiche (en capitales si l'effet est choisi). */
 export const texteAffiche = (el: Pick<ElementTexte, "texte"> & { majuscules?: boolean }) => (el.majuscules ? el.texte.toLocaleUpperCase("fr") : el.texte);
 
-/** Hauteur réelle d'un texte, mesurée par Konva avec la même police que l'écran. */
-export function mesurerHauteurTexte(el: Pick<ElementTexte, "texte" | "largeur" | "police" | "taillePolice" | "gras" | "italique" | "interligne" | "espacement"> & { majuscules?: boolean }): number {
+type TexteMesure = Pick<ElementTexte, "texte" | "largeur" | "police" | "taillePolice" | "gras" | "italique" | "interligne" | "espacement"> & { majuscules?: boolean; liste?: GenreListe };
+
+/** Un texte mesuré par Konva avec la même police que l'écran : `largeur` absente, sur une ligne. */
+function mesurer(el: Omit<TexteMesure, "largeur" | "texte">, texte: string, largeur?: number): { largeur: number; hauteur: number } {
   const mesure = new Konva.Text({
-    text: texteAffiche(el) || " ",
-    width: el.largeur,
+    text: texte || " ",
+    ...(largeur !== undefined ? { width: largeur } : {}),
     fontFamily: pilePolice(el.police),
     fontSize: el.taillePolice,
     fontStyle: styleTexte(el.gras, el.italique),
     lineHeight: el.interligne,
     letterSpacing: el.espacement,
   });
-  const hauteur = mesure.height();
+  const taille = { largeur: mesure.width(), hauteur: mesure.height() };
   mesure.destroy();
-  return hauteur;
+  return taille;
+}
+
+/** Le retrait d'une liste (étape 7, lot 2) : la place de sa marque la plus large. */
+export function retraitDeListe(el: Omit<TexteMesure, "largeur">): number {
+  const n = paragraphesListe(el.texte).length;
+  const marque = el.liste === "numeros" ? marqueListe("numeros", n - 1).replace(/\d/g, "8") : marqueListe("puces", 0);
+  return retraitListe(mesurer(el, marque).largeur, el.taillePolice);
+}
+
+/** Une liste, paragraphe par paragraphe : la marque, le texte, son haut ; et le retrait. */
+export function disposerListe(el: TexteMesure): { retrait: number; items: { marque: string; texte: string; y: number; hauteur: number }[]; hauteur: number } {
+  const retrait = retraitDeListe(el);
+  const paragraphes = paragraphesListe(texteAffiche(el));
+  const hauteurs = paragraphes.map((p) => mesurer(el, p, Math.max(20, el.largeur - retrait)).hauteur);
+  const { hauts, hauteur } = dispositionListe(hauteurs);
+  return { retrait, items: paragraphes.map((p, i) => ({ marque: marqueListe(el.liste ?? "puces", i), texte: p, y: hauts[i], hauteur: hauteurs[i] })), hauteur };
+}
+
+/** Hauteur réelle d'un texte, mesurée par Konva avec la même police que l'écran (une liste :
+ *  ses paragraphes l'un sous l'autre, dans la largeur qu'il leur reste). */
+export function mesurerHauteurTexte(el: TexteMesure): number {
+  if (el.liste) return disposerListe(el).hauteur;
+  return mesurer(el, texteAffiche(el), el.largeur).hauteur;
+}
+
+/** Le texte d'un texte courbé, sur une seule ligne. */
+export const texteCourbe = (el: Pick<ElementTexte, "texte"> & { majuscules?: boolean }) => texteAffiche(el).replace(/\s*\n\s*/g, " ");
+
+/** La géométrie d'un texte courbé (étape 7, lot 2), d'après sa ligne mesurée ; `null` s'il est
+ *  droit. */
+export function geometrieTexte(el: Omit<TexteMesure, "largeur"> & { courbe?: number }) {
+  if (!estCourbe(el.courbe)) return null;
+  return geometrieCourbe(longueurSurChemin(el), el.taillePolice, el.courbe);
+}
+
+/** La longueur d'arc qu'il faut à la ligne d'un texte courbé. Konva pose les lettres sur le
+ *  chemin une à une, à leur largeur seule (sans le crénage de leurs voisines) : la ligne est un
+ *  peu plus longue que mesurée d'un bloc, et une lettre qui dépasse le bout de l'arc n'est pas
+ *  dessinée. D'où la mesure à sa façon, avec un peu de marge pour le tracé de l'arc. */
+function longueurSurChemin(el: Omit<TexteMesure, "largeur">): number {
+  const texte = texteCourbe(el) || " ";
+  const mesure = new Konva.TextPath({ text: texte, data: "", fontFamily: pilePolice(el.police), fontSize: el.taillePolice, fontStyle: styleTexte(el.gras, el.italique), letterSpacing: el.espacement });
+  const largeur = mesure.getTextWidth() + Math.max(0, [...texte].length - 1) * el.espacement;
+  mesure.destroy();
+  return largeur * 1.005 + 2;
+}
+
+/**
+ * Un texte remis à sa taille après un changement (`avant` : tel qu'il était) : un texte courbé
+ * prend la boîte de son arc, un texte qui se redresse reprend une ligne à sa largeur, et le centre
+ * ne bouge pas ; un texte droit ou une liste remesure sa hauteur.
+ */
+export function recomposerTexte(avant: ElementTexte, apres: ElementTexte): ElementTexte {
+  // Le centre gardé est celui de la boîte d'`apres` avant la nouvelle mesure : celle d'avant,
+  // ou celle qu'un geste vient de donner.
+  const geo = geometrieTexte(apres);
+  if (geo) return { ...apres, ...garderCentre(apres, geo.largeur, geo.hauteur), largeur: geo.largeur, hauteur: geo.hauteur };
+  if (estCourbe(avant.courbe)) {
+    const largeur = Math.ceil(mesurer(apres, texteCourbe(apres)).largeur + apres.taillePolice * 0.2);
+    const hauteur = mesurerHauteurTexte({ ...apres, largeur });
+    return { ...apres, ...garderCentre(apres, largeur, hauteur), largeur, hauteur };
+  }
+  return { ...apres, hauteur: mesurerHauteurTexte(apres) };
 }
 
 export const styleTexte = (gras: boolean, italique: boolean) =>

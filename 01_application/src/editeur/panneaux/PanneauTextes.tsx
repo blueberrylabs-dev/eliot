@@ -13,6 +13,9 @@ import { glisserDepuisPanneau } from "../glisser";
 import { pageCourante, useEditeur } from "../../etat/editeur";
 import { creerTexteStyle, STYLES_VIDEO, type StyleVideo } from "../../modele/stylesVideo";
 import { SectionSousTitres } from "./SectionSousTitres";
+import { useMarque } from "../../etat/marque";
+import { modificationsDuStyle, type StyleTexte } from "../../modele/stylesTexte";
+import { couleurPrincipale } from "../../modele/types";
 
 interface Association {
   titre: string;
@@ -102,7 +105,31 @@ function CarteStyle({ style: s, surSurvol, surPointeur }: ProprietesCarte & { st
   );
 }
 
+/** Un style enregistré (étape 7, lot 2), écrit avec lui-même ; un clic pose un texte à ce style. */
+function CarteStyleEnregistre({ style: s, surSurvol, surPointeur }: ProprietesCarte & { style: StyleTexte }) {
+  const [ref, apparu] = useApparu<HTMLButtonElement>();
+  const couleur = couleurPrincipale(s.couleur);
+  const clair = /^#(?:[c-f][0-9a-f]){3}$/i.test(couleur);
+  return (
+    <button ref={ref} data-style-enregistre={s.id} className={`${carte} ${clair ? "bg-neutral-700" : ""}`} onPointerEnter={surSurvol} onPointerDown={surPointeur} title={`${s.nom} : ${s.police}, ${Math.round(s.taillePolice)} px`}>
+      <span
+        className="block truncate text-xl leading-tight"
+        style={apparu ? { fontFamily: pilePolice(s.police), fontWeight: s.gras ? 700 : 400, fontStyle: s.italique ? "italic" : undefined, color: couleur, textTransform: s.majuscules ? "uppercase" : undefined } : undefined}
+      >
+        {s.nom}
+      </span>
+    </button>
+  );
+}
+
+/** Un texte posé au style enregistré `s`, à sa taille. */
+function creerTexteAuStyle(f: Format, s: StyleTexte): ElementTexte {
+  const m = modificationsDuStyle(s);
+  return creerTexte(f, { ...m, texte: s.nom, taillePolice: s.taillePolice, gras: s.gras } as Parameters<typeof creerTexte>[1]);
+}
+
 export function PanneauTextes() {
+  const stylesEnregistres = useMarque((s) => s.kit.styles);
   const polices = usePolices();
   const pageVideo = useEditeur((s) => pageCourante(s).duree !== undefined);
   const [requete, setRequete] = useState("");
@@ -132,6 +159,18 @@ export function PanneauTextes() {
           <span className="text-sm text-neutral-700">Ajouter un paragraphe de texte</span>
         </button>
       </div>
+
+      {stylesEnregistres.length > 0 && (
+        <>
+          <p className="mb-1 text-sm font-semibold text-neutral-800">Mes styles de texte</p>
+          <p className="mb-2 text-xs text-neutral-500">Gardés dans le kit de marque (bouton Styles d'un texte choisi) ; un clic pose un texte à ce style.</p>
+          <div data-styles-enregistres className="mb-5 flex flex-col gap-1.5">
+            {stylesEnregistres.map((st) => (
+              <CarteStyleEnregistre key={st.id} style={st} surSurvol={() => prechauffer([st.police])} surPointeur={(e) => glisserDepuisPanneau(e, poser([st.police], (f) => [creerTexteAuStyle(f, st)]))} />
+            ))}
+          </div>
+        </>
+      )}
 
       {pageVideo && <SectionSousTitres />}
 

@@ -488,16 +488,32 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   dessous ; la flèche la replie, un clic choisit tout le groupe, on la glisse d'un bloc. Un
   membre glissé hors du groupe le quitte.
 
+**Le texte (étape 7, lot 2)**
+- Courbe, dans la barre d'un texte choisi : un curseur de -100 (en sourire) à 100 (en arche). Le
+  texte suit un arc de cercle, sur une ligne ; sa boîte suit l'arc et garde son centre. Il
+  grandit par les coins ; « Redresser le texte » le remet droit.
+- Liste à puces et liste numérotée, deux boutons à côté de l'alignement : chaque ligne du texte
+  devient un élément, sa puce ou son numéro dans le retrait, la suite de la ligne alignée sous le
+  texte. Recliquer : un texte simple. Un texte courbé n'est pas une liste (courber une liste la
+  défait).
+- Styles : « Garder » enregistre la police, la taille, la couleur et les effets du texte choisi
+  sous un nom, dans le kit de marque ; un clic sur un style le pose sur les textes choisis, dans
+  n'importe quel design, en une étape d'annulation. Panneau Texte, « Mes styles de texte » : un
+  clic pose un texte à ce style. La croix retire un style ; 24 au plus.
+- Un texte courbé ou en liste n'entre pas par morceaux (lettre par lettre, mot par mot) sur une
+  page vidéo ; une telle entrée devient un fondu.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
-  alors lire le design, poser et modifier des objets, gérer les pages, importer une image du
+  alors lire le design, poser et modifier des objets (courber un texte, en faire une liste, ranger
+  et nommer les calques), gérer les pages, importer une image du
   poste, chercher et poser des photos de Pixabay, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
   lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
   styles de texte pour la vidéo), importer, chercher (Freesound) et poser des sons, les
   régler, nettoyer une voix, faire dire un texte par une voix de synthèse, détacher le son
   d'une vidéo, transcrire une voix, couper les blancs et les hésitations, poser des
-  sous-titres, se servir du kit de marque, dessiner à main levée, poser des graphiques et des
+  sous-titres, se servir du kit de marque (styles de texte compris), dessiner à main levée, poser des graphiques et des
   tableaux, partir d'un modèle de départ, retoucher une photo, un clip, ou la photo d'un cadre ou
   d'une maquette au labo (courbe et préréglages compris, enregistrer un préréglage), les recadrer et les redresser (proportions,
   angle, horizon trouvé seul), les poser en perspective (quatre coins sur la page ou une
@@ -874,6 +890,22 @@ Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : un glisser qui ne tombe pas là où tu l'attendais, et ce qui
 manque par rapport au panneau des calques de Canva.
 
+## Essayer le texte courbé, les listes et les styles (étape 7, lot 2)
+
+Cinq minutes, Eliot lancé à la main, carte graphique libre (commande 10).
+
+1. Un titre posé, bouton Courbe : le curseur vers la droite (en arche), puis vers la gauche (en
+   sourire). Tirer un coin : les lettres grandissent, la courbe reste. « Redresser le texte ».
+2. Un paragraphe de trois lignes (Entrée entre elles), Liste à puces, puis Liste numérotée.
+   Double-clic, une quatrième ligne : un numéro de plus.
+3. Un titre à ton goût (police, couleur, contour), Styles, le nom « Titre de la marque »,
+   Garder. Dans un autre design, un texte, Styles, un clic sur le style. Panneau Texte : « Mes
+   styles de texte ».
+4. Exporter en PNG puis en PDF : l'arche et la liste comme à l'écran.
+
+Ce qui m'aide le plus en retour : une courbe qui serre ou coupe des lettres, une police qui s'y
+tient mal, et ce qui manque par rapport au texte de Canva.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -954,7 +986,7 @@ manque par rapport au panneau des calques de Canva.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)

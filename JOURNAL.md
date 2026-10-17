@@ -5,6 +5,58 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7, lot 2 : le texte
+
+Suite de l'accord d'Alexandre (« Feu vert. »). Ce que Claude a fait et décidé :
+
+- Texte courbé : un curseur Courbe, de -100 (en sourire) à 100 (en arche, presque un cercle). Le
+  texte, sur une ligne, suit un arc de cercle tracé par Konva (son tracé de texte) ; l'arc a la
+  longueur de la ligne, son angle suit la courbe. La boîte du texte devient celle de l'arc,
+  autour du même centre, rotation comprise ; il grandit par les coins (la courbe reste),
+  « Redresser le texte » le remet sur une ligne. Rien de neuf dans le noyau : chaque lettre
+  s'enregistre en SVG, tournée, comme à l'écran.
+- En route, trois manières de Konva contournées : il pose les lettres une à une, à leur largeur
+  seule, et laisse tomber celle qui dépasse le bout de l'arc (la ligne se mesure donc à sa
+  façon, avec un peu de marge) ; il donne pour boîte celle des pieds des lettres (poignées et
+  survol prennent désormais celle de l'arc) ; son repérage à la souris ne prenait que les
+  lettres (toute la boîte se prend, le creux de l'arc compris).
+- Listes : à puces ou numérotées, une ligne du texte par élément ; la marque dans le retrait (la
+  plus large, plus un demi-cadratin), la suite de la ligne alignée sous le texte ; à l'écriture,
+  la zone de saisie laisse ce retrait. Un texte courbé n'est pas une liste : courber une liste
+  la défait, et les boutons de liste se grisent sur un texte courbé.
+- Styles de texte : gardés dans le kit de marque, nommés, 24 au plus, d'un design à l'autre :
+  police, taille, couleur (dégradé compris), gras, italique, souligné, barré, capitales,
+  interligne, espacement, alignement, contour, surlignage, ombre. Ni la place, ni le contenu,
+  ni la courbe, ni la liste. Poser un style : une étape d'annulation, les effets absents du
+  style s'en vont, la police se charge avant (et part avec le design si elle vient du poste).
+  Garder sous un nom déjà pris remplace le style. Panneau Texte, « Mes styles de texte » : un
+  clic pose un texte à ce style.
+- Un texte courbé ou en liste n'entre pas par morceaux (lettres, mots, lignes, machine à
+  écrire) : ces entrées ne sont pas proposées, et une telle entrée, ou celle d'un style vidéo,
+  devient un fondu.
+- Pont : `ajouter_texte` et `modifier` prennent `courbe` (null : droit) et `liste` (null : texte
+  simple), avec des refus clairs (hors de -100 à 100, courbe et liste ensemble, liste inconnue) ;
+  `animer` refuse une entrée par morceaux sur un tel texte ; un outil neuf, `styles_texte`
+  (lister, enregistrer depuis un texte, appliquer par identifiant ou par nom, renommer,
+  supprimer) ; `marque` liste les styles. 75 outils.
+
+Preuves (conteneur de Claude) : 14 essais vitest de plus (274 : géométrie de l'arc, sens, boîte,
+rayon minimal, centre gardé malgré la rotation, disposition et marques des listes, styles lus
+sur le disque, remis d'aplomb, posés, retrouvés) ; dans Chromium, 53 vérifications (curseur,
+arche et sourire lus à l'encre, centre gardé, toutes les lettres sur l'arc, coins seulement,
+redresser, annuler, clic dans le creux de l'arc et écriture, listes, retrait, styles gardés,
+posés, remplacés, retirés, carte du panneau, animations écartées, description pour l'export,
+pont et ses refus) ; dans Tauri, 16 (fenêtre contre PNG du noyau à 0,60 d'écart moyen, chaque
+texte à part, PDF par poppler à 1,10 avec la liste qui se sélectionne, SVG par Chromium à 0,16,
+style écrit dans le kit sur le disque et posé dans un autre design, design rouvert, un coin tiré
+à la souris puis annulé sans trace). Repassés : étape 2 (33), étape 3, lots 1 et 3 (23, 29),
+étape 4, lots 2, 3, 5, 6 et 7 (38, 44, 44, 37, 44), les correctifs (23), la vérification de
+l'étape 5 (15), le lot 1 de l'étape 7 (30 dans Chromium, 8 dans Tauri), les exports de l'étape 5
+dans Tauri (62) et l'animation de l'étape 4 par le pont dans Tauri (16). Des vérifications
+restées d'avant (nombre d'outils, rail, libellé du bouton d'import) mises à jour. Une trace du
+geste vue dans Chromium venait de son dessin accéléré par SwiftShader, pas d'Eliot : absente
+sans cette accélération, et dans Tauri.
+
 ## 2026-10-17, étape 7, lot 1 : le panneau des calques
 
 Suite de l'accord d'Alexandre (« Go pour l'étape 7. »). Ce que Claude a fait et décidé :

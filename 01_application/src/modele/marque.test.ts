@@ -15,6 +15,10 @@ describe("kit de marque", () => {
     expect(kit.couleurs).toEqual([{ valeur: "#0b3d91", nom: "Bleu nuit" }, { valeur: "#f2a900" }]);
     expect(kit.polices).toEqual({ titre: { famille: "Anton", gras: true } });
     expect(kit.logos).toEqual(["a".repeat(64)]);
+    expect(kit.styles).toEqual([]);
+    // Les styles de texte enregistrés (étape 7, lot 2) : les bons restent, les autres s'en vont.
+    const avecStyles = kitValide({ styles: [{ id: "s1", nom: "Titre", police: "Anton", taillePolice: 96, couleur: "#0b3d91" }, { id: "s2" }] });
+    expect(avecStyles.styles.map((s) => s.nom)).toEqual(["Titre"]);
     expect(kitValide(null)).toEqual(kitVide());
     expect(kitValide("n'importe quoi")).toEqual(kitVide());
   });

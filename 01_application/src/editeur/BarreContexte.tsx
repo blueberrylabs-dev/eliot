@@ -26,6 +26,12 @@ import {
   Group,
   Italic,
   LayoutGrid,
+  List,
+  ListOrdered,
+  Spline,
+  Bookmark,
+  BookmarkPlus,
+  X,
   Lock,
   LockOpen,
   Minus,
@@ -59,6 +65,8 @@ import { assurerPolice, variantesPossibles } from "../polices";
 import { modificationsStyle, STYLES_VIDEO } from "../modele/stylesVideo";
 import { copierPoliceDansDesign } from "../etat/projets";
 import { ouvrirLien } from "../pont/tauri";
+import { bornerCourbe, estCourbe } from "../modele/texteCourbe";
+import { poserStyleTexte, useMarque } from "../etat/marque";
 import { Bouton, Curseur, separateur } from "./ElementsBarre";
 import { ReglagesDessin, ReglagesGraphique, ReglagesTableau } from "./ReglagesDonnees";
 import { remplacerDepuisFichier } from "./remplacer";
@@ -220,8 +228,80 @@ function ReglagesTexte({ textes, modifier }: { textes: ElementTexte[]; modifier:
           <input type="range" min={-5} max={40} step={0.5} value={t.espacement} onChange={(e) => modifier({ espacement: Number(e.target.value) }, "espacement")} className="w-full accent-accent-600" />
         </label>
       </Bulle>
+      <Bouton titre="Liste à puces" enfoncé={t.liste === "puces"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "puces" ? undefined : "puces" })}>
+        <List size={16} />
+      </Bouton>
+      <Bouton titre="Liste numérotée" enfoncé={t.liste === "numeros"} inactif={estCourbe(t.courbe)} surClic={() => modifier({ liste: t.liste === "numeros" ? undefined : "numeros" })}>
+        <ListOrdered size={16} />
+      </Bouton>
+      <CourbeTexte t={t} modifier={modifier} />
       <EffetsTexte t={t} modifier={modifier} />
+      <StylesEnregistres textes={textes} />
     </>
+  );
+}
+
+/** Le texte courbé (étape 7, lot 2) : un curseur de -100 (sourire) à 100 (arche). */
+function CourbeTexte({ t, modifier }: { t: ElementTexte; modifier: (m: Partial<ElementTexte>, etiquette?: string) => void }) {
+  const courbe = t.courbe ?? 0;
+  return (
+    <Bulle titre="Courbe" largeur={260} donneesBouton={{ "data-courbe-texte": "" }} bouton={<><Spline size={16} /><span className="text-sm">Courbe</span></>}>
+      <label className="block text-xs text-neutral-600">
+        <span className="mb-1 flex justify-between">
+          Courbe <span className="tabular-nums" data-valeur-courbe>{courbe}</span>
+        </span>
+        <input type="range" data-curseur-courbe aria-label="Courbe du texte" min={-100} max={100} step={1} value={courbe} onChange={(e) => modifier({ courbe: bornerCourbe(Number(e.target.value)) || undefined, ...(Number(e.target.value) ? { liste: undefined } : {}) }, "courbe")} className="w-full accent-accent-600" />
+        <span className="flex justify-between text-[11px] text-neutral-400">
+          <span>en sourire</span>
+          <span>en arche</span>
+        </span>
+      </label>
+      <p className="mt-2 text-[11px] text-neutral-500">Le texte courbé tient sur une ligne ; il grandit par les coins. Une liste se défait.</p>
+      {estCourbe(t.courbe) && (
+        <button data-redresser className="mt-2 w-full rounded-md border border-neutral-300 py-1.5 text-xs text-neutral-700 hover:bg-neutral-50" onClick={() => modifier({ courbe: undefined })}>
+          Redresser le texte
+        </button>
+      )}
+    </Bulle>
+  );
+}
+
+/** Les styles de texte enregistrés dans le kit de marque (étape 7, lot 2) : poser l'un d'eux sur
+ *  les textes choisis, garder celui du premier, en retirer. */
+function StylesEnregistres({ textes }: { textes: ElementTexte[] }) {
+  const styles = useMarque((s) => s.kit.styles);
+  const [nom, setNom] = useState("");
+  const t = textes[0];
+  return (
+    <Bulle titre="Styles enregistrés" largeur={280} donneesBouton={{ "data-styles-texte": "" }} bouton={<><Bookmark size={16} /><span className="text-sm">Styles</span></>}>
+      {styles.length === 0 && <p className="mb-2 text-xs text-neutral-500">Aucun style enregistré : garde celui de ce texte pour le reposer d'un clic, dans n'importe quel design.</p>}
+      <div className="mb-3 flex max-h-56 flex-col gap-1 overflow-y-auto">
+        {styles.map((s) => (
+          <div key={s.id} className="flex items-center gap-1">
+            <button data-poser-style={s.id} onClick={() => void poserStyleTexte(s, textes.map((x) => x.id))} className="flex-1 truncate rounded-md border border-neutral-200 px-2 py-1.5 text-left text-sm hover:border-accent-500 hover:bg-accent-50" title={`${s.police}, ${Math.round(s.taillePolice)} px`}>
+              {s.nom}
+            </button>
+            <button title={`Retirer « ${s.nom} »`} aria-label={`Retirer « ${s.nom} »`} onClick={() => useMarque.getState().supprimerStyle(s.id)} className="rounded p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700">
+              <X size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <form
+        className="flex gap-1"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!t) return;
+          useMarque.getState().enregistrerStyle(t, nom);
+          setNom("");
+        }}
+      >
+        <input data-nom-style value={nom} onChange={(e) => setNom(e.target.value)} onKeyDown={(e) => e.stopPropagation()} placeholder="Nom du style (Titre promo…)" className="h-8 min-w-0 flex-1 rounded-md border border-neutral-300 px-2 text-sm outline-none focus:border-accent-500" />
+        <button type="submit" data-enregistrer-style title="Garder le style de ce texte dans le kit de marque" className="flex h-8 items-center gap-1 rounded-md bg-accent-600 px-2 text-xs font-medium text-white hover:bg-accent-700">
+          <BookmarkPlus size={14} /> Garder
+        </button>
+      </form>
+    </Bulle>
   );
 }
 

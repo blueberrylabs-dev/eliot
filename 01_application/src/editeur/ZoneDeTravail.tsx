@@ -14,6 +14,7 @@ import { Circle, Group, Layer, Rect, Stage, Transformer } from "react-konva";
 import { clesActives, elementsCourants, pageCourante, useEditeur } from "../etat/editeur";
 import { poserCle } from "../modele/animation";
 import { estTrait, nouvelId } from "../modele/fabriques";
+import { estCourbe } from "../modele/texteCourbe";
 import { deplacerRecadrage, ecranAppareil } from "../modele/cadres";
 import { creerTrait, distanceAuTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { mesurePolice } from "../modele/mesure";
@@ -312,7 +313,10 @@ export function ZoneDeTravail() {
     : enCles
       ? COINS
       : seul?.type === "texte"
-      ? [...COINS, ...COTES_LATERAUX]
+      ? // Un texte courbé n'a pas de largeur à lui (celle de son arc) : il grandit par les coins.
+        estCourbe(seul.courbe)
+        ? COINS
+        : [...COINS, ...COTES_LATERAUX]
       : seul?.type === "forme"
         ? estTrait(seul.forme)
           ? COTES_LATERAUX
@@ -402,7 +406,18 @@ export function ZoneDeTravail() {
       }
       const sx = Math.abs(n.scaleX());
       const sy = Math.abs(n.scaleY());
-      if (el.type === "texte") {
+      if (el.type === "texte" && (estCourbe(el.courbe) || el.liste)) {
+        // Courbé ou en liste (étape 7, lot 2) : la boîte agrandie, puis le texte se remesure (un
+        // texte courbé reprend la boîte de son arc autour du même centre).
+        modifs[el.id] = {
+          x: arrondir(n.x()),
+          y: arrondir(n.y()),
+          rotation: arrondir(n.rotation()),
+          taillePolice: Math.max(4, arrondir(el.taillePolice * sy)),
+          largeur: Math.max(20, arrondir(el.largeur * sx)),
+          ...(estCourbe(el.courbe) ? { hauteur: arrondir(el.hauteur * sy) } : {}),
+        };
+      } else if (el.type === "texte") {
         const t = n.findOne("Text") as Konva.Text;
         modifs[el.id] = {
           x: arrondir(n.x()),
@@ -480,6 +495,9 @@ export function ZoneDeTravail() {
         const el = parId.get(n.id());
         // Un texte à images clés s'agrandit d'un bloc : son échelle va dans la clé.
         if (el?.type !== "texte" || ancre === "rotater" || clesActives(el)) continue;
+        // Un texte courbé ou une liste s'agrandit d'un bloc pendant le geste, et se remesure à
+        // la fin.
+        if (estCourbe(el.courbe) || el.liste) continue;
         // Un texte ne se déforme pas : les côtés changent sa largeur (il se réenroule), les
         // coins changent sa taille de police.
         const t = n.findOne("Text") as Konva.Text;

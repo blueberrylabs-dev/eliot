@@ -16,7 +16,8 @@ import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, u
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId } from "../modele/fabriques";
+import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId, recomposerTexte } from "../modele/fabriques";
+import { estCourbe } from "../modele/texteCourbe";
 import {
   DECALAGE_MAX,
   ELEVATION_MAX,
@@ -42,7 +43,7 @@ import { cameraA, camerasDesCles, clesAvecCameras, clesSansCamera, normaliserAni
 import { apercuKenney, catalogueKenney, ranger, rangerEnvironnement, traduireRequete } from "../trois/banques";
 import type { SensAlignement } from "../modele/geometrie";
 import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type ElementObjet3d, type Lumiere3d, type Matiere3d, type OmbreSol3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
-import { logoDansDesign, poserJingle, useMarque } from "../etat/marque";
+import { logoDansDesign, poserJingle, poserStyleTexte, useMarque } from "../etat/marque";
 import { telechargerSonFreesound } from "../etat/sons";
 import { versionNettoyee } from "../etat/nettoyage";
 import { borneNettoyage, nettoyageActif, VOIX_NETTE } from "../modele/voix";
@@ -63,6 +64,7 @@ import { chargerPrereglages, enregistrerPrereglage, tousLesPrereglages, usePrere
 import { normaliser } from "../bibliotheque/recherche";
 import { telechargerPhotoPixabay, telechargerVideoPixabay } from "../etat/photos";
 import { ROLES_POLICE, type KitMarque } from "../modele/marque";
+import { STYLES_MAX, trouverStyle } from "../modele/stylesTexte";
 import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
@@ -72,9 +74,9 @@ import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
-import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
+import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, estAnimationUnites, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
-import type { Animations, ClipAudio, CleAnimation, CoupPinceau, NettoyageVoix, RoleSon } from "../modele/types";
+import type { Animations, ClipAudio, CleAnimation, CoupPinceau, ElementTexte, NettoyageVoix, RoleSon } from "../modele/types";
 import { nomSon } from "../editeur/frise/ClipSon";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
@@ -246,10 +248,37 @@ function resumerFrise() {
   };
 }
 
+/** La courbe et la liste demandées pour un texte (étape 7, lot 2), vérifiées. `undefined` : rien
+ *  de demandé ; une clé à `undefined` dans la réponse : la retirer (null). */
+function formeTexte(args: Arguments, el: Pick<ElementTexte, "courbe" | "liste">): Partial<Pick<ElementTexte, "courbe" | "liste">> {
+  const forme: Partial<Pick<ElementTexte, "courbe" | "liste">> = {};
+  if (args.courbe !== undefined) {
+    const c = args.courbe === null ? 0 : nombre(args.courbe);
+    exiger(c !== undefined && c >= -100 && c <= 100, "courbe : de -100 (en sourire) à 100 (en arche), 0 ou null : droit");
+    forme.courbe = Math.round(c!) || undefined;
+  }
+  if (args.liste !== undefined) {
+    exiger(args.liste === null || args.liste === "puces" || args.liste === "numeros", "liste : puces, numeros, ou null pour en faire un texte simple");
+    forme.liste = (args.liste as "puces" | "numeros" | null) ?? undefined;
+  }
+  const courbe = "courbe" in forme ? forme.courbe : el.courbe;
+  const liste = "liste" in forme ? forme.liste : el.liste;
+  exiger(!(estCourbe(courbe) && liste), "un texte courbé ne peut pas être une liste (courbe à 0 ou null d'abord, ou liste à null)");
+  return forme;
+}
+
+/** Un texte courbé ou en liste n'entre pas par morceaux : ses entrée et sortie par morceaux
+ *  (d'un style vidéo) deviennent des fondus. */
+function sansMorceaux(el: ElementTexte, animations: Animations): Animations {
+  if (!estCourbe(el.courbe) && !el.liste) return animations;
+  const sans = (a: Animations["entree"]) => (a && estAnimationUnites(a.nom) ? { ...a, nom: "fondu" } : a);
+  return { ...animations, ...(animations.entree ? { entree: sans(animations.entree) } : {}), ...(animations.sortie ? { sortie: sans(animations.sortie) } : {}) };
+}
+
 /** Propriétés qu'une modification peut toucher, selon le type de l'élément. */
 const COMMUNES = ["x", "y", "largeur", "hauteur", "rotation", "opacite", "visible", "verrouille", "nom", "libelle", "ombre", "temps", "piste"];
 const PAR_TYPE: Record<ElementPage["type"], string[]> = {
-  texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage"],
+  texte: ["texte", "police", "taillePolice", "couleur", "gras", "italique", "souligne", "barre", "majuscules", "alignement", "interligne", "espacement", "contour", "surlignage", "courbe", "liste"],
   forme: ["remplissage", "contour", "epaisseurContour", "arrondi", "forme", "cotes", "tirets", "pointes"],
   image: ["retourneH", "retourneV", "arrondi", "bordure"],
   video: ["retourneH", "retourneV", "arrondi", "bordure", "coupe", "vitesse", "volume", "fonduEntree", "fonduSortie"],
@@ -367,7 +396,9 @@ function nettoyerModification(el: ElementPage, brut: Arguments): Partial<Element
   for (const [cle, valeur] of Object.entries(brut)) {
     if (cle === "id") continue;
     exiger(permises.has(cle), `propriété inconnue pour un élément ${el.type} : ${cle}`);
-    if (cle === "libelle") {
+    if ((cle === "courbe" || cle === "liste") && el.type === "texte") {
+      Object.assign(propre, formeTexte({ courbe: brut.courbe, liste: brut.liste }, el));
+    } else if (cle === "libelle") {
       // Le nom dans le panneau des calques (étape 7, lot 1) ; null ou vide : celui du contenu.
       exiger(valeur === null || typeof valeur === "string", "libelle : un texte, ou null pour revenir au nom tiré du contenu");
       const l = typeof valeur === "string" ? valeur.replace(/\s+/g, " ").trim().slice(0, 80) : "";
@@ -700,6 +731,8 @@ function resumerMarque(kit: KitMarque) {
         return r?.son ? [[j.id, { nom: r.nom, duree: r.son.duree }]] : [];
       }),
     ),
+    // Les styles de texte enregistrés, à poser avec styles_texte.
+    styles: kit.styles.map((s) => ({ id: s.id, nom: s.nom, police: s.police, taillePolice: s.taillePolice })),
   };
 }
 
@@ -913,9 +946,12 @@ const OUTILS: Record<string, Outil> = {
     });
     const largeur = nombre(args.largeur);
     const avecLargeur = largeur ? { ...base, largeur: Math.max(20, largeur) } : base;
-    const el = placer({ ...avecLargeur, hauteur: mesurerHauteurTexte(avecLargeur) }, { ...args, hauteur: undefined, largeur: undefined });
+    // Courbe et liste (étape 7, lot 2) : le texte prend la boîte de son arc, ou de sa liste.
+    const forme = formeTexte(args, avecLargeur);
+    const remesure = forme.courbe !== undefined || forme.liste !== undefined ? recomposerTexte(avecLargeur, { ...avecLargeur, ...forme }) : { ...avecLargeur, hauteur: mesurerHauteurTexte(avecLargeur) };
+    const el = placer(remesure, { ...args, hauteur: undefined, largeur: undefined });
     // Le style apporte aussi ses animations (prises en compte sur une page vidéo).
-    const anime = style && estPageVideo(pageCourante(etat())) ? { ...el, animations: animationsPour(style, el) } : el;
+    const anime = style && estPageVideo(pageCourante(etat())) ? { ...el, animations: sansMorceaux(el, animationsPour(style, el)) } : el;
     return { donnees: ajouter(anime) };
   },
 
@@ -942,6 +978,7 @@ const OUTILS: Record<string, Outil> = {
         const def = definitionAnimation(g, nom);
         exiger(def, `${g}.nom inconnu : ${nom} (${CATALOGUE[g].map((d) => d.nom).join(", ")})`);
         exiger(!def!.texte || el.type === "texte", `${g} ${nom} : seulement pour un texte (${el.id} est un élément ${el.type})`);
+        exiger(!(el.type === "texte" && (estCourbe(el.courbe) || el.liste) && estAnimationUnites(nom)), `${g} ${nom} : un texte courbé ou en liste n'entre pas par morceaux (fondu, glissement, zoom… conviennent)`);
         const duree = v.duree === undefined || v.duree === null ? undefined : nombre(v.duree);
         exiger(v.duree === undefined || v.duree === null || (duree !== undefined && duree >= (g === "boucle" ? 0 : 100) && duree <= 20_000), `${g}.duree : de 100 à 20000 ms`);
         animations[g] = { nom, duree: Math.round(duree ?? dureeConseillee(g, nom, el)) };
@@ -2002,6 +2039,54 @@ const OUTILS: Record<string, Outil> = {
       ...(polices ? { polices: { ...k.polices, ...(polices as KitMarque["polices"]) } } : {}),
     }));
     return { donnees: resumerMarque(useMarque.getState().kit) };
+  },
+
+  async styles_texte(args) {
+    const action = texte(args.action) ?? "lister";
+    exiger(["lister", "enregistrer", "appliquer", "supprimer", "renommer"].includes(action), "action : lister, enregistrer, appliquer, supprimer ou renommer");
+    const marque = useMarque.getState();
+    const liste = () => useMarque.getState().kit.styles;
+    if (action === "lister") return { donnees: { styles: liste() } };
+    if (action === "enregistrer") {
+      designOuvert();
+      const id = texte(args.depuis) ?? "";
+      const el = elementsCourants(etat()).find((e) => e.id === id);
+      exiger(el && el.type === "texte", `depuis : l'identifiant d'un texte de la page affichée (pas ${id || "rien"})`);
+      const nom = texte(args.nom)?.trim();
+      exiger(nom, "nom : le nom du style, par exemple « Titre de la marque »");
+      const deja = trouverStyle(liste(), nom!);
+      exiger(deja || liste().length < STYLES_MAX, `le kit garde ${STYLES_MAX} styles au plus : supprimer d'abord un style`);
+      const style = marque.enregistrerStyle(el as ElementTexte, nom!);
+      return { donnees: { style, remplace: !!deja } };
+    }
+    const cle = texte(args.style) ?? "";
+    const style = trouverStyle(liste(), cle);
+    exiger(style, `style inconnu : ${cle || "rien"} (voir styles_texte, action lister)`);
+    if (action === "supprimer") {
+      marque.supprimerStyle(style!.id);
+      return { donnees: { styles: liste() } };
+    }
+    if (action === "renommer") {
+      const nom = texte(args.nom)?.trim();
+      exiger(nom, "nom : le nouveau nom du style");
+      const autre = trouverStyle(liste(), nom!);
+      exiger(!autre || autre.id === style!.id, `un autre style s'appelle déjà ${nom}`);
+      marque.renommerStyle(style!.id, nom!);
+      return { donnees: { style: liste().find((s) => s.id === style!.id) } };
+    }
+    designOuvert();
+    exiger(Array.isArray(args.ids) && args.ids.length, "ids : la liste des textes à mettre au style");
+    const ids = (args.ids as unknown[]).map(String);
+    const parId = new Map(elementsCourants(etat()).map((e) => [e.id, e]));
+    for (const id of ids) {
+      const el = parId.get(id);
+      exiger(el, `élément introuvable sur la page affichée : ${id}`);
+      exiger(el!.type === "texte", `${id} n'est pas un texte`);
+      exiger(!el!.verrouille, `${id} est verrouillé`);
+    }
+    const changes = await poserStyleTexte(style!, ids);
+    const apres = new Map(elementsCourants(etat()).map((e) => [e.id, e]));
+    return { donnees: { style: style!.nom, textes: changes.map((id) => apres.get(id)) } };
   },
 
   async ajouter_logo(args) {

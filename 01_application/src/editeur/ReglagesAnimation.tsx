@@ -8,7 +8,8 @@ import { Play, WandSparkles } from "lucide-react";
 import { useState } from "react";
 import { pageCourante, useEditeur } from "../etat/editeur";
 import { DUREE_PAGE_DEFAUT } from "../modele/frise";
-import { CATALOGUE, dureeConseillee, type DefinitionAnimation, type GenreAnimation } from "../modele/animation";
+import { CATALOGUE, dureeConseillee, estAnimationUnites, type DefinitionAnimation, type GenreAnimation } from "../modele/animation";
+import { estCourbe } from "../modele/texteCourbe";
 import type { ElementPage } from "../modele/types";
 import { arreterApercu, montrerAnimation } from "./apercuAnimation";
 import { Bulle } from "./Bulle";
@@ -42,7 +43,9 @@ export function ReglagesAnimation({ choisis }: { choisis: ElementPage[] }) {
   const longueur = premier.temps ? premier.temps.fin - premier.temps.debut : DUREE_PAGE_DEFAUT;
   /** L'élément tel qu'il est maintenant (une page fixe vient peut-être de devenir vidéo). */
   const frais = () => pageCourante(useEditeur.getState()).elements.find((e) => e.id === premier.id);
-  const liste = CATALOGUE[genre].filter((d) => !d.texte || textes);
+  // Un texte courbé ou en liste (étape 7, lot 2) n'entre pas par morceaux.
+  const parMorceaux = textes && choisis.every((e) => e.type === "texte" && !estCourbe(e.courbe) && !e.liste);
+  const liste = CATALOGUE[genre].filter((d) => !d.texte || (textes && (parMorceaux || !estAnimationUnites(d.nom))));
 
   const essayer = (d: DefinitionAnimation | null) => {
     // Sur une image fixe, pas d'aperçu au survol : rien ne bouge avant que la page soit vidéo.

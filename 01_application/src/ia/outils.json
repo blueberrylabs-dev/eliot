@@ -154,7 +154,7 @@
   },
   {
     "name": "ajouter_texte",
-    "description": "Ajoute un texte sur la page affichée. Coordonnées en pixels de la page, origine en haut à gauche ; sans x ni y, le texte est centré. La hauteur se calcule toute seule d'après la largeur et la police. Couleur : #rrggbb ou un dégradé. Style vidéo (style) : police, couleurs, effet et, sur une page vidéo, animations d'entrée et de sortie prêtes : legende (blanc contourné de noir, entre en rebond), bandeau (noir sur bande jaune, glisse), sous-titre (blanc sur bande noire, fondu), choc (gros titre Anton, zoom), neon (rose lumineux qui clignote), machine (Space Mono, machine à écrire), mots (entre mot par mot), citation (Playfair italique, ligne par ligne) ; ce qui est précisé à côté (taillePolice, couleur…) passe devant.",
+    "description": "Ajoute un texte sur la page affichée. Coordonnées en pixels de la page, origine en haut à gauche ; sans x ni y, le texte est centré. La hauteur se calcule toute seule d'après la largeur et la police. Courbe : le texte, sur une seule ligne, suit un arc de cercle (la boîte prend celle de l'arc) ; liste : chaque ligne du texte (\\n) devient un élément, avec sa puce ou son numéro. Couleur : #rrggbb ou un dégradé. Style vidéo (style) : police, couleurs, effet et, sur une page vidéo, animations d'entrée et de sortie prêtes : legende (blanc contourné de noir, entre en rebond), bandeau (noir sur bande jaune, glisse), sous-titre (blanc sur bande noire, fondu), choc (gros titre Anton, zoom), neon (rose lumineux qui clignote), machine (Space Mono, machine à écrire), mots (entre mot par mot), citation (Playfair italique, ligne par ligne) ; ce qui est précisé à côté (taillePolice, couleur…) passe devant.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -205,6 +205,20 @@
         "espacement": {
           "type": "number",
           "description": "Espacement des lettres en pixels."
+        },
+        "courbe": {
+          "type": "number",
+          "minimum": -100,
+          "maximum": 100,
+          "description": "Texte courbé : positif, en arche (vers le haut) ; négatif, en sourire (vers le bas) ; 100, presque un cercle entier. 0 : droit."
+        },
+        "liste": {
+          "type": "string",
+          "enum": [
+            "puces",
+            "numeros"
+          ],
+          "description": "Liste à puces ou numérotée : un élément par ligne du texte. Pas avec une courbe."
         },
         "rotation": {
           "type": "number"
@@ -2536,7 +2550,7 @@
   },
   {
     "name": "animer",
-    "description": "Anime des éléments, comme dans CapCut (sur une image fixe, la page devient d'abord une page vidéo de 5 s, un post animé : la frise s'ouvre) : une animation d'entrée (au début du clip), de sortie (à la fin) et une en boucle (tout le long), chacune { nom, duree en ms } ; null en retire une, un genre absent ne change pas. Entrée et sortie plus longues que le clip se partagent sa durée. Entrées et sortie : fondu, glissement-haut (monte), glissement-bas (descend), glissement-gauche (arrive de la droite), glissement-droite (arrive de la gauche), zoom (grossit depuis petit), zoom-arriere (rétrécit depuis grand), rebond, chute (tombe et rebondit), tourbillon, volet (se découvre de gauche à droite) ; pour un texte seulement : machine-a-ecrire, lettres, mots, lignes (le texte entre par morceaux) (en sortie, le même nom fait le mouvement inverse : glissement-haut part vers le haut, zoom rétrécit, machine-a-ecrire efface). Boucles : pulsation, battement, flottement, balancement, tremblement, clignotement, rotation, zoom-lent (Ken Burns : grandit de 15 % sur tout le clip ; duree ignorée). Une capture à un instant (capture avec temps) montre l'effet ; dans la fenêtre, l'élément choisi s'affiche sans ses effets tant que la page ne joue pas.",
+    "description": "Anime des éléments, comme dans CapCut (sur une image fixe, la page devient d'abord une page vidéo de 5 s, un post animé : la frise s'ouvre) : une animation d'entrée (au début du clip), de sortie (à la fin) et une en boucle (tout le long), chacune { nom, duree en ms } ; null en retire une, un genre absent ne change pas. Entrée et sortie plus longues que le clip se partagent sa durée. Entrées et sortie : fondu, glissement-haut (monte), glissement-bas (descend), glissement-gauche (arrive de la droite), glissement-droite (arrive de la gauche), zoom (grossit depuis petit), zoom-arriere (rétrécit depuis grand), rebond, chute (tombe et rebondit), tourbillon, volet (se découvre de gauche à droite) ; pour un texte seulement, ni courbé ni en liste : machine-a-ecrire, lettres, mots, lignes (le texte entre par morceaux) (en sortie, le même nom fait le mouvement inverse : glissement-haut part vers le haut, zoom rétrécit, machine-a-ecrire efface). Boucles : pulsation, battement, flottement, balancement, tremblement, clignotement, rotation, zoom-lent (Ken Burns : grandit de 15 % sur tout le clip ; duree ignorée). Une capture à un instant (capture avec temps) montre l'effet ; dans la fenêtre, l'élément choisi s'affiche sans ses effets tant que la page ne joue pas.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -2727,7 +2741,7 @@
   },
   {
     "name": "marque",
-    "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo), jingles d'ouverture et de fin (à poser avec ajouter_son, jingle). À lire avant de composer un design pour sa marque.",
+    "description": "Le kit de marque d'Alexandre, commun à tous ses designs : nom, couleurs, polices du titre, du sous-titre et du texte, logos (à poser avec ajouter_logo), jingles d'ouverture et de fin (à poser avec ajouter_son, jingle), styles de texte enregistrés (à poser avec styles_texte). À lire avant de composer un design pour sa marque.",
     "inputSchema": {
       "type": "object",
       "properties": {}
@@ -2812,6 +2826,48 @@
     }
   },
   {
+    "name": "styles_texte",
+    "description": "Les styles de texte enregistrés dans le kit de marque (24 au plus, gardés d'un design à l'autre) : la police, la taille, la couleur, le gras, l'italique, le soulignement, le barré, les majuscules, l'interligne, l'espacement, l'alignement, le contour, le surlignage et l'ombre d'un texte, sous un nom. Ni la place, ni le contenu, ni la courbe, ni la liste. lister : les styles ; enregistrer : garde le style du texte depuis sous le nom donné (un style du même nom est remplacé) ; appliquer : pose le style (son identifiant ou son nom) sur des textes de la page affichée, en une étape d'annulation, les effets absents du style s'en vont ; renommer ; supprimer. N'enregistre, ne renomme ni ne supprime que si Alexandre le demande.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "enum": [
+            "lister",
+            "enregistrer",
+            "appliquer",
+            "renommer",
+            "supprimer"
+          ]
+        },
+        "depuis": {
+          "type": "string",
+          "description": "enregistrer : l'identifiant du texte dont on garde le style."
+        },
+        "nom": {
+          "type": "string",
+          "description": "enregistrer, renommer : le nom du style (40 caractères au plus)."
+        },
+        "style": {
+          "type": "string",
+          "description": "appliquer, renommer, supprimer : l'identifiant ou le nom du style."
+        },
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "appliquer : les textes à mettre au style."
+        }
+      },
+      "required": [
+        "action"
+      ]
+    }
+  },
+  {
     "name": "ajouter_logo",
     "description": "Pose un logo du kit de marque sur la page : il est d'abord copié dans le design. La hauteur suit la largeur.",
     "inputSchema": {
@@ -2846,7 +2902,7 @@
   },
   {
     "name": "modifier",
-    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, libelle (le nom de l'élément dans le panneau des calques ; null : celui tiré de son contenu), ombre ({ couleur, flou, x, y, opacite } ou null) ; sur une page vidéo, temps ({ debut, fin } en ms : une vidéo garde la durée de sa coupe et de sa vitesse) et piste (0 : principale, où vidéos et photos se suivent bout à bout ; 1, 2, 3… : superpositions, la plus haute devant ; une piste occupée à cet endroit en fait naître une au-dessus) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1), et sur une page vidéo fonduEntree et fonduSortie (ms : le son monte au début du clip, baisse à la fin ; null : sans fondu) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place). Les animations passent par animer, les images clés par images_cles, les transitions par transition.",
+    "description": "Modifie des éléments de la page affichée, en une seule étape d'annulation. Chaque entrée porte l'identifiant et les propriétés à changer : x, y, largeur, hauteur, rotation, opacite, visible, verrouille, libelle (le nom de l'élément dans le panneau des calques ; null : celui tiré de son contenu), ombre ({ couleur, flou, x, y, opacite } ou null) ; sur une page vidéo, temps ({ debut, fin } en ms : une vidéo garde la durée de sa coupe et de sa vitesse) et piste (0 : principale, où vidéos et photos se suivent bout à bout ; 1, 2, 3… : superpositions, la plus haute devant ; une piste occupée à cet endroit en fait naître une au-dessus) ; pour un texte : texte, police, taillePolice, couleur, gras, italique, souligne, barre, majuscules, alignement, interligne, espacement, contour ({ couleur, epaisseur } ou null), surlignage ({ couleur, marge, arrondi } ou null), courbe (-100 à 100 : en sourire ou en arche, le texte sur une ligne suit un arc et sa boîte suit l'arc en gardant son centre ; 0 ou null : droit), liste (puces, numeros : une ligne du texte par élément ; null : texte simple ; pas avec une courbe) ; pour une forme : remplissage, contour, epaisseurContour, arrondi, cotes, tirets, pointes ; pour une image : retourneH, retourneV, arrondi, bordure ({ couleur, epaisseur } ou null) ; pour une vidéo : les mêmes, et coupe ({ debut, fin } en millisecondes du fichier, null : toute la vidéo), vitesse (0.25 à 4), volume (0 à 1), et sur une page vidéo fonduEntree et fonduSortie (ms : le son monte au début du clip, baisse à la fin ; null : sans fondu) ; pour un cadre : forme, bordure, fond ; pour une maquette : couleur, appareil ; pour une icône : couleur, trait (épaisseur, icônes Tabler au trait) ; pour un QR code : contenu, couleur, fond (null : transparent), correction (L, M, Q, H) ; pour un trait de dessin : couleur, epaisseur, outil (stylo, marqueur, surligneur) ; pour un graphique : genre, etiquettes, series ([{ nom, valeurs, couleur }]), couleursParts, police, taillePolice, couleurTexte, legende, valeurs, grille, unite, maximum ; pour un tableau : cellules (la grille entière), colonnes (largeurs relatives), entete, police, taillePolice, couleurTexte, fond, fondEntete, texteEntete, rayures (null : aucune), bordure, alignement, marge ; pour un personnage : couleurs ({ partie ou couleur d'origine: \"#rrggbb\" }, une valeur null revient à l'origine, null à la place de l'objet : toutes d'origine), retourneH, et pour un personnage composé posture et pieces (seulement les emplacements qui changent ; la boîte suit le dessin, ce qui ne change pas reste en place). Les animations passent par animer, les images clés par images_cles, les transitions par transition.",
     "inputSchema": {
       "type": "object",
       "properties": {

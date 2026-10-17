@@ -3,6 +3,7 @@
 // `~/Documents/Eliot/Marque/kit/marque.json` ; les logos et les jingles sont des images et des
 // sons du dossier du kit, copiés dans chaque design qui s'en sert.
 
+import { stylesValides, type StyleTexte } from "./stylesTexte";
 import type { ElementPage } from "./types";
 
 export interface CouleurMarque {
@@ -34,6 +35,8 @@ export interface KitMarque {
   logos: string[];
   /** Identifiants des jingles (sons du dossier du kit). */
   jingles: Partial<Record<RoleJingle, string>>;
+  /** Les styles de texte enregistrés (étape 7, lot 2), dans l'ordre du panneau. */
+  styles: StyleTexte[];
 }
 
 export const ROLES_POLICE: { id: RolePolice; libelle: string; taille: number; gras: boolean }[] = [
@@ -47,7 +50,7 @@ export const LOGOS_MAX = 24;
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-export const kitVide = (): KitMarque => ({ version: 1, nom: "Ma marque", couleurs: [], polices: {}, logos: [], jingles: {} });
+export const kitVide = (): KitMarque => ({ version: 1, nom: "Ma marque", couleurs: [], polices: {}, logos: [], jingles: {}, styles: [] });
 
 /** Remet d'aplomb un kit lu sur le disque : ce qui n'a pas la bonne forme est écarté. */
 export function kitValide(brut: unknown): KitMarque {
@@ -79,6 +82,7 @@ export function kitValide(brut: unknown): KitMarque {
       if (typeof j === "string" && /^[0-9a-f]{64}$/.test(j)) kit.jingles[id] = j;
     }
   }
+  kit.styles = stylesValides(b.styles);
   return kit;
 }
 

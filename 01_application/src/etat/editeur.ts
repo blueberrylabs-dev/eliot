@@ -3,7 +3,8 @@
 // Les actions sur les éléments visent la page affichée (`pageActive`).
 
 import { create } from "zustand";
-import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, mesurerHauteurTexte, nouvelId, nouvellePage } from "../modele/fabriques";
+import { documentVide, dupliquerPage, dupliquerTous, estTrait, hauteurTrait, nouvelId, nouvellePage, recomposerTexte } from "../modele/fabriques";
+import { estCourbe } from "../modele/texteCourbe";
 import { aligner, boiteDe, redimensionnerElements, repartir, type SensAlignement } from "../modele/geometrie";
 import { placerDansPile, rassemblerGroupe, sortirDuGroupe } from "../modele/calques";
 import type { ReglagesDessin } from "../modele/dessin";
@@ -12,11 +13,11 @@ import { ajouterRangee, disposerTableau } from "../modele/tableaux";
 import { recalerPersonnage } from "../modele/personnages";
 import { proportionsDe, rognageDeRemplacement } from "../modele/rognage";
 import { catalogueConnu } from "../bibliotheque/personnages";
-import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type ElementTexte, type Format, type NettoyageVoix, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
+import { recoitPhoto, type ClipAudio, type Couleur, type DocumentEliot, type ElementPage, type ElementTableau, type Format, type NettoyageVoix, type PageEliot, type RefProjet, type Ressource, type RoleSon } from "../modele/types";
 import { deplacerClip, deplacerSon, dupliquerDansLeTemps, dupliquerSon, dureeClip, estPageVideo, normaliser, PISTE_PRINCIPALE, placer, placerSon, rogner, rognerSon, scinder, scinderSons, supprimerSons, versFixe, versVideo, visibleA, type Durees } from "../modele/frise";
 import { FONDU_FIN_MUSIQUE } from "../modele/son";
 import { borneNettoyage, nettoyageActif } from "../modele/voix";
-import { cleProche, deplacerCle, DUREE_TRANSITION, poseA, poserCle, retirerCle, type GenreAnimation, type Pose } from "../modele/animation";
+import { cleProche, deplacerCle, DUREE_TRANSITION, estAnimationUnites, poseA, poserCle, retirerCle, type GenreAnimation, type Pose } from "../modele/animation";
 import type { Animation, Transition } from "../modele/types";
 import { useTemps } from "./temps";
 
@@ -241,6 +242,9 @@ export const elementsCourants = (etat: Pick<EtatEditeur, "document" | "pageActiv
 /** L'élément a-t-il des images clés, et la tête de lecture est-elle sur son clip ? Ses gestes
  *  posent alors des clés au lieu de le changer lui-même. */
 export const clesActives = (e: ElementPage, tete = useTemps.getState().tete): boolean => !!e.cles?.length && !!e.temps && visibleA(e, tete);
+
+/** Ce qui fait remesurer un texte (étape 7, lot 2 : la courbe et la liste aussi). */
+const CLES_MESURE_TEXTE = ["texte", "police", "taillePolice", "largeur", "gras", "italique", "interligne", "espacement", "majuscules", "courbe", "liste"];
 
 /** Les éléments sélectionnés, dans l'ordre d'empilement. */
 export const elementsSelectionnes = (etat: Pick<EtatEditeur, "document" | "pageActive" | "selection">) =>
@@ -481,9 +485,20 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
         if (!modif) return e;
         change = true;
         const suivant = { ...e, ...modif } as ElementPage;
-        // Un texte dont la police, la taille ou la largeur change doit remesurer sa hauteur.
-        if (suivant.type === "texte" && ("texte" in modif || "police" in modif || "taillePolice" in modif || "largeur" in modif || "gras" in modif || "italique" in modif || "interligne" in modif || "espacement" in modif || "majuscules" in modif) && !("hauteur" in modif)) {
-          (suivant as ElementTexte).hauteur = mesurerHauteurTexte(suivant);
+        // Un texte dont la police, la taille ou la largeur change doit remesurer sa hauteur ; un
+        // texte courbé (étape 7, lot 2) reprend toujours la boîte de son arc, centre gardé.
+        if (suivant.type === "texte" && e.type === "texte") {
+          const courbe = estCourbe(suivant.courbe) || estCourbe(e.courbe);
+          if (CLES_MESURE_TEXTE.some((k) => k in modif) && (courbe || !("hauteur" in modif))) {
+            const recompose = recomposerTexte(e, suivant);
+            Object.assign(suivant, { x: recompose.x, y: recompose.y, largeur: recompose.largeur, hauteur: recompose.hauteur });
+          }
+          // Courbé ou en liste, un texte n'entre plus par morceaux : l'entrée devient un fondu.
+          if ((estCourbe(suivant.courbe) || suivant.liste) && suivant.animations) {
+            const sans = (a: Animation | undefined) => (a && estAnimationUnites(a.nom) ? { ...a, nom: "fondu" } : a);
+            const { entree, sortie } = suivant.animations;
+            if (estAnimationUnites(entree?.nom) || estAnimationUnites(sortie?.nom)) suivant.animations = { ...suivant.animations, entree: sans(entree), sortie: sans(sortie) };
+          }
         }
         // Un tableau garde la hauteur qu'il faut à son contenu, plus ce qu'on lui avait ajouté
         // en l'étirant.
@@ -947,7 +962,8 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
       const elements = p.elements.map((e) => {
         if (!choisis.has(e.id) || !e.temps) return e;
         const animations = { ...e.animations };
-        if (animation) animations[genre] = animation;
+        // Un texte courbé ou en liste (étape 7, lot 2) n'entre pas par morceaux : un fondu.
+        if (animation) animations[genre] = e.type === "texte" && (estCourbe(e.courbe) || e.liste) && estAnimationUnites(animation.nom) ? { ...animation, nom: "fondu" } : animation;
         else delete animations[genre];
         change = true;
         const { animations: _a, ...sans } = e;

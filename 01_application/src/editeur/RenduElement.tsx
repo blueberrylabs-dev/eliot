@@ -4,11 +4,12 @@
 
 import type Konva from "konva";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text } from "react-konva";
+import { Arrow, Ellipse, Group, Image as ImageKonva, Line, Rect, Shape, Text, TextPath } from "react-konva";
 import QRCode from "qrcode";
 import { useImageVecteur } from "../bibliotheque/bibliotheque";
 import { useImagePersonnage } from "../bibliotheque/personnages";
-import { creuxEtoile, estTrait, pointsEtoile, pointsPolygone, styleTexte, texteAffiche } from "../modele/fabriques";
+import { creuxEtoile, disposerListe, estTrait, geometrieTexte, pointsEtoile, pointsPolygone, styleTexte, texteAffiche, texteCourbe } from "../modele/fabriques";
+import { estCourbe } from "../modele/texteCourbe";
 import { ecranAppareil, partieVisible, placerPhoto, tracerCadre, tracerRectangleArrondi } from "../modele/cadres";
 import { couleurPrincipale, type ElementCadre, type ElementEmoji, type ElementForme, type ElementIcone, type ElementImage, type ElementMaquette, type ElementPage, type ElementPersonnage, type ElementQr, type ElementTexte, type ElementVideo, type Format, type Ombre, type PageEliot, type SousTitre } from "../modele/types";
 import { motActif, nombreDeMots } from "../modele/sousTitres";
@@ -749,7 +750,95 @@ function useMotActif(el: ElementTexte, instant: number | undefined): number {
   return st && instant !== undefined ? motActif(st.mots, n, instant - debut) : vivant;
 }
 
-function Texte({ el, masque, unites, instant }: { el: ElementTexte; masque: boolean; unites?: Unites; instant?: number }) {
+/** Un texte : droit, courbé ou en liste (étape 7, lot 2). Chacun son composant, pour qu'un texte
+ *  qui change de genre se refasse en entier. */
+function Texte(p: { el: ElementTexte; masque: boolean; unites?: Unites; instant?: number }) {
+  if (estCourbe(p.el.courbe)) return <TexteCourbe el={p.el} masque={p.masque} />;
+  if (p.el.liste) return <TexteListe el={p.el} masque={p.masque} />;
+  return <TexteDroit {...p} />;
+}
+
+/** Ce que les lettres d'un texte ont en commun, quelle que soit sa forme. */
+function lettres(el: ElementTexte, masque: boolean) {
+  return {
+    fontFamily: pilePolice(el.police),
+    fontSize: el.taillePolice,
+    fontStyle: styleTexte(el.gras, el.italique),
+    ...remplissageKonva(el.couleur, el.largeur, el.hauteur),
+    stroke: el.contour && el.contour.epaisseur > 0 ? el.contour.couleur : undefined,
+    strokeWidth: el.contour?.epaisseur ?? 0,
+    // Le contour passe derrière les lettres : elles gardent leur dessin.
+    fillAfterStrokeEnabled: true,
+    letterSpacing: el.espacement,
+    opacity: masque ? 0 : 1,
+    perfectDrawEnabled: false,
+    ...ombreKonva(el.ombre),
+  };
+}
+
+const decorationTexte = (el: ElementTexte) => [el.souligne ? "underline" : "", el.barre ? "line-through" : ""].filter(Boolean).join(" ");
+
+/** Le surlignage d'un texte : une bande derrière toute sa boîte. */
+const Surlignage = ({ el, masque }: { el: ElementTexte; masque: boolean }) => {
+  const s = el.surlignage;
+  return s ? <Rect x={-s.marge} y={-s.marge} width={el.largeur + 2 * s.marge} height={el.hauteur + 2 * s.marge} cornerRadius={s.arrondi} fill={s.couleur} opacity={masque ? 0.4 : 1} perfectDrawEnabled={false} /> : null;
+};
+
+/** Un texte courbé : ses lettres sur l'arc de sa géométrie, d'une seule ligne. Un clic n'importe
+ *  où dans sa boîte le choisit, comme un texte droit. */
+function TexteCourbe({ el, masque }: { el: ElementTexte; masque: boolean }) {
+  const version = useVersionPolices();
+  const geo = useMemo(() => geometrieTexte(el), [el.texte, el.police, el.taillePolice, el.gras, el.italique, el.espacement, el.majuscules, el.courbe, el.interligne, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!geo) return null;
+  return (
+    <>
+      <Surlignage el={el} masque={masque} />
+      <TextPath
+        key={version}
+        // La boîte du texte est celle de l'arc (poignées, survol, repères) : Konva prendrait sinon
+        // celle des pieds des lettres, à une demi-taille près.
+        ref={(n) => {
+          if (n) n.getSelfRect = () => ({ x: 0, y: 0, width: el.largeur, height: el.hauteur });
+        }}
+        data={geo.chemin}
+        text={texteCourbe(el)}
+        align="center"
+        textBaseline="alphabetic"
+        textDecoration={decorationTexte(el)}
+        {...lettres(el, masque)}
+        // Toute la boîte se prend à la souris, le creux de l'arc compris (le remplissage de
+        // repérage d'un tracé de texte écrirait des lettres, pas la boîte).
+        hitFunc={(ctx, forme) => {
+          ctx.beginPath();
+          ctx.rect(0, 0, el.largeur, el.hauteur);
+          ctx.closePath();
+          ctx.setAttr("fillStyle", forme.colorKey);
+          ctx.fill();
+        }}
+      />
+    </>
+  );
+}
+
+/** Une liste : chaque paragraphe sous le précédent, sa marque (puce ou numéro) dans le retrait. */
+function TexteListe({ el, masque }: { el: ElementTexte; masque: boolean }) {
+  const version = useVersionPolices();
+  const dispo = useMemo(() => disposerListe(el), [el.texte, el.police, el.taillePolice, el.gras, el.italique, el.espacement, el.majuscules, el.interligne, el.largeur, el.liste, version]); // eslint-disable-line react-hooks/exhaustive-deps
+  const commun = lettres(el, masque);
+  return (
+    <>
+      <Surlignage el={el} masque={masque} />
+      {dispo.items.map((it, i) => (
+        <Group key={`${version}-${i}`} y={it.y}>
+          <Text text={it.marque} width={Math.max(1, dispo.retrait - el.taillePolice * 0.3)} align={el.liste === "numeros" ? "right" : "left"} lineHeight={el.interligne} {...commun} />
+          <Text x={dispo.retrait} width={Math.max(20, el.largeur - dispo.retrait)} text={it.texte || " "} align={el.alignement} lineHeight={el.interligne} textDecoration={decorationTexte(el)} {...commun} />
+        </Group>
+      ))}
+    </>
+  );
+}
+
+function TexteDroit({ el, masque, unites, instant }: { el: ElementTexte; masque: boolean; unites?: Unites; instant?: number }) {
   // Quand une police finit de se charger, le texte se recompose avec elle.
   const version = useVersionPolices();
   const decoration = [el.souligne ? "underline" : "", el.barre ? "line-through" : ""].filter(Boolean).join(" ");

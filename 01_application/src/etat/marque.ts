@@ -5,9 +5,14 @@
 import { create } from "zustand";
 import { useSuiviImport } from "../editeur/SuiviImport";
 import { kitValide, kitVide, LOGOS_MAX, type KitMarque, type RoleJingle } from "../modele/marque";
+import { modificationsDuStyle, STYLES_MAX, styleDepuisTexte, type StyleTexte } from "../modele/stylesTexte";
+import { nouvelId } from "../modele/fabriques";
+import { assurerPolice } from "../polices";
+import type { ElementTexte } from "../modele/types";
 import { REF_MARQUE, type Ressource } from "../modele/types";
 import { choisirEtImporterImages, choisirEtImporterSons, copierRessources, enregistrerMarque, listerRessources, lireMarque } from "../pont/tauri";
 import { useEditeur } from "./editeur";
+import { copierPoliceDansDesign } from "./projets";
 
 const DELAI_ENREGISTREMENT_MS = 400;
 
@@ -23,6 +28,11 @@ interface EtatMarque {
   /** Choisit un son du poste comme jingle d'ouverture ou de fin. */
   importerJingle: (role: RoleJingle) => Promise<void>;
   retirerJingle: (role: RoleJingle) => void;
+  /** Garde l'allure d'un texte sous `nom` (étape 7, lot 2) ; un style du même nom est remplacé,
+   *  à sa place. Renvoie le style gardé. */
+  enregistrerStyle: (texte: ElementTexte, nom: string) => StyleTexte;
+  supprimerStyle: (id: string) => void;
+  renommerStyle: (id: string, nom: string) => void;
 }
 
 let minuterie: ReturnType<typeof setTimeout> | null = null;
@@ -116,7 +126,39 @@ export const useMarque = create<EtatMarque>()((set, get) => ({
       return { ...k, jingles };
     });
   },
+
+  enregistrerStyle(texte, nom) {
+    const propre = nom.replace(/\s+/g, " ").trim().slice(0, 40) || "Mon style";
+    const meme = get().kit.styles.find((s) => s.nom.toLocaleLowerCase("fr") === propre.toLocaleLowerCase("fr"));
+    const style = styleDepuisTexte(texte, propre, meme?.id ?? nouvelId("s"));
+    get().modifier((k) => ({ ...k, styles: meme ? k.styles.map((s) => (s.id === meme.id ? style : s)) : [...k.styles, style].slice(-STYLES_MAX) }));
+    return style;
+  },
+
+  supprimerStyle(id) {
+    get().modifier((k) => ({ ...k, styles: k.styles.filter((s) => s.id !== id) }));
+  },
+
+  renommerStyle(id, nom) {
+    const propre = nom.replace(/\s+/g, " ").trim().slice(0, 40);
+    if (!propre) return;
+    get().modifier((k) => ({ ...k, styles: k.styles.map((s) => (s.id === id ? { ...s, nom: propre } : s)) }));
+  },
 }));
+
+/** Pose un style de texte enregistré sur des textes de la page (police chargée d'abord, pour
+ *  qu'ils se mesurent avec elle). Une étape d'annulation. Renvoie les textes changés. */
+export async function poserStyleTexte(style: StyleTexte, ids: string[]): Promise<string[]> {
+  await assurerPolice(style.police, style.gras, style.italique).catch(() => undefined);
+  // Une police du poste part avec le design, comme quand on la choisit.
+  void copierPoliceDansDesign(style.police).catch(() => undefined);
+  const etat = useEditeur.getState();
+  const page = etat.document.pages.find((p) => p.id === etat.pageActive);
+  const textes = (page?.elements ?? []).filter((e): e is ElementTexte => e.type === "texte" && ids.includes(e.id) && !e.verrouille);
+  if (textes.length === 0) return [];
+  etat.modifierElements(Object.fromEntries(textes.map((t) => [t.id, modificationsDuStyle(style)])));
+  return textes.map((t) => t.id);
+}
 
 /** Copie un logo (ou un jingle) du kit dans le design ouvert et renvoie la ressource copiée. */
 export async function logoDansDesign(id: string): Promise<Ressource> {

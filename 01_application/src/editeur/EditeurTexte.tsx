@@ -4,6 +4,7 @@
 
 import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { elementsCourants, useEditeur } from "../etat/editeur";
+import { retraitDeListe } from "../modele/fabriques";
 import { couleurPrincipale, type ElementTexte } from "../modele/types";
 import { pilePolice } from "../polices";
 import { noeudElement, scene } from "./scene";
@@ -27,10 +28,14 @@ export function EditeurTexte() {
     // L'échelle à l'écran : celle de la page, et celle d'une image clé qui agrandit le texte.
     const s = Math.abs(groupe.getAbsoluteScale().x) || scene.echelle;
     setValeur(el.texte);
+    // Une liste s'écrit dans son retrait : une ligne par élément (étape 7, lot 2).
+    const retrait = el.liste ? retraitDeListe(el) * s : 0;
     setStyle({
       left: position.x,
       top: position.y,
       width: el.largeur * s,
+      paddingLeft: retrait,
+      boxSizing: "border-box",
       fontFamily: pilePolice(el.police),
       fontSize: el.taillePolice * s,
       fontWeight: el.gras ? 700 : 400,

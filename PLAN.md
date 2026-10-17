@@ -654,8 +654,12 @@ Choix par défaut de Claude, modifiables sur simple demande :
       réécrit ; grouper range le groupe d'un bloc. Vérifié dans Chromium (30) et dans Tauri
       (8, dont un vrai glisser à la souris) (JOURNAL). Essai d'Alexandre : « Essayer le panneau
       des calques (étape 7, lot 1) » du `01_application/LISEZMOI.md`.
-- [ ] Lot 2 : le texte. Texte courbé, listes à puces et numérotées, styles de texte enregistrés
-      dans le kit de marque ; pont.
+- [x] Lot 2 : le texte. Texte courbé, listes à puces et numérotées, styles de texte enregistrés
+      dans le kit de marque ; pont. Livré le 2026-10-17 : `src/modele/texteCourbe.ts` (l'arc,
+      les listes) et `src/modele/stylesTexte.ts`, l'outil `styles_texte` (75 outils). Vérifié
+      dans Chromium (53) et dans Tauri (16, dont PNG, PDF et SVG contre la fenêtre, et un coin
+      tiré à la souris) (JOURNAL). Essai d'Alexandre : « Essayer le texte courbé, les listes et
+      les styles (étape 7, lot 2) » du `01_application/LISEZMOI.md`.
 - [ ] Lot 3 : les aides pour apprendre. Règles, grille, grille des tiers, marges de sécurité,
       zones sûres sur toute page verticale, alertes de contraste et de texte trop petit,
       infobulles relues sur chaque outil ; pont (les alertes dans `etat`).
