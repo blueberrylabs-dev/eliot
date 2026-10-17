@@ -33,6 +33,12 @@ sur le poste. Ce qui s'est fait :
   `a346b9e5…cd0e` vérifiée, aucun `.env` ni clé dans le paquet.
 - Le dépôt du poste a désormais `origin` (en SSH, comme ses autres dépôts) : la commande 25
   pousse les prochains commits, la commande 26 publie une version.
+- Vérifié après la commande d'Alexandre (lue par l'API de GitHub, 2026-10-17, 21 h 35 UTC) :
+  le dépôt public, `main` au commit `41e2e15`, les 62 commits à l'adresse noreply ; la section
+  About (description, lien vers la dernière version, 14 sujets) ; la version `v0.9.0` publiée
+  sur ce commit, ni brouillon ni préversion, avec ses deux fichiers. Le paquet retéléchargé :
+  `sha256sum -c SHA256SUMS` bon, `eliot` 0.9.0, identique octet pour octet au paquet repassé
+  dans le conteneur.
 - Une correction trouvée aux essais sort dans une nouvelle version (0.9.1 ou 1.0.0) ; la 0.9.0
   ne se modifie pas sur place (CONVENTIONS).
 

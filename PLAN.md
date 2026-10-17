@@ -733,10 +733,10 @@ Choix par défaut de Claude, modifiables sur simple demande :
 - [x] Le nom de l'organisation : `blueberrylabs-dev` (choisi par Alexandre le 2026-10-17,
       `blueberrylabs` étant pris) ; Alexandre crée l'organisation et le dépôt vide.
 - [x] Le paquet construit sur le poste repassé dans le conteneur (18 vérifications sur 18).
-- [ ] La publication, une commande préparée par Claude et lancée par Alexandre (la session de
-      Claude ne peut ni pousser dans la nouvelle organisation, ni créer une version) : `main`
-      poussé, la section About du dépôt, la version 0.9.0 avec le `.deb` et `SHA256SUMS`,
-      tout de suite (« Publier tout de suite ») ; puis Claude retélécharge le paquet publié et
-      vérifie son empreinte.
+- [x] La publication, une commande préparée par Claude et lancée par Alexandre le 2026-10-17
+      (la session de Claude ne peut ni pousser dans la nouvelle organisation, ni créer une
+      version) : `main` poussé, la section About du dépôt, la version 0.9.0 avec le `.deb` et
+      `SHA256SUMS`, tout de suite (« Publier tout de suite ») ; Claude a retéléchargé le paquet
+      publié : empreinte bonne, identique au paquet vérifié.
 - [ ] Après les essais d'Alexandre et leurs corrections : la version 1.0.0 (commande 26 du
       `CLAUDE.md`).
