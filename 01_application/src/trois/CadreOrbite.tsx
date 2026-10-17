@@ -6,8 +6,11 @@ import type Konva from "konva";
 import { useEffect, useRef } from "react";
 import { Group, Rect } from "react-konva";
 import { elementsCourants, useEditeur } from "../etat/editeur";
+import { useTemps } from "../etat/temps";
+import { poseA } from "../modele/animation";
+import { visibleA } from "../modele/frise";
 import type { Camera3d, ElementObjet3d } from "../modele/types";
-import { glisserOrbite, lacherOrbite, useOrbite } from "./orbite";
+import { cameraCourante, glisserOrbite, lacherOrbite, useOrbite } from "./orbite";
 
 const ACCENT = "#4f46e5";
 
@@ -16,6 +19,8 @@ export function CadreOrbite({ echelle }: { echelle: number }) {
   const el = useEditeur((s) => (id ? (elementsCourants(s).find((e) => e.id === id && e.type === "objet3d") as ElementObjet3d | undefined) : undefined));
   const geste = useRef<{ x: number; y: number; depart: Camera3d; maj: boolean } | null>(null);
   const zone = useRef<Konva.Rect>(null);
+  // Un objet à images clés (page vidéo) : sa boîte à l'instant de la tête de lecture.
+  const tete = useTemps((s) => (el?.cles?.length && el.temps ? s.tete : 0));
 
   useEffect(() => {
     const bouger = (e: MouseEvent) => {
@@ -43,8 +48,9 @@ export function CadreOrbite({ echelle }: { echelle: number }) {
 
   if (!el) return null;
   const k = 1 / echelle;
+  const pose = el.cles?.length && el.temps && visibleA(el, tete) ? poseA(el, tete - el.temps.debut) : null;
   return (
-    <Group x={el.x} y={el.y} rotation={el.rotation}>
+    <Group x={pose?.x ?? el.x} y={pose?.y ?? el.y} rotation={pose?.rotation ?? el.rotation} scaleX={pose?.echelle ?? 1} scaleY={pose?.echelle ?? 1}>
       <Rect
         ref={zone}
         name="orbite-zone"
@@ -66,7 +72,7 @@ export function CadreOrbite({ echelle }: { echelle: number }) {
           if (e.evt.button !== 0) return;
           e.cancelBubble = true;
           e.evt.preventDefault();
-          geste.current = { x: e.evt.clientX, y: e.evt.clientY, depart: el.camera, maj: e.evt.shiftKey };
+          geste.current = { x: e.evt.clientX, y: e.evt.clientY, depart: cameraCourante(el), maj: e.evt.shiftKey };
           const s = e.target.getStage()?.container();
           if (s) s.style.cursor = "grabbing";
         }}

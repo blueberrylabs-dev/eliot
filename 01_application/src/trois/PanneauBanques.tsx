@@ -429,9 +429,9 @@ function SectionMixamo() {
       <p className="mb-2">Des personnages animés (qui marchent, dansent, saluent), gratuits pour un usage personnel ou commercial, avec un compte Adobe. Mixamo n'a pas d'accès direct : on télécharge le fichier, puis on l'importe.</p>
       <ol className="mb-3 list-decimal space-y-1 pl-4">
         <li>Ouvrir mixamo.com et se connecter avec son compte Adobe.</li>
-        <li>Choisir un personnage (Characters), puis une animation (Animations).</li>
+        <li>Choisir un personnage (Characters), puis une animation (Animations). Pour une marche ou une course, cocher « In Place » : le personnage reste sur place au lieu de sortir du cadre.</li>
         <li>Download : format « FBX Binary (.fbx) », « With Skin », 30 images par seconde.</li>
-        <li>Importer le fichier ici : le personnage se pose sur la page ; son animation se règlera sur la frise.</li>
+        <li>Importer le fichier ici : le personnage se pose sur la page. Dans « Vue 3D », section Animation du modèle : choisir l'animation, sa vitesse, la boucle ; sur une page vidéo, elle joue avec la lecture.</li>
       </ol>
       <div className="flex gap-2">
         <button onClick={() => void ouvrirLien("https://www.mixamo.com")} className="flex items-center gap-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 hover:bg-neutral-50">

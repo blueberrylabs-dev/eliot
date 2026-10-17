@@ -94,7 +94,13 @@ function BoutonsCles({ bouton }: { bouton: string }) {
       <button
         data-bouton-cle
         className={`${bouton} ${sur ? "text-amber-300" : ""}`}
-        title={!actif ? "Images clés : choisis un élément et place la tête de lecture sur son clip" : sur ? "Retirer l'image clé de la tête de lecture" : "Poser une image clé à la tête de lecture (la position, la taille, la rotation et l'opacité de cet instant)"}
+        title={
+          !actif
+            ? "Images clés : choisis un élément et place la tête de lecture sur son clip"
+            : sur
+              ? "Retirer l'image clé de la tête de lecture"
+              : `Poser une image clé à la tête de lecture (la position, la taille, la rotation et l'opacité de cet instant${el?.type === "objet3d" ? ", et la vue de l'objet 3D" : ""})`
+        }
         disabled={!actif}
         onClick={() => {
           if (!el) return;

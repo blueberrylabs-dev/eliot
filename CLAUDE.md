@@ -116,7 +116,10 @@ lourd. Détail : `BRIEF.md`.
   HDRI de Poly Haven ou d'un fichier .hdr ; trois outils de plus pour le pont IA, 73 en tout),
   livré et vérifié le 2026-10-17 ; essai : « Essayer les banques 3D (étape 6, lot 3) ». Avant cet
   essai : ranger un ou deux paquets 3D de Kenney dans `telechargements/kenney/`, puis les
-  commandes 8 bis, 9 et 13.
+  commandes 8 bis, 9 et 13. Lot 4, l'animation sur la frise (plateau tournant, caméra par images
+  clés, animation du modèle, lecture en direct, `animer_objet3d`, 74 outils), livré et vérifié le
+  2026-10-17 ; essai : « Essayer l'animation 3D (étape 6, lot 4) ». Après cette livraison : la
+  commande 13 (le pont).
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -348,7 +351,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  232 passed`.
+Vérifier : `Tests  249 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

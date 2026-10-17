@@ -848,7 +848,7 @@ export const RenduElement = memo(function RenduElement({ el, enEdition = false, 
         {el.type === "dessin" && <Dessin el={el} />}
         {el.type === "graphique" && <Graphique el={el} />}
         {el.type === "tableau" && <Tableau el={el} celluleMasquee={celluleMasquee} />}
-        {el.type === "objet3d" && <RenduObjet3d el={el} statique={statique} ombre={ombreKonva} />}
+        {el.type === "objet3d" && <RenduObjet3d el={el} statique={statique} ombre={ombreKonva} instant={instant} />}
       </>
     ),
     [el, enEdition, unites?.genre, unites?.sens, unites?.p, statique, anime, imageVideo, enAjustement, celluleMasquee, instant],

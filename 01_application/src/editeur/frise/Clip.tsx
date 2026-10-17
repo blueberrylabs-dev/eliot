@@ -1,7 +1,7 @@
 // Un clip de la frise : un rectangle de la longueur de son temps, à la couleur de son genre.
 // Une vidéo montre sa bande de vignettes et sa forme d'onde, à l'endroit de sa coupe.
 
-import { Film, Image as IconeImage, Repeat, Shapes, Type } from "lucide-react";
+import { Film, Image as IconeImage, PersonStanding, Repeat, Rotate3d, Shapes, Type } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import { useEditeur } from "../../etat/editeur";
 import { dureesEntreeSortie } from "../../modele/animation";
@@ -144,6 +144,8 @@ export const Clip = memo(function Clip({ el, echelle, hauteur, choisi, ressource
         <Icone el={el} />
         <span className="truncate">{nomElement(el)}</span>
         {el.animations?.boucle && <Repeat size={11} className="shrink-0" aria-label="Animation en boucle" />}
+        {el.type === "objet3d" && el.plateau && <Rotate3d size={11} className="shrink-0" aria-label="Plateau tournant" data-icone-plateau />}
+        {el.type === "objet3d" && el.animationModele && <PersonStanding size={11} className="shrink-0" aria-label={`Animation du modèle : ${el.animationModele.nom}`} data-icone-animation-modele />}
         {largeur > 90 && <span className="ml-auto shrink-0 text-white/75 tabular-nums">{secondes} s</span>}
       </span>
       {!el.verrouille && (

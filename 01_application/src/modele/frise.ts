@@ -8,9 +8,10 @@
 // piste, une piste plus haute passe devant.
 
 import { couperCles, decalerCles } from "./animation";
+import { avancerMouvement } from "./mouvement3d";
 import { dureeJouee } from "./fabriques";
 import { boucle, DUREE_MIN_SON, longueurSon, normaliserSons, partieJouee, tempsMediaSon } from "./son";
-import type { Animations, ClipAudio, ElementPage, ElementVideo, PageEliot, Temps } from "./types";
+import type { Animations, ClipAudio, ElementObjet3d, ElementPage, ElementVideo, PageEliot, Temps } from "./types";
 
 export const PISTE_PRINCIPALE = 0;
 /** Durée d'un texte, d'une forme ou d'une photo posés sur la frise. */
@@ -294,7 +295,9 @@ export function rogner(page: PageEliot, id: string, cote: "debut" | "fin", t: nu
   // Sur la piste principale, rogner le début raccourcit le clip (il garde sa place).
   const tempsFinal = e.piste === PISTE_PRINCIPALE && cote === "debut" ? { debut, fin: debut + (fin - temps.debut) } : temps;
   const cles = cote === "debut" && e.cles ? { cles: decalerCles(e.cles, temps.debut - debut) } : {};
-  const elements = page.elements.map((x) => (x.id === id ? ({ ...x, temps: tempsFinal, ...cles } as ElementPage) : x));
+  // Un objet 3D : son plateau et son animation reprennent là où ils en étaient (lot 4 de l'étape 6).
+  const mouvement = cote === "debut" && e.type === "objet3d" ? avancerMouvement({ ...e, ...cles } as ElementObjet3d, temps.debut - debut) : {};
+  const elements = page.elements.map((x) => (x.id === id ? ({ ...x, temps: tempsFinal, ...cles, ...mouvement } as ElementPage) : x));
   return normaliser({ ...page, elements }, durees);
 }
 
@@ -321,7 +324,9 @@ export function scinder(page: PageEliot, ids: string[], t: number, durees: Duree
       return Object.keys(propre).length ? { animations: propre as Animations } : {};
     };
     const premier = { ...reste, temps: { debut: e.temps.debut, fin: instant }, ...garder({ entree: animations?.entree, boucle: animations?.boucle }), ...(avant ? { cles: avant } : {}), ...(transition ? { transition } : {}) } as ElementPage;
-    const second = { ...reste, id, temps: { debut: instant, fin: e.temps.fin }, ...garder({ sortie: animations?.sortie, boucle: animations?.boucle }), ...(apres ? { cles: apres } : {}) } as ElementPage;
+    let second = { ...reste, id, temps: { debut: instant, fin: e.temps.fin }, ...garder({ sortie: animations?.sortie, boucle: animations?.boucle }), ...(apres ? { cles: apres } : {}) } as ElementPage;
+    // Un objet 3D : la seconde moitié reprend son plateau et son animation où ils en sont.
+    if (second.type === "objet3d") second = { ...second, ...avancerMouvement(second, instant - e.temps.debut) };
     if (e.type === "video") {
       const v = e.vitesse ?? 1;
       const coupeDebut = e.coupe?.debut ?? 0;

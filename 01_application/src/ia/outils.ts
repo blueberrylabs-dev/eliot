@@ -37,7 +37,8 @@ import {
   ZOOM_MAX,
   ZOOM_MIN,
 } from "../modele/objet3d";
-import { chargerModele, modeleCharge } from "../trois/moteur";
+import { chargerModele, dureesAnimations, modeleCharge } from "../trois/moteur";
+import { cameraA, camerasDesCles, clesAvecCameras, clesSansCamera, normaliserAnimationModele, normaliserPlateau, TOUR_MAX, TOUR_MIN, VITESSE_MAX, VITESSE_MIN, type CleCamera } from "../modele/mouvement3d";
 import { apercuKenney, catalogueKenney, ranger, rangerEnvironnement, traduireRequete } from "../trois/banques";
 import type { SensAlignement } from "../modele/geometrie";
 import { estRetouchable, FORMATS_PAGE, recoitPhoto, type Appareil, type Camera3d, type ElementObjet3d, type Lumiere3d, type Matiere3d, type OmbreSol3d, type Couleur, type Degrade, type ElementGraphique, type ElementImage, type ElementPage, type ElementPersonnage, type ElementTableau, type ElementVideo, type FormeCadre, type GenreForme, type GenreGraphique, type OutilDessin, type Ressource } from "../modele/types";
@@ -1008,7 +1009,9 @@ const OUTILS: Record<string, Outil> = {
       return cle;
     }).sort((a, b) => a.t - b.t);
     exiger(cles.every((c, i) => i === 0 || c.t !== cles[i - 1].t), "cles : deux clés au même instant");
-    etat().modifierElements({ [el!.id]: { cles } });
+    // Un objet 3D garde les images clés de sa caméra (animer_objet3d).
+    const toutes = el!.type === "objet3d" ? clesAvecCameras(cles, camerasDesCles(el!.cles)) : cles;
+    etat().modifierElements({ [el!.id]: { cles: toutes } });
     const apres = pageCourante(etat()).elements.find((e) => e.id === el!.id)!;
     const arrondir = (p: ReturnType<typeof poseA>) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, Math.round(v * 100) / 100]));
     return { donnees: { id: el!.id, temps: apres.temps, cles: apres.cles, poseAuDebut: arrondir(poseA(apres, 0)), poseALaFin: arrondir(poseA(apres, longueur)) } };
@@ -1323,7 +1326,107 @@ const OUTILS: Record<string, Outil> = {
     if (args.lumiere !== undefined) modif.lumiere = lumiereDemandee(el.lumiere, args.lumiere);
     if (args.ombreSol !== undefined) modif.ombreSol = ombreSolDemandee(el.ombreSol, args.ombreSol);
     etat().modifierElements({ [el.id]: modif as Partial<ElementPage> });
-    return { donnees: elementsCourants(etat()).find((e) => e.id === el.id) };
+    const apres = elementsCourants(etat()).find((e) => e.id === el.id);
+    const reglageCamera = ["vue", "azimut", "elevation", "zoom", "focale", "decalage", "recentrer"].some((k) => args[k] !== undefined);
+    if (reglageCamera && el.temps && el.cles?.some((c) => c.camera)) {
+      return { donnees: { ...apres, attention: "cet objet a des images clés de caméra : ce sont elles qui donnent sa vue sur la page vidéo, la caméra réglée ici ne se voit pas. Les régler avec animer_objet3d (cles), ou les retirer (cles: null)." } };
+    }
+    return { donnees: apres };
+  },
+
+  async animer_objet3d(args) {
+    designOuvert();
+    const id = texte(args.id);
+    let el = elementsCourants(etat()).find((e) => e.id === id);
+    exiger(el?.type === "objet3d", `objet 3D introuvable sur la page affichée : ${String(args.id)} (voir etat)`);
+    exiger(!el!.verrouille, "cet objet est verrouillé");
+    exiger(args.plateau !== undefined || args.cles !== undefined || args.animation !== undefined, "plateau, cles ou animation : ce qui doit bouger (null en retire un)");
+    const ressource = etat().ressources[(el as ElementObjet3d).ressource];
+    // Le plateau et les images clés vivent sur une page vidéo : une image fixe le devient
+    // d'abord (post animé de 5 s), comme avec images_cles.
+    const veutLeTemps = (args.plateau !== undefined && args.plateau !== null && args.plateau !== false) || Array.isArray(args.cles);
+    if (veutLeTemps && !estPageVideo(pageCourante(etat()))) etat().basculerPageVideo(true);
+    el = elementsCourants(etat()).find((e) => e.id === id);
+    const o = el as ElementObjet3d;
+    const modif: Partial<ElementObjet3d> = {};
+    // Le plateau tournant.
+    if (args.plateau === null || args.plateau === false) modif.plateau = undefined;
+    else if (args.plateau !== undefined) {
+      const p = (args.plateau === true ? {} : args.plateau) as Arguments;
+      exiger(p && typeof p === "object", "plateau : true, { tour, sens }, ou null");
+      if (p.tour !== undefined) {
+        const t = nombre(p.tour);
+        exiger(t !== undefined && t >= TOUR_MIN && t <= TOUR_MAX, `plateau.tour : la durée d'un tour, de ${TOUR_MIN} à ${TOUR_MAX} ms`);
+      }
+      if (p.sens !== undefined) exiger(p.sens === "droite" || p.sens === "gauche", "plateau.sens : droite ou gauche");
+      modif.plateau = normaliserPlateau({ ...o.plateau, ...p });
+    }
+    // La caméra par images clés.
+    const longueur = o.temps ? o.temps.fin - o.temps.debut : 0;
+    if (args.cles === null) modif.cles = clesSansCamera(o.cles);
+    else if (args.cles !== undefined) {
+      exiger(Array.isArray(args.cles) && args.cles.length > 0, "cles : liste de { t, vue?, azimut?, elevation?, zoom?, focale?, decalage?, recentrer?, courbe? } (t en ms depuis le début du clip), ou null pour retirer la caméra des images clés");
+      const donnees = (args.cles as Arguments[]).map((c, i) => {
+        exiger(c && typeof c === "object", `cles[${i}] : un objet { t, … }`);
+        const t = nombre(c.t);
+        exiger(t !== undefined && t >= 0 && t <= longueur, `cles[${i}].t : de 0 à ${longueur} ms, compté depuis le début du clip (il commence à ${o.temps!.debut} ms de la page)`);
+        if (c.courbe !== undefined) exiger(c.courbe === "douce" || c.courbe === "lineaire", `cles[${i}].courbe : douce ou lineaire`);
+        return { t: Math.round(t!), c, i };
+      }).sort((a, b) => a.t - b.t);
+      exiger(donnees.every((d, i) => i === 0 || d.t !== donnees[i - 1].t), "cles : deux clés au même instant");
+      // Chaque clé part de la précédente (la première, de la caméra de l'objet).
+      let precedente = o.camera;
+      const cameras: CleCamera[] = donnees.map(({ t, c, i }) => {
+        let camera: Camera3d;
+        try {
+          camera = cameraDemandee(precedente, c);
+        } catch (e) {
+          throw new ErreurOutil(`cles[${i}] : ${e instanceof Error ? e.message : String(e)}`);
+        }
+        precedente = camera;
+        return { t, camera, ...(c.courbe ? { courbe: c.courbe as "douce" | "lineaire" } : {}) };
+      });
+      modif.cles = clesAvecCameras(clesSansCamera(o.cles), cameras);
+    }
+    // L'animation du modèle.
+    let animations: { nom: string; duree: number }[] = [];
+    if (args.animation !== undefined || ressource) {
+      if (ressource) await chargerModele(ressource).catch(() => undefined);
+      animations = dureesAnimations(o.ressource);
+    }
+    if (args.animation === null || args.animation === false) modif.animationModele = undefined;
+    else if (args.animation !== undefined) {
+      const a = (typeof args.animation === "string" ? { nom: args.animation } : args.animation) as Arguments;
+      exiger(a && typeof a === "object", "animation : { nom, vitesse?, boucle?, debut? }, ou null");
+      exiger(animations.length > 0, "ce modèle n'a pas d'animation (un personnage de Mixamo en a une, par exemple)");
+      const nom = texte(a.nom) ?? o.animationModele?.nom ?? animations[0].nom;
+      exiger(animations.some((x) => x.nom === nom), `animation.nom : ${animations.map((x) => x.nom).join(", ")}`);
+      if (a.vitesse !== undefined) {
+        const v = nombre(a.vitesse);
+        exiger(v !== undefined && v >= VITESSE_MIN && v <= VITESSE_MAX, `animation.vitesse : de ${VITESSE_MIN} à ${VITESSE_MAX} (1 : celle du fichier)`);
+      }
+      if (a.boucle !== undefined) exiger(typeof a.boucle === "boolean", "animation.boucle : true ou false");
+      if (a.debut !== undefined) {
+        const d = nombre(a.debut);
+        exiger(d !== undefined && d >= 0, "animation.debut : l'instant de l'animation au début du clip, en ms (0 ou plus)");
+      }
+      modif.animationModele = normaliserAnimationModele({ ...(o.animationModele?.nom === nom ? o.animationModele : {}), ...a, nom });
+    }
+    if (Object.keys(modif).length) etat().modifierElements({ [o.id]: modif as Partial<ElementPage> }, `animer-3d:${o.id}`);
+    const apres = elementsCourants(etat()).find((e) => e.id === o.id) as ElementObjet3d;
+    const arrondie = (c: Camera3d) => ({ azimut: Math.round(c.azimut * 10) / 10, elevation: Math.round(c.elevation * 10) / 10, zoom: Math.round(c.zoom * 1000) / 1000, focale: Math.round(c.focale), ...(c.decalage ? { decalage: c.decalage.map((x) => Math.round(x * 1000) / 1000) } : {}) });
+    return {
+      donnees: {
+        id: apres.id,
+        temps: apres.temps ?? null,
+        plateau: apres.plateau ?? null,
+        clesCamera: camerasDesCles(apres.cles).map((k) => ({ t: k.t, camera: k.camera })),
+        animation: apres.animationModele ?? null,
+        animationsDuModele: animations.map((x) => ({ nom: x.nom, duree: Math.round(x.duree * 1000) })),
+        ...(apres.temps ? { vueAuDebut: arrondie(cameraA(apres, 0)), vueALaFin: arrondie(cameraA(apres, apres.temps.fin - apres.temps.debut)) } : {}),
+        conseil: apres.temps ? "capture avec temps (ms de la page) pour voir un instant ; la lecture et l'export en image montrent le mouvement (l'export vidéo du calque 3D viendra au lot suivant)" : "sur une image fixe, seule l'animation du modèle compte : l'objet montre son instant de départ",
+      },
+    };
   },
 
   async chercher_modeles3d(args) {

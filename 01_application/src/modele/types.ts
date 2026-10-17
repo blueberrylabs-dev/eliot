@@ -11,6 +11,8 @@
 // du son, tous facultatifs eux aussi (même version 4). Lot 5 : les sons de la page (`audio`),
 // facultatifs eux aussi (même version 4).
 // Étape 5, lot 2 : les réglages du labo d'une photo (`reglages`), facultatifs (même version 4).
+// Étape 6, lot 4 : le mouvement d'un objet 3D (`plateau`, `animationModele`, la caméra des images
+// clés), facultatif lui aussi (même version 4).
 
 import type { ReglagesPhoto } from "./labo";
 import type { Rognage } from "./rognage";
@@ -79,6 +81,9 @@ export interface CleAnimation {
   echelle?: number;
   rotation?: number;
   opacite?: number;
+  /** Un objet 3D (étape 6, lot 4) : la caméra complète à cet instant. Entre deux clés, elle
+   *  glisse par le chemin le plus court (l'azimut ne fait jamais plus d'un demi-tour). */
+  camera?: Camera3d;
   /** Le passage vers la clé suivante : « douce » (par défaut) ou « lineaire ». */
   courbe?: "douce" | "lineaire";
 }
@@ -460,6 +465,24 @@ export interface Matiere3d {
   brillance?: number;
 }
 
+/** Le plateau tournant d'un objet 3D sur une page vidéo (étape 6, lot 4) : un tour en `tour` ms,
+ *  vers la droite (l'objet tourne comme sous la souris qui glisse vers la droite) ou vers la
+ *  gauche. Il s'ajoute à la caméra (et à ses images clés), depuis le début du clip. */
+export interface Plateau3d {
+  tour: number;
+  sens: "droite" | "gauche";
+}
+
+/** L'animation du modèle que joue un objet 3D (étape 6, lot 4) : son nom dans le modèle, sa
+ *  vitesse (1 : celle du fichier), en boucle ou non (la dernière image reste), et l'instant de
+ *  l'animation montré au début du clip (ms). Sur une image fixe, l'objet montre cet instant. */
+export interface AnimationModele3d {
+  nom: string;
+  vitesse: number;
+  boucle: boolean;
+  debut: number;
+}
+
 /** Un objet 3D (étape 6) : un modèle posé dans la page comme une photo détourée, fond
  *  transparent, rendu par la fenêtre. */
 export interface ElementObjet3d extends ElementBase {
@@ -473,6 +496,10 @@ export interface ElementObjet3d extends ElementBase {
   ombreSol?: OmbreSol3d;
   /** Les matières repeintes, par leur nom dans le modèle. */
   matieres?: Record<string, Matiere3d>;
+  /** Page vidéo (lot 4) : le plateau tournant. */
+  plateau?: Plateau3d;
+  /** L'animation du modèle (lot 4). */
+  animationModele?: AnimationModele3d;
 }
 
 export type ElementPage = ElementTexte | ElementForme | ElementImage | ElementVideo | ElementIcone | ElementEmoji | ElementPersonnage | ElementQr | ElementCadre | ElementMaquette | ElementDessin | ElementGraphique | ElementTableau | ElementObjet3d;

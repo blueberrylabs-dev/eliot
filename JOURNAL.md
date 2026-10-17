@@ -5,6 +5,58 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 6, lot 4 : l'animation 3D sur la frise
+
+Accord d'Alexandre (« Feu vert. »). Ce que Claude a fait et décidé :
+
+- Le plateau tournant : un tour en N secondes (de 2 s à 2 min, 8 s par défaut), vers la droite ou
+  la gauche, depuis le début du clip. Il s'ajoute à la vue de l'objet : les gestes et les réglages
+  changent la vue de base, jamais le plateau ; le panneau le rappelle sous la rotation.
+- La caméra par images clés partage les images clés de l'objet (les losanges du clip, le bouton
+  de la frise, leur courbe) au lieu d'en avoir à part : une image clé d'un objet 3D garde aussi sa
+  vue complète (rotation, hauteur, zoom, focale, décalage). Quand l'objet a des images clés et que
+  la tête de lecture est sur son clip, tourner l'objet sur la page, la molette, les flèches, les
+  vues prêtes ou les curseurs du panneau posent (ou reprennent) une image clé à cet instant, comme
+  déplacer l'objet le fait pour sa position ; Échap rend les images clés d'avant le mode. Entre
+  deux clés, la vue glisse par le chemin le plus court (jamais plus d'un demi-tour : de 170° à
+  -170°, vingt degrés) ; un tour complet, c'est le plateau. Le zoom glisse en proportion (de 1 à
+  2 comme de 2 à 4). Courbe « En douceur » (celle des autres images clés) ou « Régulier », pour
+  toutes les clés de l'objet.
+- L'animation du modèle : son nom, sa vitesse (d'un quart à quatre fois), en boucle ou non (la
+  dernière image reste), l'instant de départ. Sur une image fixe, l'objet montre cet instant :
+  un personnage de Mixamo peut poser au lieu de rester en T. Elle est posée le temps d'un rendu
+  par un mélangeur de three.js, puis le modèle revient au repos (il sert à d'autres objets). Les
+  animations sans nom prennent le nom que leur donne le noyau (« Animation N ») ; une animation
+  vide d'un FBX (« Take 001 ») n'est pas proposée.
+- La lecture : l'objet se rend à l'instant de la tête de lecture ; pendant la lecture, si un seul
+  objet de la page bouge, la page montre la toile du moteur elle-même (règle 11) ; à plusieurs,
+  ils se recopient chacun dans leur toile, pour ne pas se disputer le moteur.
+- Rogner le début d'un clip ou le couper en deux ne fait pas sauter le mouvement : la seconde
+  moitié reprend le plateau et l'animation là où ils en étaient. « Copier le style » passe aussi le
+  plateau et l'animation (le panneau dit quand l'animation manque à l'autre modèle).
+- L'export en image d'une page vidéo montre l'objet 3D à l'instant de la tête de lecture (sa vue,
+  son animation), comme la fenêtre ; dans un film (MP4, GIF), il reste à sa vue du début de son
+  clip jusqu'au lot 5.
+- Mixamo : la marche à suivre dit de cocher « In Place » pour une marche ou une course, et où
+  choisir l'animation.
+- Pont IA : nouvel outil `animer_objet3d` (plateau, images clés de la caméra, animation du modèle ;
+  une image fixe devient une page vidéo pour le plateau et les clés, comme avec `images_cles`) ;
+  `images_cles` garde la caméra des clés d'un objet 3D ; `regler_objet3d` prévient quand la vue
+  vient des images clés : 74 outils.
+- Écarté pour ce lot : le film du calque 3D image par image (lot 5).
+
+Preuves (conteneur de Claude, WebGL sur le processeur, jamais de carte graphique) : modèles
+d'essai pris dans les exemples de three.js, dans le conteneur seulement (RobotExpressive de
+Tomás Laulhé, CC0, quatorze animations ; « Samba Dancing », un FBX de Mixamo) ; 17 essais vitest
+de plus (249 en tout : plateau, chemin le plus court, courbes, coupe et rognage sans saut, objet
+figé pour l'export) ; dans Chromium, 44 vérifications (animation sur une image fixe, page passée
+en vidéo, plateau, page qui tourne avec la tête de lecture, toile du moteur pendant la lecture,
+images clés par le panneau et par un geste sur la page, Échap, coupe à 0,22 sur 255 au bord,
+copier le style, FBX de Mixamo, pont et ses refus) ; dans Tauri par le pont, 19 (fenêtre et export
+PNG à 0,00 sur 255 sur une image fixe, à 0 s, 1 s, 2 s entre deux clés et pour le danseur de
+Mixamo ; la lecture fait bouger l'objet, quatre images sur quatre ; le design rouvert identique).
+Les essais 3D des lots 1 à 3 repassent (Chromium 63, 48 et 33 ; Tauri 33, 16 et 34).
+
 ## 2026-10-17, étape 6, lot 3 : les banques
 
 Accord d'Alexandre (« Go pour le lot 3 et je vais m'occuper de la clé sketchfab. », puis « La clé

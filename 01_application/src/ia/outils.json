@@ -1488,7 +1488,7 @@
   },
   {
     "name": "regler_objet3d",
-    "description": "Règle un objet 3D de la page affichée (élément de type objet3d) : sa caméra, qui tourne autour du modèle, sa lumière et son ombre au sol. Caméra : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. Lumière : elle tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant (changer l'azimut de la caméra ne déplace pas les reflets dans l'image). Un environnement qui éclaire et se reflète (studio : neutre ; boites : deux grandes boîtes à lumière dans une pièce sombre, reflets nets sur le verre et le métal ; plein-air : ciel et soleil de midi ; couchant : lumière chaude et basse ; ou une photo HDRI à 360°, de Poly Haven par chercher_environnements ou d'un fichier .hdr), sa force et sa rotation ; une lumière principale (sa direction par rapport à la vue, sa force, sa couleur), ou une lumière prête ; l'exposition. Ombre au sol : l'ombre que la lumière principale fait porter au modèle sur un sol invisible, sous lui (il se pose au lieu de flotter) ; elle peut déborder de la boîte et y être coupée : agrandir la boîte avec modifier, ou dézoomer. Les couleurs des matières : colorer_objet3d. La position et la taille de la boîte : modifier. Une étape d'annulation. Juger le résultat avec capture. Renvoie l'élément.",
+    "description": "Règle un objet 3D de la page affichée (élément de type objet3d) : sa caméra, qui tourne autour du modèle, sa lumière et son ombre au sol. Caméra : recentrer, puis vue, puis azimut, elevation, zoom, focale et decalage ; ce qui n'est pas donné ne change pas. Lumière : elle tourne avec la vue autour de l'axe vertical, comme le studio d'un plateau tournant (changer l'azimut de la caméra ne déplace pas les reflets dans l'image). Un environnement qui éclaire et se reflète (studio : neutre ; boites : deux grandes boîtes à lumière dans une pièce sombre, reflets nets sur le verre et le métal ; plein-air : ciel et soleil de midi ; couchant : lumière chaude et basse ; ou une photo HDRI à 360°, de Poly Haven par chercher_environnements ou d'un fichier .hdr), sa force et sa rotation ; une lumière principale (sa direction par rapport à la vue, sa force, sa couleur), ou une lumière prête ; l'exposition. Ombre au sol : l'ombre que la lumière principale fait porter au modèle sur un sol invisible, sous lui (il se pose au lieu de flotter) ; elle peut déborder de la boîte et y être coupée : agrandir la boîte avec modifier, ou dézoomer. Les couleurs des matières : colorer_objet3d. La position et la taille de la boîte : modifier. Sur une page vidéo, ce qui bouge (plateau tournant, caméra par images clés, animation du modèle) : animer_objet3d ; un objet qui a des images clés de caméra prend sa vue d'elles. Une étape d'annulation. Juger le résultat avec capture. Renvoie l'élément.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -1678,6 +1678,155 @@
         "remettre": {
           "type": "boolean",
           "description": "Vrai : toutes les matières comme dans le modèle, avant matieres."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "animer_objet3d",
+    "description": "Fait bouger un objet 3D (élément de type objet3d) avec le temps d'une page vidéo ; une image fixe devient d'abord une page vidéo de 5 s (post animé). Plateau tournant : l'objet tourne sur lui-même, un tour en `tour` ms, vers la droite ou la gauche, depuis le début de son clip ; il s'ajoute à la vue. Caméra par images clés : la vue à des instants du clip (t en ms depuis son début), qui glisse de l'une à l'autre, en douceur ou de façon régulière (courbe), par le chemin le plus court (jamais plus d'un demi-tour entre deux clés : un tour complet, c'est le plateau) ; chaque clé reprend ce qu'elle ne donne pas de la précédente (la première, de la caméra de l'objet) ; elles remplacent les images clés de caméra d'avant et rejoignent celles de position (images_cles) au même instant. Animation du modèle (un personnage de Mixamo, par exemple) : son nom (la réponse liste celles du modèle et leur durée), sa vitesse, en boucle ou non (la dernière image reste), l'instant de l'animation au début du clip ; sur une image fixe, l'objet montre cet instant. null retire un des trois. Une étape d'annulation. Voir un instant avec capture (temps, en ms de la page). L'export en image d'un instant montre le mouvement ; dans un film (MP4, GIF), l'objet 3D reste pour l'instant à sa vue du début.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifiant de l'objet 3D (voir etat)."
+        },
+        "plateau": {
+          "type": [
+            "object",
+            "boolean",
+            "null"
+          ],
+          "description": "true (un tour en 8 s, vers la droite), { tour?, sens? }, ou null pour l'arrêter.",
+          "properties": {
+            "tour": {
+              "type": "number",
+              "minimum": 2000,
+              "maximum": 120000,
+              "description": "La durée d'un tour, en ms."
+            },
+            "sens": {
+              "type": "string",
+              "enum": [
+                "droite",
+                "gauche"
+              ],
+              "description": "droite : l'objet tourne comme sous la souris qui glisse vers la droite."
+            }
+          }
+        },
+        "cles": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Les images clés de la caméra, ou null pour retirer la caméra des images clés.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "t": {
+                "type": "number",
+                "description": "Instant de la clé, en ms depuis le début du clip de l'objet."
+              },
+              "vue": {
+                "type": "string",
+                "enum": [
+                  "face",
+                  "trois-quarts",
+                  "profil",
+                  "dos",
+                  "dessus",
+                  "contre-plongee"
+                ],
+                "description": "Une vue prête (ses angles), appliquée avant les autres réglages."
+              },
+              "azimut": {
+                "type": "number",
+                "description": "La rotation autour du modèle, en degrés : 0 de face, 90 le profil droit, 180 le dos, -90 le profil gauche.",
+                "minimum": -360,
+                "maximum": 360
+              },
+              "elevation": {
+                "type": "number",
+                "description": "La hauteur de vue, en degrés : 0 à hauteur, positif au-dessus (89 : de dessus), négatif en contre-plongée.",
+                "minimum": -89,
+                "maximum": 89
+              },
+              "zoom": {
+                "type": "number",
+                "description": "1 cadre tout le modèle dans la boîte ; 2 le montre deux fois plus grand (il déborde), 0,5 deux fois plus petit.",
+                "minimum": 0.2,
+                "maximum": 8
+              },
+              "focale": {
+                "type": "number",
+                "description": "En millimètres d'un appareil plein format : 50 par défaut, 85 à 135 pour un produit sans déformation, 24 à 35 pour une perspective marquée.",
+                "minimum": 18,
+                "maximum": 200
+              },
+              "decalage": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "number",
+                  "minimum": -3,
+                  "maximum": 3
+                },
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Le point visé, déplacé de [x, y, z] dans le repère du modèle (rayon 1 : le modèle tient dans une sphère de rayon 1 centrée en 0) ; y positif monte le point visé, ce qui fait descendre le modèle dans l'image. null : au centre."
+              },
+              "recentrer": {
+                "type": "boolean",
+                "description": "Vrai : zoom 1, sans décalage (avant les autres réglages)."
+              },
+              "courbe": {
+                "type": "string",
+                "enum": [
+                  "douce",
+                  "lineaire"
+                ],
+                "description": "Le passage vers la clé suivante : douce (départ et arrivée en douceur, par défaut) ou lineaire (régulier)."
+              }
+            },
+            "required": [
+              "t"
+            ]
+          }
+        },
+        "animation": {
+          "type": [
+            "object",
+            "string",
+            "null"
+          ],
+          "description": "{ nom?, vitesse?, boucle?, debut? } (le nom seul suffit ; sans nom, l'animation en cours ou la première du modèle), ou null pour le remettre au repos.",
+          "properties": {
+            "nom": {
+              "type": "string"
+            },
+            "vitesse": {
+              "type": "number",
+              "minimum": 0.25,
+              "maximum": 4,
+              "description": "1 : la vitesse du fichier."
+            },
+            "boucle": {
+              "type": "boolean",
+              "description": "true par défaut ; false : elle joue une fois et sa dernière image reste."
+            },
+            "debut": {
+              "type": "number",
+              "minimum": 0,
+              "description": "L'instant de l'animation au début du clip, en ms (sur une image fixe : l'instant montré)."
+            }
+          }
         }
       },
       "required": [
@@ -2475,7 +2624,7 @@
   },
   {
     "name": "images_cles",
-    "description": "Pose les images clés d'un élément (sur une image fixe, la page devient d'abord une page vidéo de 5 s) (remplace toutes les siennes ; null les retire) : à chaque instant t (ms depuis le DÉBUT DU CLIP, pas de la page), sa pose : x et y ensemble (coin haut gauche, comme l'élément), echelle (1 : sa taille ; s'agrandit autour de ce coin comme Konva, mais entre deux clés c'est le centre qui glisse en ligne droite, donc une clé d'échelle seule agrandit autour du centre), rotation (degrés), opacite (0 à 1), courbe vers la clé suivante (douce par défaut, ou lineaire). Une valeur absente reprend les autres clés, ou l'élément. Avant la première clé et après la dernière, la pose reste. Exemple, un zoom lent sur 3 s : [{ t: 0, echelle: 1 }, { t: 3000, echelle: 1.3 }]. Un élément qui a des clés de position garde leur position : x et y de modifier ne le déplacent plus (passer par ici). Les clés suivent le clip quand on le déplace ; scinder les partage entre les deux moitiés.",
+    "description": "Pose les images clés d'un élément (sur une image fixe, la page devient d'abord une page vidéo de 5 s) (remplace toutes les siennes ; null les retire) : à chaque instant t (ms depuis le DÉBUT DU CLIP, pas de la page), sa pose : x et y ensemble (coin haut gauche, comme l'élément), echelle (1 : sa taille ; s'agrandit autour de ce coin comme Konva, mais entre deux clés c'est le centre qui glisse en ligne droite, donc une clé d'échelle seule agrandit autour du centre), rotation (degrés), opacite (0 à 1), courbe vers la clé suivante (douce par défaut, ou lineaire). Une valeur absente reprend les autres clés, ou l'élément. Avant la première clé et après la dernière, la pose reste. Exemple, un zoom lent sur 3 s : [{ t: 0, echelle: 1 }, { t: 3000, echelle: 1.3 }]. Un élément qui a des clés de position garde leur position : x et y de modifier ne le déplacent plus (passer par ici). Les clés suivent le clip quand on le déplace ; scinder les partage entre les deux moitiés. Un objet 3D garde les images clés de sa caméra (animer_objet3d).",
     "inputSchema": {
       "type": "object",
       "properties": {

@@ -400,7 +400,7 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
 - Une photo seulement : un clip demanderait un masque par image. Le programme et le modèle
   s'installent une fois : commandes 20 et 21 du `CLAUDE.md`.
 
-**Le studio 3D (étape 6, lots 1 à 3)**
+**Le studio 3D (étape 6, lots 1 à 4)**
 - Importer un modèle 3D comme une image : bouton du panneau Importer, ou dépôt sur la page. GLB,
   glTF (avec ses fichiers rangés à côté de lui : choisir ou déposer le `.gltf` seul suffit),
   FBX (les personnages de Mixamo, par exemple) et OBJ. Le noyau vérifie le fichier et prépare la
@@ -454,6 +454,20 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   objets 3D choisis. Rangés dans le design, ils s'ajoutent aux quatre environnements fournis
   dans « Vue 3D », section Lumière (« Plus d'environnements » ouvre l'onglet). Coller un objet 3D
   dans un autre design emporte son modèle et son environnement.
+- Le mouvement (lot 4), sur une page vidéo, dans « Vue 3D », section Mouvement : le plateau
+  tournant (l'objet tourne sur lui-même, un tour en quelques secondes, vers la droite ou la
+  gauche) et la caméra par images clés : avec le losange de la frise (ou « Poser une image clé à
+  la tête de lecture »), la vue de l'instant se garde ; à un autre instant, tourner l'objet ou
+  régler sa vue pose une autre image clé, et la caméra glisse de l'une à l'autre pendant la
+  lecture, en douceur ou de façon régulière. Sur une image fixe, « Faire de cette page une
+  vidéo ».
+- L'animation du modèle (un personnage de Mixamo, un modèle qui en a) : la choisir, sa vitesse,
+  en boucle ou une fois, l'instant de départ ; sur une image fixe, l'objet montre l'instant
+  choisi (une pose au lieu du T). Sur la frise, le clip montre une icône pour le plateau et une
+  pour l'animation. Couper ou rogner le clip ne fait pas sauter le mouvement.
+- La lecture montre le mouvement ; l'export en image d'une page vidéo, l'objet à l'instant de la
+  tête de lecture. Dans un film (MP4, GIF), l'objet 3D reste pour l'instant à sa vue du début de
+  son clip (le film du calque 3D vient au lot 5).
 
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
@@ -471,7 +485,8 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   perspective prête), détourer une photo (le fond retiré par le modèle, les bords repris au
   pinceau), remplacer une photo à sa place, importer un modèle 3D ou en chercher un dans les
   banques (Kenney, Poly Haven, Sketchfab), le poser, régler sa caméra, sa lumière (environnements
-  HDRI de Poly Haven compris) et son ombre au sol, repeindre ses matières, regarder une capture de la page
+  HDRI de Poly Haven compris) et son ombre au sol, repeindre ses matières, le faire bouger sur une
+  page vidéo (plateau tournant, caméra par images clés, animation du modèle), regarder une capture de la page
   et exporter (en
   PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
@@ -765,6 +780,26 @@ fichier .zip chacun) rangés dans `Eliot/telechargements/kenney/`, puis `npm run
 Ce qui m'aide le plus en retour : un modèle qui ne s'ouvre pas (sa banque, son nom), un mot
 français que la recherche ne comprend pas, et le temps d'un téléchargement sur ta connexion.
 
+## Essayer l'animation 3D (étape 6, lot 4)
+
+Dix minutes, Eliot lancé à la main, carte graphique libre. Un personnage de Mixamo (voir l'essai
+du lot 3) et un objet, un flacon de Poly Haven par exemple.
+
+1. Un post carré, le personnage posé. « Vue 3D », Animation du modèle : choisir son animation,
+   puis « Instant montré » : il prend la pose de cet instant.
+2. Section Mouvement : « Faire de cette page une vidéo ». Lecture (Espace) : il bouge.
+3. Le flacon posé à côté, « Vue 3D » : Plateau tournant, un tour en 6 s ; lecture. Puis vers la
+   gauche.
+4. Tête de lecture au début, losange de la frise (une image clé) ; tête à 3 s, tourner le flacon
+   sur la page et le rapprocher à la molette : une seconde image clé. Lecture : la caméra glisse.
+   « Régulier », puis « En douceur ».
+5. Couper le clip au milieu (Scinder) : à la lecture, aucun saut.
+6. Exporter en PNG avec la tête de lecture à 2 s : l'image est celle de la fenêtre à cet instant.
+
+Ce qui m'aide le plus en retour : la fluidité pendant la lecture sur le poste et sur le mini PC
+(un objet qui bouge, puis deux), une animation de Mixamo qui ne joue pas, et le mouvement de
+caméra qui manque d'abord pour une publicité.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -845,7 +880,7 @@ français que la recherche ne comprend pas, et le temps d'un téléchargement su
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)

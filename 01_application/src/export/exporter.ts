@@ -99,7 +99,7 @@ export async function exporter(options: OptionsExport, progression?: Progression
     const pages: { description: Awaited<ReturnType<typeof decrirePage>>; instant: number }[] = [];
     for (const [rang, d] of demandees.entries()) {
       progression?.(rang, demandees.length, "description");
-      pages.push({ description: await avecFinesse(finesseExport(options, doc.format), () => decrirePage(d.page, doc.format)), instant: d.instant });
+      pages.push({ description: await avecFinesse(finesseExport(options, doc.format), () => decrirePage(d.page, doc.format, d.page.duree !== undefined ? d.instant : undefined)), instant: d.instant });
     }
     // Les polices une fois pour toutes les pages ; les sons ne servent qu'au film.
     const polices: PoliceCalques[] = [];

@@ -2,12 +2,17 @@
 // photo : tourner l'objet sur la page, les vues prêtes, la caméra réglage par réglage (lot 1) ;
 // la lumière (environnement, lumière principale, exposition), l'ombre au sol et les matières
 // repeintes (lot 2) ; ce que l'on sait du modèle. Un geste sur un curseur fait une seule étape
-// d'annulation, et l'objet suit en direct (la toile du moteur, règle 11).
+// d'annulation, et l'objet suit en direct (la toile du moteur, règle 11). Le mouvement (lot 4) :
+// plateau tournant et caméra par images clés sur une page vidéo, animation du modèle.
 
-import { Box, Check, ClipboardCopy, ExternalLink, Move3d, Plus, RotateCcw, X } from "lucide-react";
+import { Box, Check, ClipboardCopy, Diamond, ExternalLink, Move3d, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { etiquetteDeGeste, useEditeur } from "../etat/editeur";
+import { useTemps } from "../etat/temps";
+import { cleProche } from "../modele/animation";
+import { visibleA } from "../modele/frise";
+import { cameraDeBase, clesAvecCourbe, clesSansCamera, courbeDesCles, PLATEAU_PAR_DEFAUT, TOUR_MAX, TOUR_MIN, VITESSE_MAX, VITESSE_MIN } from "../modele/mouvement3d";
 import { useUrlRessource } from "../editeur/images";
 import { SelecteurCouleur } from "../editeur/SelecteurCouleur";
 import {
@@ -29,10 +34,10 @@ import {
   ZOOM_MIN,
 } from "../modele/objet3d";
 import type { Camera3d, Credit as CreditRessource, ElementObjet3d, Lumiere3d, Ressource } from "../modele/types";
-import { abonnerModele, modeleCharge, type InfosMatiere } from "./moteur";
+import { abonnerModele, dureesAnimations, modeleCharge, type InfosMatiere } from "./moteur";
 import { ouvrirBanques } from "./banques";
 import { ouvrirLien } from "../pont/tauri";
-import { appliquerVue, commencerOrbite, finirOrbite, objet3d, poserCamera, poserLumiere, poserMatiere, poserOmbreSol, useOrbite, usePanneau3d } from "./orbite";
+import { appliquerVue, cameraCourante, commencerOrbite, finirOrbite, objet3d, poserAnimationModele, poserCamera, poserLumiere, poserMatiere, poserOmbreSol, poserPlateau, useOrbite, usePanneau3d } from "./orbite";
 
 const CURSEUR =
   "w-full cursor-pointer appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-neutral-400 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-neutral-400 [&::-moz-range-thumb]:bg-white";
@@ -96,6 +101,27 @@ const OMBRE = {
 } satisfies Record<string, DefinitionReglage>;
 
 const BRILLANCE: Omit<DefinitionReglage, "defaut"> = { nom: "brillance", libelle: "Brillance", min: 0, max: 100, pas: 1, texte: (v) => `${Math.round(v)}` };
+
+/** Des secondes lisibles : « 8 s », « 2,5 s ». */
+const secondes = (v: number) => `${String(Math.round(v * 10) / 10).replace(".", ",")} s`;
+const enSecondes = { texte: secondes, saisie: (v: number) => String(Math.round(v * 10) / 10).replace(".", ",") };
+
+const MOUVEMENT = {
+  // Un tour : la piste se lit en logarithme (de 2 s à 2 min).
+  tour: { nom: "plateau-tour", libelle: "Un tour en", min: Math.log(TOUR_MIN / 1000), max: Math.log(TOUR_MAX / 1000), pas: 0.01, versPiste: Math.log, depuisPiste: (p: number) => Math.round(Math.exp(p) * 10) / 10, ...enSecondes, defaut: PLATEAU_PAR_DEFAUT.tour / 1000 },
+  vitesse: {
+    nom: "animation-vitesse",
+    libelle: "Vitesse",
+    min: Math.log(VITESSE_MIN),
+    max: Math.log(VITESSE_MAX),
+    pas: 0.01,
+    versPiste: Math.log,
+    depuisPiste: (p: number) => Math.round(Math.exp(p) * 100) / 100,
+    texte: (v: number) => `× ${String(Math.round(v * 100) / 100).replace(".", ",")}`,
+    saisie: (v: number) => String(v).replace(".", ","),
+    defaut: 1,
+  },
+} satisfies Record<string, DefinitionReglage>;
 
 function Reglage({ def, valeur, changer, debut, fin }: { def: DefinitionReglage; valeur: number; changer: (v: number) => void; debut: () => void; fin: () => void }) {
   const [saisie, setSaisie] = useState<string | null>(null);
@@ -338,6 +364,133 @@ function Matieres({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () =>
   );
 }
 
+const BOUTON_CHOIX = (actif: boolean) => `rounded-md border px-2 py-1 text-xs ${actif ? "border-accent-500 bg-accent-50 font-medium text-accent-700" : "border-neutral-200 text-neutral-700 hover:border-neutral-400"}`;
+
+/** Le mouvement d'un objet sur une page vidéo (lot 4) : le plateau tournant, la caméra par
+ *  images clés. Sur une image fixe, de quoi passer la page en vidéo. */
+function Mouvement({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () => void; fin: () => void; marque: () => string }) {
+  // Où est la tête de lecture par rapport au clip : dehors, dans le clip, ou sur une clé.
+  const ici = useTemps((s) => (!el.temps ? "fixe" : !visibleA(el, s.tete) ? "hors" : cleProche(el, s.tete - el.temps.debut) ? "sur" : "dans"));
+  if (ici === "fixe") {
+    return (
+      <Section titre="Mouvement">
+        <p className="mb-2 text-[11px] text-neutral-500">Le plateau tournant et la caméra qui bouge vivent sur une page vidéo : l'objet tourne sur lui-même, ou la caméra glisse d'une vue à l'autre.</p>
+        <button data-page-video-3d disabled={el.verrouille} onClick={() => useEditeur.getState().basculerPageVideo(true)} className="rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-800 hover:bg-neutral-50 disabled:opacity-40">
+          Faire de cette page une vidéo
+        </button>
+      </Section>
+    );
+  }
+  const p = el.plateau;
+  const clesCamera = (el.cles ?? []).filter((c) => c.camera).length;
+  const courbe = courbeDesCles(el.cles);
+  return (
+    <Section titre="Mouvement">
+      <fieldset disabled={el.verrouille} className="disabled:opacity-40">
+        <label className="mb-2 flex items-center gap-2 text-xs font-medium text-neutral-700">
+          <input data-plateau-3d type="checkbox" checked={!!p} onChange={(e) => poserPlateau(el.id, e.target.checked ? PLATEAU_PAR_DEFAUT : null, `plateau-3d:${el.id}`)} className="accent-accent-600" />
+          Plateau tournant
+        </label>
+        {p && (
+          <>
+            <Reglage def={MOUVEMENT.tour} valeur={p.tour / 1000} changer={(v) => poserPlateau(el.id, { tour: v * 1000 }, `plateau-3d:${el.id}:tour${marque()}`)} debut={debut} fin={fin} />
+            <div className="mb-2.5 flex gap-1">
+              {(["droite", "gauche"] as const).map((sens) => (
+                <button key={sens} data-sens-plateau={sens} onClick={() => poserPlateau(el.id, { sens }, `plateau-3d:${el.id}:sens`)} className={BOUTON_CHOIX(p.sens === sens)}>
+                  {sens === "droite" ? "Vers la droite" : "Vers la gauche"}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <p className="mt-3 mb-1 text-xs font-medium text-neutral-700">Caméra par images clés</p>
+        <p className="mb-2 text-[11px] text-neutral-500">
+          Une image clé garde la vue de l'objet à un instant. Place la tête de lecture, règle la vue (sur la page ou ci-dessus) : une image clé se pose à cet instant, et la caméra glisse de l'une à l'autre pendant la lecture.
+        </p>
+        <button
+          data-cle-camera
+          disabled={ici === "hors"}
+          title={ici === "hors" ? "Place la tête de lecture sur le clip de l'objet" : undefined}
+          onClick={() => {
+            useTemps.getState().pause();
+            useEditeur.getState().basculerCle(el.id);
+          }}
+          className="mb-2 flex items-center gap-1.5 rounded-md border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-800 hover:bg-neutral-50 disabled:opacity-40"
+        >
+          <Diamond size={13} fill={ici === "sur" ? "currentColor" : "none"} className={ici === "sur" ? "text-amber-500" : ""} />
+          {ici === "sur" ? "Retirer l'image clé de la tête de lecture" : "Poser une image clé à la tête de lecture"}
+        </button>
+        {clesCamera > 0 && (
+          <>
+            <p className="mb-1.5 text-[11px] text-neutral-600" data-nombre-cles-camera={clesCamera}>
+              {clesCamera} image{clesCamera > 1 ? "s" : ""} clé{clesCamera > 1 ? "s" : ""} de la caméra (les losanges du clip, sur la frise).
+            </p>
+            {clesCamera > 1 && (
+              <div className="mb-2 flex items-center gap-1 text-xs text-neutral-600">
+                <span className="mr-1">Entre deux :</span>
+                {(["douce", "lineaire"] as const).map((c) => (
+                  <button key={c} data-courbe-3d={c} onClick={() => useEditeur.getState().modifierElements({ [el.id]: { cles: clesAvecCourbe(el.cles, c) } }, `courbe-3d:${el.id}`)} className={BOUTON_CHOIX(courbe === c)}>
+                    {c === "douce" ? "En douceur" : "Régulier"}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button data-retirer-cles-camera onClick={() => useEditeur.getState().modifierElements({ [el.id]: { cles: clesSansCamera(el.cles) } }, `cles-camera-3d:${el.id}`)} className="flex items-center gap-1 text-xs text-accent-700 hover:underline">
+              <Trash2 size={12} /> Retirer la caméra des images clés
+            </button>
+          </>
+        )}
+      </fieldset>
+    </Section>
+  );
+}
+
+/** L'animation du modèle (lot 4) : seulement pour un modèle qui en a (un personnage de Mixamo,
+ *  par exemple). Sur une page vidéo, elle joue avec la lecture ; sur une image fixe, l'objet
+ *  montre l'instant choisi. */
+function AnimationDuModele({ el, debut, fin, marque }: { el: ElementObjet3d; debut: () => void; fin: () => void; marque: () => string }) {
+  const [, rafraichir] = useState(0);
+  useEffect(() => abonnerModele(el.ressource, () => rafraichir((v) => v + 1)), [el.ressource]);
+  const animations = dureesAnimations(el.ressource);
+  if (animations.length === 0) return null;
+  const a = el.animationModele;
+  const duree = animations.find((x) => x.nom === a?.nom)?.duree;
+  const changer = (m: Partial<NonNullable<ElementObjet3d["animationModele"]>> | null, nom: string) => poserAnimationModele(el.id, m, `animation-modele-3d:${el.id}:${nom}${marque()}`);
+  const instant: DefinitionReglage = { nom: "animation-debut", libelle: el.temps ? "Départ dans l'animation" : "Instant montré", min: 0, max: Math.max(0.1, duree ?? 0), pas: 0.01, ...enSecondes, defaut: 0 };
+  return (
+    <Section titre="Animation du modèle">
+      <fieldset disabled={el.verrouille} className="disabled:opacity-40">
+        <select
+          data-animation-modele
+          aria-label="Animation du modèle"
+          value={a?.nom ?? ""}
+          onChange={(e) => changer(e.target.value ? { nom: e.target.value } : null, "nom")}
+          className="mb-2.5 w-full rounded-md border border-neutral-300 bg-white px-2 py-1.5 text-xs text-neutral-800"
+        >
+          <option value="">Aucune (le modèle au repos)</option>
+          {animations.map((x) => (
+            <option key={x.nom} value={x.nom}>
+              {x.nom} ({secondes(x.duree)})
+            </option>
+          ))}
+          {a && duree === undefined && <option value={a.nom}>{a.nom} (absente de ce modèle)</option>}
+        </select>
+        {a && el.temps && (
+          <>
+            <Reglage def={MOUVEMENT.vitesse} valeur={a.vitesse} changer={(v) => changer({ vitesse: v }, "vitesse")} debut={debut} fin={fin} />
+            <label className="mb-2.5 flex items-center gap-2 text-xs text-neutral-700">
+              <input data-boucle-animation type="checkbox" checked={a.boucle} onChange={(e) => changer({ boucle: e.target.checked }, "boucle")} className="accent-accent-600" />
+              En boucle (sinon, la dernière image reste)
+            </label>
+          </>
+        )}
+        {a && duree !== undefined && <Reglage def={instant} valeur={a.debut / 1000} changer={(v) => changer({ debut: v * 1000 }, "debut")} debut={debut} fin={fin} />}
+        {a && !el.temps && <p className="text-[11px] text-neutral-500">Sur une page vidéo, l'animation joue avec la lecture.</p>}
+      </fieldset>
+    </Section>
+  );
+}
+
 const FORMATS: Record<string, string> = { glb: "glTF (GLB)", fbx: "FBX", obj: "OBJ" };
 
 /** Le crédit d'un modèle venu d'une banque, tel qu'on le recopie sous une publication (une
@@ -428,7 +581,10 @@ export function Panneau3d({ el }: { el: ElementObjet3d }) {
   const ressource = useEditeur((s) => s.ressources[el.ressource]);
   const enOrbite = useOrbite((s) => s.id === el.id);
   const geste = useOrbite((s) => (s.id === el.id ? s.geste : null));
-  const camera = geste ?? el.camera;
+  // La caméra réglée : celle de la tête de lecture quand l'objet a des images clés (lot 4).
+  const tete = useTemps((s) => (el.temps && el.cles?.length ? s.tete : null));
+  const surUneCle = tete !== null && !!el.temps && visibleA(el, tete);
+  const camera = geste ?? (tete !== null && el.temps ? cameraDeBase(el, tete - el.temps.debut) : el.camera);
   // Un geste sur un curseur : une étape d'annulation, et l'objet suit en direct.
   const marqueGeste = useRef("");
   const marque = () => marqueGeste.current;
@@ -451,10 +607,10 @@ export function Panneau3d({ el }: { el: ElementObjet3d }) {
   }, []);
   const changerCamera = (cle: "azimut" | "elevation" | "zoom" | "focale", v: number) => {
     // Le dernier état du document : plusieurs changements peuvent arriver dans la même image.
-    const c: Camera3d = { ...(objet3d(el.id)?.camera ?? el.camera), [cle]: v };
+    const c: Camera3d = { ...cameraCourante(objet3d(el.id) ?? el), [cle]: v };
     poserCamera(el.id, c, `camera-3d:${el.id}:${cle}${marque()}`);
   };
-  const recentree = !el.camera.decalage && el.camera.zoom === 1;
+  const recentree = !camera.decalage && camera.zoom === 1;
   return (
     <div data-panneau-3d>
       <div className="mb-3 flex items-center gap-2">
@@ -465,7 +621,7 @@ export function Panneau3d({ el }: { el: ElementObjet3d }) {
         <button
           data-vue-depart-3d
           title="Revenir à la vue de départ"
-          disabled={el.verrouille || JSON.stringify(normaliserCamera(CAMERA_PAR_DEFAUT)) === JSON.stringify(el.camera)}
+          disabled={el.verrouille || JSON.stringify(normaliserCamera(CAMERA_PAR_DEFAUT)) === JSON.stringify(normaliserCamera(camera))}
           onClick={() => poserCamera(el.id, CAMERA_PAR_DEFAUT, `vue-depart-3d:${el.id}`)}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-40"
         >
@@ -509,7 +665,7 @@ export function Panneau3d({ el }: { el: ElementObjet3d }) {
           data-recentrer-3d
           disabled={el.verrouille || recentree}
           onClick={() => {
-            const c: Camera3d = { ...el.camera, zoom: 1 };
+            const c: Camera3d = { ...cameraCourante(el), zoom: 1 };
             delete c.decalage;
             poserCamera(el.id, c, `recentrer-3d:${el.id}`);
           }}
@@ -517,7 +673,11 @@ export function Panneau3d({ el }: { el: ElementObjet3d }) {
         >
           Recentrer (zoom 100 %, sans décalage)
         </button>
+        {surUneCle && <p className="mt-1.5 text-[11px] text-amber-700" data-camera-sur-cle>Image clé à la tête de lecture : la vue réglée s'y range.</p>}
+        {el.plateau && el.temps && <p className="mt-1.5 text-[11px] text-neutral-500">Le plateau tournant s'ajoute à cette rotation pendant la lecture.</p>}
       </Section>
+      <Mouvement el={el} debut={debut} fin={fin} marque={marque} />
+      <AnimationDuModele el={el} debut={debut} fin={fin} marque={marque} />
       <Lumiere el={el} debut={debut} fin={fin} marque={marque} />
       <OmbreSol el={el} debut={debut} fin={fin} marque={marque} />
       <Matieres el={el} debut={debut} fin={fin} marque={marque} />

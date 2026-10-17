@@ -568,9 +568,18 @@ Choix par défaut de Claude, modifiables sur simple demande :
       un faux Sketchfab ; puis sur les vraies données de Poly Haven et la vraie recherche de
       Sketchfab (7) : fenêtre et export PNG à 0,00 et 0,05 sur 255 (JOURNAL). Le vrai
       téléchargement chez Sketchfab, avec la clé d'Alexandre, se vérifie à son essai.
-- [ ] Lot 4 : l'animation sur la frise. Plateau tournant (vitesse, sens), caméra par images
+- [x] Lot 4 : l'animation sur la frise. Plateau tournant (vitesse, sens), caméra par images
       clés (azimut, élévation, zoom, décalage, avec les courbes des autres images clés),
       animations du modèle (choix de l'animation, vitesse, boucle) ; lecture en direct ; pont.
+      Livré le 2026-10-17 : `src/modele/mouvement3d.ts` (plateau, caméra de base et montrée,
+      instant de l'animation, mouvement repris sans saut quand le clip est rogné ou coupé) ; la
+      caméra dans les images clés de l'objet (`animation.ts`), par le chemin le plus court ; les
+      gestes et les réglages posent une image clé à la tête de lecture quand l'objet en a ;
+      l'animation du modèle posée par un mélangeur de three.js le temps d'un rendu, aussi sur une
+      image fixe (l'instant montré) ; panneau « Vue 3D », sections Mouvement et Animation du
+      modèle ; l'export en image d'une page vidéo montre l'objet à l'instant ; `animer_objet3d`, 74
+      outils. Vérifié dans Chromium (44 vérifications) et dans Tauri par le pont (19) : fenêtre et
+      export PNG à 0,00 sur 255 à chaque instant essayé (JOURNAL).
 - [ ] Lot 5 : l'export vidéo du calque 3D. La fenêtre rend chaque image du calque à la taille
       du film, le noyau la pose et encode (MP4, GIF) ; comparaison au pixel entre la fenêtre et
       le film, temps d'export mesuré.

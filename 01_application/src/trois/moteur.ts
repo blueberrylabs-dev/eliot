@@ -10,6 +10,10 @@
 // lumière principale sur un sol invisible. Les matières repeintes le sont le temps d'un rendu :
 // un même modèle sert à plusieurs objets. Le rendu passe par le ton « neutre » de Khronos, fait
 // pour montrer des produits sans changer leurs couleurs.
+//
+// Le mouvement (lot 4) : un objet d'une page vidéo se rend à l'instant de la tête de lecture (sa
+// caméra, le plateau tournant, l'animation du modèle). L'animation est posée le temps d'un rendu
+// par un mélangeur de three.js, puis le modèle revient au repos : il sert à d'autres objets.
 
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -19,6 +23,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { HDRLoader } from "three/addons/loaders/HDRLoader.js";
 import { useEditeur } from "../etat/editeur";
 import { brillanceDeRugosite, CAMERA_PAR_DEFAUT, directionLumiere, ENVIRONNEMENTS, LUMIERE_PAR_DEFAUT, placerCamera, rotationEnvironnement, rugositeDeBrillance } from "../modele/objet3d";
+import { instantAnimation, secondesAnimation } from "../modele/mouvement3d";
 import type { Camera3d, ElementObjet3d, Lumiere3d, Matiere3d, OmbreSol3d, PageEliot, RefProjet, Ressource } from "../modele/types";
 import { enregistrerMiniatureModele, lireEnvironnement, lireModele } from "../pont/tauri";
 
@@ -257,6 +262,8 @@ export interface Modele {
   triangles: number;
   /** La hauteur du bas du modèle (le sol de l'ombre), dans le repère du modèle ramené. */
   bas: number;
+  /** Le mélangeur qui pose une animation le temps d'un rendu (créé à la première). */
+  melangeur?: THREE.AnimationMixer;
 }
 
 type EtatModele = { etat: "chargement"; promesse: Promise<Modele> } | { etat: "pret"; modele: Modele } | { etat: "erreur"; erreur: string };
@@ -361,7 +368,18 @@ async function analyser(ressource: Ressource, octets: ArrayBuffer): Promise<Mode
     const gltf = await new GLTFLoader().parseAsync(octets, "");
     objet = gltf.scene;
     animations = gltf.animations;
+    // Les noms du fichier, comme le noyau : une animation sans nom devient « Animation N ».
+    const json = gltf.parser.json as { animations?: { name?: string }[] };
+    animations.forEach((clip, i) => (clip.name = json.animations?.[i]?.name || `Animation ${i + 1}`));
     rangDansLeGltf = (mat) => gltf.parser.associations.get(mat)?.materials;
+  }
+  // Des noms distincts (un FBX de Mixamo appelle souvent son animation « mixamo.com »).
+  const vus = new Map<string, number>();
+  for (const [i, clip] of animations.entries()) {
+    if (!clip.name) clip.name = `Animation ${i + 1}`;
+    const n = (vus.get(clip.name) ?? 0) + 1;
+    vus.set(clip.name, n);
+    if (n > 1) clip.name = `${clip.name} ${n}`;
   }
   // Les noms des matières : une matière sans nom devient « Matière N ».
   const materiaux = new Map<string, THREE.Material[]>();
@@ -381,6 +399,8 @@ async function analyser(ressource: Ressource, octets: ArrayBuffer): Promise<Mode
     // Le modèle porte l'ombre au sol ; lui-même n'en reçoit pas (pas de taches sur ses faces).
     m.castShadow = true;
     m.receiveShadow = false;
+    // Un maillage animé sort de sa boîte de repos : three.js ne doit pas l'écarter du rendu.
+    if ((m as unknown as THREE.SkinnedMesh).isSkinnedMesh || m.morphTargetInfluences) m.frustumCulled = false;
     for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
       const nom = nomDe(mat);
       if (!materiaux.has(nom)) {
@@ -454,13 +474,28 @@ export async function prechargerModeles(page: PageEliot): Promise<void> {
 // ----------------------------------------------------------------------------------------
 
 /** Ce qu'un rendu montre d'un objet : sa caméra (ou celle d'un geste), sa lumière, son ombre au
- *  sol, ses matières ; `surligne` : une matière désignée dans le panneau (survol). */
+ *  sol, ses matières ; `surligne` : une matière désignée dans le panneau (survol) ; `animation` :
+ *  l'animation du modèle et son instant (ms, avant la boucle). */
 export interface Reglages3d {
   camera: Camera3d;
   lumiere: Lumiere3d;
   ombreSol?: OmbreSol3d;
   matieres?: Record<string, Matiere3d>;
   surligne?: string;
+  animation?: { nom: string; instant: number; boucle: boolean };
+}
+
+/** Pose l'animation demandée sur le modèle ; renvoie de quoi le remettre au repos. */
+function animer(modele: Modele, a: Reglages3d["animation"]): () => void {
+  const clip = a && modele.animations.find((c) => c.name === a.nom);
+  if (!a || !clip) return () => {};
+  modele.melangeur ??= new THREE.AnimationMixer(modele.racine);
+  const action = modele.melangeur.clipAction(clip);
+  action.setLoop(THREE.LoopOnce, 1);
+  action.clampWhenFinished = true;
+  action.reset().play();
+  modele.melangeur.setTime(secondesAnimation(a.instant, clip.duration, a.boucle));
+  return () => action.stop();
 }
 
 const ACCENT = new THREE.Color(0x4f46e5);
@@ -535,18 +570,29 @@ function dessiner(m: Moteur, modele: Modele, reglages: Reglages3d, largeur: numb
     principale.shadow.needsUpdate = true;
   }
   const remettre = repeindre(modele, reglages.matieres, reglages.surligne);
+  const auRepos = animer(modele, reglages.animation);
   scene.add(modele.racine);
   try {
     renderer.render(scene, m.camera);
   } finally {
     scene.remove(modele.racine);
+    auRepos();
     remettre();
   }
 }
 
-/** Les réglages de rendu d'un objet, sa caméra à part (celle d'un geste en cours). */
-export function reglagesDe(el: ElementObjet3d, camera: Camera3d = el.camera, surligne?: string): Reglages3d {
-  return { camera, lumiere: el.lumiere ?? LUMIERE_PAR_DEFAUT, ombreSol: el.ombreSol, matieres: el.matieres, surligne };
+/** Les réglages de rendu d'un objet, sa caméra à part (celle d'un geste en cours, ou de
+ *  l'instant), `tr` : ms depuis le début de son clip (l'instant de l'animation du modèle). */
+export function reglagesDe(el: ElementObjet3d, camera: Camera3d = el.camera, surligne?: string, tr = 0): Reglages3d {
+  const a = el.animationModele;
+  const animation = a ? { nom: a.nom, instant: Math.round(instantAnimation(el, tr)), boucle: a.boucle } : undefined;
+  return { camera, lumiere: el.lumiere ?? LUMIERE_PAR_DEFAUT, ombreSol: el.ombreSol, matieres: el.matieres, surligne, ...(animation ? { animation } : {}) };
+}
+
+/** La durée (s) de chaque animation d'un modèle chargé, par son nom. */
+export function dureesAnimations(ressource: string): { nom: string; duree: number }[] {
+  // Une animation vide (un FBX en porte parfois une, « Take 001 ») n'est pas proposée.
+  return (modeleCharge(ressource)?.animations ?? []).filter((c) => c.duration > 0).map((c) => ({ nom: c.name, duree: c.duration }));
 }
 
 interface Rendu {

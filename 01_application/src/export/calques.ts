@@ -19,6 +19,7 @@ import { useEditeur } from "../etat/editeur";
 import { fichiersDePolice } from "../polices";
 import { ContexteSvg, DegradeSvg, type Calque } from "./contexteSvg";
 import { silhouetteDetouree } from "../labo/detourage";
+import { objetFige } from "../modele/mouvement3d";
 
 export interface CalquesElement {
   /** L'élément tel qu'il est dans le document (le noyau en lit la boîte, le temps, la piste,
@@ -88,11 +89,14 @@ function elementPourLeNoyau(el: ElementPage): ElementPage {
 /** L'élément au repos, dans son propre repère : ni position, ni rotation, ni opacité, ni temps
  *  (ce que le noyau applique lui-même), mais ses animations (un texte par morceaux se dessine
  *  lettre par lettre). */
-function auRepos(el: ElementPage): ElementPage {
-  return { ...el, x: 0, y: 0, rotation: 0, opacite: 1, visible: true, temps: undefined, cles: undefined, transition: undefined } as ElementPage;
+/** L'élément dans son propre repère, sans temps ni clés : le noyau le pose. Un objet 3D se rend
+ *  tel qu'il se montre à `instant` (sa vue, son animation : étape 6, lot 4). */
+function auRepos(el: ElementPage, instant?: number): ElementPage {
+  const fige = el.type === "objet3d" ? objetFige(el, instant) : el;
+  return { ...fige, x: 0, y: 0, rotation: 0, opacite: 1, visible: true, temps: undefined, cles: undefined, transition: undefined } as ElementPage;
 }
 
-function Scene({ page, format, pret }: { page: PageEliot; format: Format; pret: (calque: Konva.Layer) => void }) {
+function Scene({ page, format, pret, instant }: { page: PageEliot; format: Format; pret: (calque: Konva.Layer) => void; instant?: number }) {
   const calque = useRef<Konva.Layer>(null);
   useEffect(() => {
     if (calque.current) pret(calque.current);
@@ -108,7 +112,7 @@ function Scene({ page, format, pret }: { page: PageEliot; format: Format; pret: 
         createElement(
           Group,
           { key: el.id, name: "porte-element" },
-          createElement(RenduElement, { el: auRepos(el), statique: true, imageVideo: el.type === "video" ? marqueVideo(el.ressource) : undefined }),
+          createElement(RenduElement, { el: auRepos(el, instant), statique: true, imageVideo: el.type === "video" ? marqueVideo(el.ressource) : undefined }),
         ),
       ),
     ),
@@ -227,7 +231,7 @@ function enBase64(octets: ArrayBuffer): string {
 }
 
 /** Décrit une page vidéo pour le noyau : fond, calques de chaque élément au repos, polices. */
-export async function decrirePage(page: PageEliot, format: Format): Promise<DescriptionPage> {
+export async function decrirePage(page: PageEliot, format: Format, instant?: number): Promise<DescriptionPage> {
   await prechargerPage(page, { retouches: false });
   const support = document.createElement("div");
   const racine = createRoot(support);
@@ -240,6 +244,7 @@ export async function decrirePage(page: PageEliot, format: Format): Promise<Desc
         createElement(Scene, {
           page,
           format,
+          instant,
           pret: (c: Konva.Layer) => {
             clearTimeout(minuteur);
             pret(c);

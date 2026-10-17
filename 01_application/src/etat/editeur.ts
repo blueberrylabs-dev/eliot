@@ -65,7 +65,7 @@ const STYLE_PAR_TYPE: Record<ElementPage["type"], string[]> = {
   maquette: ["couleur", "opacite", "ombre", "animations", "reglages"],
   // Un objet 3D (étape 6) : sa caméra passe à un autre objet, comme un angle de vue, avec sa
   // lumière, son ombre au sol et ses matières repeintes (celles qui portent le même nom).
-  objet3d: ["opacite", "ombre", "animations", "camera", "lumiere", "ombreSol", "matieres"],
+  objet3d: ["opacite", "ombre", "animations", "camera", "lumiere", "ombreSol", "matieres", "plateau", "animationModele"],
   dessin: ["couleur", "epaisseur", "opacite", "ombre", "animations"],
   graphique: ["police", "taillePolice", "couleurTexte", "legende", "valeurs", "grille", "opacite", "ombre", "animations"],
   tableau: ["police", "taillePolice", "couleurTexte", "fond", "fondEntete", "texteEntete", "rayures", "bordure", "alignement", "marge", "opacite", "ombre", "animations"],

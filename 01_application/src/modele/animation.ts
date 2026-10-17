@@ -11,7 +11,8 @@
 // Les mêmes formules serviront au Rust pour l'export MP4 (lot 4) : le tableau
 // `animation.attendus.json` donne des valeurs calculées ici, que les deux côtés vérifient.
 
-import type { Animation, CleAnimation, ElementPage, ElementVideo, Format, PageEliot } from "./types";
+import { angleNormalise, normaliserCamera } from "./objet3d";
+import type { Animation, Camera3d, CleAnimation, ElementPage, ElementVideo, Format, PageEliot } from "./types";
 
 // ---- Courbes (p de 0 à 1) ----
 
@@ -411,7 +412,7 @@ interface Jalon {
 
 /** La valeur d'un canal à l'instant `t`, d'après les jalons qui le donnent ; avant le premier
  *  et après le dernier, la valeur reste ; sans jalon, `base`. */
-function valeurCanal<J extends Jalon>(jalons: J[], lire: (j: J) => number | undefined, t: number, base: number): number {
+export function valeurCanal<J extends Jalon>(jalons: J[], lire: (j: J) => number | undefined, t: number, base: number): number {
   const avec = jalons.filter((j) => lire(j) !== undefined);
   if (avec.length === 0) return base;
   if (t <= avec[0].t) return lire(avec[0])!;
@@ -461,6 +462,36 @@ export function poseA(el: ElementPage, tr: number): Pose {
   return { x: centre.cx - (hx * Math.cos(a) - hy * Math.sin(a)), y: centre.cy - (hx * Math.sin(a) + hy * Math.cos(a)), echelle, rotation, opacite };
 }
 
+// ---- La caméra d'un objet 3D (étape 6, lot 4) ----
+
+/** Les clés qui donnent la caméra d'un objet 3D, triées, l'azimut déroulé : d'une clé à la
+ *  suivante, il prend le chemin le plus court (jamais plus d'un demi-tour ; un tour complet,
+ *  c'est le plateau tournant). */
+function clesCamera(el: ElementPage): (Jalon & { camera: Camera3d })[] {
+  if (el.type !== "objet3d" || !el.cles?.length) return [];
+  let precedent: number | undefined;
+  return triees(el.cles)
+    .filter((c): c is CleAnimation & { camera: Camera3d } => !!c.camera)
+    .map((c) => {
+      const azimut = precedent === undefined ? c.camera.azimut : precedent + angleNormalise(c.camera.azimut - precedent);
+      precedent = azimut;
+      return { t: c.t, courbe: c.courbe, camera: { ...c.camera, azimut } };
+    });
+}
+
+/** La caméra que donnent les images clés d'un objet 3D à `tr` ms du début de son clip, ou
+ *  `undefined` s'il n'a pas de clé de caméra. Le zoom glisse en proportion (de 1 à 2 comme de
+ *  2 à 4), le reste en ligne droite. */
+export function cameraDesCles(el: ElementPage, tr: number): Camera3d | undefined {
+  const cles = clesCamera(el);
+  if (!cles.length) return undefined;
+  const v = (lire: (c: Camera3d) => number) => valeurCanal(cles, (j) => lire(j.camera), tr, 0);
+  const camera: Camera3d = { azimut: v((c) => c.azimut), elevation: v((c) => c.elevation), zoom: Math.exp(v((c) => Math.log(c.zoom))), focale: v((c) => c.focale) };
+  const decalage = [0, 1, 2].map((i) => v((c) => c.decalage?.[i] ?? 0)) as [number, number, number];
+  if (decalage.some((x) => Math.abs(x) > 1e-9)) camera.decalage = decalage;
+  return camera;
+}
+
 /** Deux clés plus proches que ceci (ms) sont « au même endroit » : la tête de lecture posée
  *  sur une clé la reprend au lieu d'en créer une autre. */
 export const TOLERANCE_CLE = 40;
@@ -471,10 +502,12 @@ export const cleProche = (el: ElementPage, tr: number, tolerance = TOLERANCE_CLE
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 
-/** La pose complète à l'instant `tr`, arrondie, prête à devenir une clé. */
+/** La pose complète à l'instant `tr`, arrondie, prête à devenir une clé ; pour un objet 3D, sa
+ *  caméra aussi (sans le plateau tournant, qui s'y ajoute). */
 export function poseArrondie(el: ElementPage, tr: number): Omit<CleAnimation, "t" | "courbe"> {
   const p = poseA(el, tr);
-  return { x: r2(p.x), y: r2(p.y), echelle: r3(p.echelle), rotation: r2(p.rotation), opacite: r3(p.opacite) };
+  const camera = el.type === "objet3d" ? { camera: normaliserCamera(cameraDesCles(el, tr) ?? el.camera) } : {};
+  return { x: r2(p.x), y: r2(p.y), echelle: r3(p.echelle), rotation: r2(p.rotation), opacite: r3(p.opacite), ...camera };
 }
 
 /**
@@ -525,6 +558,7 @@ export function couperCles(el: ElementPage, coupe: number): { avant?: CleAnimati
     ...(cles.some((c) => c.echelle !== undefined) ? { echelle: p.echelle } : {}),
     ...(cles.some((c) => c.rotation !== undefined) ? { rotation: p.rotation } : {}),
     ...(cles.some((c) => c.opacite !== undefined) ? { opacite: p.opacite } : {}),
+    ...(cles.some((c) => c.camera) && p.camera ? { camera: p.camera } : {}),
   };
   const precedente = [...cles].reverse().find((c) => c.t <= coupe);
   const courbe = precedente?.courbe ? { courbe: precedente.courbe } : {};
