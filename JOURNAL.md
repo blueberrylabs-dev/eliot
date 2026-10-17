@@ -5,6 +5,78 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-17, étape 7 : vérification de l'étape, et rapport de fin
+
+Accord d'Alexandre (« Go. »). Ce que Claude a fait et décidé :
+
+- Relecture de l'étape contre le BRIEF (§ 6, rail et catalogue ; § 7) et le PLAN. Tout ce que
+  l'étape promettait est là. La relecture du rail trouve un manque que le relevé du 2026-10-17
+  avait laissé passer, plus deux petits, comblés :
+  - L'onglet Projets du rail (BRIEF § 6 : « Modèles, Éléments, Texte, Photos, Importer, Marque,
+    Dessin, Projets, Calques »). Comme celui de Canva : tes autres designs, du plus récent au
+    plus ancien, à chercher par leur nom (sans souci des accents ni des majuscules) ; le détail
+    d'un design pour l'ouvrir, ajouter ses pages après la page affichée (mises à l'échelle comme
+    Redimensionner quand le format diffère, la photo du fond suit la page), ou poser une copie
+    de ses photos, vidéos, modèles 3D et sons, avec leurs crédits. L'autre design n'est jamais
+    modifié (le noyau copie les fichiers, comme le collage d'un design à l'autre). Pont :
+    `reprendre_design` (80 outils). Choix de Claude : pas de miniature par page de l'autre
+    design (seule la première page en a une ; les rendre demanderait de charger ses images),
+    des numéros à la place.
+  - La recherche par mot de l'onglet Importer (BRIEF § 6 : « chaque panneau a sa recherche par
+    mot ») : nom du fichier, auteur ou banque d'une photo, « vidéo », « 3D ». Marque, Dessin et
+    Calques n'ont rien à chercher.
+  - Les crédits à recopier sous la publication (fenêtre d'export, et `credits` d'`exporter`)
+    comptent les photos et les vidéos de Pexels, dont l'API demande de citer le photographe
+    quand c'est possible : « Photo de … sur Pexels » et la page du photographe. Pixabay reste
+    hors de la liste (sa licence ne le demande pas). Ce n'est pas « obligatoire » (CC BY seul).
+  - Le rail compte onze onglets ; il défile s'il ne tient pas en hauteur (le mini PC).
+  - Une page reprise (ou des textes collés) d'un autre design emporte la police du poste de ses
+    textes dans le dossier du design ouvert (BRIEF § 6 : le design s'ouvre pareil sur une autre
+    machine) ; le collage d'un design à l'autre ne le faisait pas non plus.
+- Défaut trouvé en construisant l'onglet Projets, corrigé : ouvrir ou créer un autre design
+  depuis l'éditeur (Fichier, le pont, et maintenant l'onglet Projets) ne refaisait pas la
+  miniature de celui qu'on quittait ; son minuteur partait ensuite sur le design suivant, et
+  l'accueil gardait l'ancienne image (seul le retour à l'accueil la refaisait). Avant de quitter
+  un design, sa miniature est refaite si un changement l'attend encore
+  (`miniatureAvantDeQuitter`, `etat/enregistrement.ts`).
+- Les deux vérifications du son joué (pont des sons, étape 4), notées au lot 5 : la lecture
+  d'Eliot était juste. L'enregistrement de l'essai (`parec`, sur la sortie muette de
+  PulseAudio) mettait jusqu'à 1,3 s à démarrer quand le conteneur était chargé ; son début
+  manquait et le premier son entendu servait de repère. Relu dans l'enregistrement : chaque son
+  part à son instant, la musique baisse à 30 % sous la voix. L'essai attend désormais que
+  l'enregistrement tourne avant de lancer la lecture : 26 sur 26.
+- Une publicité faite de bout en bout par le pont, dans Tauri, avec ce que l'étape apporte (un
+  faux Pexels et un faux Pixabay locaux) : une story « Café d'automne », la photo de Pexels en
+  fond, sa couleur prise à la pipette pour le texte du bouton, un titre courbé dont le style
+  part dans le kit puis se pose sur l'accroche, une liste à puces, deux textes que les alertes
+  signalent (contraste 1,4 : 1, 5,1 px vus sur un téléphone) et qui ne le sont plus une fois
+  corrigés comme elles le conseillent, des calques nommés, un logo repris d'un autre design
+  (`reprendre_design`, puis l'onglet Projets à la souris), les aides à l'écran. Mesures, sur
+  255 : les aides à l'écran ne passent pas dans la capture (0,000) ; PNG contre la fenêtre
+  0,57 (adouci 0,46) ; PDF par poppler contre le PNG 1,38 ; SVG par Chromium 0,15 ; annuler et
+  rétablir le titre recourbé, 0,000 ; la page dupliquée 0,000 ; déclinée en carré, la photo du
+  fond couvre le carré et le PNG suit la fenêtre (adouci 0,33) ; le format annulé 0,000 ; le
+  design rouvert 0,000, calques nommés, courbe, liste et photo du fond gardés ; la miniature
+  de l'accueil à jour. Une page vidéo de Pexels, le titre au style de la marque, en MP4 pour
+  Reels : à 1 s, l'image du film contre la fenêtre, 0,35 (adouci) ; la page reprise dans un
+  autre design, même image. Les crédits rendus nomment le photographe et le vidéaste de Pexels.
+- Le rapport de fin : section « Avant les essais : les commandes, dans l'ordre » du
+  `01_application/LISEZMOI.md` (les commandes complètes, les clés, l'ordre des parcours), un
+  parcours neuf pour les étapes 1 à 3 (il n'y en avait pas) et « Essayer l'étape 7 en entier :
+  une story d'automne ». L'introduction du LISEZMOI dit enfin les sept étapes.
+
+Vérifié dans le conteneur : interface 306 (6 de plus : reprendre des pages et des ressources,
+chercher un design, les crédits de Pexels), `npm run build` ; noyau inchangé depuis le lot 5
+(146) ; Chromium : l'onglet Projets et l'Importer (19), les lots 1 à 5 de l'étape (30, 53, 30,
+46, 24), l'étape 3, lot 3 (28 sur 29 : sa vérification de la liste du rail attendait dix
+onglets ; mise à jour avec Projets, la liste lue était la bonne), l'étape 4, lots 5 et 6 (44,
+37), l'étape 6, lot 1 (63) ; Tauri : la publicité (24, plus 3 pour sa page vidéo et 1 pour la
+police du poste), les lots 1 à 5 de l'étape (8, 16, 10, 15, 18 ; le lot 4 à son second passage :
+au premier, un clic de l'essai sur la pastille de couleur, pendant que la fenêtre se repeignait,
+n'a pas ouvert la bulle), l'animation par le pont de l'étape 4 (16), les banques 3D (34), le
+pont des sons (26). Les vérifications qui comptaient les outils en comptent 80 ; celle du lot 1
+clique l'onglet Calques à sa nouvelle place.
+
 ## 2026-10-17, étape 7, lot 5 : Pexels, construit avant la clé
 
 Demande d'Alexandre : Pexels ne délivre toujours pas de nouvelles clés, « mais si tu peux déjà

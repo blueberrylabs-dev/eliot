@@ -1,8 +1,9 @@
-import { Box, Film, ImagePlus } from "lucide-react";
+import { Box, Film, ImagePlus, Search, X } from "lucide-react";
 import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditeur } from "../../etat/editeur";
 import { creerDepuisRessource } from "../../modele/fabriques";
+import { correspond } from "../../modele/reprendre";
 import { eclairer } from "../../trois/banques";
 import type { Ressource } from "../../modele/types";
 import { choisirEtImporterImages, dansTauri } from "../../pont/tauri";
@@ -53,10 +54,16 @@ function CarteImage({ ressource }: { ressource: Ressource }) {
 
 export function PanneauImages() {
   const ressources = useEditeur((s) => s.ressources);
-  // Les sons ont leur onglet (Audio).
   // Les sons ont leur onglet (Audio), les environnements HDRI aussi (3D).
   const ordre = useEditeur(useShallow((s) => s.ordreRessources.filter((id) => !s.ressources[id]?.son && !s.ressources[id]?.environnement3d)));
   const [occupe, setOccupe] = useState(false);
+  // Chercher par le nom du fichier, ou par l'auteur et la banque d'une photo (BRIEF § 6 :
+  // chaque panneau a sa recherche par mot).
+  const [requete, setRequete] = useState("");
+  const trouves = ordre.filter((id) => {
+    const r = ressources[id];
+    return r && correspond(`${r.nom} ${r.credit ? `${r.credit.auteur} ${r.credit.source}` : ""} ${r.modele3d ? "3d" : r.video ? "video" : "photo"}`, requete);
+  });
 
   const importer = async () => {
     const etat = useEditeur.getState();
@@ -100,9 +107,18 @@ export function PanneauImages() {
         </p>
       ) : (
         <>
-          <p className="mb-2 text-xs text-neutral-500">Clique pour poser au centre, ou glisse sur la page. Lâchée sur un cadre ou un écran de maquette, une photo va dedans.</p>
+          <div className="relative mb-2">
+            <Search size={16} className="absolute top-2.5 left-2.5 text-neutral-400" />
+            <input data-recherche-imports value={requete} onChange={(e) => setRequete(e.target.value)} placeholder="Chercher : nom, auteur, vidéo, 3D…" className="h-9 w-full rounded-lg border border-neutral-300 pr-8 pl-8 text-sm outline-none focus:border-accent-500" />
+            {requete && (
+              <button onClick={() => setRequete("")} title="Effacer" className="absolute top-2 right-2 text-neutral-400 hover:text-neutral-700">
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          <p className="mb-2 text-xs text-neutral-500">{requete && trouves.length === 0 ? `Rien ne correspond à « ${requete} ».` : "Clique pour poser au centre, ou glisse sur la page. Lâchée sur un cadre ou un écran de maquette, une photo va dedans."}</p>
           <div className="grid grid-cols-2 gap-2">
-            {ordre.map((id) => ressources[id] && <CarteImage key={`${id}-${ressources[id].modele3d?.miniature ? 1 : 0}`} ressource={ressources[id]} />)}
+            {trouves.map((id) => <CarteImage key={`${id}-${ressources[id].modele3d?.miniature ? 1 : 0}`} ressource={ressources[id]} />)}
           </div>
         </>
       )}

@@ -94,6 +94,37 @@
     }
   },
   {
+    "name": "reprendre_design",
+    "description": "Reprend dans le design ouvert ce que contient un autre design, comme l'onglet Projets ; l'autre design n'est jamais modifié. Sans pages ni ressources : décrit ce design (format, pages) et liste ses visuels (photos, vidéos, modèles 3D, avec une planche numérotée de leurs miniatures) et ses sons. Avec pages : ajoute ces pages après la page affichée, avec leurs photos, vidéos, modèles 3D et sons, mises à l'échelle du format ouvert comme changer_format avec adapter ; la première devient la page affichée. Avec ressources : copie chacune dans ce design avec son crédit et la pose (un visuel au centre de la page, un son sur la frise, qui fait de la page une page vidéo). Une étape d'annulation par ajout.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "design": {
+          "type": "string",
+          "description": "Identifiant d'un autre design, donné par lister_designs."
+        },
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": "Numéros des pages à reprendre, à partir de 1."
+        },
+        "ressources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identifiants des visuels ou des sons, donnés par reprendre_design sans pages ni ressources."
+        }
+      },
+      "required": [
+        "design"
+      ]
+    }
+  },
+  {
     "name": "lister_modeles_depart",
     "description": "Les modèles de départ d'Eliot (une quarantaine : soldes, nouveau produit, citation, événement, témoignage, menu, story, miniature YouTube, bannière, affiche A4…), avec une planche de leurs vignettes numérotées. Filtre par format ou par mots.",
     "inputSchema": {
@@ -3894,7 +3925,7 @@
   },
   {
     "name": "exporter",
-    "description": "Exporte la page affichée ou toutes les pages, rendues par l'application depuis les originaux des photos et les fichiers de police. PNG, JPEG ou WebP : dans le dossier Images/Eliot de l'utilisateur, une image par page, de une à quatre fois la taille de la page (A4 et A5 : 150 ou 300 dpi), JPEG et WebP à la qualité voulue. PDF : toutes les pages en un fichier (sauf pages à courante), formes et textes vectoriels, textes sélectionnables ; une page A4 ou A5 garde la taille de son papier. SVG : la page affichée, textes en tracés, photos dedans. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Un objet 3D qui bouge est rendu image par image avant le film (plus long, images3d le dit). Une page vidéo exportée en image sort à l'instant de la tête de lecture. Renvoie les chemins écrits, le niveau final du son et, s'il y a lieu, images3d (nombre d'images 3D et leur durée en ms) et credits, le texte à recopier sous la publication (objets 3D venus d'une banque ; pour un film, les sons aussi ; une licence CC BY l'exige).",
+    "description": "Exporte la page affichée ou toutes les pages, rendues par l'application depuis les originaux des photos et les fichiers de police. PNG, JPEG ou WebP : dans le dossier Images/Eliot de l'utilisateur, une image par page, de une à quatre fois la taille de la page (A4 et A5 : 150 ou 300 dpi), JPEG et WebP à la qualité voulue. PDF : toutes les pages en un fichier (sauf pages à courante), formes et textes vectoriels, textes sélectionnables ; une page A4 ou A5 garde la taille de son papier. SVG : la page affichée, textes en tracés, photos dedans. MP4 ou GIF (page vidéo seulement) : le film entier de la page affichée, dans Vidéos/Eliot, avec les réglages de la plateforme choisie (youtube, shorts, tiktok, reels, libre) ; le son du MP4 est calé sur -14 LUFS (crête -1 dBTP) sauf niveau à faux, et sansMusique ajoute à côté une version sans les musiques (voix et bruitages gardés), pour le son tendance de TikTok ou d'Instagram. Un objet 3D qui bouge est rendu image par image avant le film (plus long, images3d le dit). Une page vidéo exportée en image sort à l'instant de la tête de lecture. Renvoie les chemins écrits, le niveau final du son et, s'il y a lieu, images3d (nombre d'images 3D et leur durée en ms) et credits, le texte à recopier sous la publication (photos et vidéos de Pexels, que Pexels demande de créditer quand c'est possible ; objets 3D venus d'une banque ; pour un film, les sons aussi ; une licence CC BY l'exige).",
     "inputSchema": {
       "type": "object",
       "properties": {

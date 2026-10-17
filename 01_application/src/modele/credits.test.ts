@@ -43,11 +43,31 @@ describe("crédits à recopier sous une publication", () => {
   it("un film ajoute les sons de sa page ; une licence CC BY rend le crédit obligatoire", () => {
     const p = page([objet("e", "chaise")], { duree: 5000, audio: [{ id: "s", ressource: "musique", piste: 0, role: "musique", temps: { debut: 0, fin: 5000 } }] as PageEliot["audio"] });
     const image = creditsAPublier([p], ressources, false);
-    expect(image).toEqual({ modeles3d: [texteDuCredit(ressources.chaise.credit)], sons: [], obligatoire: false });
+    expect(image).toEqual({ photos: [], modeles3d: [texteDuCredit(ressources.chaise.credit)], sons: [], obligatoire: false });
     const film = creditsAPublier([p], ressources, true);
     expect(film.sons).toEqual(["« Piano » par Lou (https://freesound.org/s/1/), licence CC BY 4.0, via Freesound"]);
     expect(film.obligatoire).toBe(true);
     expect(texteDesCredits(film)).toBe(`Objets 3D :\n${texteDuCredit(ressources.chaise.credit)}\n\nSons :\n${film.sons[0]}`);
     expect(texteDesCredits(creditsAPublier([page([objet("c", "perso")])], ressources, true))).toBe("");
+  });
+
+  it("les photos et vidéos de Pexels : le photographe et sa page, une fois chacune ; Pixabay n'en demande pas", () => {
+    const base = { rotation: 0, opacite: 1, visible: true, verrouille: false, x: 0, y: 0, largeur: 10, hauteur: 10 };
+    const r = {
+      px: { nom: "a.jpg", credit: { source: "Pexels", auteur: "Marc", lien: "https://www.pexels.com/photo/1/", lienAuteur: "https://www.pexels.com/@marc" } },
+      pv: { nom: "b.mp4", video: { duree: 3000 }, credit: { source: "Pexels", auteur: "Noé", lien: "https://www.pexels.com/video/2/" } },
+      pb: { nom: "c.jpg", credit: { source: "Pixabay", auteur: "Anne", lien: "https://pixabay.com/photos/3/" } },
+    };
+    const p = page([
+      { ...base, id: "f", type: "cadre", forme: "rectangle", ressource: "px", enFond: true },
+      { ...base, id: "i", type: "image", ressource: "px", retourneH: false, retourneV: false },
+      { ...base, id: "v", type: "video", ressource: "pv" },
+      { ...base, id: "j", type: "image", ressource: "pb", retourneH: false, retourneV: false },
+      { ...base, id: "k", type: "image", ressource: "px", visible: false, retourneH: false, retourneV: false },
+    ] as unknown as PageEliot["elements"]);
+    const c = creditsAPublier([p], r, false);
+    expect(c.photos).toEqual(["Photo de Marc sur Pexels : https://www.pexels.com/@marc", "Vidéo de Noé sur Pexels : https://www.pexels.com/video/2/"]);
+    expect(c.obligatoire).toBe(false);
+    expect(texteDesCredits(c)).toBe("Photos et vidéos :\nPhoto de Marc sur Pexels : https://www.pexels.com/@marc\nVidéo de Noé sur Pexels : https://www.pexels.com/video/2/");
   });
 });

@@ -1,14 +1,19 @@
 # Eliot, l'application
 
-L'éditeur, étapes 1 à 5 du `BRIEF.md` et début de l'étape 6 : un accueil qui range tes
-designs, des pages qu'on compose à la souris comme dans Canva, une bibliothèque d'icônes,
-d'emojis, de personnages et de polices, des photos et des vidéos libres de Pixabay et de
-Pexels, un kit de marque, des modèles de départ, des vidéos montées et animées sur une frise, avec leur musique,
-leurs bruitages, ta voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et
-les « euh » coupés, des sous-titres mot par mot, un enregistrement automatique, l'export en PNG,
-JPEG, WebP, PDF vectoriel ou SVG rendu depuis les originaux, l'export des vidéos en MP4 ou en
-GIF, un labo pour retoucher les photos comme dans Lightroom, et des objets 3D posés dans la page
-comme des photos détourées, que l'on tourne à la souris.
+L'éditeur, les sept étapes du `BRIEF.md` : un accueil qui range tes designs, des pages qu'on
+compose à la souris comme dans Canva, une bibliothèque d'icônes, d'emojis, de personnages et de
+polices, des photos et des vidéos libres de Pixabay et de Pexels, un kit de marque, des modèles
+de départ, des vidéos montées et animées sur une frise, avec leur musique, leurs bruitages, ta
+voix enregistrée au micro et nettoyée ou une voix de synthèse, les blancs et les « euh » coupés,
+des sous-titres mot par mot, un enregistrement automatique, l'export en PNG, JPEG, WebP, PDF
+vectoriel ou SVG rendu depuis les originaux, l'export des vidéos en MP4 ou en GIF, un labo pour
+retoucher les photos comme dans Lightroom, des objets 3D posés dans la page, éclairés et animés,
+et pour apprendre le métier : des calques qu'on range et qu'on nomme, des aides (règles,
+grilles, zones sûres, alertes quand un texte se lit mal), une pipette et un thème sombre. Une IA
+comme Claude peut tout faire par le pont.
+
+**Avant les essais** : la section « Avant les essais : les commandes, dans l'ordre » plus bas
+rassemble ce qu'il faut lancer une fois, puis l'ordre des parcours.
 
 **À lancer à la main, carte graphique libre** (règle 9 du `BRIEF.md`). Les commandes
 complètes sont dans le `CLAUDE.md` à la racine du projet.
@@ -558,13 +563,31 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   Freesound, Poly Haven, Sketchfab, Kenney, Mixamo, YouTube Audio Library, Free Music Archive)
   s'ouvrent dans ton navigateur ; la fenêtre n'en ouvre pas d'autres.
 
+**Projets (vérification de l'étape 7)**
+- Onglet Projets du rail, entre Dessin et Calques : tes autres designs, du plus récent au plus
+  ancien, à chercher par leur nom (accents et majuscules n'y font rien). Celui qui est ouvert
+  est marqué « ouvert ».
+- Un clic sur un design : son détail. « Ouvrir ce design » (celui que tu quittes est enregistré
+  avant, sa miniature de l'accueil aussi). Ses pages : un numéro ajoute cette page après celle
+  affichée, « Toutes » les ajoute toutes, avec leurs photos, vidéos, modèles 3D et sons ; d'un
+  autre format, elles sont mises à l'échelle comme Redimensionner. Ses photos, ses vidéos, ses
+  modèles 3D et ses sons : un clic en pose une copie ici, avec son crédit. L'autre design n'est
+  jamais modifié ; Ctrl+Z défait chaque ajout.
+- Onglet Importer : une recherche (nom du fichier, auteur ou banque d'une photo, « vidéo »,
+  « 3D »).
+- Fenêtre d'export, « Crédits à recopier sous la publication » : les photos et les vidéos de
+  Pexels y sont aussi (« Photo de … sur Pexels » et la page du photographe), parce que Pexels
+  demande de citer le photographe quand c'est possible. Celles de Pixabay n'y sont pas : leur
+  licence ne le demande pas.
+
 **Laisser une IA piloter Eliot**
 - Fichier, « Réglages et pont IA… » : un interrupteur ouvre le pont. Une IA comme Claude peut
   alors lire le design (avec les alertes de lisibilité de la page), poser et modifier des objets
   (courber un texte, en faire une liste, ranger et nommer les calques), montrer les aides à
   l'écran ou changer le thème, poser ou détacher une photo en fond, lire la couleur d'un point
   de la page (sa pipette), gérer les pages, importer une image du
-  poste, chercher et poser des photos et des vidéos de Pixabay ou de Pexels, importer ou chercher des vidéos et les poser
+  poste, chercher et poser des photos et des vidéos de Pixabay ou de Pexels, reprendre les
+  pages ou les images d'un autre design, importer ou chercher des vidéos et les poser
   (coupe, vitesse, volume), monter une page vidéo (temps et pistes des clips, scinder, tête de
   lecture, capture à un instant), animer (entrées, sorties, boucles, images clés, transitions,
   styles de texte pour la vidéo), importer, chercher (Freesound) et poser des sons, les
@@ -583,6 +606,150 @@ complètes sont dans le `CLAUDE.md` à la racine du projet.
   PNG, JPEG ou WebP à la qualité voulue, PDF ou SVG, ou en MP4 et en GIF pour une page vidéo,
   avec la version sans musique). On la voit travailler dans la fenêtre, et Ctrl+Z défait
   chacune de ses actions. Mise en place : commandes 13 à 15 bis du `CLAUDE.md`.
+
+## Avant les essais : les commandes, dans l'ordre
+
+Le rapport de fin (2026-10-17) : tout ce qu'il faut lancer une fois avant d'essayer Eliot en
+entier, dans un terminal du poste principal. Processeur seulement : rien ne touche la carte
+graphique, sauf Eliot lui-même au point 9. Chaque commande se recopie telle quelle ; le détail
+(quoi vérifier, comment revenir en arrière) est au `CLAUDE.md`, à la commande donnée entre
+parenthèses.
+
+1. Vérifier les outils (commande 1) ; Rust doit être en 1.92 au moins pour l'export PDF :
+
+   ```
+   node --version; npm --version; rustc --version; cargo --version
+   ```
+
+   Si `rustc` est plus ancien que 1.92 :
+
+   ```
+   rustup update
+   ```
+
+2. Les dépendances JavaScript (commande 8 ; three.js est arrivé à l'étape 6) :
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm install
+   ```
+
+3. La bibliothèque (commande 8 bis). Avant, si tu veux les modèles 3D de Kenney : un ou deux
+   paquets .zip de kenney.nl rangés dans `/home/nushoko/Bureau/Logiciels/Eliot/telechargements/kenney/`.
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run bibliotheque
+   ```
+
+   Attendu : `7750 icônes, 4047 emojis, 95 polices`, puis les personnages, puis les modèles de
+   Kenney s'il y en a.
+
+4. L'application (commande 9 ; plusieurs minutes, quelques Go dans `src-tauri/target/`) :
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/src-tauri && cargo build -j 4
+   ```
+
+5. Le pont vers Claude (commandes 13 et 15 bis), compilé puis emballé en extension :
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/eliot-mcp && cargo build --release -j 4 && python3 emballer_mcpb.py
+   ```
+
+   Puis, dans l'application Claude : Réglages, Extensions, réinstaller le fichier
+   `01_application/eliot-mcp/target/eliot.mcpb` (80 outils).
+
+6. La voix de synthèse (commandes 16 et 17) : Piper, puis deux voix françaises (135 Mo) :
+
+   ```
+   uv tool install piper-tts==1.8.0
+   ```
+
+   ```
+   for v in siwis upmc; do d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/voix/fr_FR-$v-medium; mkdir -p $d && for f in fr_FR-$v-medium.onnx fr_FR-$v-medium.onnx.json MODEL_CARD; do wget -nc -P $d "https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/$v/medium/$f"; done; done
+   ```
+
+7. Les sous-titres (commandes 18 et 19) : Whisper, puis son modèle (485 Mo) :
+
+   ```
+   uv tool install whisper-ctranslate2==0.5.7 --with ctranslate2==4.8.2 --with faster-whisper==1.2.1 --with av==18.1.0
+   ```
+
+   ```
+   d=/home/nushoko/Bureau/Logiciels/Eliot/telechargements/whisper/faster-whisper-small; mkdir -p $d && for f in README.md config.json model.bin tokenizer.json vocabulary.txt; do wget -nc -P $d "https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/$f"; done
+   ```
+
+8. Le détourage (commandes 20 et 21) : le programme, puis le modèle (environ quatre minutes,
+   jusqu'à 4 Go de mémoire, 894 Mo à la fin) :
+
+   ```
+   uv venv /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env --python 3.12 && uv pip install --python /home/nushoko/Bureau/Logiciels/Eliot/telechargements/detourage/env onnxruntime==1.30.0 numpy==2.3.5
+   ```
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && CUDA_VISIBLE_DEVICES= uv run --no-project --python 3.12 --index https://download.pytorch.org/whl/cpu --with "torch==2.14.0+cpu" --with "torchvision==0.29.0+cpu" --with timm==1.0.20 --with transformers==4.57.1 --with einops==0.8.2 --with kornia==0.8.3 --with safetensors==0.8.0 --with onnx==1.19.1 --with onnxscript==0.7.2 --with onnxruntime==1.30.0 --with numpy==2.3.5 python outils/convertir_birefnet.py
+   ```
+
+9. Lancer Eliot, carte graphique libre (commande 10), puis Fichier, « Réglages et pont IA… »,
+   l'interrupteur du pont :
+
+   ```
+   cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm run tauri dev
+   ```
+
+Facultatif, les tests sans fenêtre (commandes 11 et 12) : le noyau doit dire `146 passed`,
+l'interface `Tests  306 passed`.
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application/noyau && cargo test -j 4
+```
+
+```
+cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
+```
+
+Les clés, dans `/home/nushoko/Bureau/Logiciels/Eliot/.env` : `PIXABAY_API_KEY`,
+`FREESOUND_API_KEY` et `SKETCHFAB_API_KEY` y sont ; `PEXELS_API_KEY` le jour où Pexels redonne
+des clés (Eliot fonctionne sans, avec Pixabay).
+
+**L'ordre des essais**, du plus simple au plus complet ; chaque parcours dit ce qui m'aide le
+plus en retour :
+
+1. « Essayer l'éditeur et la bibliothèque (étapes 1 à 3) », juste en dessous.
+2. « Essayer la vidéo (étape 4) ».
+3. « Essayer l'étape 5 en entier : une publicité de produit », puis « Essayer l'étalonnage et
+   la musique sous une vidéo qui parle ». Les parcours des lots servent si un point coince.
+4. « Essayer l'étape 6 en entier : une publicité 3D ».
+5. « Essayer l'étape 7 en entier : une story d'automne », puis « Essayer Pexels » quand la clé
+   est là.
+6. Le pont : demander à Claude, Eliot ouvert, « fais une story pour ce produit avec cette
+   photo » ; le regarder travailler, puis défaire une de ses étapes par Ctrl+Z.
+7. Le mini PC, quand il sera là : le banc d'essai (commandes 4 à 6 ter du `CLAUDE.md`), puis
+   le parcours 5, pour la fluidité et les temps d'export.
+
+## Essayer l'éditeur et la bibliothèque (étapes 1 à 3)
+
+Quinze minutes, Eliot lancé à la main, carte graphique libre (commande 10).
+
+1. Accueil, « Créer un design », Post carré. Renommer le design en cliquant sur son nom en haut.
+2. Onglet Éléments : chercher « café » ; poser une icône et un emoji. Une forme, sa couleur.
+   Glisser un objet : les lignes roses l'aimantent au centre et aux bords. Ctrl+D, Suppr,
+   flèches, Ctrl+Z, Ctrl+Y.
+3. Onglet Texte : un titre, double-clic pour l'écrire ; une association de polices ; ombre et
+   contour dans la barre du haut.
+4. Éléments, un cadre en cercle ; onglet Photos, glisser une photo de Pixabay dedans. Une
+   maquette de téléphone ; une capture d'écran collée (Ctrl+V) dans son écran.
+5. Un graphique en barres (changer ses valeurs), un tableau, un QR code ; onglet Dessin,
+   quelques traits au marqueur, puis la gomme.
+6. Un personnage (Open Peeps) ; le composeur : sa tenue, ses couleurs.
+7. Onglet Marque : tes couleurs, une police, ton logo ; les retrouver dans le choix de couleur
+   d'un texte.
+8. Onglet Modèles : un modèle de départ ; une photo dans un de ses cadres vides.
+9. Une deuxième page, la dupliquer ; Redimensionner, Story, « Copier et redimensionner ».
+10. Retour à l'accueil : le design et sa miniature. Fichier, « Enregistrer comme modèle », puis
+    « Exporter le design (.eliot) ».
+
+Ce qui m'aide le plus en retour : les gestes qui coincent par rapport à Canva, et ce qui manque
+dans la bibliothèque pour tes publicités.
 
 ## Essayer la vidéo (étape 4)
 
@@ -1023,6 +1190,32 @@ lancé à la main, carte graphique libre (commande 10).
 Ce qui m'aide le plus en retour : une recherche où Pexels donne mieux (ou moins bien) que
 Pixabay, et un crédit qui manque quelque part.
 
+## Essayer l'étape 7 en entier : une story d'automne
+
+Quinze minutes, après les essais des lots (ou à leur place). Avant : les points 2 à 5 de
+« Avant les essais », puis Eliot lancé à la main, carte graphique libre.
+
+1. Un design carré nommé « Kit café », ton logo posé dessus. Puis un nouveau design en Story.
+2. Onglet Photos, une photo d'ambiance en portrait (Pexels si la clé est là, sinon Pixabay),
+   « Mettre en fond ».
+3. Un titre, Courbe vers 35 ; Styles, « Titre café », Garder. Un second texte : un clic sur le
+   style « Titre café ».
+4. Une liste à puces de trois arguments. Un texte d'une couleur proche de la photo, un autre de
+   14 px : une marque ambrée apparaît au coin de chacun. Choisir l'un, bouton Lisibilité de sa
+   barre, la correction proposée ; puis l'autre.
+5. Un bouton blanc ; son texte prend la couleur de la photo à la pipette.
+6. Onglet Projets : chercher « kit », le design « Kit café », un clic sur ton logo : il se pose
+   ici. Onglet Calques : double-clic sur sa ligne, « Logo » ; la glisser sous celle du titre.
+7. Bouton Aides : règles, tiers, marges, zones sûres « Story ». Puis Exporter, PNG : rien de ces
+   aides dans l'image ; les crédits à recopier nomment le photographe s'il vient de Pexels.
+8. Redimensionner en Post carré, « Copier et redimensionner » : la photo du fond couvre le
+   carré.
+9. Fichier, « Réglages et pont IA… », Apparence, Sombre ; puis fermer le design et le rouvrir :
+   tout est là, et sa miniature de l'accueil montre la story.
+
+Ce qui m'aide le plus en retour : ce qui manque pour une story que tu publierais, une alerte
+qui t'a appris quelque chose (ou qui t'a gêné), et l'onglet Projets comparé à celui de Canva.
+
 ## Raccourcis
 
 | Touches | Effet |
@@ -1109,11 +1302,11 @@ Pixabay, et un crédit qui manque quelque part.
 │   ├── App.tsx       l'accueil ou l'éditeur
 │   ├── bibliotheque/ catalogue des polices, associations, mots français, recherche, rendu des icônes et des personnages
 │   ├── accueil/      l'accueil : formats, designs, modèles
-│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts), les règles, la grille, les tiers et les marges (aides.ts), le contraste du WCAG et la taille vue (lisibilite.ts), la photo en fond de page (fond.ts)
+│   ├── modele/       le document (types.ts), la fabrication des objets, la géométrie, les personnages composés, les règles de la frise (frise.ts), les animations (animation.ts), les sons (son.ts), le nettoyage de la voix (voix.ts) et les sous-titres (sousTitres.ts) et les réglages du labo (labo.ts, courbe comprise) avec les préréglages fournis (prereglages.ts et prereglages.json), le recadrage et le redressement (rognage.ts), la perspective (perspective.ts), le masque du détourage et ses coups de pinceau (detourage.ts), avec leurs tableaux de valeurs attendues communs avec le Rust, la coupe des blancs (parole.ts), les styles de texte pour la vidéo, les zones sûres (zonesSures.ts), la caméra d'un objet 3D (objet3d.ts) et son mouvement sur une page vidéo (mouvement3d.ts), les crédits à recopier sous une publication (credits.ts), les lignes et l'ordre du panneau des calques (calques.ts), le texte courbé et les listes (texteCourbe.ts), les styles de texte enregistrés (stylesTexte.ts), les règles, la grille, les tiers et les marges (aides.ts), le contraste du WCAG et la taille vue (lisibilite.ts), la photo en fond de page (fond.ts), les pages et les images reprises d'un autre design (reprendre.ts)
 │   ├── modeles/      les modèles de départ, dessinés pour Eliot
 │   ├── etat/         le store, l'enregistrement automatique, les opérations sur les designs, la prise de voix (prise.ts), les voix nettoyées (nettoyage.ts), la parole, la coupe des blancs et les sous-titres (parole.ts), la pipette en attente d'un clic (pipette.ts), le thème de l'interface (theme.ts)
 │   ├── pont/         le seul fichier qui parle à Tauri (repli navigateur pour les tests)
-│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts), les aides et leur menu (Aides.tsx), les alertes de lisibilité mesurées au repos (alertes.ts), la pipette sur la page et sa loupe (Pipette.tsx)
+│   ├── editeur/      la zone de travail Konva, les barres, les panneaux, les pages, la lecture des vidéos (videos.ts) et des sons (sons.ts), la frise (frise/), remplacer une photo à sa place (remplacer.ts), les aides et leur menu (Aides.tsx), les alertes de lisibilité mesurées au repos (alertes.ts), la pipette sur la page et sa loupe (Pipette.tsx), l'onglet Projets (panneaux/PanneauProjets.tsx)
 │   ├── labo/         le labo photo : le panneau Retoucher, la courbe (EditeurCourbe.tsx), les préréglages (Prereglages.tsx, et prereglages.ts pour ceux d'Alexandre), le shader de l'aperçu en direct (shader.ts, un moteur pour les photos, un pour les clips), les photos et les clips retouchés affichés, copier et coller les réglages (retouche.ts), le recadrage (recadrage.ts, et CadreRognage.tsx pour le cadre sur la page), la perspective (miseEnPerspective.ts, CadrePerspective.tsx pour les quatre coins sur la page, moteurPerspective.ts pour le shader qui pose le visuel), le détourage (detourage.ts, et CadrePinceau.tsx pour le pinceau sur la page)
 │   ├── trois/        le studio 3D : le moteur three.js qui rend les objets et leurs miniatures (moteur.ts), l'objet sur la page (RenduObjet3d.tsx), le mode Tourner (orbite.ts, CadreOrbite.tsx), le panneau 3D (Panneau3d.tsx), les banques et l'onglet 3D du rail (banques.ts, PanneauBanques.tsx)
 │   ├── export/       la page décrite en calques SVG pour le noyau (calques.ts, contexteSvg.ts), export en image et en document (exporter.ts), rendu hors écran par Konva (rendu.ts, hors de l'application), export vidéo et réglages par plateforme (video.ts, plateformes.ts)

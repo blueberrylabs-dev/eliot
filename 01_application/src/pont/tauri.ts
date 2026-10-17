@@ -7,6 +7,7 @@ import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import type { Credit, DocumentEliot, InfoProjet, InfosEnvironnement3d, InfosModele3d, InfosSon, InfosVideo, NettoyageVoix, RefProjet, RefRessources, Ressource } from "../modele/types";
 import type { ReglagesPhoto } from "../modele/labo";
 import type { AnalyseParole, LangueParole } from "../modele/parole";
+import { ressourcesDesPages } from "../modele/reprendre";
 
 export const dansTauri = isTauri();
 
@@ -522,6 +523,15 @@ export async function listerRessources(ref: RefRessources): Promise<Ressource[]>
   if (!dansTauri) return [];
   const liste = await invoke<RessourceNoyau[]>("ressources_lister", { rayonNom: ref.rayon, projetId: ref.id });
   return liste.map(versRessource);
+}
+
+/** Les photos, vidéos, sons et modèles 3D rangés dans un autre design (onglet Projets). Dans
+ *  le navigateur, ceux dont ses pages se servent (les ressources y sont en mémoire). */
+export async function ressourcesDuDesign(ref: RefProjet): Promise<Ressource[]> {
+  if (dansTauri) return listerRessources(ref);
+  const d = rayons()[ref.rayon][ref.id];
+  if (!d) return [];
+  return ressourcesDesPages(d.document.pages).flatMap((id) => (ressourcesNavigateur.has(id) ? [ressourcesNavigateur.get(id)!.ressource] : []));
 }
 
 function bilanDe(resultats: ResultatImport[], bilan: BilanImport = { ressources: [], erreurs: [] }): BilanImport {

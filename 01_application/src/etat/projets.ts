@@ -2,10 +2,11 @@
 // créer, ouvrir, renommer, copier, supprimer, transporter dans un fichier .eliot.
 
 import { documentVide, NOM_PAR_DEFAUT } from "../modele/fabriques";
-import type { Format, InfoProjet, PageEliot, RefProjet } from "../modele/types";
+import { pagesReprises, ressourcesDesElements, ressourcesDesPages } from "../modele/reprendre";
+import type { DocumentEliot, ElementPage, Format, InfoProjet, PageEliot, RefProjet, Ressource } from "../modele/types";
 import * as pont from "../pont/tauri";
 import { assurerPolicesDocument, chargerPolicesDesign, fichiersDuPoste } from "../polices";
-import { enregistrerMaintenant, miniatureMaintenant } from "./enregistrement";
+import { enregistrerMaintenant, miniatureAvantDeQuitter, miniatureMaintenant } from "./enregistrement";
 import { useEditeur } from "./editeur";
 import { voixUtilisees } from "./nettoyage";
 
@@ -15,6 +16,7 @@ const erreur = (texte: string, e: unknown) => useEditeur.getState().notifier(`${
 export async function ouvrirDesign(ref: RefProjet): Promise<boolean> {
   try {
     await enregistrerMaintenant();
+    await miniatureAvantDeQuitter();
     const precedent = useEditeur.getState().projet;
     const { info, document } = await pont.ouvrirProjet(ref);
     const ressources = await pont.listerRessources(ref);
@@ -38,6 +40,7 @@ export async function ouvrirDesign(ref: RefProjet): Promise<boolean> {
 export async function nouveauDesign(format: Format, nom = NOM_PAR_DEFAUT, page?: Pick<PageEliot, "fond" | "elements">): Promise<boolean> {
   try {
     await enregistrerMaintenant();
+    await miniatureAvantDeQuitter();
     const vide = documentVide(format, nom);
     const document = page ? { ...vide, pages: [{ ...vide.pages[0], ...page }] } : vide;
     const info = await pont.creerProjet(document);
@@ -186,16 +189,7 @@ export async function collerAvecImages(): Promise<void> {
   const source = pressePapiers.projet;
   // Les photos, les vidéos, les photos des cadres et des maquettes, les modèles 3D et leurs
   // environnements HDRI (étape 6).
-  const ids = [
-    ...new Set(
-      pressePapiers.elements.flatMap((e) => {
-        if (e.type === "image" || e.type === "video") return [e.ressource];
-        if ((e.type === "cadre" || e.type === "maquette") && e.ressource) return [e.ressource];
-        if (e.type === "objet3d") return [e.ressource, ...(e.lumiere && /^[0-9a-f]{64}$/.test(e.lumiere.environnement.id) ? [e.lumiere.environnement.id] : [])];
-        return [];
-      }),
-    ),
-  ];
+  const ids = ressourcesDesElements(pressePapiers.elements);
   if (projet && source && ids.length && (source.rayon !== projet.rayon || source.id !== projet.id)) {
     try {
       etat.ajouterRessources(await pont.copierRessources(source, projet, ids));
@@ -203,6 +197,7 @@ export async function collerAvecImages(): Promise<void> {
       erreur("Images non copiées", e);
     }
   }
+  if (projet && source && (source.rayon !== projet.rayon || source.id !== projet.id)) void copierPolicesDesTextes(pressePapiers.elements);
   useEditeur.getState().coller();
 }
 
@@ -216,4 +211,42 @@ export async function copierPoliceDansDesign(famille: string): Promise<void> {
   } catch (e) {
     erreur(`Police ${famille} non copiée dans le design`, e);
   }
+}
+
+const memeDesign = (a: RefProjet, b: RefProjet) => a.rayon === b.rayon && a.id === b.id;
+
+/** Les polices du poste dont des textes venus d'un autre design se servent, copiées dans le
+ *  design ouvert (BRIEF § 6 : il doit s'ouvrir pareil sur une autre machine). */
+async function copierPolicesDesTextes(elements: readonly ElementPage[]): Promise<void> {
+  const familles = [...new Set(elements.flatMap((e) => (e.type === "texte" ? [e.police] : [])))];
+  await Promise.all(familles.map((f) => copierPoliceDansDesign(f)));
+}
+
+/** Onglet Projets : copie dans le design ouvert des ressources d'un autre design, qui n'est
+ *  jamais modifié ; elles rejoignent celles du design (onglet Importer). */
+export async function reprendreRessources(source: RefProjet, ids: string[]): Promise<Ressource[]> {
+  const etat = useEditeur.getState();
+  const cible = etat.projet;
+  if (!cible || ids.length === 0) return [];
+  if (memeDesign(source, cible)) return ids.flatMap((id) => (etat.ressources[id] ? [etat.ressources[id]] : []));
+  const copiees = await pont.copierRessources(source, cible, ids);
+  useEditeur.getState().ajouterRessources(copiees);
+  return copiees;
+}
+
+/** Onglet Projets : les pages `numeros` (à partir de 1) d'un autre design, avec leurs photos,
+ *  vidéos, modèles 3D et sons, posées après la page affichée, mises à l'échelle du format
+ *  comme Redimensionner. Une étape d'annulation. */
+export async function reprendrePages(source: RefProjet, document: DocumentEliot, numeros: number[]): Promise<PageEliot[]> {
+  const choisies = numeros.flatMap((n) => (document.pages[n - 1] ? [document.pages[n - 1]] : []));
+  if (choisies.length === 0 || !useEditeur.getState().projet) return [];
+  await reprendreRessources(source, ressourcesDesPages(choisies));
+  // Les textes se mesurent avec leur vraie police : chargée avant ; une police du poste est
+  // copiée dans ce design, qui s'ouvrira pareil sur une autre machine.
+  await assurerPolicesDocument({ pages: choisies });
+  void copierPolicesDesTextes(choisies.flatMap((p) => p.elements));
+  const etat = useEditeur.getState();
+  const pages = pagesReprises(choisies, document.format, etat.document.format);
+  etat.insererPages(pages);
+  return pages;
 }

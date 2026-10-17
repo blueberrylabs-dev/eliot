@@ -15,6 +15,8 @@ let minuteur: ReturnType<typeof setTimeout> | undefined;
 let minuteurMiniature: ReturnType<typeof setTimeout> | undefined;
 let enCours: Promise<void> | null = null;
 let dernierEcrit: DocumentEliot | null = null;
+/** Le design dont la miniature attend encore un changement écrit. */
+let miniatureAttendue: RefProjet | null = null;
 
 function planifier() {
   clearTimeout(minuteur);
@@ -50,7 +52,16 @@ export async function enregistrerMaintenant(): Promise<void> {
 
 function planifierMiniature() {
   clearTimeout(minuteurMiniature);
+  miniatureAttendue = useEditeur.getState().projet;
   minuteurMiniature = setTimeout(() => void miniatureMaintenant(), DELAI_MINIATURE_MS);
+}
+
+/** Avant d'ouvrir un autre design depuis l'éditeur (onglet Projets, Fichier, pont) : la
+ *  miniature de celui qu'on quitte, si un changement l'attend encore. Sans elle, son minuteur
+ *  partirait sur le design suivant et l'accueil garderait l'ancienne image. */
+export async function miniatureAvantDeQuitter(): Promise<void> {
+  const { projet } = useEditeur.getState();
+  if (projet && miniatureAttendue && miniatureAttendue.rayon === projet.rayon && miniatureAttendue.id === projet.id) await miniatureMaintenant();
 }
 
 /** L'image de l'accueil : la première page, 480 px sur le grand côté. */
@@ -60,6 +71,7 @@ export async function miniatureMaintenant(projet?: RefProjet, document?: Documen
   const ref = projet ?? etat.projet;
   const doc = document ?? etat.document;
   if (!ref) return;
+  if (miniatureAttendue && miniatureAttendue.rayon === ref.rayon && miniatureAttendue.id === ref.id) miniatureAttendue = null;
   try {
     const { largeur, hauteur } = doc.format;
     const blob = await rendrePage(doc.pages[0], doc.format, { pixelRatio: COTE_MINIATURE / Math.max(largeur, hauteur), type: "image/png", sansEffets: true });

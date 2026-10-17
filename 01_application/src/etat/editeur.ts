@@ -154,6 +154,9 @@ interface EtatEditeur {
   modifierFormat: (format: Format, adapter: boolean) => void;
   ajouterPage: () => void;
   dupliquerPageActive: () => void;
+  /** Pages venues d'un autre design (onglet Projets) : posées après la page affichée, la
+   *  première devient la page affichée. Une étape d'annulation. */
+  insererPages: (pages: PageEliot[]) => void;
   supprimerPage: (id: string) => void;
   deplacerPage: (id: string, rang: number) => void;
   allerALaPage: (id: string) => void;
@@ -758,6 +761,14 @@ export const useEditeur = create<EtatEditeur>()((set, get) => ({
     const copie = dupliquerPage(pageDe(document, pageActive));
     get().appliquer((d) => ({ ...d, pages: [...d.pages.slice(0, rang + 1), copie, ...d.pages.slice(rang + 1)] }));
     set({ pageActive: copie.id, selection: [] });
+  },
+
+  insererPages(pages) {
+    if (pages.length === 0) return;
+    const { document, pageActive } = get();
+    const rang = document.pages.findIndex((p) => p.id === pageActive);
+    get().appliquer((d) => ({ ...d, pages: [...d.pages.slice(0, rang + 1), ...pages, ...d.pages.slice(rang + 1)] }));
+    set({ pageActive: pages[0].id, selection: [], selectionAudio: [] });
   },
 
   supprimerPage(id) {

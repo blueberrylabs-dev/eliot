@@ -11,7 +11,7 @@ import { MODELES_DEPART } from "../modeles/depart";
 import { FORMATS_PAGE, type Format, type InfoProjet, type RefProjet } from "../modele/types";
 import { afficherDansDossier, dansTauri, dossierDesigns, listerProjets, urlMiniatureProjet } from "../pont/tauri";
 
-function quand(ms: number): string {
+export function quand(ms: number): string {
   const ecart = Date.now() - ms;
   const minutes = Math.round(ecart / 60000);
   if (minutes < 1) return "à l'instant";
@@ -27,7 +27,7 @@ function Silhouette({ format }: { format: Format }) {
   return <span className="block rounded-sm border-2 border-accent-500 bg-accent-50" style={{ width: Math.max(10, format.largeur * echelle), height: Math.max(10, format.hauteur * echelle) }} />;
 }
 
-function Miniature({ refProjet, info }: { refProjet: RefProjet; info: InfoProjet }) {
+export function Miniature({ refProjet, info }: { refProjet: RefProjet; info: InfoProjet }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let actif = true;

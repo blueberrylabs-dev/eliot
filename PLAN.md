@@ -681,6 +681,20 @@ Choix par défaut de Claude, modifiables sur simple demande :
       `ajouter_video_pexels` (79 outils). Vérifié contre un faux Pexels dans Chromium (24) et
       dans Tauri (18) (JOURNAL). S'allume dès que `PEXELS_API_KEY` est dans le `.env`. Essai
       d'Alexandre : « Essayer Pexels (étape 7, lot 5) » du `01_application/LISEZMOI.md`.
-- [ ] Vérification de l'étape : relecture contre le BRIEF, une publicité faite de bout en bout
+- [x] Vérification de l'étape : relecture contre le BRIEF, une publicité faite de bout en bout
       par le pont dans Tauri, suites repassées, livraison. Puis le rapport de fin, qui rassemble
       les commandes à lancer avant les essais d'Alexandre.
+      Faite le 2026-10-17 : trois manques comblés, l'onglet Projets du rail (BRIEF § 6 : tes
+      autres designs, à chercher, à ouvrir, leurs pages, photos, vidéos, modèles 3D et sons
+      repris ici ; `src/editeur/panneaux/PanneauProjets.tsx`, `src/modele/reprendre.ts`, l'outil
+      `reprendre_design`, 80 outils), la recherche par mot de l'onglet Importer, les photos et
+      vidéos de Pexels dans les crédits à recopier (et la police du poste qui suit une page
+      reprise) ; un défaut corrigé, la miniature d'un design quitté pour un autre depuis
+      l'éditeur ; une story d'automne faite de bout en bout par le pont dans Tauri ; les deux
+      vérifications du son joué reprises (l'enregistreur de l'essai démarrait en retard, pas
+      Eliot). Détail au JOURNAL. Essai d'Alexandre : « Essayer l'étape 7 en entier : une story
+      d'automne » du `01_application/LISEZMOI.md`.
+- [x] Rapport de fin (2026-10-17) : « Avant les essais : les commandes, dans l'ordre » du
+      `01_application/LISEZMOI.md` (commandes, clés, ordre des parcours, dont un parcours neuf
+      pour les étapes 1 à 3).
+- [ ] Essais d'Alexandre, dans l'ordre du rapport de fin, puis les corrections.

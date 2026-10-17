@@ -3,7 +3,7 @@
 // l'image » chez Canva, pour une photo ou un clip vidéo ; un onglet du rail le referme. Le
 // panneau « 3D » d'un objet 3D (étape 6) s'ouvre de la même façon.
 
-import { Box, Brush, CloudUpload, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
+import { Box, Brush, CloudUpload, FolderOpen, Image as IconeImage, LayoutTemplate, Layers, Music, Palette, Shapes, Type } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { elementsCourants, useEditeur } from "../etat/editeur";
@@ -22,9 +22,10 @@ import { PanneauImages } from "./panneaux/PanneauImages";
 import { PanneauMarque } from "./panneaux/PanneauMarque";
 import { PanneauModeles } from "./panneaux/PanneauModeles";
 import { PanneauPhotos } from "./panneaux/PanneauPhotos";
+import { PanneauProjets } from "./panneaux/PanneauProjets";
 import { PanneauTextes } from "./panneaux/PanneauTextes";
 
-type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "3d" | "audio" | "marque" | "dessin" | "calques";
+type Onglet = "modeles" | "elements" | "textes" | "photos" | "images" | "3d" | "audio" | "marque" | "dessin" | "projets" | "calques";
 
 const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode; aide: string }[] = [
   { id: "modeles", libelle: "Modèles", icone: <LayoutTemplate size={22} />, aide: "Modèles : des designs prêts à reprendre, et les tiens" },
@@ -36,6 +37,7 @@ const ONGLETS: { id: Onglet; libelle: string; icone: ReactNode; aide: string }[]
   { id: "audio", libelle: "Audio", icone: <Music size={22} />, aide: "Audio : musiques, bruitages, voix au micro ou de synthèse, pour une page vidéo" },
   { id: "marque", libelle: "Marque", icone: <Palette size={22} />, aide: "Marque : tes couleurs, tes polices, tes logos et tes jingles, gardés d'un design à l'autre" },
   { id: "dessin", libelle: "Dessin", icone: <Brush size={22} />, aide: "Dessin : crayon, marqueur, surligneur et gomme, à main levée" },
+  { id: "projets", libelle: "Projets", icone: <FolderOpen size={22} />, aide: "Projets : tes autres designs ; reprendre leurs pages, leurs photos ou leurs sons dans celui-ci, ou les ouvrir" },
   { id: "calques", libelle: "Calques", icone: <Layers size={22} />, aide: "Calques : l'ordre des objets, leurs noms ; glisser une ligne pour passer devant ou derrière" },
 ];
 
@@ -87,7 +89,7 @@ export function BarreLaterale() {
   };
   return (
     <aside className="flex shrink-0">
-      <nav className="flex w-[72px] flex-col items-center gap-1 border-r border-neutral-200 bg-white py-2">
+      <nav className="flex w-[72px] flex-col items-center gap-1 overflow-y-auto border-r border-neutral-200 bg-white py-2 defilement-fin">
         {ONGLETS.map((o) => (
           <button
             key={o.id}
@@ -123,6 +125,7 @@ export function BarreLaterale() {
           {onglet === "audio" && <PanneauAudio />}
           {onglet === "marque" && <PanneauMarque />}
           {onglet === "dessin" && <PanneauDessin />}
+          {onglet === "projets" && <PanneauProjets />}
           {onglet === "calques" && <PanneauCalques />}
         </div>
       )}

@@ -147,8 +147,17 @@ lourd. Détail : `BRIEF.md`.
   photographe, liens vers les sites des banques réparés ; pont : `source` et deux outils, 79
   outils), construit le 2026-10-17 avant la clé, vérifié contre un faux Pexels ; il s'allume dès
   que `PEXELS_API_KEY` est dans le `.env` (Pexels suspend encore les nouvelles clés le
-  2026-10-17) ; essai : « Essayer Pexels (étape 7, lot 5) ». Après ces livraisons : recompiler
-  l'application (commande 9, des droits de la fenêtre ont changé) et le pont (commande 13).
+  2026-10-17) ; essai : « Essayer Pexels (étape 7, lot 5) ». Vérification de toute l'étape le
+  2026-10-17 (relecture contre le BRIEF ; trois manques comblés : l'onglet Projets du rail, qui
+  reprend les pages, les images et les sons d'un autre design, la recherche de l'onglet
+  Importer, les photos et vidéos de Pexels dans les crédits à recopier ; la police du poste suit
+  une page reprise ; un défaut corrigé : la miniature d'un design quitté pour un autre depuis
+  l'éditeur ; pont : `reprendre_design`, 80 outils ; une story faite de bout en bout par le pont
+  dans Tauri) ; essai : « Essayer l'étape 7 en entier : une story d'automne ».
+- **Le produit est fini** (les sept étapes du BRIEF, le 2026-10-17). Le rapport de fin, avec
+  les commandes à lancer avant les essais et l'ordre des parcours : section « Avant les essais :
+  les commandes, dans l'ordre » du `01_application/LISEZMOI.md`. Restent : les essais
+  d'Alexandre et leurs corrections, le mini PC, la clé Pexels.
 - Essais d'Alexandre : tous à la fin, une fois le produit fini, et les corrections à ce
   moment-là (décision du 2026-10-16). Jusque-là, ne pas lui demander d'essai ni de commande
   après chaque lot ; les commandes à lancer avant les essais (compilations, installations
@@ -380,7 +389,7 @@ environ : rien n'est enregistré du vrai micro.
 cd /home/nushoko/Bureau/Logiciels/Eliot/01_application && npm test
 ```
 
-Vérifier : `Tests  300 passed`.
+Vérifier : `Tests  306 passed`.
 
 ### Le pont vers une IA (fin de l'étape 2)
 

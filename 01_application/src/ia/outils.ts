@@ -8,7 +8,7 @@ import { apercuCoupe, couperLesBlancs, creerLesSousTitres, useParole, whisperPre
 import { clipsACouper, estHesitation, OPTIONS_BLANCS, SILENCE_MIN, type LangueParole } from "../modele/parole";
 import { ajusterSousTitres, centreParDefaut, estSousTitre, motsDeLaPage, retirerSousTitres, sourcesDeParole, STYLES_SOUS_TITRES } from "../modele/sousTitres";
 import { enregistrerMaintenant } from "../etat/enregistrement";
-import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, utiliserModele } from "../etat/projets";
+import { copierPoliceDansDesign, nouveauDesign, ouvrirDesign, renommerDesign, reprendrePages, reprendreRessources, utiliserModele } from "../etat/projets";
 import { bornerQualite, echellesPossibles, exporter, FORMATS_DU_NOYAU, LIBELLES_EXPORT } from "../export/exporter";
 import { exporterVideo, type IdPlateforme } from "../export/video";
 import { rendrePage, rendreZones } from "../export/rendu";
@@ -16,7 +16,7 @@ import { collection as collectionBibliotheque, nomsEmojis, rechercher, traces, u
 import { catalogueConnu, cataloguePersonnages, svgDeSource } from "../bibliotheque/personnages";
 import { piecesAuHasard, piecesValides, posture as postureDe, trouverDessin, vueComposee, type CollectionPersonnages } from "../modele/personnages";
 import { APPAREILS, DISPOSITIONS } from "../modele/cadres";
-import { creerCadre, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId, recomposerTexte } from "../modele/fabriques";
+import { creerCadre, creerDepuisRessource, creerEmoji, creerPersonnage, creerForme, creerGraphique, creerGrille, creerIcone, creerImage, creerMaquette, creerObjet3d, creerQr, creerTableau, creerTexte, creerVideo, mesurerHauteurTexte, nouvelId, recomposerTexte } from "../modele/fabriques";
 import { estCourbe } from "../modele/texteCourbe";
 import {
   DECALAGE_MAX,
@@ -76,14 +76,14 @@ import { creerTrait, OUTILS_DESSIN } from "../modele/dessin";
 import { GENRES_GRAPHIQUE, PALETTE_GRAPHIQUE, seriesValides } from "../modele/graphiques";
 import { mesurePolice } from "../modele/mesure";
 import { cellulesValides, disposerTableau } from "../modele/tableaux";
-import { ajouterVoixDite, chercherFreesound, dansTauri, chercherPixabay, chercherVideosPixabay, chercherPolyHaven, chercherSketchfab, estCheminEnvironnement, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatSketchfab, urlApercuPolyHaven, urlApercuSketchfab, type LicencesSketchfab, etatPiper, etatPixabay, etatPexels, chercherPexels, chercherVideosPexels, urlApercuPexels, urlApercuVideoPexels, type OrientationPexels, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
+import { ajouterVoixDite, chercherFreesound, dansTauri, ouvrirProjet, ressourcesDuDesign, urlRessource, chercherPixabay, chercherVideosPixabay, chercherPolyHaven, chercherSketchfab, estCheminEnvironnement, estCheminModele, estCheminSon, estCheminVideo, etatFreesound, etatSketchfab, urlApercuPolyHaven, urlApercuSketchfab, type LicencesSketchfab, etatPiper, etatPixabay, etatPexels, chercherPexels, chercherVideosPexels, urlApercuPexels, urlApercuVideoPexels, type OrientationPexels, horizonLabo, importerChemins, listerProjets, urlApercuPixabay, urlApercuVideoPixabay, type FormatExport, type GenreFreesound, type PhotoPixabay, type VideoPixabay } from "../pont/tauri";
 import { avecSuivi, suiviFichiers, suiviSons } from "../editeur/SuiviImport";
 import { remplacerPar } from "../editeur/remplacer";
 import { useTemps } from "../etat/temps";
 import { estPageVideo, pistesDe, PISTE_PRINCIPALE, versVideo } from "../modele/frise";
 import { CATALOGUE, definitionAnimation, dureeConseillee, DUREE_TRANSITION, estAnimationUnites, poseA, TRANSITIONS, type GenreAnimation } from "../modele/animation";
 import { animationsPour, STYLES_VIDEO, styleVideo } from "../modele/stylesVideo";
-import type { Animations, ClipAudio, CleAnimation, CoupPinceau, ElementTexte, NettoyageVoix, RoleSon } from "../modele/types";
+import type { Animations, ClipAudio, CleAnimation, CoupPinceau, ElementTexte, NettoyageVoix, RefProjet, RoleSon } from "../modele/types";
 import { nomSon } from "../editeur/frise/ClipSon";
 import { VITESSES } from "../editeur/ReglagesVideo";
 import { assurerPolice, polices } from "../polices";
@@ -967,6 +967,60 @@ const OUTILS: Record<string, Outil> = {
       exiger(await ouvrirDesign({ rayon: "designs", id }), `ouverture impossible : ${id}`);
     }
     return { donnees: resumer() };
+  },
+
+  async reprendre_design(args) {
+    designOuvert();
+    const id = texte(args.design);
+    exiger(id, "design : l'identifiant d'un autre design, donné par lister_designs");
+    const ouvert = etat().projet!;
+    exiger(!(ouvert.rayon === "designs" && ouvert.id === id), "c'est le design ouvert : pages, action dupliquer, copie la page affichée");
+    const info = (await listerProjets("designs")).find((d) => d.id === id);
+    exiger(info, `design introuvable : ${id} (voir lister_designs)`);
+    const source: RefProjet = { rayon: "designs", id: id! };
+    const { document } = await ouvrirProjet(source);
+    // Les environnements HDRI suivent leurs modèles 3D, avec les pages ; ils ne se posent pas.
+    const ressources = (await ressourcesDuDesign(source)).filter((r) => !r.environnement3d);
+    const visuels = ressources.filter((r) => !r.son);
+    const sons = ressources.filter((r) => r.son);
+    const numeros = Array.isArray(args.pages) ? args.pages.map((n) => Number(n)) : [];
+    const ids = Array.isArray(args.ressources) ? args.ressources.map((r) => String(r)) : [];
+    if (numeros.length === 0 && ids.length === 0) {
+      const genre = (r: Ressource) => (r.modele3d ? "modele3d" : r.video ? "video" : "photo");
+      const donnees = {
+        design: { id: info!.id, nom: info!.nom, largeur: document.format.largeur, hauteur: document.format.hauteur, pages: document.pages.map((p, i) => ({ numero: i + 1, elements: p.elements.length, ...(p.duree !== undefined ? { video_s: p.duree / 1000 } : {}) })) },
+        visuels: visuels.map((r, i) => ({ numero: i + 1, id: r.id, nom: r.nom, genre: genre(r), largeur: r.largeur, hauteur: r.hauteur, ...(r.video ? { duree_s: r.video.duree / 1000 } : {}), ...(r.credit ? { credit: `${r.credit.auteur} sur ${r.credit.source}` } : {}) })),
+        sons: sons.map((r) => ({ id: r.id, nom: r.nom, duree_s: r.son!.duree / 1000, ...(r.credit ? { credit: `${r.credit.auteur} sur ${r.credit.source}` } : {}) })),
+        conseil: "reprendre_design avec pages (numéros) ajoute ces pages après la page affichée ; avec ressources (identifiants), les copie et les pose. La planche montre les visuels, numérotés.",
+      };
+      if (visuels.length === 0) return { donnees };
+      return { donnees, image: await base64(await planche(visuels.map((r) => () => urlRessource(source, r.id, "miniature")), 240, 180, false)) };
+    }
+    for (const n of numeros) exiger(Number.isInteger(n) && n >= 1 && n <= document.pages.length, `pages : des numéros de 1 à ${document.pages.length}`);
+    for (const r of ids) exiger(ressources.some((x) => x.id === r), `ressource introuvable dans « ${info!.nom} » : ${r} (reprendre_design sans pages ni ressources la liste)`);
+    useTemps.getState().pause();
+    const donnees: Record<string, unknown> = {};
+    if (numeros.length) {
+      const posees = await reprendrePages(source, document, numeros);
+      const pages = etat().document.pages;
+      donnees.pages = posees.map((p) => pages.findIndex((x) => x.id === p.id) + 1);
+      donnees.page_affichee = pages.findIndex((x) => x.id === etat().pageActive) + 1;
+    }
+    if (ids.length) {
+      const copiees = await reprendreRessources(source, ids);
+      const elements: ElementPage[] = [];
+      const clips: string[] = [];
+      for (const r of copiees) {
+        if (r.son) {
+          const c = etat().ajouterSon(r);
+          if (c) clips.push(c);
+        } else elements.push(ajouter(creerDepuisRessource(etat().document.format, r)));
+      }
+      donnees.elements = elements;
+      if (clips.length) donnees.sons = (pageCourante(etat()).audio ?? []).filter((c) => clips.includes(c.id)).map(resumerSon);
+      donnees.ressources = copiees;
+    }
+    return { donnees: { ...donnees, design: resumer() } };
   },
 
   async renommer_design(args) {
