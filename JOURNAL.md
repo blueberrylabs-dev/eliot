@@ -5,6 +5,44 @@ titre, ce qui a été décidé, par qui, ce qui a été écarté, et la preuve (
 
 ---
 
+## 2026-10-26, passation à OpenCode
+
+Demande d'Alexandre : « C'est une passation de main. J'aimerais que tu mettes ce dossier en ordre
+pour que Open Code puisse le récupérer et travailler dessus sans problème. C'est une
+continuité. » Ce que Claude a constaté et fait :
+
+- Le dépôt du poste était propre et à jour avec GitHub (`main` = `origin/main`, commit
+  `754074c`). Le point d'entrée, `CLAUDE.md` (657 lignes, 38 Ko), est écrit pour Claude Code.
+  D'après la documentation d'OpenCode (lue le 2026-10-26), OpenCode lit `AGENTS.md` en priorité et
+  ne se rabat sur `CLAUDE.md` que si `AGENTS.md` n'existe pas ; il ne suit pas les références
+  `@fichier` ; et tout ce qu'on lui donne entre dans le contexte de chaque conversation.
+- Fait : `AGENTS.md` (196 lignes), court : ce qu'est Eliot, où on en est, ce que l'agent ne fait
+  jamais sans Alexandre, les règles d'architecture en une ligne chacune, les commandes avec
+  chemin absolu, la carte du dépôt, comment lire les gros fichiers par morceaux, les pièges.
+  `opencode.json` : met en « demande » le `git push`, `gh`, les suppressions, `sudo`, systemd et
+  cron, les réécritures d'historique ; en « refus » le lancement d'Eliot (règle 9) et la lecture du
+  `.env` ; en « demande » la modification du `BRIEF.md` et de `LICENSE`. Validé contre le schéma officiel d'OpenCode
+  (`https://opencode.ai/config.json`, 0 erreur) ; ce schéma marque la clé `permission` comme
+  dépréciée au profit d'une clé `permissions` (liste ordonnée), mais `permission` reste valide et
+  tient dans les versions plus anciennes : à migrer si OpenCode s'en plaint. `CLAUDE.md` pointe vers
+  `AGENTS.md` et garde l'état détaillé et les commandes 1 à 26. `PLAN.md` : deux pistes évoquées
+  par Alexandre, rangées comme non décidées (une IA d'images locale ; la collection 3D de
+  Scenario).
+- Écarté : déplacer les commandes dans un autre fichier (une quarantaine de messages d'erreur du
+  code renvoient à « commande N du `CLAUDE.md` » : il aurait fallu changer le code et ses tests) ;
+  charger `BRIEF.md`, `PLAN.md` et `JOURNAL.md` par le champ `instructions` d'`opencode.json`
+  (plus de 350 Ko dans chaque conversation) ; les champs `share` et `mcp` d'`opencode.json` (non
+  confirmés par la documentation).
+- Non vérifié : les tests. `cargo` n'existe pas dans l'environnement de cette session ; `npm test`
+  s'arrête au démarrage parce que Vitest n'a pas le droit d'effacer son cache
+  (`node_modules/.vitest-cache`). Les chiffres de `AGENTS.md` (146 et 306) sont ceux du
+  2026-10-17, et datés comme tels. À relancer par Alexandre ou par l'agent sur le poste, au
+  premier plan, avant de dire que le départ est vert.
+- À savoir : le pont `eliot` branché à l'application Claude de bureau n'exposait que 22 outils
+  (ajouter_forme, aligner, exporter…), le dépôt en compte 80 (`src/ia/outils.json`) : c'est une
+  ancienne compilation. Pour la remplacer, Alexandre pointe l'application sur `/usr/bin/eliot-mcp`
+  (version installée) ou refait les commandes 13 et 15 bis.
+
 ## 2026-10-17, étape 8 : la publication
 
 Demande d'Alexandre : « tu peux tout faire via gh ». Ses décisions, en réponse aux questions de

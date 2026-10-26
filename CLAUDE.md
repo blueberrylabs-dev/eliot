@@ -1,6 +1,10 @@
 # CLAUDE.md — Eliot
 
-Point d'entrée pour reprendre le projet sans contexte. Version du 2026-10-17.
+Point d'entrée de Claude Code pour reprendre le projet sans contexte. Version du 2026-10-17.
+**Depuis le 2026-10-26, le point d'entrée de tout autre agent (OpenCode en tête) est `AGENTS.md`** :
+court, avec les règles de travail ; OpenCode ne lit que lui quand il existe. Ce fichier-ci garde
+l'état détaillé et les commandes 1 à 26 ; le code y renvoie par leurs numéros (« commande 18 du
+CLAUDE.md »), donc il ne change ni de nom ni de numérotation.
 Règles communes à tous mes projets : `/home/nushoko/Bureau/Projets/00_moi/CONVENTIONS.md`,
 `/home/nushoko/Bureau/Projets/00_moi/AUTONOMIE.md`. Qui je suis :
 `/home/nushoko/Bureau/Projets/00_moi/IDENTITE.md`.

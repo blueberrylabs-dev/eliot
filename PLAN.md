@@ -740,3 +740,38 @@ Choix par défaut de Claude, modifiables sur simple demande :
       publié : empreinte bonne, identique au paquet vérifié.
 - [ ] Après les essais d'Alexandre et leurs corrections : la version 1.0.0 (commande 26 du
       `CLAUDE.md`).
+
+## Pistes évoquées après la 0.9.0 (non décidées)
+
+Rangées ici le 2026-10-26, à la passation, pour ne pas se perdre. Aucune n'est au BRIEF ni au
+plan des étapes : chacune demande un cadrage écrit, puis l'accord d'Alexandre, avant le premier
+code ; et elles passent après ses essais et leurs corrections.
+
+- [ ] **Une IA d'images locale à côté d'Eliot (Qwen-Image 2.1, par ComfyUI).** Question
+      d'Alexandre après la publication : que l'IA crée des images avec Qwen-Image, puis les
+      retravaille dans Eliot. Deux voies : un serveur MCP de ComfyUI à côté de `eliot-mcp` (Eliot
+      ne change pas, l'IA relaie les images), ou un outil de plus dans `eliot-mcp` qui appelle
+      ComfyUI (Eliot sait alors « générer une image »). À trancher au cadrage : laquelle ; la
+      règle 9 (la génération occupe la carte graphique : lancement à la main, jamais par Eliot ni
+      par l'IA) ; la règle 12 (ComfyUI est local, donc compatible avec « hors ligne par défaut »).
+      Licence : d'après la fiche lue alors, Qwen-Image 2.1 est sous une licence de recherche
+      (usage non commercial) : à relire avant d'en faire une fonction, et rien à embarquer dans
+      le paquet.
+- [ ] **Une quatrième banque 3D : la collection de Scenario.** Question d'Alexandre du
+      2026-10-23 : peut-on utiliser le jeu de données `scenario-labs/3d-collection` (Hugging
+      Face) ? Réponse : oui, licence CC BY 4.0, crédit « Scenario », usage commercial permis,
+      comme les modèles Sketchfab déjà acceptés ; le crédit se garde avec le modèle (`infos/`) et
+      part dans les crédits à recopier. Réserves : tout est généré par IA, par une cinquantaine
+      de générateurs (la licence n'est solide que si Scenario avait le droit de la donner ; des
+      objets ressemblent à des produits de marque, donc prendre des objets génériques pour une
+      publicité) ; environ 1 342 exemples et 33 Go de GLB (médiane 11 Mo, 10 % au-dessus de
+      68 Mo) ; sur quatre modèles essayés, trois font environ 2 millions de triangles avec des
+      textures de 4096 px (le noyau ne simplifie rien : la limite de 300 Mo passe, mais le rendu
+      et l'export seront lourds) ; la collection compagnon `3d-collection-hunyuan` est exclue
+      (licences Tencent, non valables dans l'Union européenne, accès sur demande). Avis de
+      Claude : ne rien embarquer ; si l'envie de s'en servir revient souvent, une banque à la
+      demande comme Poly Haven (aperçu et poids affichés, seulement les GLB raisonnables,
+      téléchargement à la demande, crédit posé automatiquement). Sans attendre, à la main :
+      télécharger un GLB, l'importer, écrire « Modèle 3D : Scenario, CC BY 4.0 » sous la
+      publication. Sources : https://huggingface.co/datasets/scenario-labs/3d-collection et
+      https://creativecommons.org/licenses/by/4.0/legalcode.

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git push*": "ask",
+      "git reset --hard*": "ask",
+      "git clean*": "ask",
+      "git rebase*": "ask",
+      "git commit --amend*": "ask",
+      "git branch -D*": "ask",
+      "git rm*": "ask",
+      "gh *": "ask",
+      "rm *": "ask",
+      "rmdir *": "ask",
+      "unlink *": "ask",
+      "find *-delete*": "ask",
+      "cargo clean*": "ask",
+      "sudo *": "ask",
+      "systemctl *": "ask",
+      "crontab *": "ask",
+      "npm run tauri*": "deny",
+      "npx tauri*": "deny",
+      "cargo tauri*": "deny",
+      "eliot": "deny",
+      "eliot *": "deny",
+      "/usr/bin/eliot": "deny",
+      "/usr/bin/eliot *": "deny",
+      "cat *.env*": "deny",
+      "head *.env*": "deny",
+      "tail *.env*": "deny",
+      "less *.env*": "deny",
+      "source *.env*": "deny"
+    },
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.env.example": "allow"
+    },
+    "edit": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*BRIEF.md": "ask",
+      "*LICENSE": "ask"
+    }
+  }
+}
